@@ -1,0 +1,167 @@
+import std/fs::{Metadata}
+import std/fs
+import std/io::{File, println, remove_file}
+import std/string::{String}
+import core/result::{Result}
+import core/types::{usize, Addr}
+import std/sys/macos
+import core/libc::{libc_printf, libc_strcmp}
+
+fn main() -> i32 {
+    unsafe {
+        auto filename = String::from("test_meta.txt")
+        auto dirname = String::from("test_meta_dir")
+        
+        // Debug path
+        libc_printf("Debug dirname: %s\n", dirname.c_str())
+
+        // Cleanup first
+        if fs::exists(filename.clone()) { 
+            println("Removing existing file: {}", filename.clone())
+            remove_file(filename.clone()) 
+        }
+        if fs::exists(dirname.clone()) { 
+            libc_printf("Exists: %s\n", dirname.c_str())
+            
+            // Check if directory
+            auto m_res = fs::metadata(dirname.clone())
+            match m_res {
+                auto Result<Metadata, String>::Ok(m) => {
+                    if m.is_dir() {
+                        println("Is Dir")
+                        unsafe {
+                            // Direct call to avoid errno clobbering
+                            auto res_rm = macos::rmdir_impl(dirname.c_str() as Addr)
+                            
+                            if !res_rm {
+                                auto e = macos::get_last_error()
+                                libc_printf("Cleanup Rmdir failed, errno: %d\n", e)
+                                
+                                if e == 66 { // ENOTEMPTY
+                                    println("Cleaning dir content...")
+                                    auto iter# = fs::read_dir(dirname.clone())
+                                    auto entry# = iter.next()
+                                    while entry.len() > 0 {
+                                        auto is_dot = libc_strcmp(entry.c_str(), ".") == 0
+                                        auto is_dotdot = libc_strcmp(entry.c_str(), "..") == 0
+                                        
+                                        if !is_dot && !is_dotdot {
+                                            libc_printf("Found: %s\n", entry.c_str())
+                                            auto full_p# = dirname.clone()
+                                            full_p#.push_str("/")
+                                            full_p#.push_str(entry.c_str())
+                                            
+                                            // Try remove items
+                                            if !remove_file(full_p.clone()) {
+                                                 if !macos::rmdir_impl(full_p.c_str() as Addr) {
+                                                     libc_printf("Failed to remove child %s\n", full_p.c_str())
+                                                 }
+                                            }
+                                        }
+                                        entry = iter.next()
+                                    }
+                                    iter#.close()
+                                    
+                                    if macos::rmdir_impl(dirname.c_str() as Addr) {
+                                        println("Retry remove_dir success")
+                                    } else {
+                                        println("Retry remove_dir failed")
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        println("Is File")
+                        remove_file(dirname.clone())
+                    }
+                }
+                auto Result<Metadata, String>::Err(e) => {
+                     println("Metadata failed: {}", e)
+                }
+            }
+        }
+        
+        // 1. Create File and Write
+        {
+            auto f_res = File::open(filename.clone(), String::from("w"))
+            match f_res {
+                auto Result<File, String>::Ok(f#) => {
+                    f.write(String::from("Hello Metadata"))
+                    f#.close()
+                }
+                auto Result<File, String>::Err(e) => {
+                    println("Failed to write file: {}", e)
+                    return 1
+                }
+            }
+        }
+        
+        // 2. Check File Metadata
+        {
+            auto meta_res = fs::metadata(filename.clone())
+            match meta_res {
+                auto Result<Metadata, String>::Ok(m) => {
+                    println("Mode: {}", m.mode as i32)
+                    if !m.is_file() {
+                        println("Error: Should be file")
+                        return 2
+                    }
+                    if m.is_dir() {
+                        println("Error: Should not be dir")
+                        return 3
+                    }
+                    if m.len() == 0:u64 {
+                        println("Error: Size should be > 0, got {}", m.len() as i32)
+                        return 4
+                    }
+                    println("File size: {}", m.len() as i32)
+                }
+                auto Result<Metadata, String>::Err(e) => {
+                    println("Metadata failed for file: {}", e)
+                    return 5
+                }
+            }
+        }
+
+        // 3. Create Dir
+        println("Creating dir: {}", dirname.clone())
+        // println("Dirname c_str: {}", dirname.c_str() as usize) 
+        if !fs::create_dir(dirname.clone()) {
+            println("Failed to create dir: {}", dirname.clone())
+            // errno 17 = EEXIST
+             unsafe {
+                auto err = macos::get_last_error()
+                println("Errno: {}", err)
+            }
+            return 9
+        }
+        
+        // 4. Check Dir Metadata
+        {
+            auto meta_res = fs::metadata(dirname.clone())
+            match meta_res {
+                auto Result<Metadata, String>::Ok(m) => {
+                    if !m.is_dir() {
+                        println("Error: Should be dir")
+                        return 6
+                    }
+                    if m.is_file() {
+                        println("Error: Should not be file")
+                        return 7
+                    }
+                }
+                auto Result<Metadata, String>::Err(e) => {
+                    println("Metadata failed for dir: {}", e)
+                    return 8
+                }
+            }
+        }
+        
+        // Cleanup
+        remove_file(filename)
+        fs::remove_dir(dirname)
+    }
+    
+    println("FS Metadata Test Passed")
+    return 0
+}

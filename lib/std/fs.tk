@@ -28,15 +28,15 @@ fn call_closedir(h: Addr) {
 }
 
 fn call_opendir(path: String) -> Addr {
-    return sys::opendir_impl(path)
+    return sys::opendir_impl(path.c_str() as Addr)
 }
 
-fn call_mkdir(path: String) -> bool {
-    return sys::mkdir_impl(path)
+fn call_mkdir(path_addr: Addr) -> bool {
+    return sys::mkdir_impl(path_addr)
 }
 
 fn call_rmdir(path: String) -> bool {
-    return sys::rmdir_impl(path)
+    return sys::rmdir_impl(path.c_str() as Addr)
 }
 
 pub shape ReadDir (
@@ -86,7 +86,7 @@ pub fn read_dir(path: String) -> ReadDir {
 }
 
 pub fn create_dir(path: String) -> bool {
-    return call_mkdir(path)
+    return call_mkdir(path.c_str() as Addr)
 }
 
 pub fn remove_dir(path: String) -> bool {
@@ -94,11 +94,56 @@ pub fn remove_dir(path: String) -> bool {
 }
 
 fn call_exists(path: String) -> bool {
-    return sys::path_exists(path)
+    return sys::path_exists(path.c_str() as Addr)
 }
 
 pub fn exists(path: String) -> bool {
     unsafe {
         return call_exists(path)
+    }
+}
+
+pub shape Metadata(
+    len: u64,
+    mode: u32,
+    modified: i64
+)
+
+impl Metadata {
+     pub fn is_dir(self) -> bool {
+         return sys::stat_is_dir_impl(self.mode)
+     }
+     
+     pub fn is_file(self) -> bool {
+         return sys::stat_is_file_impl(self.mode)
+     }
+     
+     pub fn len(self) -> u64 {
+         return self.len
+     }
+     
+     // Returns unix timestamp in seconds
+     pub fn modified(self) -> i64 {
+         return self.modified
+     }
+}
+
+alias FsResult = Result<Metadata, String>
+
+pub fn metadata(path: String) -> Result<Metadata, String> {
+    unsafe {
+        auto handle = sys::stat_impl(path.c_str() as Addr)
+        if handle == 0:Addr {
+            return FsResult::Err(String::from("Path not found"))
+        }
+        
+        auto m = Metadata(
+            len = sys::stat_get_size_impl(handle),
+            mode = sys::stat_get_mode_impl(handle),
+            modified = sys::stat_get_mtime_impl(handle)
+        )
+        
+        sys::stat_free_impl(handle)
+        return FsResult::Ok(m)
     }
 }

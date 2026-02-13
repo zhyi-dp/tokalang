@@ -34,15 +34,15 @@ pub fn get_arg_impl(i: i32) -> String {
 
 // === File System ===
 
-pub fn opendir_impl(path: String) -> Addr {
+pub fn opendir_impl(path: Addr) -> Addr {
     unsafe {
-        return libc_opendir(path.c_str())
+        return libc_opendir(path as *char)
     }
 }
 
 pub fn readdir_impl(dir_handle: Addr) -> String {
     unsafe {
-        auto entry = libc_readdir(dir_handle as Addr) // returns Addr
+        auto entry = libc_readdir(dir_handle) // returns Addr
         if entry == ADDR0 {
             return String::from("") 
         }
@@ -57,28 +57,91 @@ pub fn readdir_impl(dir_handle: Addr) -> String {
 
 pub fn closedir_impl(dir_handle: Addr) {
     unsafe {
-        libc_closedir(dir_handle as Addr)
+        libc_closedir(dir_handle)
     }
 }
 
-pub fn mkdir_impl(path: String) -> bool {
+pub fn mkdir_impl(path: Addr) -> bool {
     unsafe {
         // 0755 = 493 in decimal
-        return libc_mkdir(path.c_str(), 493) == 0
+        return libc_mkdir(path as *char, 493) == 0
     }
 }
 
-pub fn rmdir_impl(path: String) -> bool {
+pub fn rmdir_impl(path: Addr) -> bool {
     unsafe {
-        return libc_rmdir(path.c_str()) == 0
+        return libc_rmdir(path as *char) == 0
     }
 }
 
-pub fn path_exists(path: String) -> bool {
+pub fn path_exists(path: Addr) -> bool {
     unsafe {
         // Use access(path, F_OK=0)
-        return libc_access(path.c_str(), 0) == 0
+        return libc_access(path as *char, 0) == 0
     }
+}
+
+pub fn stat_impl(path: Addr) -> Addr {
+    unsafe {
+        auto *buf# = libc_malloc(144:usize) // 144 bytes for struct stat
+        // buf is the soul (void), *buf is the handle (*void)
+        // To check for null, we compare the handle
+        if *buf == (0:Addr as *void) {
+             return ADDR0
+        }
+        
+        auto res = libc_stat(path as *char, *buf as Addr)
+        if res != 0 {
+            libc_free(*buf)
+            return ADDR0
+        }
+        
+        return *buf as Addr
+    }
+}
+
+pub fn stat_free_impl(handle: Addr) {
+    unsafe {
+        libc_free(handle as *void)
+    }
+}
+
+pub fn stat_get_mode_impl(handle: Addr) -> u32 {
+    unsafe {
+        // st_mode offset 8 (legacy), u16
+        auto ptr_val = handle as usize + 8
+        auto *p = ptr_val as *u16
+        return p as u32 // Return soul (value)
+    }
+}
+
+pub fn stat_get_size_impl(handle: Addr) -> u64 {
+    unsafe {
+        // st_size offset 72 (legacy), i64
+        auto ptr_val = handle as usize + 72
+        auto *p = ptr_val as *i64
+        return p as u64 // Return soul (value)
+    }
+}
+
+pub fn stat_get_mtime_impl(handle: Addr) -> i64 {
+    unsafe {
+        // st_mtime offset 40 (legacy), i64 (seconds)
+        auto ptr_val = handle as usize + 40
+        auto *p = ptr_val as *i64
+        return p // Return soul (value)
+    }
+}
+
+// 0xF000 = 61440
+// 0x4000 = 16384 (DIR)
+// 0x8000 = 32768 (REG)
+pub fn stat_is_dir_impl(mode: u32) -> bool {
+    return (mode band 61440:u32) == 16384:u32
+}
+
+pub fn stat_is_file_impl(mode: u32) -> bool {
+    return (mode band 61440:u32) == 32768:u32
 }
 
 // === Environment ===
@@ -96,9 +159,9 @@ pub fn getcwd_impl() -> String {
     }
 }
 
-pub fn chdir_impl(path: String) -> bool {
+pub fn chdir_impl(path: Addr) -> bool {
     unsafe {
-        return libc_chdir(path.c_str()) == 0
+        return libc_chdir(path as *char) == 0
     }
 }
 
