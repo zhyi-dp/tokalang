@@ -40,6 +40,8 @@ static std::unordered_map<std::string, TokenType> Keywords = {
     {"final", TokenType::KwFinal},
     {"Fn", TokenType::KwFnType},
     {"if", TokenType::KwIf},
+    {"guard", TokenType::KwGuard},
+    {"nul", TokenType::KwNul},
     {"else", TokenType::KwElse},
     {"match", TokenType::KwMatch},
     {"case", TokenType::KwCase},
@@ -200,12 +202,8 @@ Token Lexer::identifier() {
       kind == TokenType::KwUpperSelf) {
     if (match('#'))
       t.HasWrite = true;
-    else if (peek() == '?' && peekNext() != '?') {
-      advance();
-      t.HasNull = true;
-    } else if (match('!')) {
+    else if (match('!')) {
       t.HasWrite = true;
-      t.HasNull = true;
     } else if (match('$')) {
       t.IsBlocked = true;
     }

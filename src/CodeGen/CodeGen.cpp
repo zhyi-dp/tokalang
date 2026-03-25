@@ -71,6 +71,8 @@ PhysEntity CodeGen::genExpr(const Expr *expr) {
     return genMatchExpr(e);
   if (auto e = dynamic_cast<const IfExpr *>(expr))
     return genIfExpr(e);
+  if (auto e = dynamic_cast<const GuardExpr *>(expr))
+    return genGuardExpr(e);
   if (auto e = dynamic_cast<const WhileExpr *>(expr))
     return genWhileExpr(e);
   if (auto e = dynamic_cast<const LoopExpr *>(expr))

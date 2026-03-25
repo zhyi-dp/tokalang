@@ -1906,6 +1906,104 @@ PhysEntity CodeGen::genIfExpr(const IfExpr *ie) {
   return m_Builder.CreateLoad(m_Builder.getInt32Ty(), resultAddr, "if_result");
 }
 
+PhysEntity CodeGen::genGuardExpr(const GuardExpr *guard) {
+  llvm::AllocaInst *resultAddr =
+      m_Builder.CreateAlloca(m_Builder.getInt32Ty(), nullptr, "guard_result_addr");
+  m_Builder.CreateStore(m_Builder.getInt32(0), resultAddr);
+
+  llvm::Value *condVal = nullptr;
+  if (auto *unary = dynamic_cast<const UnaryExpr *>(guard->Condition.get())) {
+    if (unary->Op == TokenType::Caret || unary->Op == TokenType::Star ||
+        unary->Op == TokenType::Tilde || unary->Op == TokenType::Ampersand) {
+      llvm::Value *identityAddr = emitHandleAddr(unary->RHS.get());
+      if (identityAddr) {
+        llvm::Type *handleTy = nullptr;
+        if (unary->RHS->ResolvedType)
+            handleTy = getLLVMType(unary->RHS->ResolvedType);
+        else
+            handleTy = m_Builder.getPtrTy();
+            
+        if (auto *v = dynamic_cast<const VariableExpr *>(unary->RHS.get())) {
+            std::string baseName = v->Name;
+            while (!baseName.empty() && (baseName[0] == '*' || baseName[0] == '^' ||
+                                        baseName[0] == '~' || baseName[0] == '&'))
+                baseName = baseName.substr(1);
+            if (m_Symbols.count(baseName)) {
+                TokaSymbol &sym = m_Symbols[baseName];
+                if (sym.morphology == Morphology::Shared) {
+                    llvm::Type *ptrTy = llvm::PointerType::getUnqual(sym.soulType);
+                    llvm::Type *refTy =
+                        llvm::PointerType::getUnqual(llvm::Type::getInt32Ty(m_Context));
+                    handleTy = llvm::StructType::get(m_Context, {ptrTy, refTy});
+                } else if (sym.morphology == Morphology::Unique ||
+                        sym.morphology == Morphology::Raw) {
+                    handleTy = m_Builder.getPtrTy();
+                }
+            }
+        }
+        condVal = m_Builder.CreateLoad(handleTy, identityAddr, "guard.direct.load");
+      }
+    }
+  }
+
+  if (!condVal) {
+    PhysEntity cond_ent = genExpr(guard->Condition.get()).load(m_Builder);
+    condVal = cond_ent.load(m_Builder);
+  }
+
+  if (!condVal)
+    return nullptr;
+
+  llvm::Value *condBool = nullptr;
+  if (condVal->getType()->isPointerTy()) {
+    condBool = m_Builder.CreateIsNotNull(condVal, "guard_not_null");
+  } else if (condVal->getType()->isStructTy() && condVal->getType()->getStructNumElements() == 2) {
+    llvm::Value *dataPtr = m_Builder.CreateExtractValue(condVal, 0, "guard_sh_ptr");
+    condBool = m_Builder.CreateIsNotNull(dataPtr, "guard_sh_not_null");
+  } else if (condVal->getType()->isStructTy() && condVal->getType()->getStructNumElements() == 1) {
+    llvm::Value *inner = m_Builder.CreateExtractValue(condVal, 0);
+    if (inner->getType()->isPointerTy()) {
+      condBool = m_Builder.CreateIsNotNull(inner, "guard_not_null");
+    } else {
+      condBool = m_Builder.CreateICmpNE(inner, llvm::ConstantInt::get(inner->getType(), 0));
+    }
+  } else if (condVal->getType()->isIntegerTy()) {
+    condBool = m_Builder.CreateICmpNE(condVal, llvm::ConstantInt::get(condVal->getType(), 0));
+  } else {
+    condBool = m_Builder.CreateICmpNE(condVal, llvm::ConstantInt::get(condVal->getType(), 0));
+  }
+
+  llvm::Function *f = m_Builder.GetInsertBlock()->getParent();
+  llvm::BasicBlock *thenBB = llvm::BasicBlock::Create(m_Context, "guard_then", f);
+  llvm::BasicBlock *elseBB = llvm::BasicBlock::Create(m_Context, "guard_else");
+  llvm::BasicBlock *mergeBB = llvm::BasicBlock::Create(m_Context, "guard_cont");
+
+  m_Builder.CreateCondBr(condBool, thenBB, elseBB);
+
+  m_Builder.SetInsertPoint(thenBB);
+  m_CFStack.push_back({"", mergeBB, nullptr, resultAddr, m_ScopeStack.size()});
+  genStmt(guard->Then.get());
+  m_CFStack.pop_back();
+  llvm::BasicBlock *thenEndBB = m_Builder.GetInsertBlock();
+  if (thenEndBB && !thenEndBB->getTerminator())
+    m_Builder.CreateBr(mergeBB);
+
+  elseBB->insertInto(f);
+  m_Builder.SetInsertPoint(elseBB);
+  if (guard->Else) {
+    m_CFStack.push_back({"", mergeBB, nullptr, resultAddr, m_ScopeStack.size()});
+    genStmt(guard->Else.get());
+    m_CFStack.pop_back();
+  }
+  llvm::BasicBlock *elseEndBB = m_Builder.GetInsertBlock();
+  if (elseEndBB && !elseEndBB->getTerminator())
+    m_Builder.CreateBr(mergeBB);
+
+  mergeBB->insertInto(f);
+  m_Builder.SetInsertPoint(mergeBB);
+  return m_Builder.CreateLoad(m_Builder.getInt32Ty(), resultAddr, "guard_result");
+}
+
 PhysEntity CodeGen::genWhileExpr(const WhileExpr *we) {
   llvm::Function *f = m_Builder.GetInsertBlock()->getParent();
   llvm::BasicBlock *condBB =

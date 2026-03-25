@@ -23,7 +23,7 @@ fn main() -> i32 {
         
         // 2. Point-Value Duality: ptr is the object
         println("ptr.x = {} (expected 10)", ptr.x)
-        ptr#.x = 100
+        ptr.x = 100
         println("After ptr#.x = 100, ptr.x = {} (expected 100)", ptr.x)
         
         // 3. Identity access: *ptr is the pointer address

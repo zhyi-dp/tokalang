@@ -35,33 +35,42 @@ std::unique_ptr<Stmt> Parser::parseVariableDecl(bool isPub) {
   bool hasPointer = false;
   bool isUnique = false;
   bool isShared = false;
-  bool isPtrNullable = false;
+  bool isPtrNullable = match(TokenType::KwNul); // [New Rule] nul pointer modifier
   bool isRebindable = false;
   bool isRebindBlocked = false;
 
+  std::string morphologyPrefix = "";
+
   if (match(TokenType::Ampersand)) {
     isRef = true;
+    morphologyPrefix = "&";
     Token tok = previous();
     isRebindable = tok.IsSwappablePtr;
-    isPtrNullable = tok.HasNull;
+    isPtrNullable = isPtrNullable || tok.HasNull;
     isRebindBlocked = tok.IsBlocked;
+    if (isPtrNullable) {
+      error(tok, "Borrowed pointers (&) cannot be nullable");
+    }
   } else if (match(TokenType::Caret)) {
     isUnique = true;
+    morphologyPrefix = "^";
     Token tok = previous();
     isRebindable = tok.IsSwappablePtr;
-    isPtrNullable = tok.HasNull;
+    isPtrNullable = isPtrNullable || tok.HasNull;
     isRebindBlocked = tok.IsBlocked;
   } else if (match(TokenType::Star)) {
     hasPointer = true;
+    morphologyPrefix = "*";
     Token tok = previous();
     isRebindable = tok.IsSwappablePtr;
-    isPtrNullable = tok.HasNull;
+    isPtrNullable = isPtrNullable || tok.HasNull;
     isRebindBlocked = tok.IsBlocked;
   } else if (match(TokenType::Tilde)) {
     isShared = true;
+    morphologyPrefix = "~";
     Token tok = previous();
     isRebindable = tok.IsSwappablePtr;
-    isPtrNullable = tok.HasNull;
+    isPtrNullable = isPtrNullable || tok.HasNull;
     isRebindBlocked = tok.IsBlocked;
   }
 
@@ -78,7 +87,8 @@ std::unique_ptr<Stmt> Parser::parseVariableDecl(bool isPub) {
     while (!check(TokenType::RParen) && !check(TokenType::EndOfFile)) {
       bool isRef = match(TokenType::Ampersand);
       Token varName = consume(TokenType::Identifier, "Expected variable name");
-      vars.push_back({varName.Text, varName.HasWrite, varName.HasNull,
+      std::string fullVarName = (isRef ? "&" : "") + varName.Text;
+      vars.push_back({fullVarName, varName.HasWrite, varName.HasNull,
                       varName.IsBlocked, isRef});
       if (!match(TokenType::Comma))
         break;
@@ -96,6 +106,7 @@ std::unique_ptr<Stmt> Parser::parseVariableDecl(bool isPub) {
   }
 
   Token name = consume(TokenType::Identifier, "Expected variable name");
+  std::string fullVarName = morphologyPrefix + name.Text;
 
   std::string typeName = "";
   if (match(TokenType::Colon)) {
@@ -107,7 +118,8 @@ std::unique_ptr<Stmt> Parser::parseVariableDecl(bool isPub) {
     init = parseExpr();
   }
 
-  auto node = std::make_unique<VariableDecl>(name.Text, std::move(init));
+  // Use fullVarName uniformly (e.g. `&x` directly as name)
+  auto node = std::make_unique<VariableDecl>(fullVarName, std::move(init));
   node->setLocation(name, m_CurrentFile);
   node->HasPointer = hasPointer;
   node->IsUnique = isUnique;

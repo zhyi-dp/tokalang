@@ -131,17 +131,15 @@ bool PointerType::isCompatibleWith(const Type &target) const {
 }
 
 std::string RawPointerType::toString() const {
-  std::string s = "*";
-  if (IsWritable && IsNullable) {
-    s += "!";
-  } else {
-    if (IsNullable)
-      s += "?";
-    if (IsWritable)
-      s += "#";
-    if (IsBlocked)
-      s += "$";
+  std::string s = "";
+  if (IsNullable) {
+    s += "nul ";
   }
+  s += "*";
+  if (IsWritable)
+    s += "#";
+  if (IsBlocked)
+    s += "$";
   return s + PointeeType->toString();
 }
 
@@ -161,17 +159,15 @@ std::shared_ptr<Type> RawPointerType::withAttributes(bool w, bool n,
 }
 
 std::string UniquePointerType::toString() const {
-  std::string s = "^";
-  if (IsWritable && IsNullable) {
-    s += "!";
-  } else {
-    if (IsNullable)
-      s += "?";
-    if (IsWritable)
-      s += "#";
-    if (IsBlocked)
-      s += "$";
+  std::string s = "";
+  if (IsNullable) {
+    s += "nul ";
   }
+  s += "^";
+  if (IsWritable)
+    s += "#";
+  if (IsBlocked)
+    s += "$";
   return s + PointeeType->toString();
 }
 
@@ -192,17 +188,15 @@ std::shared_ptr<Type> UniquePointerType::withAttributes(bool w, bool n,
 }
 
 std::string SharedPointerType::toString() const {
-  std::string s = "~";
-  if (IsWritable && IsNullable) {
-    s += "!";
-  } else {
-    if (IsNullable)
-      s += "?";
-    if (IsWritable)
-      s += "#";
-    if (IsBlocked)
-      s += "$";
+  std::string s = "";
+  if (IsNullable) {
+    s += "nul ";
   }
+  s += "~";
+  if (IsWritable)
+    s += "#";
+  if (IsBlocked)
+    s += "$";
   return s + PointeeType->toString();
 }
 
@@ -226,17 +220,15 @@ std::shared_ptr<Type> SharedPointerType::withAttributes(bool w, bool n,
 }
 
 std::string ReferenceType::toString() const {
-  std::string s = "&";
-  if (IsWritable && IsNullable) {
-    s += "!";
-  } else {
-    if (IsNullable)
-      s += "?";
-    if (IsWritable)
-      s += "#";
-    if (IsBlocked)
-      s += "$";
+  std::string s = "";
+  if (IsNullable) {
+    s += "nul ";
   }
+  s += "&";
+  if (IsWritable)
+    s += "#";
+  if (IsBlocked)
+    s += "$";
   return s + PointeeType->toString();
 }
 
@@ -466,6 +458,11 @@ std::string Type::stripMorphology(const std::string &name) {
   if (s.empty())
     return "";
 
+  // 0. Strip "nul " prefix
+  if (s.rfind("nul ", 0) == 0) {
+    s = s.substr(4);
+  }
+  
   // 1. Strip Prefixes (*, ^, ~, &) and their modifiers
   size_t start = 0;
   while (start < s.size()) {
@@ -494,6 +491,11 @@ std::string Type::stripPrefixes(const std::string &name) {
   std::string s = name;
   if (s.empty())
     return "";
+
+  // 0. Strip "nul " prefix
+  if (s.rfind("nul ", 0) == 0) {
+    s = s.substr(4);
+  }
 
   size_t start = 0;
   while (start < s.size()) {
@@ -571,21 +573,24 @@ std::shared_ptr<Type> Type::fromString(const std::string &rawType) {
   if (s.empty())
     return std::make_shared<UnresolvedType>(rawType);
 
+  bool explicitPtrNullable = false;
+  if (s.rfind("nul ", 0) == 0) { // starts_with
+    explicitPtrNullable = true;
+    s = trim(s.substr(4));
+  }
+
+  if (s.empty())
+    return std::make_shared<UnresolvedType>(rawType);
+
   char first = s[0];
   if (first == '*' || first == '^' || first == '~' || first == '&') {
     size_t offset = 1;
-    bool ptrNullable = false;
+    bool ptrNullable = explicitPtrNullable;
     bool ptrWritable = false;
     bool ptrBlocked = false;
     while (offset < s.size()) {
-      if (s[offset] == '?') {
-        ptrNullable = true;
-        offset++;
-      } else if (s[offset] == '#') {
+      if (s[offset] == '#') {
         ptrWritable = true;
-        offset++;
-      } else if (s[offset] == '!') {
-        ptrNullable = ptrWritable = true;
         offset++;
       } else if (s[offset] == '$') {
         ptrBlocked = true;

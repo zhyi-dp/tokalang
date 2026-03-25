@@ -884,6 +884,27 @@ public:
   }
 };
 
+class GuardExpr : public Expr {
+public:
+  std::unique_ptr<Expr> Condition;
+  std::unique_ptr<Stmt> Then;
+  std::unique_ptr<Stmt> Else;
+
+  GuardExpr(std::unique_ptr<Expr> cond, std::unique_ptr<Stmt> thenStmt,
+            std::unique_ptr<Stmt> elseStmt = nullptr)
+      : Condition(std::move(cond)), Then(std::move(thenStmt)),
+        Else(std::move(elseStmt)) {}
+
+  std::string toString() const override { return "Guard(...)"; }
+  std::unique_ptr<ASTNode> clone() const override {
+    auto n = std::make_unique<GuardExpr>(cloneNode(Condition), cloneNode(Then),
+                                         cloneNode(Else));
+    n->Loc = Loc;
+    n->ResolvedType = ResolvedType;
+    return n;
+  }
+};
+
 class WhileExpr : public Expr {
 public:
   std::unique_ptr<Expr> Condition;

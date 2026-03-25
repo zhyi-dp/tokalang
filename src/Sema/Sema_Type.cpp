@@ -487,9 +487,15 @@ Sema::instantiateGenericShape(std::shared_ptr<ShapeType> GenericShape) {
         prefix += "*";
 
       std::string fullTypeStr = m.Type;
-      if (!fullTypeStr.empty() && fullTypeStr[0] != '^' &&
-          fullTypeStr[0] != '*' && fullTypeStr[0] != '&' &&
-          fullTypeStr[0] != '~') {
+      bool hasMorphology = false;
+      if (!fullTypeStr.empty()) {
+        char first = fullTypeStr[0];
+        if (first == '^' || first == '*' || first == '&' || first == '~')
+          hasMorphology = true;
+        else if (fullTypeStr.rfind("nul ", 0) == 0)
+          hasMorphology = true;
+      }
+      if (!hasMorphology) {
         fullTypeStr = prefix + m.Type;
       }
       // [NEW] If it's an array with a symbolic size that's one of our generic

@@ -404,10 +404,10 @@ void Sema::checkStmt(Stmt *S) {
       else if (Var->IsReference)
         Morph = "&";
       if (!Morph.empty()) {
+        if (Var->IsRebindable)
+          Morph += "#";
         if (Var->IsPointerNullable)
-          Morph += "?";
-        else if (Var->IsRebindable)
-          Morph += "!";
+          Morph = "nul " + Morph;
         DeclFullTy = Morph + DeclFullTy;
       }
       if (!InitType.empty() && !isTypeCompatible(DeclFullTy, InitType)) {
@@ -445,6 +445,12 @@ void Sema::checkStmt(Stmt *S) {
       morph = "&";
 
     std::string baseType = Var->TypeName;
+    bool hadNul = false;
+    if (baseType.size() > 4 && baseType.substr(0, 4) == "nul ") {
+      hadNul = true;
+      baseType = baseType.substr(4);
+    }
+    
     // Strip redundant sigil from baseType if it matches morph
     if (baseType.size() > 1 && (baseType[0] == '^' || baseType[0] == '~' ||
                                 baseType[0] == '*' || baseType[0] == '&')) {
@@ -454,6 +460,17 @@ void Sema::checkStmt(Stmt *S) {
       } else if (morph[0] == baseType[0]) {
         baseType = baseType.substr(1);
       }
+    }
+    
+    if (baseType.size() > 1 && baseType[0] == '#') {
+       baseType = baseType.substr(1);
+    }
+
+    if (!morph.empty()) {
+      if (Var->IsRebindable && morph.find('#') == std::string::npos)
+        morph += "#";
+      if ((Var->IsPointerNullable || hadNul) && morph.find("nul") == std::string::npos)
+        morph = "nul " + morph;
     }
     if (morph == "&" && !m_LastBorrowSource.empty()) {
       Info.BorrowedFrom = m_LastBorrowSource;
@@ -550,10 +567,7 @@ void Sema::checkStmt(Stmt *S) {
     fullType += morph;
 
     // 2. Identity/Handle prefix attributes
-    if (Var->IsPointerNullable)
-      fullType += "?";
-    if (Var->IsRebindable)
-      fullType += "#";
+    // (Already handled in morph string construction)
 
     // 3. Base Type Name
     fullType += baseType;
@@ -561,7 +575,7 @@ void Sema::checkStmt(Stmt *S) {
     // 4. Soul/Value suffix attributes
     if (Var->IsValueNullable)
       fullType += "?";
-    if (Var->IsValueMutable)
+    if (Var->IsValueMutable || (morph.empty() && Var->IsRebindable))
       fullType += "#";
 
     Info.TypeObj = toka::Type::fromString(fullType);

@@ -61,6 +61,7 @@ private:
 
   std::unique_ptr<Stmt> parseStmt();
   std::unique_ptr<Expr> parseIf();
+  std::unique_ptr<Expr> parseGuard();
   std::unique_ptr<Expr> parseWhile();
   std::unique_ptr<Expr> parseLoop();
   std::unique_ptr<Expr> parseForExpr();

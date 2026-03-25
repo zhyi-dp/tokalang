@@ -54,6 +54,8 @@ enum class TokenType {
   KwFnType, // Fn
 
   KwIf,
+  KwGuard,
+  KwNul,
   KwElse,
   KwMatch,
   KwCase,

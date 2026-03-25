@@ -123,6 +123,16 @@ public:
     return false;
   }
 
+  bool findVariableWithDeref(const std::string &Name, SymbolInfo *&OutInfo, std::string &ActualName) {
+    if (Symbols.count(Name)) { OutInfo = &Symbols[Name]; ActualName = Name; return true; }
+    if (Symbols.count("&" + Name)) { OutInfo = &Symbols["&" + Name]; ActualName = "&" + Name; return true; }
+    if (Symbols.count("*" + Name)) { OutInfo = &Symbols["*" + Name]; ActualName = "*" + Name; return true; }
+    if (Symbols.count("^" + Name)) { OutInfo = &Symbols["^" + Name]; ActualName = "^" + Name; return true; }
+    if (Symbols.count("~" + Name)) { OutInfo = &Symbols["~" + Name]; ActualName = "~" + Name; return true; }
+    if (Parent) return Parent->findVariableWithDeref(Name, OutInfo, ActualName);
+    return false;
+  }
+
   bool lookup(const std::string &Name, SymbolInfo &OutInfo) {
     SymbolInfo *ptr = nullptr;
     if (findSymbol(Name, ptr)) {
@@ -374,22 +384,21 @@ private:
     }
 
     // 2. Identity Attributes (Prefix Zone)
-    if (Arg.IsPointerNullable)
-      Signature += "?";
     if (Arg.IsRebindable)
       Signature += "#";
     if (Arg.IsRebindBlocked)
       Signature += "$";
+    if (Arg.IsPointerNullable)
+      Signature = "nul " + Signature;
 
-    // 3. Soul Type (Base Name) - Strip everything to avoid
-    // double-hatting/double-suffoding
-    Signature += toka::Type::stripMorphology(getTypeName(Arg));
+    // 3. Soul Type (Base Name) - Strip prefixes to avoid double-hatting
+    Signature += toka::Type::stripPrefixes(getTypeName(Arg));
 
     // 4. Soul/Object Attributes (Suffix Zone)
-    if (Arg.IsValueNullable)
-      Signature += "?";
     if (Arg.IsValueMutable)
       Signature += "#";
+    if (Arg.IsValueNullable)
+      Signature += "?";
     if (Arg.IsValueBlocked)
       Signature += "$";
 
@@ -411,21 +420,21 @@ private:
       Signature += "*";
 
     // 2. Identity Attributes (Prefix Zone)
-    if (Arg.IsPointerNullable)
-      Signature += "?";
     if (Arg.IsRebindable)
       Signature += "#";
     if (Arg.IsRebindBlocked)
       Signature += "$";
+    if (Arg.IsPointerNullable)
+      Signature = "nul " + Signature;
 
     // 3. Soul Type (Base Name)
-    Signature += toka::Type::stripMorphology(Arg.Type);
+    Signature += toka::Type::stripPrefixes(Arg.Type);
 
     // 4. Soul/Object Attributes (Suffix Zone)
-    if (Arg.IsValueNullable)
-      Signature += "?";
     if (Arg.IsValueMutable)
       Signature += "#";
+    if (Arg.IsValueNullable)
+      Signature += "?";
     if (Arg.IsValueBlocked)
       Signature += "$";
 

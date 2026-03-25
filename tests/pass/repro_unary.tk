@@ -23,8 +23,8 @@ impl Data@encap {
     }
 }
 
-fn check_unique_ptr(^?ptr: Data) {
-    if ^?ptr is ^ptr {
+fn check_unique_ptr(nul ^ptr: Data) {
+    guard ^ptr {
         println("Unique pointer is not nullptr confirmed, ptr.val={}", ptr.val)
         assert(ptr.val == 10, "Unique pointer is not nullptr confirmed")
     } else {
@@ -33,8 +33,8 @@ fn check_unique_ptr(^?ptr: Data) {
     }
 }
 
-fn check_shared_ptr(~?ptr: Data) {
-    if ~?ptr is ~ptr {
+fn check_shared_ptr(nul ~ptr: Data) {
+    guard ~ptr {
         println("Shared pointer is not nullptr confirmed, ptr.val={}", ptr.val)
         assert(ptr.val == 20, "Shared pointer is not nullptr confirmed")
     } else {
@@ -43,8 +43,8 @@ fn check_shared_ptr(~?ptr: Data) {
     }
 }
 
-fn check_raw_ptr(*?ptr: Data) {
-    if *?ptr != nullptr {
+fn check_raw_ptr(nul *ptr: Data) {
+    guard *ptr {
         println("Raw pointer is not nullptr confirmed")
     } else {
         println("Raw pointer is nullptr confirmed")
@@ -55,11 +55,11 @@ fn check_raw_ptr(*?ptr: Data) {
 
 
 fn main() -> i32 {
-    auto *?q# = unsafe alloc [2]Data(val = 999)
+    auto nul *q# = unsafe alloc [2]Data(val = 999)
     println("--- Before check_raw_ptr ---")
-    check_raw_ptr(*?q)
+    check_raw_ptr(*q)
     println("--- Before unsafe free ---")
-    if *?q# is *q#
+    guard *q
     {
         unsafe {
             assert(q[0].val == 999, "q#[0].val mismatch")
@@ -74,32 +74,32 @@ fn main() -> i32 {
     }
 
 
-    if *?q != nullptr {
-        unsafe free [2]*?q
+    guard *q {
+        unsafe free [2]*q
         println("--- After unsafe free ---")
     }    
 
-    auto ~?r = new Data(val = 20)
-    check_shared_ptr(~?r)
-    auto ~?rr = ~?r
-    check_shared_ptr(~?rr)
+    auto nul ~r = new Data(val = 20)
+    check_shared_ptr(~r)
+    auto nul ~rr = ~r
+    check_shared_ptr(~rr)
 
 
-    auto ^?p = new Data(val = 10)
-    check_unique_ptr(^?p)
-    if ^?p is ^p {
+    auto nul ^p = new Data(val = 10)
+    check_unique_ptr(^p)
+    guard ^p {
         println("Unique pointer is not nullptr confirmed, ptr.val={}", p.val)
         assert(p.val == 10, "Unique pointer is not nullptr confirmed")
     } else {
         println("Unique pointer is nullptr confirmed")
         assert(false, "Unique  pointer is nullptr confirmed")
     }
-    auto ^?pp = ^?p
-    check_unique_ptr(^?pp)
+    auto nul ^pp = ^p
+    check_unique_ptr(^pp)
 
 
-    auto ~?r = new Data(val = 20)
-    check_shared_ptr(~?r)
+    auto nul ~r = new Data(val = 20)
+    check_shared_ptr(~r)
 
     return 0
 }

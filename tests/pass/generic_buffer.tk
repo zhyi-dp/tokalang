@@ -13,7 +13,7 @@ shape Node<T>(
     buf: Buffer<T, 5>, 
     
     // 递归：指向下一个同类型节点
-    ^?next: Node<T> 
+    nul ^next: Node<T> 
 )
 impl<T> Node<T>@encap {
     pub buf
@@ -41,7 +41,7 @@ fn main() -> i32 {
         // 这里需要编译器能识别 [0; 5] 匹配 [i32; 5]
         buf = Buffer<i32, 5>(data=[0,1,2,3,4], len=5), 
         
-        ^?next = nullptr
+        ^next = nullptr
     )
     for auto i in [0,1,2,3,4] {
         println("head.buf.data[{}] = {}", i, head.buf.data[i])

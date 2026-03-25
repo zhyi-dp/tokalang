@@ -18,10 +18,10 @@ shape Data (
 )
 
 fn main() -> i32 {
-    auto ^?p = new Data(v = 42)
+    auto nul ^p = new Data(v = 42)
     
-    // Narrowing: ^?p is ^p
-    if ^?p is ^p {
+    // Narrowing: nul ^p is ^p
+    guard ^p {
         println("Success: p.v = {}", p.v)
         assert(p.v == 42, "p.v value mismatch")
     } else {
@@ -29,13 +29,13 @@ fn main() -> i32 {
         assert(false, "p is nullptr (Logic should not reach here)")
     }
 
-    auto ^?q:Data = nullptr
-    if ^?q is nullptr {
-        println("Success: q confirmed nullptr\n")
-        assert(true, "q confirmed nullptr logic executed")
-    } else {
+    auto nul ^q:Data = nullptr
+    guard ^q {
         println("Error: q should be nullptr\n")
         assert(false, "q is not nullptr (Logic should not reach here)")
+    } else {
+        println("Success: q confirmed nullptr\n")
+        assert(true, "q confirmed nullptr logic executed")
     }
 
     return 0

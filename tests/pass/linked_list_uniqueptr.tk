@@ -6,11 +6,11 @@ import core/types::{OAddr}
 
 shape Node(
     val: i32,
-    ^?next: Node
+    nul ^next: Node
 )
 impl Node@encap {
     //pub val
-    //pub ^?next
+    //pub ^next
     fn drop(self#) {
         println("dropping {}", self.val)
     }
@@ -18,25 +18,25 @@ impl Node@encap {
 
 pub fn main() -> i32 {
     {
-        auto node111 = Node(val=111, ^?next=nullptr)
-        auto ^node222 = new Node(val=222, ^?next=nullptr) 
-        auto ~node333 = new Node(val=333, ^?next=nullptr) 
+        auto node111 = Node(val=111, ^next=nullptr)
+        auto ^node222 = new Node(val=222, ^next=nullptr) 
+        auto ~node333 = new Node(val=333, ^next=nullptr) 
 
-        auto *node444 = unsafe alloc Node(val=444, ^?next=nullptr) 
+        auto *node444 = unsafe alloc Node(val=444, ^next=nullptr) 
         unsafe free *node444
 
         auto ^node2 = ^node222
     }
     // User's logic + Print checks
     {
-        auto ^#head = new Node(val=0, ^?next=nullptr)  
+        auto ^#head = new Node(val=0, ^next=nullptr)  
         println("head: {}", head.val)
         assert(head.val == 0, "check head.val")
         // Push 1
         {
             for auto i in [1,2,3,4,5] {
                 auto ^next = ^head
-                ^head = new Node(val=i, ^?next=^next)
+                ^head = new Node(val=i, ^next=^next)
                 println("[{}]pushed: {}, address: {}", i, head.val, ^head as OAddr)
                 assert(head.val == i, "check head.val")
             }
@@ -54,7 +54,7 @@ pub fn main() -> i32 {
                 //break
             }
             
-            if cursor.^?next is cursor.^next {
+            if cursor.^next is cursor.^next {
                 println("will reseat to {}", cursor.^next as OAddr)
                 &cursor = cursor.^next as &Node 
             } else {

@@ -15,8 +15,8 @@ fn main() -> i32 {
         println("p.y: {}", p.y)
         
         // 4. Mutation
-        p#.x = 100
-        p#.y = 200
+        p.x = 100
+        p.y = 200
         
         println("Modified: {}, {}", p.x, p.y)
     }

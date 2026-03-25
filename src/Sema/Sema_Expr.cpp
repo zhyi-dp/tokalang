@@ -438,7 +438,16 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     }
 
     SymbolInfo Info;
-    if (!CurrentScope->lookup(ve->Name, Info)) {
+    std::string actualName = ve->Name;
+    bool isImplicitDeref = false;
+    
+    SymbolInfo *InfoPtr = nullptr;
+    if (CurrentScope->findVariableWithDeref(ve->Name, InfoPtr, actualName)) {
+      isImplicitDeref = (actualName != ve->Name);
+      Info = *InfoPtr;
+    }
+
+    if (!InfoPtr) {
       // [NEW] Surgical Plan: Try resolving as a type (handles Option<i32>)
       auto possible = toka::Type::fromString(ve->Name);
       if (possible && !possible->isUnknown()) {
@@ -454,11 +463,11 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       return toka::Type::fromString("unknown");
     }
     if (Info.Moved && !m_InLHS) {
-      error(ve, DiagID::ERR_USE_MOVED, ve->Name);
+      error(ve, DiagID::ERR_USE_MOVED, actualName);
     }
     // [Fix] Trace to Source for Borrow Check
     SymbolInfo *EffectiveInfo = &Info;
-    std::string EffectiveName = ve->Name;
+    std::string EffectiveName = actualName;
     int traceDepth = 0;
     while (!EffectiveInfo->BorrowedFrom.empty() && traceDepth < 10) {
       SymbolInfo *Next = nullptr;
@@ -477,7 +486,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     bool authorized = false;
     // 1. Definition-time Authorization: The being-defined variable (borrower)
     if (!borrower.empty()) {
-      if (ve->Name == borrower)
+      if (actualName == borrower)
         authorized = true;
       else if (EffectiveInfo->IsMutablyBorrowed &&
                EffectiveInfo->MutablyBorrowedBy == borrower)
@@ -492,11 +501,11 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       }
     }
 
-    // 2. Usage-time Authorization: A previously defined reference (ve->Name)
+    // 2. Usage-time Authorization: A previously defined reference (actualName)
     // is authorized to access its own source (EffectiveName).
     if (!authorized) {
       SymbolInfo veInfo;
-      if (CurrentScope->lookup(ve->Name, veInfo)) {
+      if (CurrentScope->lookup(actualName, veInfo)) {
         if (veInfo.BorrowedFrom == EffectiveName) {
           authorized = true;
         }
@@ -1091,6 +1100,60 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       error(ie, DiagID::ERR_BRANCH_TYPE_MISMATCH, "If", thenType, elseType);
     }
     return toka::Type::fromString((thenType != "void") ? thenType : elseType);
+  } else if (auto *guard = dynamic_cast<GuardExpr *>(E)) {
+    auto condType = checkExpr(guard->Condition.get());
+    if (condType->isUnknown())
+      return condType;
+
+    auto *varExpr = dynamic_cast<VariableExpr *>(guard->Condition.get());
+    if (!varExpr) {
+      if (auto *unary = dynamic_cast<UnaryExpr *>(guard->Condition.get())) {
+        varExpr = dynamic_cast<VariableExpr *>(unary->RHS.get());
+      }
+    }
+
+    if (!varExpr) {
+      error(guard->Condition.get(), "guard condition must be a variable");
+      return std::make_shared<VoidType>();
+    }
+
+    SymbolInfo *infoPtr = nullptr;
+    std::string actualName;
+    if (CurrentScope->findVariableWithDeref(varExpr->Name, infoPtr, actualName)) {
+      bool isPtrNullable = false;
+      bool isSoulNullable = false;
+      if (auto ptrT = std::dynamic_pointer_cast<toka::PointerType>(condType)) {
+        isPtrNullable = ptrT->IsNullable;
+      } else if (condType->IsNullable) {
+        isSoulNullable = true;
+      }
+
+      if (!isPtrNullable && !isSoulNullable && condType->toString() != "void") {
+        error(guard->Condition.get(), "guard condition must be a nullable type");
+      }
+
+      enterScope();
+      SymbolInfo nonNullInfo = *infoPtr;
+      if (nonNullInfo.TypeObj) {
+        nonNullInfo.TypeObj = nonNullInfo.TypeObj->withAttributes(nonNullInfo.TypeObj->IsWritable, false, nonNullInfo.TypeObj->IsBlocked);
+      }
+      CurrentScope->define(actualName, nonNullInfo);
+
+      checkStmt(guard->Then.get());
+      exitScope();
+    } else {
+      enterScope();
+      checkStmt(guard->Then.get());
+      exitScope();
+    }
+
+    if (guard->Else) {
+      enterScope();
+      checkStmt(guard->Else.get());
+      exitScope();
+    }
+
+    return std::make_shared<VoidType>();
   } else if (auto *we = dynamic_cast<WhileExpr *>(E)) {
     checkExpr(we->Condition.get());
     bool isReceiver = false;
@@ -1789,10 +1852,11 @@ std::shared_ptr<toka::Type> Sema::checkMemberExpr(MemberExpr *Memb) {
   if (!m_InLHS) {
     if (auto *objVar = dynamic_cast<VariableExpr *>(Memb->Object.get())) {
       SymbolInfo *Info = nullptr;
-      if (CurrentScope->findSymbol(objVar->Name, Info)) {
+      std::string actualObjName = objVar->Name;
+      if (CurrentScope->findVariableWithDeref(objVar->Name, Info, actualObjName)) {
         // [Fix] Trace to Source for Member Access
         SymbolInfo *EffectiveInfo = Info;
-        std::string EffectiveName = objVar->Name;
+        std::string EffectiveName = actualObjName;
         int traceDepth = 0;
         while (!EffectiveInfo->BorrowedFrom.empty() && traceDepth < 10) {
           SymbolInfo *Next = nullptr;
@@ -2267,10 +2331,18 @@ std::shared_ptr<toka::Type> Sema::checkUnaryExpr(UnaryExpr *Unary) {
 
   if (auto *Var = dynamic_cast<VariableExpr *>(Unary->RHS.get())) {
     SymbolInfo *Info = nullptr;
-    if (CurrentScope->findSymbol(Var->Name, Info)) {
+    std::string actualName = Var->Name;
+    if (!CurrentScope->findSymbol(actualName, Info)) {
+      if (CurrentScope->findSymbol("&" + actualName, Info)) { actualName = "&" + actualName; }
+      else if (CurrentScope->findSymbol("*" + actualName, Info)) { actualName = "*" + actualName; }
+      else if (CurrentScope->findSymbol("^" + actualName, Info)) { actualName = "^" + actualName; }
+      else if (CurrentScope->findSymbol("~" + actualName, Info)) { actualName = "~" + actualName; }
+    }
+
+    if (CurrentScope->findSymbol(actualName, Info)) {
       // [Fix] Trace to Source for Borrow Registration/Check
       SymbolInfo *EffectiveInfo = Info;
-      std::string EffectiveName = Var->Name;
+      std::string EffectiveName = actualName;
       std::shared_ptr<toka::Type> physType = Info->TypeObj;
       int traceDepth = 0;
       while (!EffectiveInfo->BorrowedFrom.empty() && traceDepth < 10) {
@@ -2323,12 +2395,12 @@ std::shared_ptr<toka::Type> Sema::checkUnaryExpr(UnaryExpr *Unary) {
               !EffectiveInfo->MutablyBorrowedBy.empty() &&
               EffectiveInfo->MutablyBorrowedBy == borrower) {
             reborrow_authorized = true;
-          } else if (Var->Name == borrower) {
+          } else if (actualName == borrower) {
             reborrow_authorized = true;
           } else {
             // Usage-time authorization: through reference tracing
             SymbolInfo refInfo;
-            if (CurrentScope->lookup(Var->Name, refInfo)) {
+            if (CurrentScope->lookup(actualName, refInfo)) {
               if (refInfo.BorrowedFrom == EffectiveName)
                 reborrow_authorized = true;
             }
@@ -2362,7 +2434,7 @@ std::shared_ptr<toka::Type> Sema::checkUnaryExpr(UnaryExpr *Unary) {
           return physType->withAttributes(
               Unary->IsRebindable ||
                   (m_IsAssignmentTarget && Info->IsRebindable),
-              Unary->HasNull);
+              Unary->HasNull || physType->IsNullable);
         }
         // [New] Array-to-Pointer Decay for Variable Elevation
         if (physType && physType->isArray()) {
@@ -2391,7 +2463,7 @@ std::shared_ptr<toka::Type> Sema::checkUnaryExpr(UnaryExpr *Unary) {
           return physType->withAttributes(
               Unary->IsRebindable ||
                   (m_IsAssignmentTarget && Info->IsRebindable),
-              Unary->HasNull);
+              Unary->HasNull || physType->IsNullable);
         }
         auto res = std::make_shared<toka::UniquePointerType>(rhsType);
         res->IsWritable =
@@ -2408,7 +2480,7 @@ std::shared_ptr<toka::Type> Sema::checkUnaryExpr(UnaryExpr *Unary) {
           return physType->withAttributes(
               Unary->IsRebindable ||
                   (m_IsAssignmentTarget && Info->IsRebindable),
-              Unary->HasNull);
+              Unary->HasNull || physType->IsNullable);
         }
         auto res = std::make_shared<toka::SharedPointerType>(rhsType);
         res->IsWritable =
@@ -2606,14 +2678,15 @@ std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
 
     if (auto *RHSVar = dynamic_cast<VariableExpr *>(RHSExpr)) {
       SymbolInfo *RHSInfoPtr = nullptr;
-      if (CurrentScope->findSymbol(RHSVar->Name, RHSInfoPtr) &&
+      std::string actualRHSName = RHSVar->Name;
+      if (CurrentScope->findVariableWithDeref(RHSVar->Name, RHSInfoPtr, actualRHSName) &&
           RHSInfoPtr->IsUnique()) {
         if (RHSInfoPtr->IsMutablyBorrowed) {
-          error(Bin, DiagID::ERR_BORROW_MUT, RHSVar->Name);
+          error(Bin, DiagID::ERR_BORROW_MUT, actualRHSName);
         } else if (RHSInfoPtr->ImmutableBorrowCount > 0) {
-          error(Bin, DiagID::ERR_MOVE_BORROWED, RHSVar->Name);
+          error(Bin, DiagID::ERR_MOVE_BORROWED, actualRHSName);
         }
-        CurrentScope->markMoved(RHSVar->Name);
+        CurrentScope->markMoved(actualRHSName);
       }
     } else if (auto *Memb = dynamic_cast<MemberExpr *>(RHSExpr)) {
       // [Move Restriction Rule] Prohibit moving member out of shape
@@ -2635,7 +2708,10 @@ std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
       LHSScan = un->RHS.get();
     }
     if (auto *LHSVar = dynamic_cast<VariableExpr *>(LHSScan)) {
-      CurrentScope->resetMoved(LHSVar->Name);
+      std::string actualLHSName = LHSVar->Name;
+      SymbolInfo *LHSInfoPtr = nullptr;
+      CurrentScope->findVariableWithDeref(LHSVar->Name, LHSInfoPtr, actualLHSName);
+      CurrentScope->resetMoved(actualLHSName);
     }
 
     // Reference Assignment
@@ -3012,7 +3088,8 @@ std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
       int depth = 0;
       while (!current.empty() && depth < 20) {
         SymbolInfo *Sym = nullptr;
-        if (!CurrentScope->findSymbol(current, Sym))
+        std::string actualName;
+        if (!CurrentScope->findVariableWithDeref(current, Sym, actualName))
           break;
 
         // Update the symbol itself (if it's the source or a ref in
@@ -3041,7 +3118,8 @@ std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
 
     if (auto *Var = dynamic_cast<VariableExpr *>(LHSExpr)) {
       SymbolInfo *Info = nullptr;
-      if (CurrentScope->findSymbol(Var->Name, Info)) {
+      std::string actualName;
+      if (CurrentScope->findVariableWithDeref(Var->Name, Info, actualName)) {
         // Full Assignment to Variable (or Reference)
         // If it's a reference, we propagate Cleanliness to Source
         if (Info->IsReference()) {
@@ -3058,7 +3136,8 @@ std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
       Expr *Obj = Memb->Object.get();
       if (auto *Var = dynamic_cast<VariableExpr *>(Obj)) {
         SymbolInfo *Info = nullptr;
-        if (CurrentScope->findSymbol(Var->Name, Info)) {
+        std::string actualName;
+        if (CurrentScope->findVariableWithDeref(Var->Name, Info, actualName)) {
           std::shared_ptr<toka::Type> actualType = Info->TypeObj;
           // If reference, peel to find Shape
           if (actualType && actualType->isReference()) {
@@ -3205,7 +3284,8 @@ std::shared_ptr<toka::Type> Sema::checkIndexExpr(ArrayIndexExpr *Idx) {
   // [Constitution] Indexing targets Identity (Pointer/Array), not Soul.
   if (auto *Var = dynamic_cast<VariableExpr *>(Idx->Array.get())) {
     SymbolInfo *Info = nullptr;
-    if (CurrentScope->findSymbol(Var->Name, Info)) {
+    std::string actualName = Var->Name;
+    if (CurrentScope->findVariableWithDeref(Var->Name, Info, actualName)) {
       baseType = Info->TypeObj;
     } else {
       baseType = checkExpr(Idx->Array.get());

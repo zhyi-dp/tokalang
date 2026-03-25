@@ -242,47 +242,43 @@ std::unique_ptr<ShapeDecl> Parser::parseShape(bool isPub) {
             isExplicitBound = true;
           }
 
+          bool isPtrNullable = match(TokenType::KwNul);
           std::string prefixType = "";
+          if (isPtrNullable) prefixType += "nul ";
+          
           if (match(TokenType::Star)) {
             m.HasPointer = true;
             m.IsRebindable = previous().IsSwappablePtr;
-            m.IsPointerNullable = previous().HasNull;
+            m.IsPointerNullable = isPtrNullable;
             m.IsRebindBlocked = previous().IsBlocked;
-            prefixType = "*";
-            if (previous().HasNull)
-              prefixType += "?";
-            else if (previous().IsSwappablePtr)
-              prefixType += "!";
+            prefixType += "*";
+            if (previous().IsSwappablePtr) prefixType += "#";
           } else if (match(TokenType::Caret)) {
             m.IsUnique = true;
             m.IsRebindable = previous().IsSwappablePtr;
-            m.IsPointerNullable = previous().HasNull;
+            m.IsPointerNullable = isPtrNullable;
             m.IsRebindBlocked = previous().IsBlocked;
-            prefixType = "^";
-            if (previous().HasNull)
-              prefixType += "?";
-            else if (previous().IsSwappablePtr)
-              prefixType += "!";
+            prefixType += "^";
+            if (previous().IsSwappablePtr) prefixType += "#";
           } else if (match(TokenType::Tilde)) {
             m.IsShared = true;
             m.IsRebindable = previous().IsSwappablePtr;
-            m.IsPointerNullable = previous().HasNull;
+            m.IsPointerNullable = isPtrNullable;
             m.IsRebindBlocked = previous().IsBlocked;
-            prefixType = "~";
-            if (previous().HasNull)
-              prefixType += "?";
-            else if (previous().IsSwappablePtr)
-              prefixType += "!";
+            prefixType += "~";
+            if (previous().IsSwappablePtr) prefixType += "#";
           } else if (match(TokenType::Ampersand)) {
             m.IsReference = true;
             m.IsRebindable = previous().IsSwappablePtr;
-            m.IsPointerNullable = previous().HasNull;
+            m.IsPointerNullable = isPtrNullable;
             m.IsRebindBlocked = previous().IsBlocked;
-            prefixType = "&";
-            if (previous().HasNull)
-              prefixType += "?";
-            else if (previous().IsSwappablePtr)
-              prefixType += "!";
+            prefixType += "&";
+            if (isPtrNullable) {
+              error(previous(), "Borrowed pointers (&) cannot be nullable");
+            }
+            if (previous().IsSwappablePtr) prefixType += "#";
+          } else if (isPtrNullable) {
+            error(previous(), "nul can only be applied to pointer types");
           }
 
           Token nameTok = consume(TokenType::Identifier, "Expected field name");
@@ -400,32 +396,36 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
       }
       firstArg = false;
 
+      bool isPtrNullable = match(TokenType::KwNul);
       bool isRef = match(TokenType::Ampersand);
       bool hasPointer = false;
       bool isUnique = false;
       bool isShared = false;
 
       bool isRebindable = false;
-      bool isPtrNullable = false;
       bool isRebindBlocked = false;
 
-      if (match(TokenType::Caret)) {
+      if (isRef) {
+        Token t = previous();
+        isRebindable = t.IsSwappablePtr;
+        isRebindBlocked = t.IsBlocked;
+        if (isPtrNullable) {
+          error(t, "Borrowed pointers (&) cannot be nullable");
+        }
+      } else if (match(TokenType::Caret)) {
         isUnique = true;
         Token t = previous();
         isRebindable = t.IsSwappablePtr;
-        isPtrNullable = t.HasNull;
         isRebindBlocked = t.IsBlocked;
-      } else if (check(TokenType::Star)) {
-        Token t = advance();
+      } else if (match(TokenType::Star)) {
+        Token t = previous();
         hasPointer = true;
         isRebindable = t.IsSwappablePtr;
-        isPtrNullable = t.HasNull;
         isRebindBlocked = t.IsBlocked;
       } else if (match(TokenType::Tilde)) {
         isShared = true;
         Token t = previous();
         isRebindable = t.IsSwappablePtr;
-        isPtrNullable = t.HasNull;
         isRebindBlocked = t.IsBlocked;
       }
       Token argName;

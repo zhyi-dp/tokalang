@@ -30,7 +30,7 @@ impl Counter {
 // Module-level factory functions removed. using static methods.
 
 pub shape Vec<T> (
-    *?buf#: T,
+    nul *#buf#: T,
     len: usize,
     cap: usize
 )
@@ -53,7 +53,7 @@ impl<T> Vec<T>@encap {
         unsafe {
             if self.cap == 0 {
                 // Avoid calling new() to prevent circular instantiation loop in compiler
-                return Vec<T>(*!buf=nullptr, len=0, cap=0)
+                return Vec<T>(*buf=nullptr, len=0, cap=0)
             }
             // alloc array
             auto *new_buf# = unsafe alloc [self.cap] T
@@ -83,14 +83,14 @@ impl<T> Vec<T> {
     // Create empty vector (Static Method)
     pub fn new() -> Vec<T> {
         // Implicit conversation works for assignment/init of pointer variable
-        return Vec<T>(*!buf=nullptr, len=0, cap=0)
+        return Vec<T>(*buf=nullptr, len=0, cap=0)
     }
 
     // Create vector with capacity (Static Method)
     pub fn with_capacity(capacity: usize) -> Vec<T> {
         unsafe {
             if capacity == 0 {
-                return Vec<T>(*!buf=nullptr, len=0, cap=0)
+                return Vec<T>(*buf=nullptr, len=0, cap=0)
             }
             // alloc array syntax
             auto *new_buf# = unsafe alloc [capacity] T
@@ -263,7 +263,7 @@ impl<T> Vec<T> {
 }
 
 pub shape VecIterator<T> (
-    *!buf : T,
+    nul *#buf# : T,
     len : usize,
     pos# : usize
 )

@@ -9,8 +9,8 @@ shape Point(
 )
 shape Node(
     val: i32,
-    ^?point: Point
-    pp?: Point
+    nul ^point: Point
+    pp: Point?
 )
 impl Node@encap {
     fn drop(self#) {

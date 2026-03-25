@@ -8,9 +8,9 @@ shape Point(
 
 fn main() -> i32 {
     // Case 1: Simple Init via Ref
-    auto p : Point = unset
+    auto p# : Point = unset
     {
-        auto &refP = &p
+        auto &refP# = &p#
         refP.x = 10
         refP.y = 20
         // Now 'p' is fully initialized. 'refP' is clean.
@@ -20,8 +20,8 @@ fn main() -> i32 {
     assert(p.x == 10, "p.x check")
     
     // Case 2: Pass/Break with Clean Ref
-    auto q : i32 = unset
-    auto &refQ = &q
+    auto q# : i32 = unset
+    auto &refQ# = &q#
     refQ = 100
     // Now Ref is clean.
     

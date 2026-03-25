@@ -7,7 +7,7 @@ shape Point(
 )
 shape Node(
     val: i32,
-    pp?: Point
+    pp: Point?
 )
 
 fn main() -> i32 {

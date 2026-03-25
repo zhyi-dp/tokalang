@@ -20,7 +20,7 @@ shape Data = (
 
 fn main() -> i32 {
     // 1. Raw Pointer (Nullable)
-    auto *?p1# : Data = nullptr
+    auto nul *p1# : Data = nullptr
     unsafe {
         if *p1 == nullptr {
             println("Raw pointer null OK")
@@ -31,15 +31,15 @@ fn main() -> i32 {
     }
 
     // 2. Exclusive Pointer (Nullable)
-    auto ^?p2# : Data = nullptr
-    if ^?p2 is nullptr {
+    auto nul ^p2# : Data = nullptr
+    if ^p2 is nullptr {
         println("Exclusive pointer null OK")
         assert(true, "Exclusive pointer null OK")
     }
 
     // 3. Shared Pointer (Nullable)
-    auto ~?p3# : Data = nullptr
-    if ~?p3 is nullptr {
+    auto nul ~p3# : Data = nullptr
+    if ~p3 is nullptr {
         println("Shared pointer null OK")
         assert(true, "Shared pointer null OK")
     }

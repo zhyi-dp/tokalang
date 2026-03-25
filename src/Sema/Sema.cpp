@@ -331,12 +331,17 @@ void Sema::registerGlobals(Module &M) {
             else if (v->IsReference)
               morph = "&";
 
-            std::string fullType = morph + v->TypeName;
+            std::string fullType = morph;
             if (v->IsRebindable)
-              fullType += "!";
+              fullType += "#";
+            if (v->IsPointerNullable)
+              fullType = "nul " + fullType;
+              
+            fullType += v->TypeName;
+            
             if (v->IsValueMutable)
               fullType += "#";
-            if (v->IsPointerNullable || v->IsValueNullable)
+            if (v->IsValueNullable)
               fullType += "?";
 
             SymbolInfo globalInfo;
@@ -421,12 +426,17 @@ void Sema::registerGlobals(Module &M) {
             else if (v->IsReference)
               morph = "&";
 
-            std::string fullType = morph + v->TypeName;
+            std::string fullType = morph;
             if (v->IsRebindable)
-              fullType += "!";
+              fullType += "#";
+            if (v->IsPointerNullable)
+              fullType = "nul " + fullType;
+              
+            fullType += v->TypeName;
+            
             if (v->IsValueMutable)
               fullType += "#";
-            if (v->IsPointerNullable || v->IsValueNullable)
+            if (v->IsValueNullable)
               fullType += "?";
 
             SymbolInfo globalInfo;
@@ -668,10 +678,10 @@ void Sema::checkFunction(FunctionDecl *Fn) {
       fullType += "*";
 
     // 2. Identity Attributes (Prefix Zone)
-    if (Arg.IsPointerNullable)
-      fullType += "?";
-    if (Arg.IsRebindable)
+    if (Arg.IsRebindable && fullType.find('#') == std::string::npos)
       fullType += "#";
+    if (Arg.IsPointerNullable && fullType.find("nul") == std::string::npos)
+      fullType = "nul " + fullType;
 
     std::string baseType = toka::Type::stripMorphology(Arg.Type);
     fullType += baseType;

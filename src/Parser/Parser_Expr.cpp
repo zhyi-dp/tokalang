@@ -292,6 +292,8 @@ std::unique_ptr<Expr> Parser::parsePrimary() {
     expr = std::move(node);
   } else if (match(TokenType::KwIf)) {
     expr = parseIf();
+  } else if (match(TokenType::KwGuard)) {
+    expr = parseGuard();
   } else if (match(TokenType::KwWhile)) {
     expr = parseWhile();
   } else if (match(TokenType::KwLoop)) {
@@ -887,6 +889,29 @@ std::unique_ptr<Expr> Parser::parseIf() {
   }
   auto node = std::make_unique<IfExpr>(std::move(cond), std::move(thenStmt),
                                        std::move(elseStmt));
+  node->setLocation(tok, m_CurrentFile);
+  return node;
+}
+
+std::unique_ptr<Expr> Parser::parseGuard() {
+  Token tok = previous(); // consumed by match(KwGuard)
+  if (tok.Kind != TokenType::KwGuard)
+    tok = consume(TokenType::KwGuard, "Expected 'guard'");
+  auto cond = parseExpr();
+  
+  auto thenStmt = parseBlock();
+  std::unique_ptr<Stmt> elseStmt = nullptr;
+  
+  if (match(TokenType::KwElse)) {
+    if (check(TokenType::LBrace)) {
+      elseStmt = parseBlock();
+    } else {
+      elseStmt = parseStmt();
+    }
+  }
+  
+  auto node = std::make_unique<GuardExpr>(std::move(cond), std::move(thenStmt),
+                                          std::move(elseStmt));
   node->setLocation(tok, m_CurrentFile);
   return node;
 }
