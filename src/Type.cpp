@@ -71,7 +71,7 @@ std::string PrimitiveType::toString() const {
   if (IsBlocked)
     s += "$";
   if (IsWritable && IsNullable)
-    s += "!";
+    s += "?#";
   else {
     if (IsNullable)
       s += "?";
@@ -261,16 +261,51 @@ std::string ArrayType::toString() const {
   }
   s += "]";
   if (IsWritable && IsNullable) {
-    s += "!";
+    s += "?#";
   } else {
-    if (IsWritable)
-      s += "#";
     if (IsNullable)
       s += "?";
+    if (IsWritable)
+      s += "#";
     if (IsBlocked)
       s += "$";
   }
   return s;
+}
+
+std::string SliceType::toString() const {
+  std::string s = "[";
+  s += ElementType->toString();
+  s += "]";
+  if (IsWritable && IsNullable) {
+    s += "?#";
+  } else {
+    if (IsNullable)
+      s += "?";
+    if (IsWritable)
+      s += "#";
+    if (IsBlocked)
+      s += "$";
+  }
+  return s;
+}
+
+bool SliceType::equals(const Type &other) const {
+  if (!Type::equals(other))
+    return false;
+  const auto *otherSlice = dynamic_cast<const SliceType *>(&other);
+  return otherSlice && ElementType->equals(*otherSlice->ElementType);
+}
+
+bool SliceType::isCompatibleWith(const Type &target) const {
+  if (!Type::isCompatibleWith(target))
+    return false;
+  const auto *otherSlice = dynamic_cast<const SliceType *>(&target);
+  return otherSlice && ElementType->isCompatibleWith(*otherSlice->ElementType);
+}
+
+std::shared_ptr<Type> SliceType::withAttributes(bool w, bool n, bool b) const {
+  return cloneWithAttrs(this, w, n, b);
 }
 
 bool ArrayType::equals(const Type &other) const {
@@ -305,12 +340,12 @@ std::string ShapeType::toString() const {
     s += ">";
   }
   if (IsWritable && IsNullable) {
-    s += "!";
+    s += "?#";
   } else {
-    if (IsWritable)
-      s += "#";
     if (IsNullable)
       s += "?";
+    if (IsWritable)
+      s += "#";
     if (IsBlocked)
       s += "$";
   }
@@ -359,12 +394,12 @@ std::string TupleType::toString() const {
   }
   s += ")";
   if (IsWritable && IsNullable) {
-    s += "!";
+    s += "?#";
   } else {
-    if (IsWritable)
-      s += "#";
     if (IsNullable)
       s += "?";
+    if (IsWritable)
+      s += "#";
     if (IsBlocked)
       s += "$";
   }
@@ -577,6 +612,9 @@ std::shared_ptr<Type> Type::fromString(const std::string &rawType) {
   if (s.rfind("nul ", 0) == 0) { // starts_with
     explicitPtrNullable = true;
     s = trim(s.substr(4));
+  } else if (s.rfind("nul", 0) == 0 && s.size() > 3 && (s[3] == '*' || s[3] == '^' || s[3] == '~' || s[3] == '&')) {
+    explicitPtrNullable = true;
+    s = trim(s.substr(3));
   }
 
   if (s.empty())
@@ -639,6 +677,14 @@ std::shared_ptr<Type> Type::fromString(const std::string &rawType) {
       arr->IsNullable = isNullable;
       arr->IsBlocked = isBlocked;
       return arr;
+    } else if (close != std::string::npos && semi == std::string::npos) {
+      // Dynamic Array [T]
+      auto elem = Type::fromString(trim(s.substr(1, close - 1)));
+      auto slice = std::make_shared<SliceType>(elem);
+      slice->IsWritable = isWritable;
+      slice->IsNullable = isNullable;
+      slice->IsBlocked = isBlocked;
+      return slice;
     }
   }
 

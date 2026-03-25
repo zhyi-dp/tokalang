@@ -270,14 +270,6 @@ Token Lexer::punctuation() {
     if (match('#')) {
       t.IsSwappablePtr = true;
       t.Text += "#";
-    } else if (match('?')) {
-      t.HasNull = true;
-      t.Text += "?";
-    } // Pointer itself nullable
-    else if (match('!')) {
-      t.IsSwappablePtr = true;
-      t.HasNull = true;
-      t.Text += "!";
     } else if (match('$')) {
       t.IsBlocked = true;
       t.Text += "$";
@@ -314,9 +306,6 @@ Token Lexer::punctuation() {
       if (match('#')) {
         t.IsSwappablePtr = true;
         t.Text += "#";
-      } else if (match('?')) {
-        t.HasNull = true;
-        t.Text += "?";
       } else if (match('$')) {
         t.IsBlocked = true;
         t.Text += "$";
@@ -328,9 +317,6 @@ Token Lexer::punctuation() {
     if (match('#')) {
       t.IsSwappablePtr = true;
       t.Text += "#";
-    } else if (match('?')) {
-      t.HasNull = true;
-      t.Text += "?";
     } else if (match('$')) {
       t.IsBlocked = true;
       t.Text += "$";
@@ -379,9 +365,6 @@ Token Lexer::punctuation() {
       if (match('#')) {
         t.IsSwappablePtr = true;
         t.Text += "#";
-      } else if (match('?')) {
-        t.HasNull = true;
-        t.Text += "?";
       } else if (match('$')) {
         t.IsBlocked = true;
         t.Text += "$";

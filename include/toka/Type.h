@@ -78,6 +78,7 @@ public:
   bool isUniquePtr() const { return typeKind == UniquePtr; }
   bool isSharedPtr() const { return typeKind == SharedPtr; }
   bool isArray() const { return typeKind == Array; }
+  bool isSlice() const { return typeKind == Slice; }
   bool isTuple() const { return typeKind == Tuple; }
   bool isFunction() const { return typeKind == Function; }
   bool isVoid() const { return typeKind == Void; }
@@ -222,6 +223,22 @@ public:
   ArrayType(std::shared_ptr<Type> elem, uint64_t size, std::string sym = "")
       : Type(Array), ElementType(elem), Size(size),
         SymbolicSize(std::move(sym)) {}
+  std::string toString() const override;
+  bool equals(const Type &other) const override;
+  std::shared_ptr<Type> withAttributes(bool w, bool n,
+                                       bool b = false) const override;
+  bool isCompatibleWith(const Type &target) const override;
+  std::shared_ptr<Type> getArrayElementType() const override {
+    return ElementType;
+  }
+};
+
+class SliceType : public Type {
+public:
+  std::shared_ptr<Type> ElementType;
+
+  SliceType(std::shared_ptr<Type> elem)
+      : Type(Slice), ElementType(elem) {}
   std::string toString() const override;
   bool equals(const Type &other) const override;
   std::shared_ptr<Type> withAttributes(bool w, bool n,
