@@ -10,20 +10,20 @@ extern fn fork() -> i32
 
 fn run_server(port: i32) {
     unsafe {
-        println!("[Server] Starting on port {}...", port)
+        println("[Server] Starting on port {}...", port)
         auto listener = TcpListener::bind(String::from("127.0.0.1"), port)
         if !listener.is_valid() {
-            println!("[Server] Bind failed")
+            println("[Server] Bind failed")
             libc::libc_exit(1)
         }
 
-        println!("[Server] Listening...")
+        println("[Server] Listening...")
         auto stream = listener.accept()
         if !stream.is_valid() {
-             println!("[Server] Accept failed")
+             println("[Server] Accept failed")
              libc::libc_exit(1)
         }
-        println!("[Server] Accepted connection")
+        println("[Server] Accepted connection")
         
         auto buf: [char; 128] = [0 as char; 128]
         // echo loop
@@ -35,7 +35,7 @@ fn run_server(port: i32) {
              }
              stream.write(buf_ptr, n as usize)
         }
-        println!("[Server] Done")
+        println("[Server] Done")
     }
 }
 
@@ -48,14 +48,14 @@ fn main() -> i32 {
         }
         
         sleep(1)
-        println!("[Client] Connecting...")
+        println("[Client] Connecting...")
         auto stream = TcpStream::connect(String::from("127.0.0.1"), 9092)
         
         if !stream.is_valid() {
-             println!("[Client] Connect failed")
+             println("[Client] Connect failed")
              return 1
         }
-        println!("[Client] Connected!")
+        println("[Client] Connected!")
         
         auto msg = String::from("Hello")
         stream.write_string(msg)
@@ -63,7 +63,7 @@ fn main() -> i32 {
         auto buf: [char; 128] = [0 as char; 128]
         auto *buf_ptr# = &buf[0] as *u8
         auto n = stream.read(buf_ptr, 128)
-        println!("[Client] Received: {}", n)
+        println("[Client] Received: {}", n)
         
         return 0
     }

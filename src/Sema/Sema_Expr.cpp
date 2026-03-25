@@ -1432,9 +1432,9 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       // (This will be picked up by checkExpr wrapper and passed to
       // VariableDecl)
     }
-    // 'new' usually returns a unique pointer: ^Type
+    // 'new' usually returns a unique pointer: ^Type# (soul is fully writable)
     m_LastInitMask = ~0ULL;
-    return toka::Type::fromString("^" + resolvedName);
+    return toka::Type::fromString("^" + resolvedName + "#");
   } else if (auto *UnsafeE = dynamic_cast<UnsafeExpr *>(E)) {
     bool oldUnsafe = m_InUnsafeContext;
     m_InUnsafeContext = true;

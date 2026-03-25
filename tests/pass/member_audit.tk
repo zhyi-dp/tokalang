@@ -3,7 +3,7 @@ import std/memory
 
 
 shape Point(x: i32, y: i32)
-shape Container(^p!: Point, val: i32, immut$: i32)
+shape Container(nul ^p#: Point, val: i32, immut$: i32)
 impl Container {
     fn drop(self#) {
         // Resources are handled by compiler, but we need the method to exist
@@ -14,7 +14,7 @@ impl Container {
 fn main() -> i32 {
     //* 1. Terminal Marking & Bloodline check
     auto p1 = Point(x=1, y=2)
-    auto c1# = Container(p=new Point(x=10, y=20), val=100, immut=999)
+    auto c1# = Container(^p=new Point(x=10, y=20), val=100, immut=999)
     
     // c1# has write permission, 'val' inherits it (Bloodline)
     c1.val = 101
