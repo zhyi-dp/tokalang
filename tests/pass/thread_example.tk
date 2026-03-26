@@ -6,12 +6,19 @@ pub fn main() -> i32 {
     
     // Spawn a thread and explicitly capture `target` by moving it (cede) into the thread!
     auto handle = spawn([cede target] {
+        //sleep(1000)
         println("I am a new Toka OS thread! Target is: {}", target)
+        0
+    })
+
+    auto handle2 = spawn({
+        println("I am a new Toka OS thread! Target is: {}", 111)
         0
     })
     
     println("Main thread is waiting...")
     handle.join()
+    handle2.join()
     println("Thread finished! Shutting down.")
     
     return 0
