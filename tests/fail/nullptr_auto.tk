@@ -13,7 +13,7 @@
 // limitations under the License.
 fn main() -> i32 {
     // EXPECT: error[E0415]:
-    auto ~?p = nullptr
+    auto nul ~p = nullptr
     
     return 0
 }

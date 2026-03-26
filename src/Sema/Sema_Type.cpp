@@ -161,6 +161,28 @@ std::shared_ptr<toka::Type> Sema::resolveType(std::shared_ptr<toka::Type> type,
     }
   }
 
+  if (auto fnTy = std::dynamic_pointer_cast<toka::FunctionType>(type)) {
+    bool changed = false;
+    std::vector<std::shared_ptr<toka::Type>> newParams;
+    for (auto &p : fnTy->ParamTypes) {
+      auto resolved = resolveType(p);
+      newParams.push_back(resolved);
+      if (resolved != p) changed = true;
+    }
+    
+    auto newRet = resolveType(fnTy->ReturnType);
+    if (newRet != fnTy->ReturnType) changed = true;
+    
+    if (changed) {
+      auto newFn = std::make_shared<toka::FunctionType>(newParams, newRet);
+      newFn->IsVariadic = fnTy->IsVariadic;
+      newFn->IsWritable = fnTy->IsWritable;
+      newFn->IsNullable = fnTy->IsNullable;
+      newFn->IsBlocked = fnTy->IsBlocked;
+      return newFn;
+    }
+  }
+
   if (auto shape = std::dynamic_pointer_cast<toka::ShapeType>(type)) {
 
     // [NEW] Local Scope Alias Lookup (for T -> i32)
@@ -676,6 +698,35 @@ bool Sema::isTypeCompatible(std::shared_ptr<toka::Type> Target,
   // If T is a weak alias, resolveType(T, true) will get its target.
   // But wait, resolveType(Target, false) already resolves weak aliases.
   // We only need additional structural checks for non-alias types.
+
+  // [NEW] FunctionType and Closure Compatibility
+  if (T->typeKind == toka::Type::Function && S->typeKind == toka::Type::Shape) {
+    auto tFn = std::dynamic_pointer_cast<toka::FunctionType>(T);
+    auto sSh = std::dynamic_pointer_cast<toka::ShapeType>(S);
+    if (sSh->Name.find("__Closure_") == 0) {
+      if (MethodDecls.count(sSh->Name) && MethodDecls[sSh->Name].count("__invoke")) {
+        auto *invokeFn = MethodDecls[sSh->Name]["__invoke"];
+        // Check args
+        if (tFn->ParamTypes.size() == invokeFn->Args.size() - 1) {
+          bool ok = true;
+          for (size_t i = 0; i < tFn->ParamTypes.size(); ++i) {
+            auto expectedArg = tFn->ParamTypes[i];
+            auto actualArg = resolveType(toka::Type::fromString(invokeFn->Args[i + 1].Type), false);
+            if (!isTypeCompatible(expectedArg, actualArg)) {
+              ok = false;
+              break;
+            }
+          }
+          if (ok) {
+            auto sRet = resolveType(invokeFn->ResolvedReturnType ? invokeFn->ResolvedReturnType : toka::Type::fromString(invokeFn->ReturnType), false);
+            if (isTypeCompatible(tFn->ReturnType, sRet)) {
+              return true;
+            }
+          }
+        }
+      }
+    }
+  }
 
   // Dynamic Trait Coercion (Unsizing)
   // Check if Target is "dyn @Trait"

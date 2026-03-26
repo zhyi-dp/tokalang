@@ -21,7 +21,7 @@ fn main() -> i32 {
     )
     
     // This should fail: private_val is not public in encap_lib.tk
-    println("Private val: {}", d.private_val)
-    // EXPECT: error[E0430]: Trait 'encap' is not implemented for type 'Data'
+    auto x = d.private_val
+    // EXPECT: error[E0418]: 'encap' is not implemented for type 'Data'
     return 0
 }

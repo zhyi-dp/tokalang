@@ -1,0 +1,37 @@
+fn apply(val: i32, f: fn(i32) -> i32) -> i32 {
+    return f(val)
+}
+
+fn apply_two(a: i32, b: i32, f: fn(i32, i32) -> i32) -> i32 {
+    return f(a, b)
+}
+
+fn main() -> i32 {
+    // 1. Implicit parameter
+    auto res1 = apply(10) { 
+        .a + 5 
+    }
+    
+    // 2. Multiple implicit parameters
+    auto res2 = apply_two(10, 20) {
+        .a + .b
+    }
+
+    // 3. Explicit parameters
+    auto res3 = apply_two(30, 40) { x, y =>
+        x * y
+    }
+    
+    // 4. Capture with explicit parameter
+    auto x = 100
+    auto res4 = apply(5, [copy &x] { v =>
+        v + x
+    })
+
+    if res1 != 15 { return 1 }
+    if res2 != 30 { return 2 }
+    if res3 != 1200 { return 3 }
+    if res4 != 105 { return 4 }
+
+    return 0
+}

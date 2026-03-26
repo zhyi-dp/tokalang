@@ -342,6 +342,16 @@ void Sema::checkStmt(Stmt *S) {
       if (Var->IsReference)
         m_AllowUnsetUsage = true;
       m_ControlFlowStack.push_back({Var->Name, "void", false, true});
+      if (!Var->TypeName.empty() && Var->TypeName != "auto") {
+        auto declTargetTy = resolveType(toka::Type::fromString(Var->TypeName), false);
+        if (declTargetTy && declTargetTy->typeKind == toka::Type::Function) {
+           if (auto clo = dynamic_cast<ClosureExpr*>(Var->Init.get())) {
+              auto fnTy = std::static_pointer_cast<toka::FunctionType>(declTargetTy);
+              clo->InjectedParamTypes = fnTy->ParamTypes;
+           }
+        }
+      }
+      
       InitTypeObj = checkExpr(Var->Init.get());
       InitType = InitTypeObj->toString();
       m_AllowUnsetUsage = false;
@@ -617,15 +627,16 @@ void Sema::checkStmt(Stmt *S) {
 
       if (auto *RHSVar = dynamic_cast<VariableExpr *>(InitExpr)) {
         SymbolInfo *SourceInfoPtr = nullptr;
-        if (CurrentScope->findSymbol(RHSVar->Name, SourceInfoPtr)) {
+        std::string actName;
+        if (CurrentScope->findVariableWithDeref(RHSVar->Name, SourceInfoPtr, actName)) {
           if (SourceInfoPtr->IsUnique()) {
             if (SourceInfoPtr->IsMutablyBorrowed ||
                 SourceInfoPtr->ImmutableBorrowCount > 0) {
               DiagnosticEngine::report(getLoc(Var), DiagID::ERR_MOVE_BORROWED,
-                                       RHSVar->Name);
+                                       actName);
               HasError = true;
             }
-            CurrentScope->markMoved(RHSVar->Name);
+            CurrentScope->markMoved(actName);
           }
         }
       } else if (auto *Memb = dynamic_cast<MemberExpr *>(InitExpr)) {
@@ -647,7 +658,6 @@ void Sema::checkStmt(Stmt *S) {
       m_ControlFlowStack.pop_back();
     }
   } else if (auto *Destruct = dynamic_cast<DestructuringDecl *>(S)) {
-    // Stage 1: Resolve Types using the new Type system
     auto initType = checkExpr(Destruct->Init.get());
     auto declType = toka::Type::fromString(Destruct->TypeName);
 

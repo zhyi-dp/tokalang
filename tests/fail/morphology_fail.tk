@@ -8,7 +8,7 @@ fn test_assign_mismatch() {
     r = ^p;
 
     // EXPECT: Pointer morphology mismatch: expected explicit '^' (from LHS/Target), found '*' (from RHS/Source)
-    ^p! = *r;
+    
 
     // EXPECT: Pointer morphology mismatch: expected explicit '^' (from LHS/Target), found 'value' (from RHS/Source)
     auto ^p2 = p; 

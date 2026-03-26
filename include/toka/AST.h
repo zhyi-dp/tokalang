@@ -1350,6 +1350,7 @@ public:
   
   bool HasExplicitArgs = false;
   std::vector<std::string> ArgNames; // Either explicit names or filled lazily by Sema
+  std::vector<std::shared_ptr<toka::Type>> InjectedParamTypes; // [NEW] Top-down type injection
   int MaxImplicitArgIndex = -1; // Tracks max index (.a=0, .b=1) used in the body
   
   std::string ReturnType;

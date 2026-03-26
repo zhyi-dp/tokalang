@@ -620,6 +620,61 @@ std::shared_ptr<Type> Type::fromString(const std::string &rawType) {
   if (s.empty())
     return std::make_shared<UnresolvedType>(rawType);
 
+  if (s.rfind("fn(", 0) == 0) {
+    int parenBalance = 0;
+    size_t paramsStart = 3;
+    size_t paramsEnd = std::string::npos;
+    for (size_t i = paramsStart; i < s.size(); ++i) {
+      if (s[i] == '(') parenBalance++;
+      else if (s[i] == ')') {
+        if (parenBalance == 0) {
+          paramsEnd = i;
+          break;
+        }
+        parenBalance--;
+      }
+    }
+    
+    if (paramsEnd != std::string::npos) {
+      std::string paramsStr = s.substr(paramsStart, paramsEnd - paramsStart);
+      std::vector<std::shared_ptr<Type>> paramTypes;
+      bool isVariadic = false;
+      
+      int bal = 0;
+      size_t start = 0;
+      for (size_t i = 0; i < paramsStr.size(); ++i) {
+        if (paramsStr[i] == '<' || paramsStr[i] == '(' || paramsStr[i] == '[') bal++;
+        else if (paramsStr[i] == '>' || paramsStr[i] == ')' || paramsStr[i] == ']') bal--;
+        else if (paramsStr[i] == ',' && bal == 0) {
+          std::string p = trim(paramsStr.substr(start, i - start));
+          if (p == "...") isVariadic = true;
+          else if (!p.empty()) paramTypes.push_back(Type::fromString(p));
+          start = i + 1;
+        }
+      }
+      if (start < paramsStr.size()) {
+        std::string p = trim(paramsStr.substr(start));
+        if (p == "...") isVariadic = true;
+        else if (!p.empty()) paramTypes.push_back(Type::fromString(p));
+      }
+      
+      std::shared_ptr<Type> retType = nullptr;
+      size_t arrowPos = s.find("->", paramsEnd);
+      if (arrowPos != std::string::npos) {
+        retType = Type::fromString(trim(s.substr(arrowPos + 2)));
+      } else {
+        retType = std::make_shared<VoidType>();
+      }
+      
+      auto fnNode = std::make_shared<FunctionType>(paramTypes, retType);
+      fnNode->IsVariadic = isVariadic;
+      fnNode->IsWritable = isWritable;
+      fnNode->IsNullable = isNullable;
+      fnNode->IsBlocked = isBlocked;
+      return fnNode;
+    }
+  }
+
   char first = s[0];
   if (first == '*' || first == '^' || first == '~' || first == '&') {
     size_t offset = 1;

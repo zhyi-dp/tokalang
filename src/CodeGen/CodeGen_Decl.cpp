@@ -899,6 +899,42 @@ llvm::Value *CodeGen::genVariableDecl(const VariableDecl *var) {
     }
   }
 
+  // [NEW] Fat pointer synthesis for Closures in VariableDecl
+  if (initVal && initVal->getType() != type && type && type->isStructTy() && type->getStructNumElements() == 2 && type->getStructElementType(0)->isPointerTy() && type->getStructElementType(1)->isPointerTy()) {
+      if (var->Init && var->Init->ResolvedType && var->Init->ResolvedType->isShape()) {
+         auto shp = std::static_pointer_cast<toka::ShapeType>(var->Init->ResolvedType);
+         if (shp->Name.find("__Closure_") == 0) {
+             llvm::Type *envTy = initVal->getType();
+             llvm::Value *envPtrAddr;
+             if (envTy->isPointerTy()) {
+                 envPtrAddr = initVal;
+             } else {
+                 envPtrAddr = m_Builder.CreateAlloca(envTy, nullptr, "closure_env_alloc");
+                 m_Builder.CreateStore(initVal, envPtrAddr);
+             }
+             
+             llvm::Value *opaqueEnv = m_Builder.CreatePointerCast(envPtrAddr, llvm::PointerType::getUnqual(m_Context));
+             
+             std::string invokeName = shp->Name + "___invoke";
+             llvm::Function *invokeFn = m_Module->getFunction(invokeName);
+             if (invokeFn) {
+                 llvm::Value *opaqueFunc = m_Builder.CreatePointerCast(invokeFn, llvm::PointerType::getUnqual(m_Context));
+                 
+                 llvm::StructType *fatPtrTy = llvm::StructType::get(
+                     llvm::PointerType::getUnqual(m_Context),
+                     llvm::PointerType::getUnqual(m_Context)
+                 );
+                 
+                 llvm::Value *fatPtr = llvm::UndefValue::get(fatPtrTy);
+                 fatPtr = m_Builder.CreateInsertValue(fatPtr, opaqueEnv, 0);
+                 fatPtr = m_Builder.CreateInsertValue(fatPtr, opaqueFunc, 1);
+                 
+                 initVal = fatPtr; // Value of type { ptr, ptr }
+             }
+         }
+      }
+  }
+
   if (initVal && initVal->getType() != type) {
     std::string s1 = "Unknown", s2 = "Unknown";
     if (type) {
@@ -2095,6 +2131,12 @@ llvm::Type *CodeGen::getLLVMType(std::shared_ptr<Type> type) {
     }
     // If generic lookup fails, try resolving by name (backup)
     return resolveType(shapeType->Name, false);
+  }
+
+  // Handle Function Types (closures)
+  if (type->typeKind == Type::Function) {
+    llvm::Type *voidPtr = llvm::PointerType::getUnqual(m_Context);
+    return llvm::StructType::get(m_Context, {voidPtr, voidPtr}); // { env, fptr }
   }
 
   // Fallback to string based resolution if we have an Unresolved type

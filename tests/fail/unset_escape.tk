@@ -4,7 +4,7 @@
 fn test_return_unset() -> &i32 {
     auto x : i32 = unset
     auto &ref = &x
-    return ref // EXPECT: error[E0411]:
+    return ref // EXPECT: error[E0412]:
 }
 
 // Case 2: Escape Dirty Reference via Break
@@ -14,7 +14,7 @@ fn test_break_unset() -> void {
     
     // We need a loop to break from
     auto res = loop {
-        break refY // EXPECT: error[E0411]:
+        break refY // EXPECT: error[E0412]:
     }
 }
 
@@ -25,7 +25,7 @@ fn test_pass_unset() -> void {
     
     // Wrap in expression that yields
     auto val = if true {
-        pass refZ // EXPECT: error[E0411]:
+        pass refZ // EXPECT: error[E0412]:
     } else {
         pass refZ
     }

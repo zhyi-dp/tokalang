@@ -2726,7 +2726,50 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
     genExtern(call->ResolvedExtern);
     callee = m_Module->getFunction(call->ResolvedExtern->Name);
   }
+  
   if (!callee) {
+    // [NEW] Fat Pointer Invocation Intercept
+    if (m_Symbols.count(calleeName)) {
+      auto &sym = m_Symbols[calleeName];
+      if (sym.soulTypeObj && sym.soulTypeObj->typeKind == Type::Function) {
+        auto fnTy = std::static_pointer_cast<FunctionType>(sym.soulTypeObj);
+        
+        auto varExpr = std::make_unique<VariableExpr>(calleeName);
+        varExpr->ResolvedType = fnTy;
+        llvm::Value *fatVal = genExpr(varExpr.get()).load(m_Builder);
+        if (!fatVal) return nullptr;
+        
+        llvm::Value *envPtr = m_Builder.CreateExtractValue(fatVal, 0, "closure_env");
+        llvm::Value *funcPtr = m_Builder.CreateExtractValue(fatVal, 1, "closure_func");
+        
+        std::vector<llvm::Type*> argTys;
+        std::vector<llvm::Value*> argVals;
+        argTys.push_back(llvm::PointerType::getUnqual(m_Context));
+        argVals.push_back(envPtr);
+        
+        for (size_t i = 0; i < call->Args.size(); ++i) {
+          llvm::Value *av = genExpr(call->Args[i].get()).load(m_Builder);
+          llvm::Type *expectedTy = getLLVMType(fnTy->ParamTypes[i]);
+          
+          if (av && expectedTy->isPointerTy() && av->getType()->isStructTy()) {
+             llvm::AllocaInst *tmp = m_Builder.CreateAlloca(av->getType(), nullptr, "arg_tmp_byref");
+             m_Builder.CreateStore(av, tmp);
+             av = tmp;
+             expectedTy = av->getType();
+          }
+          
+          argVals.push_back(av);
+          argTys.push_back(expectedTy);
+        }
+        
+        llvm::Type *retTy = getLLVMType(fnTy->ReturnType);
+        llvm::FunctionType *llFnTy = llvm::FunctionType::get(retTy, argTys, false);
+        
+        llvm::Value *retVal = m_Builder.CreateCall(llFnTy, funcPtr, argVals);
+        return PhysEntity(retVal, fnTy->ReturnType->getSoulName(), retVal->getType(), false);
+      }
+    }
+
     // Check for ADT Constructor (Type::Member)
     std::string callName = call->Callee;
     size_t delim = callName.find("::");
@@ -2833,18 +2876,20 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
     }
   }
 
+  // Double check callee because we might have skipped it
   if (!callee) {
-    error(call, "Call to undefined function or shape '" + call->Callee + "'");
+    error(call, "Cannot resolve function '" + calleeName + "'");
     return nullptr;
   }
 
+  // Proceed with normal Call compilation
   const FunctionDecl *funcDecl = nullptr;
   if (m_Functions.count(call->Callee))
     funcDecl = m_Functions[call->Callee];
 
   const ExternDecl *extDecl = nullptr;
-  if (m_Externs.count(call->Callee))
-    extDecl = m_Externs[call->Callee];
+  if (!funcDecl && m_Externs.count(calleeName))
+    extDecl = m_Externs[calleeName];
 
   std::vector<llvm::Value *> argsV;
   for (size_t i = 0; i < call->Args.size(); ++i) {
@@ -2974,6 +3019,54 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
     // implement explicit cloning.
     if (funcDecl && i < funcDecl->Args.size() && funcDecl->Args[i].IsShared) {
       // No-op for Pass-By-Pointer
+    }
+
+    // [NEW] Fat Pointer Synthesis for Closures
+    if (val && call->Args[i]->ResolvedType && call->Args[i]->ResolvedType->isShape()) {
+      auto shp = std::static_pointer_cast<toka::ShapeType>(call->Args[i]->ResolvedType);
+      if (shp->Name.find("__Closure_") == 0) {
+        bool expectsFunction = false;
+        if (funcDecl && i < funcDecl->Args.size()) {
+           auto resTy = funcDecl->Args[i].ResolvedType;
+           if (resTy && resTy->typeKind == toka::Type::Function) expectsFunction = true;
+           else if (funcDecl->Args[i].Type.find("fn(") == 0) expectsFunction = true;
+        }
+        
+        if (expectsFunction) {
+           llvm::Type *envTy = val->getType();
+           llvm::Value *envPtrAddr;
+           if (envTy->isPointerTy()) {
+               envPtrAddr = val;
+           } else {
+               envPtrAddr = m_Builder.CreateAlloca(envTy, nullptr, "closure_env_alloc");
+               m_Builder.CreateStore(val, envPtrAddr);
+           }
+           
+           llvm::Value *opaqueEnv = m_Builder.CreatePointerCast(envPtrAddr, llvm::PointerType::getUnqual(m_Context));
+           
+           std::string invokeName = shp->Name + "___invoke";
+           llvm::Function *invokeFn = m_Module->getFunction(invokeName);
+           if (!invokeFn) {
+              error(call, "Closure invoke function not generated before Use: " + invokeName);
+              return nullptr;
+           }
+           llvm::Value *opaqueFunc = m_Builder.CreatePointerCast(invokeFn, llvm::PointerType::getUnqual(m_Context));
+           
+           llvm::StructType *fatPtrTy = llvm::StructType::get(
+               llvm::PointerType::getUnqual(m_Context),
+               llvm::PointerType::getUnqual(m_Context)
+           );
+           
+           llvm::Value *fatPtr = llvm::UndefValue::get(fatPtrTy);
+           fatPtr = m_Builder.CreateInsertValue(fatPtr, opaqueEnv, 0);
+           fatPtr = m_Builder.CreateInsertValue(fatPtr, opaqueFunc, 1);
+           
+           // Pass fat pointer by reference (ABI for FunctionType)
+           llvm::AllocaInst *fatPtrAlloc = m_Builder.CreateAlloca(fatPtrTy, nullptr, "fat_ptr_alloc");
+           m_Builder.CreateStore(fatPtr, fatPtrAlloc);
+           val = fatPtrAlloc;
+        }
+      }
     }
 
     // Fallback: If we generated a Value (e.g. Struct) but Function expects
