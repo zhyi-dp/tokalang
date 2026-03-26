@@ -33,6 +33,7 @@ private:
   const std::vector<Token> &m_Tokens;
   size_t m_Pos;
   std::string m_CurrentFile;
+  int m_CurrentClosureMaxImplicitArg = -1;
 
   // Helpers
   const Token &peek() const;
@@ -82,8 +83,8 @@ private:
   std::unique_ptr<ReturnStmt> parseReturn();
   std::unique_ptr<Stmt> parseUnreachableStmt();
 
-  std::unique_ptr<Expr> parseExpr(int minPrec = 0);
-  std::unique_ptr<Expr> parsePrimary();
+  std::unique_ptr<Expr> parseExpr(int minPrec = 0, bool allowTrailingClosure = true);
+  std::unique_ptr<Expr> parsePrimary(bool allowTrailingClosure = true);
   std::string parseTypeString();
 
   // ... Add more precedence helpers here

@@ -112,7 +112,7 @@ std::unique_ptr<MatchArm::Pattern> Parser::parsePattern() {
 
 std::unique_ptr<Expr> Parser::parseMatchExpr() {
   Token matchTok = previous(); // KwMatch or peek()
-  auto target = parseExpr();
+  auto target = parseExpr(0, false);
   consume(TokenType::LBrace, "Expected '{' after match expression");
 
   std::vector<std::unique_ptr<MatchArm>> arms;
@@ -134,8 +134,8 @@ std::unique_ptr<Expr> Parser::parseMatchExpr() {
   return matched;
 }
 
-std::unique_ptr<Expr> Parser::parseExpr(int minPrec) {
-  auto lhs = parsePrimary();
+std::unique_ptr<Expr> Parser::parseExpr(int minPrec, bool allowTrailingClosure) {
+  auto lhs = parsePrimary(allowTrailingClosure);
   if (!lhs)
     return nullptr;
 
@@ -200,7 +200,7 @@ std::unique_ptr<Expr> Parser::parseExpr(int minPrec) {
       break;
 
     Token op = advance();
-    auto rhs = parseExpr(prec + 1);
+    auto rhs = parseExpr(prec + 1, allowTrailingClosure);
     if (!rhs) {
       std::cerr << "Parser Error: Expected expression after operator\n";
       break;
@@ -215,7 +215,7 @@ std::unique_ptr<Expr> Parser::parseExpr(int minPrec) {
   return lhs;
 }
 
-std::unique_ptr<Expr> Parser::parsePrimary() {
+std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
   std::unique_ptr<Expr> expr = nullptr;
   if (match(TokenType::Bang) || match(TokenType::Minus) ||
       match(TokenType::PlusPlus) || match(TokenType::MinusMinus) ||
@@ -224,7 +224,7 @@ std::unique_ptr<Expr> Parser::parsePrimary() {
       match(TokenType::At) || match(TokenType::KwBnot)) {
     Token tok = previous();
     TokenType op = tok.Kind;
-    auto sub = parsePrimary();
+    auto sub = parsePrimary(allowTrailingClosure);
     auto node = std::make_unique<UnaryExpr>(op, std::move(sub));
     node->HasNull = tok.HasNull;
     node->IsRebindable = tok.IsSwappablePtr;
@@ -692,6 +692,22 @@ std::unique_ptr<Expr> Parser::parsePrimary() {
       var->IsValueBlocked = name.IsBlocked;
       expr = std::move(var);
     }
+  } else if (match(TokenType::Dot)) {
+    // Check if it's .a to .z for implicit closure parameter
+    if (!check(TokenType::Identifier)) {
+        error(peek(), "Expected implicit parameter name 'a'-'z'");
+        return nullptr;
+    }
+    Token member = advance();
+    if (member.Text.length() == 1 && member.Text[0] >= 'a' && member.Text[0] <= 'z') {
+        int index = member.Text[0] - 'a';
+        if (index > m_CurrentClosureMaxImplicitArg) m_CurrentClosureMaxImplicitArg = index;
+        expr = std::make_unique<VariableExpr>("_arg" + std::to_string(index));
+        expr->setLocation(member, m_CurrentFile);
+    } else {
+        error(member, "Invalid implicit parameter. Expected '.a' to '.z'");
+        return nullptr;
+    }
   } else {
     error(peek(), "Expected expression");
     return nullptr;
@@ -807,6 +823,29 @@ std::unique_ptr<Expr> Parser::parsePrimary() {
           std::make_unique<PostfixExpr>(TokenType::TokenNone, std::move(expr));
       node->setLocation(opTok, m_CurrentFile);
       expr = std::move(node);
+    } else if (allowTrailingClosure && !isEndOfStatement() && isClosureExpression()) {
+      // Trailing Closure Syntax
+      auto clo = parseClosureExpr();
+      if (auto *call = dynamic_cast<CallExpr*>(expr.get())) {
+          call->Args.push_back(std::move(clo));
+      } else if (auto *mcall = dynamic_cast<MethodCallExpr*>(expr.get())) {
+          mcall->Args.push_back(std::move(clo));
+      } else if (auto *member = dynamic_cast<MemberExpr*>(expr.get())) {
+          std::vector<std::unique_ptr<Expr>> args;
+          args.push_back(std::move(clo));
+          auto newCall = std::make_unique<MethodCallExpr>(std::move(member->Object), member->Member, std::move(args));
+          newCall->Loc = member->Loc;
+          expr = std::move(newCall);
+      } else if (auto *var = dynamic_cast<VariableExpr*>(expr.get())) {
+          std::vector<std::unique_ptr<Expr>> args;
+          args.push_back(std::move(clo));
+          auto newCall = std::make_unique<CallExpr>(var->Name, std::move(args));
+          newCall->Loc = var->Loc;
+          expr = std::move(newCall);
+      } else {
+          error(peek(), "Trailing closure applied to invalid expression type");
+          return nullptr;
+      }
     } else {
       break;
     }
@@ -895,7 +934,7 @@ std::unique_ptr<Expr> Parser::parseIf() {
   if (tok.Kind != TokenType::KwIf)
     tok = consume(TokenType::KwIf, "Expected 'if'");
   bool hasParen = match(TokenType::LParen);
-  auto cond = parseExpr();
+  auto cond = parseExpr(0, false);
   if (hasParen)
     consume(TokenType::RParen, "Expected ')'");
   auto thenStmt = parseStmt();
@@ -913,7 +952,7 @@ std::unique_ptr<Expr> Parser::parseGuard() {
   Token tok = previous(); // consumed by match(KwGuard)
   if (tok.Kind != TokenType::KwGuard)
     tok = consume(TokenType::KwGuard, "Expected 'guard'");
-  auto cond = parseExpr();
+  auto cond = parseExpr(0, false);
   
   auto thenStmt = parseBlock();
   std::unique_ptr<Stmt> elseStmt = nullptr;
@@ -937,7 +976,7 @@ std::unique_ptr<Expr> Parser::parseWhile() {
   if (tok.Kind != TokenType::KwWhile)
     tok = consume(TokenType::KwWhile, "Expected 'while'");
   bool hasParen = match(TokenType::LParen);
-  auto cond = parseExpr();
+  auto cond = parseExpr(0, false);
   if (hasParen)
     consume(TokenType::RParen, "Expected ')'");
   auto body = parseStmt();
@@ -973,7 +1012,7 @@ std::unique_ptr<Expr> Parser::parseForExpr() {
   Token varName =
       consume(TokenType::Identifier, "Expected variable name in for");
   consume(TokenType::KwIn, "Expected 'in' in for loop");
-  auto collection = parseExpr();
+  auto collection = parseExpr(0, false);
   auto body = parseStmt();
   std::unique_ptr<Stmt> elseBody;
   if (match(TokenType::KwOr)) {
@@ -1021,11 +1060,11 @@ std::unique_ptr<Expr> Parser::parsePass() {
 }
 
 bool Parser::isClosureExpression() {
+  if (check(TokenType::LBrace)) return true;
   if (check(TokenType::KwFn) && checkAt(1, TokenType::LParen)) return true;
   if (check(TokenType::LBracket) && (checkAt(1, TokenType::KwCede) || checkAt(1, TokenType::KwCopy))) return true;
   if ((check(TokenType::KwCede) || check(TokenType::KwCopy)) && (checkAt(1, TokenType::KwFn) || checkAt(1, TokenType::LParen))) return true;
   
-  if (check(TokenType::KwFn) && checkAt(1, TokenType::LParen)) return true;
   return false;
 }
 
@@ -1071,50 +1110,103 @@ std::unique_ptr<Expr> Parser::parseClosureExpr() {
     expr->ExplicitCaptures.push_back(cap);
   }
 
-  // 2. Optional `fn` keyword
-  match(TokenType::KwFn);
+  // 2. Optional `fn` keyword & explicit typed parameters (Legacy Support)
+  if (match(TokenType::KwFn)) {
+    consume(TokenType::LParen, "Expected '(' for closure parameters");
+    // Ignore legacy params for new AST since we only use ArgNames
+    // We will just populate ArgNames and pretend their types are unknown
+    expr->HasExplicitArgs = true;
+    while (!check(TokenType::RParen) && !check(TokenType::EndOfFile)) {
+      // Skip sigils for now in legacy parsing
+      match(TokenType::Caret); match(TokenType::Tilde); match(TokenType::Star); match(TokenType::Ampersand);
+      match(TokenType::TokenWrite); match(TokenType::TokenNull); match(TokenType::TokenNone);
 
-  // 3. Parameters
-  consume(TokenType::LParen, "Expected '(' for closure parameters");
-  while (!check(TokenType::RParen) && !check(TokenType::EndOfFile)) {
-    FunctionDecl::Arg arg;
-    
-    // Parse param sigils
-    if (match(TokenType::Caret)) { arg.HasPointer = true; arg.IsUnique = true; }
-    else if (match(TokenType::Tilde)) { arg.HasPointer = true; arg.IsShared = true; }
-    else if (match(TokenType::Star)) arg.HasPointer = true;
-    else if (match(TokenType::Ampersand)) arg.IsReference = true;
+      Token name = consume(TokenType::Identifier, "Expected parameter name");
+      expr->ArgNames.push_back(name.Text);
 
-    if (arg.HasPointer && match(TokenType::TokenWrite)) arg.IsRebindable = true;
-    if (arg.HasPointer && match(TokenType::TokenNull)) arg.IsPointerNullable = true;
-    if (arg.HasPointer && match(TokenType::TokenNone)) arg.IsRebindBlocked = true;
+      match(TokenType::TokenWrite); match(TokenType::TokenNone);
 
-    arg.Name = consume(TokenType::Identifier, "Expected parameter name").Text;
-
-    if (match(TokenType::TokenWrite)) arg.IsValueMutable = true;
-    if (match(TokenType::TokenNone)) arg.IsValueBlocked = true;
-
-    if (match(TokenType::Colon)) {
-      arg.Type = parseTypeString();
-    } else {
-      // In closures, types can be inferred
-      arg.Type = "unknown";
+      if (match(TokenType::Colon)) {
+        parseTypeString(); // discard
+      }
+      
+      if (!check(TokenType::RParen)) consume(TokenType::Comma, "Expected ',' between closure parameters");
     }
-    
-    expr->Params.push_back(std::move(arg));
-    if (!check(TokenType::RParen)) consume(TokenType::Comma, "Expected ',' between closure parameters");
-  }
-  consume(TokenType::RParen, "Expected ')' to close closure parameters");
+    consume(TokenType::RParen, "Expected ')' to close closure parameters");
 
-  // 4. Optional Return Type
-  if (match(TokenType::Arrow)) {
-     expr->ReturnType = parseTypeString();
-  } else {
-     expr->ReturnType = "unknown";
+    if (match(TokenType::Arrow)) {
+       expr->ReturnType = parseTypeString();
+    } else {
+       expr->ReturnType = "unknown";
+    }
+    expr->Body = parseBlock();
+    return expr;
   }
 
-  // 5. Body
-  expr->Body = parseBlock();
+  // 3. New Syntax: `{ [first, second =>] body }`
+  Token braceTok = consume(TokenType::LBrace, "Expected '{' for closure body");
+  expr->Body = std::make_unique<BlockStmt>();
+  expr->Body->setLocation(braceTok, m_CurrentFile);
+  expr->ReturnType = "unknown";
+
+  // Check for `first, second =>`
+  // We can't simply consume if we're not sure, so we look ahead.
+  // A valid explicit param list is identifiers separated by commas followed by `=>`.
+  int lookahead = 0;
+  bool hasArrow = false;
+  while (true) {
+    TokenType t = peekAt(lookahead).Kind;
+    if (t == TokenType::FatArrow) {
+      hasArrow = true;
+      break;
+    }
+    if (t != TokenType::Identifier && t != TokenType::Comma && t != TokenType::Ampersand && t != TokenType::Caret && t != TokenType::Tilde && t != TokenType::Star) { // loosely allow sigils just in case
+      break;
+    }
+    lookahead++;
+  }
+
+  if (hasArrow) {
+    expr->HasExplicitArgs = true;
+    while (!check(TokenType::FatArrow) && !check(TokenType::EndOfFile)) {
+      // skip basic sigils if user puts them
+      match(TokenType::Caret); match(TokenType::Tilde); match(TokenType::Star); match(TokenType::Ampersand);
+      Token name = consume(TokenType::Identifier, "Expected parameter name");
+      expr->ArgNames.push_back(name.Text);
+      if (!check(TokenType::FatArrow)) {
+        consume(TokenType::Comma, "Expected ',' between parameter names");
+      }
+    }
+    consume(TokenType::FatArrow, "Expected '=>' after closure parameters");
+  }
+
+  int oldMax = m_CurrentClosureMaxImplicitArg;
+  m_CurrentClosureMaxImplicitArg = -1;
+
+  // Parse the rest of the block
+  while (!check(TokenType::RBrace) && !check(TokenType::EndOfFile)) {
+    auto stmt = parseStmt();
+    if (stmt) {
+      expr->Body->Statements.push_back(std::move(stmt));
+    } else {
+      advance();
+    }
+  }
+  consume(TokenType::RBrace, "Expected '}'");
+
+  expr->MaxImplicitArgIndex = m_CurrentClosureMaxImplicitArg;
+  m_CurrentClosureMaxImplicitArg = oldMax;
+
+  // Implicit Return Transformation:
+  // If the last statement is an ExprStmt, convert it into a ReturnStmt.
+  if (!expr->Body->Statements.empty()) {
+      auto* lastStmt = expr->Body->Statements.back().get();
+      if (auto* exprStmt = dynamic_cast<ExprStmt*>(lastStmt)) {
+          auto retStmt = std::make_unique<ReturnStmt>(std::move(exprStmt->Expression));
+          retStmt->Loc = exprStmt->Loc;
+          expr->Body->Statements.back() = std::move(retStmt);
+      }
+  }
 
   return expr;
 }

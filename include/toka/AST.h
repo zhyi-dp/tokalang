@@ -1347,7 +1347,11 @@ class ClosureExpr : public Expr {
 public:
   std::vector<CaptureItem> ExplicitCaptures;
   std::vector<std::string> ImplicitCaptures; // Filled by Sema
-  std::vector<FunctionDecl::Arg> Params;
+  
+  bool HasExplicitArgs = false;
+  std::vector<std::string> ArgNames; // Either explicit names or filled lazily by Sema
+  int MaxImplicitArgIndex = -1; // Tracks max index (.a=0, .b=1) used in the body
+  
   std::string ReturnType;
   std::shared_ptr<toka::Type> ResolvedReturnType;
   std::unique_ptr<BlockStmt> Body;
@@ -1361,9 +1365,9 @@ public:
       n->ExplicitCaptures.push_back(cap.clone());
     }
     n->ImplicitCaptures = ImplicitCaptures;
-    for (const auto &p : Params) {
-      n->Params.push_back(p.clone());
-    }
+    n->HasExplicitArgs = HasExplicitArgs;
+    n->ArgNames = ArgNames;
+    n->MaxImplicitArgIndex = MaxImplicitArgIndex;
     n->ReturnType = ReturnType;
     n->ResolvedReturnType = ResolvedReturnType;
     if (Body) {

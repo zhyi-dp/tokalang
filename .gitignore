@@ -9,6 +9,7 @@ Toka*.md
 *.txt
 *.tk-
 .DS_Store
+.VSCodeCounter/
 !CMakeLists.txt
 build/
 build-linux/
