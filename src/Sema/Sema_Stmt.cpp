@@ -348,6 +348,9 @@ void Sema::checkStmt(Stmt *S) {
            if (auto clo = dynamic_cast<ClosureExpr*>(Var->Init.get())) {
               auto fnTy = std::static_pointer_cast<toka::FunctionType>(declTargetTy);
               clo->InjectedParamTypes = fnTy->ParamTypes;
+              if ((clo->ReturnType.empty() || clo->ReturnType == "unknown") && fnTy->ReturnType) {
+                  clo->ReturnType = fnTy->ReturnType->toString();
+              }
            }
         }
       }

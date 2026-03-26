@@ -4252,6 +4252,9 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
           if (auto clo = dynamic_cast<ClosureExpr*>(Call->Args[i].get())) {
              auto fnTy = std::static_pointer_cast<toka::FunctionType>(canonicalParam);
              clo->InjectedParamTypes = fnTy->ParamTypes;
+             if ((clo->ReturnType.empty() || clo->ReturnType == "unknown") && fnTy->ReturnType) {
+                 clo->ReturnType = fnTy->ReturnType->toString();
+             }
           }
        }
     }
