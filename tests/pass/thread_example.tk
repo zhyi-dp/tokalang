@@ -1,12 +1,12 @@
 import std/io::println
-import std/thread::{spawn}
+import std/thread::{spawn, sleep_ms}
 
 pub fn main() -> i32 {
     auto target = 100
     
     // Spawn a thread and explicitly capture `target` by moving it (cede) into the thread!
     auto handle = spawn([cede target] {
-        //sleep(1000)
+        sleep_ms(100:u32)
         println("I am a new Toka OS thread! Target is: {}", target)
         0
     })

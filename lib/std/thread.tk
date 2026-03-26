@@ -2,10 +2,18 @@
 // lib/std/thread.tk
 // Standard library for OS threads.
 
-import core/libc::{libc_malloc, libc_free, libc_pthread_create, libc_pthread_join}
+import core/libc::{libc_malloc, libc_free, libc_pthread_create, libc_pthread_join, libc_usleep}
 import core/types::{Addr, usize}
 
 pub shape JoinHandle(id: Addr)
+
+/// Suspends the current thread for at least the specified number of milliseconds.
+pub fn sleep_ms(ms: u32) {
+    unsafe {
+        // libc_usleep takes microseconds
+        libc_usleep(ms * 1000:u32)
+    }
+}
 
 /// Spawns a new OS thread, running the given closure.
 /// 
