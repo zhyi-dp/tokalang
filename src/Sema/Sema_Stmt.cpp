@@ -280,6 +280,13 @@ void Sema::checkStmt(Stmt *S) {
       HasError = true;
     } else {
       // Strict Morphology Check for Return
+      if (CurrentFunction && CurrentFunction->ResolvedReturnType && CurrentFunction->ResolvedReturnType->IsCede) {
+        if (Ret->ReturnValue && !dynamic_cast<CedeExpr*>(Ret->ReturnValue.get())) {
+          DiagnosticEngine::report(getLoc(Ret), DiagID::ERR_EXPECTED_CEDE_RETURN, CurrentFunctionReturnType);
+          HasError = true;
+        }
+      }
+
       MorphKind targetMorph = MorphKind::None;
       if (!CurrentFunctionReturnType.empty()) {
         char c = CurrentFunctionReturnType[0];

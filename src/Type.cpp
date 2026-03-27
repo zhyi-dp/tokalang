@@ -20,15 +20,8 @@
 namespace toka {
 
 bool Type::equals(const toka::Type &other) const {
-  if (typeKind != other.typeKind)
-    return false;
-  if (IsWritable != other.IsWritable)
-    return false;
-  if (IsNullable != other.IsNullable)
-    return false;
-  if (IsBlocked != other.IsBlocked)
-    return false;
-  return true;
+  return IsWritable == other.IsWritable && IsNullable == other.IsNullable &&
+         IsBlocked == other.IsBlocked && IsCede == other.IsCede;
 }
 
 // Check compatibility (Permission Flow)
@@ -67,7 +60,9 @@ std::shared_ptr<Type> VoidType::withAttributes(bool w, bool n, bool b) const {
 }
 
 std::string PrimitiveType::toString() const {
-  std::string s = Name;
+  std::string s = "";
+  if (IsCede) s += "cede ";
+  s += Name;
   if (IsBlocked)
     s += "$";
   if (IsWritable && IsNullable)
@@ -132,6 +127,7 @@ bool PointerType::isCompatibleWith(const Type &target) const {
 
 std::string RawPointerType::toString() const {
   std::string s = "";
+  if (IsCede) s += "cede ";
   if (IsNullable) {
     s += "nul ";
   }
@@ -160,6 +156,7 @@ std::shared_ptr<Type> RawPointerType::withAttributes(bool w, bool n,
 
 std::string UniquePointerType::toString() const {
   std::string s = "";
+  if (IsCede) s += "cede ";
   if (IsNullable) {
     s += "nul ";
   }
@@ -189,6 +186,7 @@ std::shared_ptr<Type> UniquePointerType::withAttributes(bool w, bool n,
 
 std::string SharedPointerType::toString() const {
   std::string s = "";
+  if (IsCede) s += "cede ";
   if (IsNullable) {
     s += "nul ";
   }
@@ -221,6 +219,7 @@ std::shared_ptr<Type> SharedPointerType::withAttributes(bool w, bool n,
 
 std::string ReferenceType::toString() const {
   std::string s = "";
+  if (IsCede) s += "cede ";
   if (IsNullable) {
     s += "nul ";
   }
@@ -251,7 +250,9 @@ std::shared_ptr<Type> ReferenceType::withAttributes(bool w, bool n,
 // --- Composite ---
 
 std::string ArrayType::toString() const {
-  std::string s = "[";
+  std::string s = "";
+  if (IsCede) s += "cede ";
+  s += "[";
   s += ElementType->toString();
   s += "; ";
   if (!SymbolicSize.empty()) {
@@ -274,7 +275,9 @@ std::string ArrayType::toString() const {
 }
 
 std::string SliceType::toString() const {
-  std::string s = "[";
+  std::string s = "";
+  if (IsCede) s += "cede ";
+  s += "[";
   s += ElementType->toString();
   s += "]";
   if (IsWritable && IsNullable) {
@@ -329,7 +332,9 @@ std::shared_ptr<Type> ArrayType::withAttributes(bool w, bool n, bool b) const {
 }
 
 std::string ShapeType::toString() const {
-  std::string s = Name;
+  std::string s = "";
+  if (IsCede) s += "cede ";
+  s += Name;
   if (!GenericArgs.empty()) {
     s += "<";
     for (size_t i = 0; i < GenericArgs.size(); ++i) {
@@ -386,7 +391,9 @@ void ShapeType::resolve(ShapeDecl *decl) {
 }
 
 std::string TupleType::toString() const {
-  std::string s = "(";
+  std::string s = "";
+  if (IsCede) s += "cede ";
+  s += "(";
   for (size_t i = 0; i < Elements.size(); ++i) {
     if (i > 0)
       s += ", ";
@@ -437,7 +444,9 @@ std::shared_ptr<Type> TupleType::withAttributes(bool w, bool n, bool b) const {
 }
 
 std::string FunctionType::toString() const {
-  std::string s = "fn(";
+  std::string s = "";
+  if (IsCede) s += "cede ";
+  s += "fn(";
   for (size_t i = 0; i < ParamTypes.size(); ++i) {
     if (i > 0)
       s += ", ";
@@ -447,7 +456,8 @@ std::string FunctionType::toString() const {
     s += ", ...";
   s += ")";
   if (ReturnType && ReturnType->typeKind != Void) {
-    s += " -> " + ReturnType->toString();
+    s += " -> ";
+    s += ReturnType->toString();
   }
   return s;
 }
@@ -608,6 +618,12 @@ std::shared_ptr<Type> Type::fromString(const std::string &rawType) {
   if (s.empty())
     return std::make_shared<UnresolvedType>(rawType);
 
+  bool isCede = false;
+  if (s.rfind("cede ", 0) == 0) {
+    isCede = true;
+    s = trim(s.substr(5));
+  }
+
   bool explicitPtrNullable = false;
   if (s.rfind("nul ", 0) == 0) { // starts_with
     explicitPtrNullable = true;
@@ -671,6 +687,7 @@ std::shared_ptr<Type> Type::fromString(const std::string &rawType) {
       fnNode->IsWritable = isWritable;
       fnNode->IsNullable = isNullable;
       fnNode->IsBlocked = isBlocked;
+      fnNode->IsCede = isCede;
       return fnNode;
     }
   }
@@ -711,6 +728,7 @@ std::shared_ptr<Type> Type::fromString(const std::string &rawType) {
     ptr->IsNullable = ptrNullable;
     ptr->IsWritable = ptrWritable;
     ptr->IsBlocked = ptrBlocked;
+    ptr->IsCede = isCede;
     return ptr;
   }
 
@@ -731,6 +749,7 @@ std::shared_ptr<Type> Type::fromString(const std::string &rawType) {
       arr->IsWritable = isWritable;
       arr->IsNullable = isNullable;
       arr->IsBlocked = isBlocked;
+      arr->IsCede = isCede;
       return arr;
     } else if (close != std::string::npos && semi == std::string::npos) {
       // Dynamic Array [T]
@@ -739,6 +758,7 @@ std::shared_ptr<Type> Type::fromString(const std::string &rawType) {
       slice->IsWritable = isWritable;
       slice->IsNullable = isNullable;
       slice->IsBlocked = isBlocked;
+      slice->IsCede = isCede;
       return slice;
     }
   }
@@ -752,6 +772,7 @@ std::shared_ptr<Type> Type::fromString(const std::string &rawType) {
     prim->IsWritable = isWritable;
     prim->IsNullable = isNullable;
     prim->IsBlocked = isBlocked;
+    prim->IsCede = isCede;
     return prim;
   }
 
@@ -805,6 +826,7 @@ std::shared_ptr<Type> Type::fromString(const std::string &rawType) {
     tup->IsWritable = isWritable;
     tup->IsNullable = isNullable;
     tup->IsBlocked = isBlocked;
+    tup->IsCede = isCede;
     return tup;
   }
 
@@ -847,6 +869,7 @@ std::shared_ptr<Type> Type::fromString(const std::string &rawType) {
   shape->IsWritable = isWritable;
   shape->IsNullable = isNullable;
   shape->IsBlocked = isBlocked;
+  shape->IsCede = isCede;
   return shape;
 }
 

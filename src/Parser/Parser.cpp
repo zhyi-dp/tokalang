@@ -167,7 +167,11 @@ std::string Parser::parseTypeString() {
         t == TokenType::Greater)
       balance--;
 
-    type += advance().Text;
+    Token tok = advance();
+    type += tok.Text;
+    if (tok.Text == "cede") {
+      type += " ";
+    }
   }
   return type;
 }

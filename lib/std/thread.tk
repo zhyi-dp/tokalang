@@ -1,11 +1,5 @@
-// Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
-// lib/std/thread.tk
-// Standard library for OS threads.
-
-import core/libc::{libc_malloc, libc_free, libc_pthread_create, libc_pthread_join, libc_usleep}
-import core/types::{Addr, usize}
-
-pub shape JoinHandle<T>(id: Addr)
+import core/libc::{libc_pthread_create, libc_pthread_join, libc_malloc, libc_free, libc_usleep}
+import std/io::{println}
 
 /// Suspends the current thread for at least the specified number of milliseconds.
 pub fn sleep_ms(ms: u32) {
@@ -15,60 +9,99 @@ pub fn sleep_ms(ms: u32) {
     }
 }
 
+pub alias ThreadClosure<T> = fn() -> cede T
+
+shape ClosureBox<T>(closure: fn() -> cede T)
+shape TrampBox(f: fn() -> Addr)
+
 /// Spawns a new OS thread, running the given closure.
 /// 
 /// Note: To capture variables from the environment safely across threads,
 /// use the `[cede ...]` capture list in the closure to consume variables
 /// by value (move semantics).
-pub fn spawn<T>(f: fn() -> ^T) -> JoinHandle<T> {
+pub fn spawn<T>(f: fn() -> cede T) -> JoinHandle<T> {
     unsafe {
-        // 1. Allocate a stable heap buffer for the closure (fat pointer is 16 bytes)
-        auto *f_buf# = libc_malloc(16 as usize) as *fn() -> ^T
-        f_buf = f
+        // 1. Box the closure natively using `new` on the heap
+        auto ^exc_box_ptr# = new ClosureBox<T>(closure = f)
+        auto *box_ptr = ((^exc_box_ptr) as *ClosureBox<T>)
+        auto f_arg = unsafe ((*box_ptr) as Addr)
         
-        // 2. Transmute the fat pointer into two Addrs (env_ptr + function_ptr)
-        auto *mem = (*f_buf) as *Addr
+        // 2. Define capturing trampoline matching C-ABI implicitly via fat ptrs
+        auto tramp_fn: fn() -> Addr = [cede f_arg] {
+            unsafe {
+                auto *closure_box_ptr# = (f_arg as *ClosureBox<T>)
+                auto closure_box = closure_box_ptr
+                auto closure = closure_box.closure
+                
+                // Free the ClosureBox shell 
+                libc_free(f_arg as Addr as *void)
+                
+                // Create native heap box for result matching structural types safely via parenthesis isolating generic templates 
+                auto *box_ret# = (libc_malloc(sizeof(T) as usize) as *T)
+                
+                // Write the structural closure evaluation safely to memory by utilizing `cede` keyword for moves!
+                box_ret# = cede closure()
+                
+                return (*box_ret) as Addr
+            }
+        }
         
-        // Extract env_ptr (first 8 bytes)
-        auto env_ptr = mem
+        // Box the trampoline so we can evaluate its physical pointer securely
+        auto ^exc_tramp_ptr# = new TrampBox(f = tramp_fn)
+        auto *tramp_buf# = (^exc_tramp_ptr) as *TrampBox
         
-        // Extract invoker_ptr (second 8 bytes)
-        auto func_ptr_addr = (*mem) as Addr + 8
-        auto *mem_func = func_ptr_addr as *Addr
-        auto invoker_ptr = mem_func
+        // Now safely extract the native C function pointer & environment block
+        auto *tramp_mem# = (*tramp_buf) as *Addr
+        auto env_ptr = tramp_mem
+        
+        auto func_ptr_addr = ((*tramp_buf) as Addr) + 8
+        auto *invoker_ptr# = (func_ptr_addr as *Addr)
+        auto real_invoker = invoker_ptr
         
         // 3. Allocate Addr for thread_id
-        auto *thread_ptr# = libc_malloc(8 as usize) as *Addr
-        thread_ptr = 0:Addr
+        auto *thread_ptr# = (libc_malloc(8 as usize) as *Addr)
+        thread_ptr# = 0:Addr
         
-        // 4. Fire the thread
+        // 4. Fire the thread natively
         libc_pthread_create(
             (*thread_ptr) as Addr,
             0:Addr,
-            invoker_ptr,
+            real_invoker,
             env_ptr
         )
         
         auto thread_id = thread_ptr
-        libc_free((*thread_ptr) as *void)
+        libc_free((*thread_ptr) as *byte)
+        
+        // Free our trampoline shell immediately, thread only needs the bare C pointers inside
+        libc_free((*tramp_buf) as *byte)
         
         return JoinHandle<T>(id = thread_id)
     }
 }
 
+pub shape JoinHandle<T>(id: Addr)
+
 impl<T> JoinHandle<T> {
-    /// Waits for the associated thread to finish.
-    pub fn join(self) -> ^T {
+    /// Waits for the thread to finish and returns its yielded value.
+    pub fn join(self) -> T {
         unsafe {
-            // Allocate dummy pointer for retval to satisfy pthread_join signature
-            auto *retval_ptr# = libc_malloc(8 as usize) as *Addr
-            retval_ptr = 0:Addr
+            // Allocate 8-byte pointer block to receive the pthread_join result
+            auto *retval_ptr# = (libc_malloc(8 as usize) as *Addr)
+            retval_ptr# = 0:Addr
+            
+            // Join blocks here, taking the thread id from the handle
             libc_pthread_join(self.id, (*retval_ptr) as Addr)
             
+            // value returned from thread (it's the allocated struct box)
             auto raw_res = retval_ptr
-            libc_free((*retval_ptr) as *void)
+            libc_free((*retval_ptr) as *byte)
             
-            return (raw_res as *T) as ^T
+            // Extract the box, unbox it safely, and free the box
+            auto *box_ret = (raw_res as *T)
+            auto val = cede box_ret
+            
+            return cede val
         }
     }
 }

@@ -93,7 +93,8 @@ static std::unordered_map<std::string, TokenType> Keywords = {
     {"unreachable", TokenType::KwUnreachable},
     {"__FILE__", TokenType::KwFile},
     {"__LINE__", TokenType::KwLine},
-    {"__LOC__", TokenType::KwLoc}};
+    {"__LOC__", TokenType::KwLoc},
+    {"sizeof", TokenType::KwSizeof}};
 
 Lexer::Lexer(const char *source, SourceLocation startLoc)
     : m_Source(source), m_Current(source), m_StartLoc(startLoc) {}

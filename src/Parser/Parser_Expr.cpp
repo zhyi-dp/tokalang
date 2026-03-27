@@ -177,6 +177,9 @@ std::unique_ptr<Expr> Parser::parseExpr(int minPrec, bool allowTrailingClosure) 
 
         t = advance();
         typeName += t.Text;
+        if (t.Text == "cede") {
+          typeName += " ";
+        }
         if (t.Kind == TokenType::LBracket || t.Kind == TokenType::LParen ||
             t.Kind == TokenType::GenericLT)
           depth++;
@@ -317,6 +320,26 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
     Token tok = previous();
     auto val = parseExpr();
     auto node = std::make_unique<PassExpr>(std::move(val));
+    node->setLocation(tok, m_CurrentFile);
+    expr = std::move(node);
+  } else if (match(TokenType::KwCede)) {
+    Token tok = previous();
+    auto val = parseExpr();
+    auto node = std::make_unique<CedeExpr>(std::move(val));
+    node->setLocation(tok, m_CurrentFile);
+    expr = std::move(node);
+  } else if (match(TokenType::KwSizeof)) {
+    Token tok = previous();
+    if (!match(TokenType::LParen)) {
+      error(tok, "Expected '(' after sizeof");
+      return nullptr;
+    }
+    auto typeStr = parseTypeString();
+    if (!match(TokenType::RParen)) {
+      error(previous(), "Expected ')' after sizeof type string");
+      return nullptr;
+    }
+    auto node = std::make_unique<SizeOfExpr>(typeStr);
     node->setLocation(tok, m_CurrentFile);
     expr = std::move(node);
   } else if (match(TokenType::KwSelf)) {

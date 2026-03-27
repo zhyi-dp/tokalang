@@ -71,6 +71,17 @@ PhysEntity CodeGen::genExpr(const Expr *expr) {
     return genMatchExpr(e);
   if (auto e = dynamic_cast<const IfExpr *>(expr))
     return genIfExpr(e);
+  if (auto e = dynamic_cast<const SizeOfExpr *>(expr)) {
+    llvm::Type *targetTy = getLLVMType(toka::Type::fromString(e->TypeStr));
+    if (!targetTy) {
+      error(e, "Cannot determine size of incomplete type: " + e->TypeStr);
+      return PhysEntity(llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), 0), "usize", llvm::Type::getInt64Ty(m_Context), false);
+    }
+    llvm::Value *nullPtr = llvm::ConstantPointerNull::get(llvm::PointerType::getUnqual(m_Context));
+    llvm::Value *gep = m_Builder.CreateGEP(targetTy, nullPtr, m_Builder.getInt32(1));
+    llvm::Value *size = m_Builder.CreatePtrToInt(gep, m_Builder.getInt64Ty());
+    return PhysEntity(size, "usize", m_Builder.getInt64Ty(), false);
+  }
   if (auto e = dynamic_cast<const GuardExpr *>(expr))
     return genGuardExpr(e);
   if (auto e = dynamic_cast<const WhileExpr *>(expr))

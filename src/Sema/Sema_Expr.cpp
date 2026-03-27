@@ -451,6 +451,10 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     }
 
     if (!InfoPtr) {
+      if (ve->Name == "f_arg") {
+          std::string fnName = CurrentFunction ? CurrentFunction->Name : "NONE";
+          std::cerr << "[TRACE] VariableExpr failed to find 'f_arg' in scope! Depth: " << CurrentScope->Depth << " In Function: " << fnName << "\n";
+      }
       // [NEW] Surgical Plan: Try resolving as a type (handles Option<i32>)
       auto possible = toka::Type::fromString(ve->Name);
       if (possible && !possible->isUnknown()) {
@@ -902,7 +906,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
                 "') cannot be degraded to raw pointer ('" + Cast->TargetType +
                 "'). Violation of Allocation Sourcing.");
     } else if (targetIsAddr) {
-      if (!(srcIsAddr || srcIsRaw || srcIsNumeric)) {
+      if (!(srcIsAddr || srcIsRaw || srcIsNumeric || srcType->isUniquePtr() || srcType->isSharedPtr())) {
         error(Cast, DiagID::ERR_CAST_MISMATCH, srcType->toString(),
               Cast->TargetType);
       }
@@ -920,7 +924,8 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       bool srcIsStr = (srcType->toString() == "str");
       bool srcIsNull =
           (srcType->toString() == "nullptr" || srcType->toString() == "*?void");
-      if (!(srcIsAddr || srcIsRaw || srcIsNumeric || srcIsStr || srcIsNull)) {
+      std::cerr << "[TRACE] targetIsRaw: srcType=" << srcType->toString() << " tgt=" << Cast->TargetType << "\n";
+      if (!(srcIsAddr || srcIsRaw || srcIsNumeric || srcIsStr || srcIsNull || srcType->isUniquePtr() || srcType->isSharedPtr())) {
         error(Cast, DiagID::ERR_CAST_MISMATCH, srcType->toString(),
               Cast->TargetType);
       }
@@ -1292,6 +1297,15 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
             elseType);
     }
     return toka::Type::fromString((bodyType != "void") ? bodyType : elseType);
+  } else if (auto *ce = dynamic_cast<CedeExpr *>(E)) {
+    auto innerTy = checkExpr(ce->Value.get());
+    if (!innerTy) return nullptr;
+    ce->ResolvedType = innerTy;
+    return innerTy;
+  } else if (auto *se = dynamic_cast<SizeOfExpr *>(E)) {
+    se->TypeStr = resolveType(se->TypeStr);
+    se->ResolvedType = toka::Type::fromString("usize");
+    return se->ResolvedType;
   } else if (auto *pe = dynamic_cast<PassExpr *>(E)) {
     // 1. Detect if this is a prefix 'pass' (wrapping a complex expression)
     bool isPrefixMatch = dynamic_cast<MatchExpr *>(pe->Value.get());
@@ -4892,7 +4906,10 @@ std::shared_ptr<toka::Type> toka::Sema::checkClosureExpr(ClosureExpr *Clo) {
 
   // Check Body (this will recursively call checkExpr which populates m_AccessedVariables)
   if (Clo->Body) {
+      bool oldPrecompute = m_IsPrecomputingCaptures;
+      m_IsPrecomputingCaptures = true;
       checkStmt(Clo->Body.get());
+      m_IsPrecomputingCaptures = oldPrecompute;
   }
 
   // Determine Captures
@@ -4900,9 +4917,18 @@ std::shared_ptr<toka::Type> toka::Sema::checkClosureExpr(ClosureExpr *Clo) {
   for (const auto& varName : m_AccessedVariables) {
      SymbolInfo *infoPtr = nullptr;
      std::string actualName;
-     // Exclude current closure scope params/locals; check if it exists in the Parent scope!
-     if (!CurrentScope->Symbols.count(varName) && CurrentScope->Parent) {
-         if (CurrentScope->Parent->findVariableWithDeref(varName, infoPtr, actualName)) {
+     // Exclude current closure scope params; check if it exists in the environment (CurrentScope)!
+     bool isParam = false;
+     for (auto &p : closureParams) {
+         if (p.Name == varName) { isParam = true; break; }
+     }
+     if (isParam) {
+         std::cerr << "[TRACE] checkClosureExpr skipped param: " << varName << "\n";
+         continue;
+     }
+
+     if (CurrentScope->findVariableWithDeref(varName, infoPtr, actualName)) {
+         std::cerr << "[TRACE] checkClosureExpr captured: " << varName << " type: " << infoPtr->TypeObj->toString() << "\n";
         
         bool isExplicit = false;
         CaptureMode explicitMode = CaptureMode::ImplicitBorrow;
@@ -4940,7 +4966,6 @@ std::shared_ptr<toka::Type> toka::Sema::checkClosureExpr(ClosureExpr *Clo) {
         }
 
         members.push_back(sm);
-         }
      }
   }
 
@@ -4994,6 +5019,7 @@ std::shared_ptr<toka::Type> toka::Sema::checkClosureExpr(ClosureExpr *Clo) {
   
   // 2. Inject captured variables as perfectly valid locals
   for (auto &memb : SyntheticShape->Members) {
+    std::cerr << "[TRACE] INJECTING CAPTURED MEMB: " << memb.Name << " ResolvedType: " << (memb.ResolvedType ? "YES" : "NO") << " Depth: " << CurrentScope->Depth << "\n";
     if (memb.ResolvedType) {
        SymbolInfo Info;
        Info.TypeObj = memb.ResolvedType; // Pre-resolved!

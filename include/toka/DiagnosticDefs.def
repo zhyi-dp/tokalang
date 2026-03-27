@@ -67,6 +67,7 @@ DIAG(ERR_YIELD_OR_REQUIRED,    Error, "E0434", "Yielding {} loop must have an 'o
 DIAG(ERR_BRANCH_TYPE_MISMATCH, Error, "E0435", "{} branches have incompatible types: '{}' vs '{}'")
 DIAG(ERR_PASS_NO_RECEIVER,    Error, "E0436", "'pass' used without a receiver; prefix the expression with 'auto x =' or 'alias y ='")
 DIAG(ERR_METHOD_PRIVATE,      Error, "E0437", "Method '{}' is private to '{}' and cannot be accessed from module '{}'")
+DIAG(ERR_EXPECTED_CEDE_RETURN, Error, "E0438", "Function returns 'cede {}', but return expression does not explicitly transfer ownership via 'return cede ...'")
 
 // --- Sema: Ownership & Resources (Toka Specials) ---
 DIAG(ERR_USE_MOVED,          Error, "E0438", "Use of moved value: '{}'")

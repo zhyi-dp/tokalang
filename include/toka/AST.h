@@ -155,6 +155,19 @@ public:
   }
 };
 
+class SizeOfExpr : public Expr {
+public:
+  std::string TypeStr;
+  SizeOfExpr(const std::string &ty) : TypeStr(ty) {}
+  std::string toString() const override { return "sizeof(" + TypeStr + ")"; }
+  std::unique_ptr<ASTNode> clone() const override {
+    auto n = std::make_unique<SizeOfExpr>(TypeStr);
+    n->Loc = Loc;
+    n->ResolvedType = ResolvedType;
+    return n;
+  }
+};
+
 class VariableExpr : public Expr {
 public:
   std::string Name;
@@ -666,6 +679,21 @@ public:
   }
 };
 
+class CedeExpr : public Expr {
+public:
+  std::unique_ptr<Expr> Value;
+  CedeExpr(std::unique_ptr<Expr> val) : Value(std::move(val)) {}
+  std::string toString() const override {
+    return "Cede(" + (Value ? Value->toString() : "none") + ")";
+  }
+  std::unique_ptr<ASTNode> clone() const override {
+    auto n = std::make_unique<CedeExpr>(cloneNode(Value));
+    n->Loc = Loc;
+    n->ResolvedType = ResolvedType;
+    return n;
+  }
+};
+
 class MatchArm {
 public:
   struct Pattern : public ASTNode {
@@ -679,7 +707,7 @@ public:
     std::vector<std::unique_ptr<Pattern>> SubPatterns; // For Decons
 
     Pattern(Kind k) : PatternKind(k) {}
-    std::string toString() const {
+    std::string toString() const override {
       switch (PatternKind) {
       case Literal:
         return std::to_string(LiteralVal);

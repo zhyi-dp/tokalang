@@ -146,7 +146,11 @@ public:
       visitExpr(Post->LHS.get());
     } else if (auto *Cast = dynamic_cast<CastExpr *>(E)) {
       Cast->TargetType = sub(Cast->TargetType);
-      visitExpr(Cast->Expression.get());
+    } else if (auto *Closure = dynamic_cast<ClosureExpr *>(E)) {
+      Closure->ReturnType = sub(Closure->ReturnType);
+      visitStmt(Closure->Body.get());
+    } else if (auto *SE = dynamic_cast<SizeOfExpr *>(E)) {
+      SE->TypeStr = sub(SE->TypeStr);
     } else if (auto *Addr = dynamic_cast<AddressOfExpr *>(E)) {
       visitExpr(Addr->Expression.get());
     } else if (auto *Mem = dynamic_cast<MemberExpr *>(E)) {

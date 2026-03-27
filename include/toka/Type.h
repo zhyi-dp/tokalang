@@ -54,6 +54,7 @@ public:
   bool IsWritable = false; // '#' (Content mutation)
   bool IsNullable = false; // '?' (Content nullability)
   bool IsBlocked = false;  // '$' (Inherent restriction)
+  bool IsCede = false;     // 'cede' keyword for thread return/ownership transfer
 
   Type(Kind k) : typeKind(k) {}
   virtual ~Type() = default;

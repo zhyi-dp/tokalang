@@ -39,6 +39,8 @@ bool Sema::checkModule(Module &M) {
   // 2b. Check function bodies (reordered)
 
   for (auto &Fn : M.Functions) {
+    if (!Fn->GenericParams.empty())
+      continue; // [NEW] Skip Generic Templates
     checkFunction(Fn.get());
   }
 
@@ -65,6 +67,7 @@ bool Sema::checkModule(Module &M) {
 static SourceLocation getLoc(ASTNode *Node) { return Node->Loc; }
 
 void Sema::error(ASTNode *Node, const std::string &Msg) {
+  if (m_IsPrecomputingCaptures) return;
   HasError = true;
   // Fallback for not-yet-migrated errors
   DiagnosticEngine::report(getLoc(Node), DiagID::ERR_GENERIC_SEMA, Msg);
@@ -731,10 +734,14 @@ void Sema::checkFunction(FunctionDecl *Fn) {
 void Sema::checkImpl(ImplDecl *Impl) {
   // [NEW] Skip Generic Templates until Instantiation
   // (Assuming Impl<T> is handled similarly to Functions, but for now we focus
-  // on non-generic Impl or instantiated ones) Actually, ImplDecl doesn't have
-  // GenericParams on itself usually? It refers to a Generic Type. We should
-  // check if the TargetType is generic? For "impl<T> Box<T>", the ImplDecl
-  // has "Box<T>" as TypeName. We need to resolve it.
+  // on non-generic Impl or instantiated ones)
+  
+  // [CRITICAL FIX] Skip synthetic Closure implementations! 
+  // They have already been meticulously verified by checkClosureExpr with correctly mapped captured variables.
+  // Re-evaluating them here strips the closure captures and breaks explicit cede variables.
+  if (Impl->TypeName.find("__Closure_") == 0) {
+      return;
+  }
 
   enterScope(); // Helper Scope for Self Injection
 
@@ -1335,6 +1342,9 @@ FunctionDecl *Sema::instantiateGenericFunction(
       } else if (auto *fore = dynamic_cast<ForExpr *>(e)) {
         visitExpr(fore->Collection.get());
         visitStmt(fore->Body.get());
+      } else if (auto *clo = dynamic_cast<ClosureExpr *>(e)) {
+        applySubst(clo->ReturnType);
+        if (clo->Body) visitStmt(clo->Body.get());
       } else if (auto *rep = dynamic_cast<RepeatedArrayExpr *>(e)) {
         visitExpr(rep->Value.get());
         visitExpr(rep->Count.get());

@@ -3,30 +3,32 @@ import std/thread::{spawn, sleep_ms}
 import std/string::{String}
 
 pub fn main() -> i32 {
-    auto target = 100:i64
-    
-    // Spawn a thread and explicitly capture `target` by moving it (cede) into the thread!
-    auto handle = spawn<String>([cede target] {
+    auto target = 256:i64
+
+    auto f:fn() -> cede String = [cede target] {
         sleep_ms(1000:u32)
         auto text# = String::from("Toka Threading with generics: target = ")
         auto num_s = String::from_i64(target)
         text#.push_str(num_s.c_str())
-        auto ^res# = new String(*buf=nullptr, len=0:i32, cap=0:i32)
-        res = text 
-        return ^res
-    })
+        println("Thread 1 OK")
+        return cede text
+    }
+    
+    // Spawn a thread and explicitly capture `target` by moving it (cede) into the thread!
+    auto handle = spawn<String>(f)
+
+    //println("target = {}", target) //error: use of moved value: `target`
 
     auto handle2 = spawn<String>({
         auto text = String::from("Hello from background thread!")
-        auto ^res# = new String(*buf=nullptr, len=0:i32, cap=0:i32)
-        res = text
-        return ^res
+        println("Thread 2 OK")
+        return cede text
     })
     
     println("Main thread is waiting...")
     
-    auto ^res1# = handle.join()
-    auto ^res2# = handle2.join()
+    auto res1 = handle.join()
+    auto res2 = handle2.join()
     
     println("Thread 1 returned: {}", res1)
     println("Thread 2 returned: {}", res2)

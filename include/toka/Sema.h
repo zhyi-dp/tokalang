@@ -261,6 +261,7 @@ private:
       false; // [Ch 6] Track if we are at the LHS terminal
   bool m_DisableVisibilityCheck =
       false; // [Auto-Clone] Bypass visibility for injected calls
+  bool m_IsPrecomputingCaptures = false; // [NEW] Disable errors in closures
   bool m_IsMemberBase =
       false; // [NEW] Track if we are checking the base of a member access
   TokenType m_OuterPointerSigil =
@@ -287,6 +288,7 @@ private:
 
   template <typename... Args>
   void error(ASTNode *Node, DiagID ID, Args &&...args) {
+    if (m_IsPrecomputingCaptures) return;
     HasError = true;
     DiagnosticEngine::report(Node->Loc, ID, std::forward<Args>(args)...);
   }

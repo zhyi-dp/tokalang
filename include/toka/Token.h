@@ -109,6 +109,7 @@ enum class TokenType {
   KwFile, // __FILE__
   KwLine, // __LINE__
   KwLoc,  // __LOC__
+  KwSizeof,
 
   // Attribute Tokens (When separate, though usually parsed as part of Ident or
   // Type)
