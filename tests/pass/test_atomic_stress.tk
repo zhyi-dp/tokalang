@@ -4,9 +4,7 @@ import std/io::{println}
 
 pub fn main() -> i32 {
     println("Testing atomic reference counting for ~Mutex...")
-    auto temp# = Mutex<i32>::new(0)
-    auto ~m = new Mutex<i32>(handle = temp.handle, data = temp.data)
-    temp.handle = 0:Addr
+    auto ~m = Mutex<i32>::make(0)
     
     auto ~m1 = ~m
     auto ~m2 = ~m

@@ -32,6 +32,21 @@ impl<T> Mutex<T> {
         }
     }
     
+    /// Directly allocates and initializes a new Mutex as a shared pointer (~Mutex)
+    pub fn make(data: cede T) -> ^Mutex<T> {
+        unsafe {
+            auto *handle_ptr# = (libc_malloc(64 as usize) as *byte)
+            auto handle_addr = (*handle_ptr) as Addr
+            
+            libc_pthread_mutex_init(handle_addr, 0:Addr)
+            
+            return new Mutex<T>(
+                handle = handle_addr,
+                data = cede data
+            )
+        }
+    }
+    
     /// Acquires the mutex, blocking the current thread until it is available.
     pub fn lock(self) -> Result<i32, Error> {
         unsafe {
