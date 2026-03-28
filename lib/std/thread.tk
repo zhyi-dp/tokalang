@@ -11,7 +11,7 @@ pub fn sleep_ms(ms: u32) {
 
 pub alias ThreadClosure<T> = fn() -> cede T
 
-shape ClosureBox<T>(closure: fn() -> cede T)
+shape ClosureBox<T>(closure: fn() -> cede T, self_ptr: Addr)
 shape TrampBox(f: fn() -> Addr)
 
 /// Spawns a new OS thread, running the given closure.
@@ -21,20 +21,23 @@ shape TrampBox(f: fn() -> Addr)
 /// by value (move semantics).
 pub fn spawn<T>(f: fn() -> cede T) -> JoinHandle<T> {
     unsafe {
-        // 1. Box the closure natively using `new` on the heap
-        auto ^exc_box_ptr# = new ClosureBox<T>(closure = f)
-        auto *box_ptr = ((^exc_box_ptr) as *ClosureBox<T>)
+        // 1. Box the closure explicitly via libc_malloc to avoid compiler managed auto-drop
+        auto *box_ptr# = (libc_malloc(sizeof(ClosureBox<T>) as usize) as *ClosureBox<T>)
         auto f_arg = unsafe ((*box_ptr) as Addr)
         
+        box_ptr# = ClosureBox<T>(closure = f, self_ptr = f_arg)
+        
+        // Read the struct value to capture it
+        auto captured_box = box_ptr
+        
         // 2. Define capturing trampoline matching C-ABI implicitly via fat ptrs
-        auto tramp_fn: fn() -> Addr = [cede f_arg] {
+        auto tramp_fn: fn() -> Addr = [cede captured_box] {
             unsafe {
-                auto *closure_box_ptr# = (f_arg as *ClosureBox<T>)
-                auto closure_box = closure_box_ptr
-                auto closure = closure_box.closure
+                auto closure = captured_box.closure
+                auto self_ptr = captured_box.self_ptr
                 
                 // Free the ClosureBox shell 
-                libc_free(f_arg as Addr as *void)
+                libc_free(self_ptr as *void)
                 
                 // Create native heap box for result matching structural types safely via parenthesis isolating generic templates 
                 auto *box_ret# = (libc_malloc(sizeof(T) as usize) as *T)
@@ -46,9 +49,9 @@ pub fn spawn<T>(f: fn() -> cede T) -> JoinHandle<T> {
             }
         }
         
-        // Box the trampoline so we can evaluate its physical pointer securely
-        auto ^exc_tramp_ptr# = new TrampBox(f = tramp_fn)
-        auto *tramp_buf# = (^exc_tramp_ptr) as *TrampBox
+        // Box the trampoline manually via libc_malloc to avoid compiler managed auto-drop
+        auto *tramp_buf# = (libc_malloc(sizeof(TrampBox) as usize) as *TrampBox)
+        tramp_buf# = TrampBox(f = tramp_fn)
         
         // Now safely extract the native C function pointer & environment block
         auto *tramp_mem# = (*tramp_buf) as *Addr
@@ -62,12 +65,13 @@ pub fn spawn<T>(f: fn() -> cede T) -> JoinHandle<T> {
         auto *thread_ptr# = (libc_malloc(8 as usize) as *Addr)
         thread_ptr# = 0:Addr
         
-        // 4. Fire the thread natively
-        libc_pthread_create(
+        // 4. Fire the thread natively. We pass `f_arg` (the heap-allocated ClosureBox pointer) 
+        // as the `env_ptr`, safely tricking the closure into reading it instead of the local stack bounds!
+        auto rc = libc_pthread_create(
             (*thread_ptr) as Addr,
             0:Addr,
             real_invoker,
-            env_ptr
+            f_arg
         )
         
         auto thread_id = thread_ptr
@@ -100,6 +104,7 @@ impl<T> JoinHandle<T> {
             // Extract the box, unbox it safely, and free the box
             auto *box_ret = (raw_res as *T)
             auto val = cede box_ret
+            libc_free(raw_res as *void)
             
             return cede val
         }

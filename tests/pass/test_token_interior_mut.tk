@@ -1,0 +1,31 @@
+// test_token_interior_mut.tk
+// 验证零成本内部可变性（#:）
+
+shape CounterInfo(
+    accesses#: i32, // 零成本内部可变性，纯值类型
+    name: str
+)
+
+fn process_info(info: &CounterInfo) {
+    // 即使 info 是只读借用 (&)，我们也允许直接对 #: 修饰的字段进行覆写
+    info.accesses = info.accesses + 1
+    
+    // 核心铁律：绝对禁止向 #: 字段派生任何借用令牌
+    // 以下两行如果在编译器里取消注释，应当触发编译错误
+    // auto &acc_ref = info.&accesses  // [Compile Error Expected]
+    // auto &acc_mut# = info.&accesses  // [Compile Error Expected]
+    
+    // 常规字段的借用不受影响
+    auto &name_ref = info.name
+}
+
+fn main() -> i32 {
+    auto c = CounterInfo(accesses=0, name="metrics")
+    process_info(&c)
+    process_info(&c)
+    
+    if (c.accesses == 2) {
+        return 0
+    }
+    return 1
+}
