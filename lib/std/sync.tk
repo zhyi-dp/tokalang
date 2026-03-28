@@ -1,0 +1,70 @@
+import core/libc::{libc_pthread_mutex_init, libc_pthread_mutex_destroy, libc_pthread_mutex_lock, libc_pthread_mutex_unlock, libc_malloc, libc_free}
+import core/result::{Result}
+import std/error::{Error}
+import std/string::{String}
+
+/// A mutual exclusion primitive useful for protecting shared data
+pub shape Mutex<T>(
+    handle#: Addr,
+    data#: T
+)
+
+impl<T> Mutex<T> {
+    pub fn new(data: cede T) -> Mutex<T> {
+        unsafe {
+            // Allocate 64 bytes for macOS pthread_mutex_t (64 bytes covers Linux as well)
+            auto *handle_ptr# = (libc_malloc(64 as usize) as *byte)
+            auto handle_addr = (*handle_ptr) as Addr
+            
+            // Initialize the mutex with default attributes (0:Addr)
+            libc_pthread_mutex_init(handle_addr, 0:Addr)
+            
+            return Mutex<T>(
+                handle = handle_addr,
+                data = cede data
+            )
+        }
+    }
+    
+    /// Acquires the mutex, blocking the current thread until it is available.
+    pub fn lock(self) -> Result<i32, Error> {
+        unsafe {
+            auto rc = libc_pthread_mutex_lock(self.handle)
+            if rc != 0 {
+                auto msg# = String::from("mutex lock failed with error code: ")
+                auto rc_str = String::from_int(rc)
+                msg#.push_str(rc_str.c_str())
+                
+                return Result<i32, Error>::Err(Error::new(rc, msg))
+            }
+            return Result<i32, Error>::Ok(rc)
+        }
+    }
+    
+    /// Unlocks the mutex implicitly yielding it to other waiting threads.
+    pub fn unlock(self) -> Result<i32, Error> {
+        unsafe {
+            auto rc = libc_pthread_mutex_unlock(self.handle)
+            if rc != 0 {
+                auto msg# = String::from("mutex unlock failed with error code: ")
+                auto rc_str = String::from_int(rc)
+                msg#.push_str(rc_str.c_str())
+                
+                return Result<i32, Error>::Err(Error::new(rc, msg))
+            }
+            return Result<i32, Error>::Ok(rc)
+        }
+    }
+    
+    /// AutoDrop Destructor
+    pub fn __dtor(self) {
+        unsafe {
+            auto h: Addr = self.handle
+            if h != 0:Addr {
+                libc_pthread_mutex_destroy(h)
+                libc_free(h as *void)
+                self.handle = 0:Addr
+            }
+        }
+    }
+}

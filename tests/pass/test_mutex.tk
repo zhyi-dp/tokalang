@@ -1,0 +1,42 @@
+import std/sync::{Mutex}
+import std/thread::{spawn, sleep_ms}
+import std/io::{println}
+
+pub fn main() -> i32 {
+    auto m = Mutex<i32>::new(0)
+    
+    // Test basic lock and unlock on the main thread
+    auto lock_res = m.lock()
+    if lock_res.is_err() {
+        println("Lock failed")
+        return 1
+    }
+    
+    // Increment the data inside the interior mutable Mutex directly!
+    m.data = m.data + 10
+    println("Main thread initial data: {}", m.data)
+    
+    m.unlock().unwrap()
+    
+    auto f: fn() -> cede i32 = {
+        sleep_ms(100:u32)
+        auto l2 = m.lock().unwrap()
+        m.data = m.data + 20
+        println("Worker thread changed data to: {}", m.data)
+        m.unlock().unwrap()
+        return cede 0
+    }
+    auto handle# = spawn<i32>(f)
+    
+    auto join_res = handle#.join()
+    join_res.unwrap()
+    
+    auto l3 = m.lock().unwrap()
+    println("Main thread final data: {}", m.data)
+    
+    if m.data == 30 {
+        return 0
+    }
+    
+    return 1
+}

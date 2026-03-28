@@ -15,11 +15,11 @@ pub fn main() -> i32 {
     }
     
     // Spawn a thread and explicitly capture `target` by moving it (cede) into the thread!
-    auto handle = spawn<String>(f)
+    auto handle# = spawn<String>(f)
 
     //println("target = {}", target) //error: use of moved value: `target`
 
-    auto handle2 = spawn<String>({
+    auto handle2# = spawn<String>({
         auto text = String::from("Hello from background thread!")
         println("Thread 2 OK")
         return cede text
@@ -27,8 +27,10 @@ pub fn main() -> i32 {
     
     println("Main thread is waiting...")
     
-    auto res1 = handle.join().unwrap()
-    auto res2 = handle2.join().unwrap()
+    auto j1 = handle#.join()
+    auto res1 = j1.unwrap()
+    auto j2 = handle2#.join()
+    auto res2 = j2.unwrap()
     
     println("Thread 1 returned: {}", res1.c_str())
     println("Thread 2 returned: {}", res2.c_str())

@@ -1,4 +1,4 @@
-import core/libc::{libc_pthread_create, libc_pthread_join, libc_malloc, libc_free, libc_usleep, libc_putchar}
+import core/libc::{libc_pthread_create, libc_pthread_join, libc_pthread_detach, libc_sched_yield, libc_malloc, libc_free, libc_usleep, libc_putchar}
 import std/io::{println}
 import core/result::{Result}
 import std/error::{Error}
@@ -9,6 +9,13 @@ pub fn sleep_ms(ms: u32) {
     unsafe {
         // libc_usleep takes microseconds
         libc_usleep(ms * 1000:u32)
+    }
+}
+
+/// Voluntarily yields execution of the current thread to another.
+pub fn yield_now() {
+    unsafe {
+        libc_sched_yield()
     }
 }
 
@@ -90,15 +97,41 @@ pub fn spawn<T>(f: fn() -> cede T) -> JoinHandle<T> {
 pub shape JoinHandle<T>(id: Addr)
 
 impl<T> JoinHandle<T> {
+    /// Detaches the thread, letting it run independently to completion.
+    /// The OS guarantees reclaiming its runtime resources independently.
+    pub fn detach(self#) {
+        if self.id != 0:Addr {
+            unsafe {
+                libc_pthread_detach(self.id)
+            }
+            self.id# = 0:Addr
+        }
+    }
+    
+    /// AutoDrop Destructor
+    pub fn __dtor(self#) {
+        if self.id != 0:Addr {
+            unsafe { libc_pthread_detach(self.id) }
+            self.id# = 0:Addr
+        }
+    }
+    
     /// Waits for the thread to finish and returns its yielded value or an Error if the OS join fails.
-    pub fn join(self) -> Result<T, Error> {
+    pub fn join(self#) -> Result<T, Error> {
+        auto tid = self.id
+        self.id# = 0:Addr // Clear ownership safely post-join (or before aborting) to bypass Sema self-shadowing!
+        
+        if tid == 0:Addr {
+            auto msg# = String::from("thread was already joined or detached")
+            return Result<T, Error>::Err(Error::new(1, msg))
+        }
         unsafe {
             // Allocate 8-byte pointer block to receive the pthread_join result
             auto *retval_ptr# = (libc_malloc(8 as usize) as *Addr)
             retval_ptr = 0:Addr
             
             // We pass the pointer handle (*retval_ptr) so that `pthread_join` writes the struct box pointer 
-            auto rc = libc_pthread_join(self.id, (*retval_ptr) as Addr)
+            auto rc = libc_pthread_join(tid, (*retval_ptr) as Addr)
             
             if rc != 0 {
                 auto msg# = String::from("pthread_join failed with error code: ")
