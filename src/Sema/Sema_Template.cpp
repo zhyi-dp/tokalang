@@ -226,11 +226,24 @@ void Sema::instantiateGenericImpl(
     ImplDecl *Template, const std::string &ConcreteTypeName,
     const std::vector<std::shared_ptr<toka::Type>> &GenericArgs) {
   // 1. Verify generic args count
-
   if (GenericArgs.size() != Template->GenericParams.size()) {
-    // Mismatch or non-generic concrete type?
-    // If implicit instantiation of "Box" without args? Error.
     return;
+  }
+
+  std::string MangledName = resolveType(ConcreteTypeName);
+  
+  // [FIX] Prevent Duplication - Do not instantiate if we already have it
+  // This avoids infinite recursion and LLVM CodeGen duplicate definition crashing
+  if (MethodDecls.count(MangledName)) {
+    // Verify any method from the template exists to be certain
+    if (!Template->Methods.empty()) {
+        std::string firstMethod = Template->Methods[0]->Name;
+        if (MethodDecls[MangledName].count(firstMethod)) {
+            return; // Already Instantiated
+        }
+    } else {
+        return; // Empty impl
+    }
   }
 
   // 2. Build Substitution Map
@@ -264,8 +277,6 @@ void Sema::instantiateGenericImpl(
 
   // 4. Create New ImplDecl
   // TypeName MUST be the mangled name (e.g. "Box_M_i32") for CodeGen lookup
-  std::string MangledName = resolveType(ConcreteTypeName);
-
   auto NewImpl = std::make_unique<ImplDecl>(
       MangledName, std::move(NewMethods), Template->TraitName
       // No GenericParams for the instance!

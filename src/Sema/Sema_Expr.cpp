@@ -1771,15 +1771,13 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
         error(arm->Body.get(), DiagID::ERR_YIELD_VALUE_REQUIRED, "match arm");
       }
 
-      if (resultType == "void")
+      if (resultType == "void") {
         resultType = armType;
-      else if (armType != "void" && !isTypeCompatible(resultType, armType)) {
-        if (!isTypeCompatible(resultType, armType)) {
-          error(me, DiagID::ERR_BRANCH_TYPE_MISMATCH, "match", resultType,
-                armType);
-        }
-        exitScope();
+      } else if (armType != "void" && !isTypeCompatible(resultType, armType)) {
+        error(me, DiagID::ERR_BRANCH_TYPE_MISMATCH, "match", resultType, armType);
       }
+      
+      exitScope();
     }
 
     if (isReceiver && resultType == "void") {
