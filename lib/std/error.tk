@@ -1,0 +1,15 @@
+// Copyright (c) 2026 YiZhonghua<zhyi@dpai.com>. All rights reserved.
+
+import std/string::String
+
+// The universal fallback Error struct
+pub shape Error(
+    code: i32,
+    message: String
+)
+
+impl Error {
+    pub fn new(code: i32, msg: String) -> Error {
+        return Error(code = code, message = msg)
+    }
+}

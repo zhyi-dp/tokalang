@@ -1,0 +1,46 @@
+import std/io::println
+import std/error::{Error}
+import std/string::{String}
+
+fn divide(a: i32, b: i32) -> Result<i32, Error> {
+    if b == 0 {
+        auto msg# = String::from("Division by zero!")
+        auto err = Error::new(1:i32, msg)
+        return Result<i32, Error>::Err(err)
+    }
+    return Result<i32, Error>::Ok(a / b)
+}
+
+fn main() -> i32 {
+    auto res = divide(10:i32, 2:i32)
+    
+    if res.is_ok() {
+        println("Is OK check passed!")
+    }
+    
+    match res {
+        auto Result<i32, Error>::Ok(val) => {
+            println("Result: {}", val)
+        }
+        auto Result<i32, Error>::Err(e) => {
+            println("Error {}: {}", e.code, e.message.c_str())
+            return 1
+        }
+        _ => {}
+    }
+    
+    auto res2 = divide(10:i32, 0:i32)
+    
+    match res2 {
+        auto Result<i32, Error>::Ok(val) => {
+            println("Result: {}", val)
+            return 1
+        }
+        auto Result<i32, Error>::Err(e) => {
+            println("Error {}: {}", e.code, e.message.c_str())
+        }
+        _ => {}
+    }
+    
+    return 0
+}

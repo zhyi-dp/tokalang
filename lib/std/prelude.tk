@@ -14,8 +14,9 @@
 
 // std/prelude.tk
 pub import core/prelude::*
-pub import std/io::println 
-pub import std/string::String
+pub import std::io::println 
+pub import std::string::String
+pub import std::error::{Error}
 
 import std/sys/macOS::*
 
