@@ -4,7 +4,9 @@ import std/io::{println}
 
 pub fn main() -> i32 {
     println("Testing atomic reference counting for ~Mutex...")
-    auto ~m = Mutex<i32>::new(42)
+    auto temp# = Mutex<i32>::new(0)
+    auto ~m = new Mutex<i32>(handle = temp.handle, data = temp.data)
+    temp.handle = 0:Addr
     
     auto ~m1 = ~m
     auto ~m2 = ~m
@@ -19,6 +21,7 @@ pub fn main() -> i32 {
             // Use locked value to ensure no optimization removes this
             auto lock = local.lock()
             if lock.is_err() { return cede 1 }
+            local.data = local.data + 1
             local.unlock().unwrap()
             i = i + 1
         }
@@ -31,6 +34,7 @@ pub fn main() -> i32 {
             auto ~local = ~m2
             auto lock = local.lock()
             if lock.is_err() { return cede 1 }
+            local.data = local.data + 1
             local.unlock().unwrap()
             i = i + 1
         }
@@ -43,6 +47,7 @@ pub fn main() -> i32 {
             auto ~local = ~m3
             auto lock = local.lock()
             if lock.is_err() { return cede 1 }
+            local.data = local.data + 1
             local.unlock().unwrap()
             i = i + 1
         }
@@ -55,6 +60,7 @@ pub fn main() -> i32 {
             auto ~local = ~m4
             auto lock = local.lock()
             if lock.is_err() { return cede 1 }
+            local.data = local.data + 1
             local.unlock().unwrap()
             i = i + 1
         }
@@ -67,6 +73,7 @@ pub fn main() -> i32 {
             auto ~local = ~m5
             auto lock = local.lock()
             if lock.is_err() { return cede 1 }
+            local.data = local.data + 1
             local.unlock().unwrap()
             i = i + 1
         }
@@ -91,6 +98,8 @@ pub fn main() -> i32 {
         println("A thread failed!")
         return 1
     }
+
+    println("Final Mutex data: {}", ~m.data)
 
     println("Stress test PASS! Reference counter didn't corrupt :)")
     return 0

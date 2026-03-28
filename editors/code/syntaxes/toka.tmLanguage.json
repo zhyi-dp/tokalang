@@ -170,7 +170,7 @@
                 },
                 {
                     "name": "storage.modifier.toka",
-                    "match": "\\b(pub|mut|const|packed|dyn|final|move|auto)\\b"
+                    "match": "\\b(pub|mut|const|packed|dyn|final|cede|move|auto)\\b"
                 },
                 {
                     "name": "keyword.other.memory.toka",
