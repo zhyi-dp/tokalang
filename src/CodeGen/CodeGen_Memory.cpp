@@ -401,6 +401,12 @@ PhysEntity CodeGen::genMemberExpr(const MemberExpr *mem) {
   if (!objAddr)
     return nullptr;
 
+  if (auto *baseMem = dynamic_cast<const MemberExpr *>(mem->Object.get())) {
+    if (baseMem->ResolvedType && (baseMem->ResolvedType->isPointer() || baseMem->ResolvedType->isReference())) {
+      objAddr = m_Builder.CreateLoad(m_Builder.getPtrTy(), objAddr, "member.peel_base");
+    }
+  }
+
   // [Fix] Shared Pointer Auto-Dereference for Member Access
   // If the object is a Shared Pointer (~T), it is physically { T*, RefCount* }.
   // We must unwrap it to get T* before accessing members of T.
@@ -713,12 +719,15 @@ PhysEntity CodeGen::genMemberExpr(const MemberExpr *mem) {
 
   int defHats = 0;
   if (!stName.empty() && m_Shapes.count(stName)) {
-    defHats = getHatCount(m_Shapes[stName]->Members[idx].Type);
+    defHats = getHatCount(m_Shapes[stName]->Members[idx].Name) + getHatCount(m_Shapes[stName]->Members[idx].Type);
   }
   int accessHats = getHatCount(mem->Member);
 
   // If definition has more hats than access, we are "Hat-Off", so dereference.
   int derefCount = 0;
+  if (mem->Member.size() >= 2 && (mem->Member.substr(0, 2) == "??" || mem->Member.substr(0, 2) == "?!")) {
+    derefCount = 0; /* Force 0 for Identity operators */
+  } else
   if (mem->ResolvedType) {
     derefCount = defHats - getTypeHatCount(mem->ResolvedType);
   } else {
@@ -954,7 +963,9 @@ llvm::Value *CodeGen::genAddr(const Expr *expr) {
 
   if (auto *mem = dynamic_cast<const MemberExpr *>(expr)) {
     // Delegate to Sovereign genMemberExpr
-    return genMemberExpr(mem).value;
+    PhysEntity pe = genMemberExpr(mem);
+    if (pe.isAddress) return pe.value;
+    return nullptr;
   }
 
   if (auto *post = dynamic_cast<const PostfixExpr *>(expr)) {
