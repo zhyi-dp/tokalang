@@ -316,7 +316,7 @@ impl<T> CondVar<T> {
     /// Suspends the current thread until another thread calls notify_one() or notify_all().
     /// This method temporarily and atomically unlocks the MutexLock before sleeping.
     /// The lock is guaranteed to be re-acquired natively before this method returns.
-    pub fn wait(self, mut_lock: &MutexLock<T>) {
+    pub fn wait(self, mut_lock: MutexLock<T>) {
         unsafe {
             // Unlocks the mutex, puts the thread to sleep, and wakes up locked again.
             libc_pthread_cond_wait(self.handle, mut_lock.handle)
