@@ -142,6 +142,13 @@ extern fn libc_pthread_mutex_destroy(mutex: Addr) -> i32
 extern fn libc_pthread_mutex_lock(mutex: Addr) -> i32
 extern fn libc_pthread_mutex_unlock(mutex: Addr) -> i32
 
+// Condition Variables (POSIX)
+extern fn libc_pthread_cond_init(cond: Addr, attr: Addr) -> i32
+extern fn libc_pthread_cond_destroy(cond: Addr) -> i32
+extern fn libc_pthread_cond_wait(cond: Addr, mutex: Addr) -> i32
+extern fn libc_pthread_cond_signal(cond: Addr) -> i32
+extern fn libc_pthread_cond_broadcast(cond: Addr) -> i32
+
 // Reader-Writer Locks (POSIX)
 extern fn libc_pthread_rwlock_init(rwlock: Addr, attr: Addr) -> i32
 extern fn libc_pthread_rwlock_destroy(rwlock: Addr) -> i32

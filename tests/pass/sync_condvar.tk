@@ -1,0 +1,56 @@
+import std/sync::{Mutex, CondVar}
+import std/thread::{spawn, yield_now}
+import std/io::{println}
+
+shape State(
+    ready: bool,
+    val: i32
+)
+
+pub fn main() -> i32 {
+    auto m# = Mutex<State>::new(State(ready = false, val = 0))
+    auto cv = CondVar<State>::new()
+    
+    // Consumer
+    auto consumer: fn() -> cede i32 = {
+        println("Consumer locking mutex...")
+        guard auto Ok(lock) = m#.lock() else { return cede 1 }
+        
+        auto *s_ptr# = lock.get_ref()
+        loop {
+            if s_ptr.ready { break }
+            println("Consumer sleeping...")
+            cv.wait(&lock)
+            println("Consumer woke up")
+        }
+        
+        println("Consumer got value: {}", s_ptr.val)
+        assert(s_ptr.val == 42, "Consumer expected value 42")
+        return cede 0
+    }
+    
+    auto t# = spawn<i32>(consumer)
+    
+    // Producer
+    yield_now() // Allow consumer to run and hit sleep
+    
+    println("Producer locking mutex...")
+    {
+        guard auto Ok(lock_prod) = m#.lock() else { return 1 }
+        
+        auto *s_prod# = lock_prod.get_ref()
+        s_prod.val = 42
+        s_prod.ready = true
+        println("Producer set value and ready flag")
+        
+        cv.notify_one()
+        println("Producer notified conditional variable")
+        // Lock drops here
+    }
+    
+    auto res = t#.join().unwrap()
+    assert(res == 0, "Consumer thread failed")
+    
+    println("CondVar wait-notify sequence passed!")
+    return 0
+}

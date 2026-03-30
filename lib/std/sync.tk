@@ -1,4 +1,4 @@
-import core/libc::{libc_pthread_mutex_init, libc_pthread_mutex_destroy, libc_pthread_mutex_lock, libc_pthread_mutex_unlock, libc_pthread_rwlock_init, libc_pthread_rwlock_destroy, libc_pthread_rwlock_rdlock, libc_pthread_rwlock_wrlock, libc_pthread_rwlock_unlock, libc_malloc, libc_free}
+import core/libc::{libc_pthread_mutex_init, libc_pthread_mutex_destroy, libc_pthread_mutex_lock, libc_pthread_mutex_unlock, libc_pthread_rwlock_init, libc_pthread_rwlock_destroy, libc_pthread_rwlock_rdlock, libc_pthread_rwlock_wrlock, libc_pthread_rwlock_unlock, libc_pthread_cond_init, libc_pthread_cond_destroy, libc_pthread_cond_wait, libc_pthread_cond_signal, libc_pthread_cond_broadcast, libc_malloc, libc_free}
 import core/result::{Result}
 import std/error::{Error}
 import std/string::{String}
@@ -259,3 +259,82 @@ impl<T> RwWriteLock<T> {
         return self.*data
     }
 }
+
+// ------------------------------------------------------
+// 3. Condition Variables
+// ------------------------------------------------------
+
+/// A Condition Variable for thread synchronization.
+/// Parametrized with T to ensure it pairs safely with MutexLock<T>.
+pub shape CondVar<T> (
+    handle#: Addr
+)
+
+impl<T> CondVar<T>@encap {
+    fn drop(self#) {
+        unsafe {
+            auto h: Addr = self.handle
+            if h != 0:Addr {
+                libc_pthread_cond_destroy(h)
+                libc_free(h as *void)
+                self.handle = 0:Addr
+            }
+        }
+    }
+}
+
+impl<T> CondVar<T> {
+    /// Creates a new Condition Variable
+    pub fn new() -> CondVar<T> {
+        unsafe {
+            // Allocate 64 bytes for macOS/Linux pthread_cond_t safely
+            auto *handle_ptr# = (libc_malloc(64 as usize) as *byte)
+            auto handle_addr = (*handle_ptr) as Addr
+            
+            libc_pthread_cond_init(handle_addr, 0:Addr)
+            
+            return CondVar<T>(
+                handle = handle_addr
+            )
+        }
+    }
+    
+    /// Directly allocates and initializes a new CondVar as a shared pointer (~CondVar<T>)
+    pub fn make() -> ^CondVar<T> {
+        unsafe {
+            auto *handle_ptr# = (libc_malloc(64 as usize) as *byte)
+            auto handle_addr = (*handle_ptr) as Addr
+            
+            libc_pthread_cond_init(handle_addr, 0:Addr)
+            
+            return new CondVar<T>(
+                handle = handle_addr
+            )
+        }
+    }
+    
+    /// Suspends the current thread until another thread calls notify_one() or notify_all().
+    /// This method temporarily and atomically unlocks the MutexLock before sleeping.
+    /// The lock is guaranteed to be re-acquired natively before this method returns.
+    pub fn wait(self, mut_lock: &MutexLock<T>) {
+        unsafe {
+            // Unlocks the mutex, puts the thread to sleep, and wakes up locked again.
+            libc_pthread_cond_wait(self.handle, mut_lock.handle)
+        }
+    }
+
+    /// Wakes up a single thread waiting on this condition variable.
+    pub fn notify_one(self) {
+        unsafe {
+            libc_pthread_cond_signal(self.handle)
+        }
+    }
+
+    /// Wakes up all threads currently waiting on this condition variable.
+    pub fn notify_all(self) {
+        unsafe {
+            libc_pthread_cond_broadcast(self.handle)
+        }
+    }
+}
+
