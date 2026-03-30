@@ -1803,8 +1803,15 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
                 fieldTy = fieldTypes[i];
               }
 
+              std::shared_ptr<Type> subTypeObj = nullptr;
+              if (variant->SubMembers.size() > i && variant->SubMembers[i].ResolvedType) {
+                  subTypeObj = variant->SubMembers[i].ResolvedType;
+              } else if (variant->ResolvedType) {
+                  subTypeObj = variant->ResolvedType;
+              }
+
               genPatternBinding(arm->Pat->SubPatterns[i].get(), fieldAddr,
-                                fieldTy);
+                                fieldTy, subTypeObj);
             }
           }
         }
@@ -1814,6 +1821,7 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
         genStmt(arm->Body.get());
         m_CFStack.pop_back();
 
+        cleanupScopes(m_ScopeStack.size() - 1);
         m_ScopeStack.pop_back();
         if (m_Builder.GetInsertBlock() &&
             !m_Builder.GetInsertBlock()->getTerminator())
@@ -1836,13 +1844,14 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
 
         // [Fix] Bind Variable Pattern if needed
         if (arm->Pat->PatternKind == MatchArm::Pattern::Variable) {
-          genPatternBinding(arm->Pat.get(), targetAddr, targetType);
+          genPatternBinding(arm->Pat.get(), targetAddr, targetType, expr->Target->ResolvedType);
         }
 
         m_CFStack.push_back(
             {"", mergeBB, nullptr, resultAddr, m_ScopeStack.size()});
         genStmt(arm->Body.get());
         m_CFStack.pop_back();
+        cleanupScopes(m_ScopeStack.size() - 1);
         m_ScopeStack.pop_back();
         break;
       }
@@ -1891,13 +1900,14 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
         // variable pattern
         m_ScopeStack.push_back({});
         if (arm->Pat->PatternKind == MatchArm::Pattern::Variable) {
-          genPatternBinding(arm->Pat.get(), targetAddr, targetType);
+          genPatternBinding(arm->Pat.get(), targetAddr, targetType, expr->Target->ResolvedType);
         }
 
         PhysEntity guardVal_ent = genExpr(arm->Guard.get()).load(m_Builder);
         llvm::Value *guardVal = guardVal_ent.load(m_Builder);
 
         m_Builder.CreateCondBr(guardVal, armBB, nextArmBB);
+        cleanupScopes(m_ScopeStack.size() - 1);
         m_ScopeStack.pop_back(); // Clean up guard scope
       } else {
         m_Builder.CreateCondBr(cond, armBB, nextArmBB);
@@ -1907,7 +1917,7 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
       m_Builder.SetInsertPoint(armBB);
       m_ScopeStack.push_back({});
       if (arm->Pat->PatternKind == MatchArm::Pattern::Variable) {
-        genPatternBinding(arm->Pat.get(), targetAddr, targetType);
+        genPatternBinding(arm->Pat.get(), targetAddr, targetType, expr->Target->ResolvedType);
       }
 
       m_CFStack.push_back(
@@ -1915,6 +1925,7 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
       genStmt(arm->Body.get());
       m_CFStack.pop_back();
 
+      cleanupScopes(m_ScopeStack.size() - 1);
       m_ScopeStack.pop_back();
       if (m_Builder.GetInsertBlock() &&
           !m_Builder.GetInsertBlock()->getTerminator())
@@ -2374,7 +2385,8 @@ PhysEntity CodeGen::genForExpr(const ForExpr *fe) {
 
 void CodeGen::genPatternBinding(const MatchArm::Pattern *pat,
                                 llvm::Value *targetAddr,
-                                llvm::Type *targetType) {
+                                llvm::Type *targetType,
+                                std::shared_ptr<Type> targetTypeObj) {
   if (pat->PatternKind == MatchArm::Pattern::Variable) {
     llvm::Value *val = targetAddr;
     std::string pName = pat->Name;
@@ -2441,23 +2453,91 @@ void CodeGen::genPatternBinding(const MatchArm::Pattern *pat,
       sym.indirectionLevel = 1;
     }
 
+    std::string typeName = "";
+    if (targetTypeObj) {
+      auto soul = targetTypeObj;
+      while (soul && (soul->isPointer() || soul->isReference() ||
+                      soul->isSmartPointer())) {
+        soul = soul->getPointeeType();
+      }
+      if (soul) {
+        typeName = soul->getSoulName();
+      }
+      sym.soulTypeObj = targetTypeObj;
+    }
+
+    std::string dropFunc = "";
+    bool hasDrop = false;
+
+    if (!typeName.empty()) {
+      if (m_Shapes.count(typeName)) {
+        dropFunc = m_Shapes[typeName]->MangledDestructorName;
+      }
+
+      if (!dropFunc.empty()) {
+        hasDrop = true;
+      } else {
+        std::string base = typeName;
+        while (!base.empty() &&
+               (base[0] == '^' || base[0] == '*' || base[0] == '&' ||
+                base[0] == '~' || base[0] == '!' || base[0] == '#' ||
+                base[0] == '?'))
+          base = base.substr(1);
+        while (!base.empty() &&
+               (base.back() == '#' || base.back() == '?' || base.back() == '!'))
+          base.pop_back();
+
+        if (m_Shapes.count(base)) {
+          hasDrop = true;
+          auto SD = m_Shapes[base];
+          if (!SD->MangledDestructorName.empty()) {
+            dropFunc = SD->MangledDestructorName;
+          }
+        }
+      }
+    }
+
+    bool canDrop = !pat->IsReference && (!isRaw || isUnique || isShared);
+    if (!canDrop) {
+      hasDrop = false;
+      dropFunc = "";
+    }
+
+    sym.hasDrop = hasDrop;
+    sym.dropFunc = dropFunc;
+
     m_Symbols[pName] = sym;
 
     if (!m_ScopeStack.empty()) {
-      m_ScopeStack.back().push_back(
-          {pName, alloca, targetType, isUnique, isShared});
+      VariableScopeInfo info;
+      info.Name = pName;
+      info.Alloca = alloca;
+      info.AllocType = targetType;
+      info.IsUniquePointer = isUnique;
+      info.IsShared = isShared;
+      info.HasDrop = hasDrop;
+      info.DropFunc = dropFunc;
+      info.SoulName = typeName;
+      m_ScopeStack.back().push_back(info);
     }
   } else if (pat->PatternKind == MatchArm::Pattern::Decons) {
     if (targetType->isStructTy()) {
       for (size_t i = 0; i < pat->SubPatterns.size(); ++i) {
         llvm::Value *fieldAddr =
             m_Builder.CreateStructGEP(targetType, targetAddr, i);
+        std::shared_ptr<Type> subTypeObj = nullptr;
+        if (targetTypeObj && targetTypeObj->isShape()) {
+            auto st = std::static_pointer_cast<ShapeType>(targetTypeObj);
+            if (st->Decl && st->Decl->Members.size() > i && st->Decl->Members[i].ResolvedType) {
+                subTypeObj = st->Decl->Members[i].ResolvedType;
+            }
+        }
         genPatternBinding(pat->SubPatterns[i].get(), fieldAddr,
-                          targetType->getStructElementType(i));
+                          targetType->getStructElementType(i), subTypeObj);
       }
     } else if (!pat->SubPatterns.empty()) {
       // Single payload case (not wrapped in tuple/struct)
-      genPatternBinding(pat->SubPatterns[0].get(), targetAddr, targetType);
+      genPatternBinding(pat->SubPatterns[0].get(), targetAddr, targetType, targetTypeObj);
     }
   }
 }

@@ -108,13 +108,7 @@ impl<T> JoinHandle<T> {
         }
     }
     
-    /// AutoDrop Destructor
-    pub fn __dtor(self#) {
-        if self.id != 0:Addr {
-            unsafe { libc_pthread_detach(self.id) }
-            self.id# = 0:Addr
-        }
-    }
+
     
     /// Waits for the thread to finish and returns its yielded value or an Error if the OS join fails.
     pub fn join(self#) -> Result<T, Error> {
@@ -155,6 +149,15 @@ impl<T> JoinHandle<T> {
             libc_free(raw_res as *void)
             
             return Result<T, Error>::Ok(cede val)
+        }
+    }
+}
+
+impl<T> JoinHandle<T>@encap {
+    fn drop(self#) {
+        if self.id != 0:Addr {
+            unsafe { libc_pthread_detach(self.id) }
+            self.id# = 0:Addr
         }
     }
 }

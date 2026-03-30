@@ -158,26 +158,85 @@ void CodeGen::emitDropCascade(llvm::Value *ptrAddr, const std::string &typeName)
     llvm::StructType *st = m_StructTypes[typeName];
     if (!st) return;
 
-    for (size_t i = 0; i < sh->Members.size(); ++i) {
-      std::string rawType = sh->Members[i].Type;
-      bool isPointer = false;
-      // Strip outer parens, though rare
-      while (!rawType.empty() && rawType[0] == '(' && rawType.back() == ')') {
-        rawType = rawType.substr(1, rawType.size() - 2);
-      }
-      // If it's a pointer type (*T, ^T, ~T), drop cascade is BYPASSED
-      if (!rawType.empty() && (rawType[0] == '*' || rawType[0] == '^' || rawType[0] == '~' || rawType[0] == '&' || rawType[0] == '#')) {
-        isPointer = true;
-      }
+    if (sh->Kind == ShapeKind::Enum) {
+      llvm::Value *tagAddr = m_Builder.CreateStructGEP(st, ptrAddr, 0, "drop_tag.gep");
+      llvm::Value *tagVal = m_Builder.CreateLoad(llvm::Type::getInt8Ty(m_Context), tagAddr, "drop_tag.val");
       
-      std::string memberType = Type::stripMorphology(rawType);
-      
-      // If the bare member type is a shape and not behind a pointer, cascade into it!
-      if (!isPointer && m_Shapes.count(memberType)) {
-         std::cerr << "[DEBUG] emitDropCascade: Found shape field " << sh->Members[i].Name << " of type " << memberType << "\n";
-         llvm::Value *typedBase = m_Builder.CreateBitCast(ptrAddr, llvm::PointerType::getUnqual(st));
-         llvm::Value *fieldPtr = m_Builder.CreateStructGEP(st, typedBase, i, "drop_cascade.gep");
-         emitDropCascade(fieldPtr, memberType);
+      llvm::BasicBlock *currentBB = m_Builder.GetInsertBlock();
+      llvm::Function *F = currentBB->getParent();
+      llvm::BasicBlock *mergeBB = llvm::BasicBlock::Create(m_Context, "drop_enum_merge", F);
+
+      int numPayloads = 0;
+      for (const auto &member : sh->Members) {
+        if (!member.Type.empty() || !member.SubMembers.empty()) numPayloads++;
+      }
+
+      if (numPayloads > 0) {
+        llvm::SwitchInst *switchInst = m_Builder.CreateSwitch(tagVal, mergeBB, numPayloads);
+        for (size_t i = 0; i < sh->Members.size(); ++i) {
+          const auto &variant = sh->Members[i];
+          if (variant.Type.empty() && variant.SubMembers.empty()) continue;
+          
+          int tag = (variant.TagValue != -1) ? (int)variant.TagValue : (int)i;
+          llvm::BasicBlock *caseBB = llvm::BasicBlock::Create(m_Context, "drop_enum_case_" + std::to_string(tag), F);
+          switchInst->addCase(m_Builder.getInt8(tag), caseBB);
+          
+          m_Builder.SetInsertPoint(caseBB);
+          llvm::Value *payloadArrayPtr = m_Builder.CreateStructGEP(st, ptrAddr, 1, "drop_payload.gep");
+
+          std::string payloadTypeName = variant.Type;
+          if (variant.ResolvedType) {
+              payloadTypeName = variant.ResolvedType->getSoulName();
+          }
+          if (!payloadTypeName.empty()) {
+            bool isPointer = false;
+            std::string rawType = payloadTypeName;
+            while (!rawType.empty() && rawType[0] == '(' && rawType.back() == ')') {
+              rawType = rawType.substr(1, rawType.size() - 2);
+            }
+            if (!rawType.empty() && (rawType[0] == '*' || rawType[0] == '^' || rawType[0] == '~' || rawType[0] == '&' || rawType[0] == '#')) {
+              isPointer = true;
+            }
+            if (!isPointer) {
+              std::string memberType = Type::stripMorphology(rawType);
+              if (m_Shapes.count(memberType)) {
+                  llvm::Type *payloadIrType = resolveType(memberType, false);
+                  if (payloadIrType) {
+                      llvm::Value *typedPayload = m_Builder.CreateBitCast(payloadArrayPtr, llvm::PointerType::getUnqual(payloadIrType), "drop_cast");
+                      std::cerr << "[DEBUG] emitDropCascade: Enum Case " << variant.Name << " dropping payload " << memberType << "\n";
+                      emitDropCascade(typedPayload, memberType);
+                  }
+              }
+            }
+          }
+          m_Builder.CreateBr(mergeBB);
+        }
+      } else {
+        m_Builder.CreateBr(mergeBB);
+      }
+      m_Builder.SetInsertPoint(mergeBB);
+    } else {
+      for (size_t i = 0; i < sh->Members.size(); ++i) {
+        std::string rawType = sh->Members[i].Type;
+        bool isPointer = false;
+        // Strip outer parens, though rare
+        while (!rawType.empty() && rawType[0] == '(' && rawType.back() == ')') {
+          rawType = rawType.substr(1, rawType.size() - 2);
+        }
+        // If it's a pointer type (*T, ^T, ~T), drop cascade is BYPASSED
+        if (!rawType.empty() && (rawType[0] == '*' || rawType[0] == '^' || rawType[0] == '~' || rawType[0] == '&' || rawType[0] == '#')) {
+          isPointer = true;
+        }
+        
+        std::string memberType = Type::stripMorphology(rawType);
+        
+        // If the bare member type is a shape and not behind a pointer, cascade into it!
+        if (!isPointer && m_Shapes.count(memberType)) {
+           std::cerr << "[DEBUG] emitDropCascade: Found shape field " << sh->Members[i].Name << " of type " << memberType << "\n";
+           llvm::Value *typedBase = m_Builder.CreateBitCast(ptrAddr, llvm::PointerType::getUnqual(st));
+           llvm::Value *fieldPtr = m_Builder.CreateStructGEP(st, typedBase, i, "drop_cascade.gep");
+           emitDropCascade(fieldPtr, memberType);
+        }
       }
     }
   }

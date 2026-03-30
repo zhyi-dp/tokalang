@@ -27,5 +27,22 @@ fn main() -> i32 {
             }
         }
     }
+    
+    println("Before second lock")
+    auto guard2 = m#.lock()
+    match guard2 {
+        Result<MutexGuard<i32>, Error>::Ok(g) => {
+            auto *p2# = g.get_ref()
+            if *p2 != nullptr {
+                println("Second lock data is {}", p2)
+                if p2 == 100 {
+                    println("Value persisted!")
+                } else {
+                    return 2
+                }
+            }
+        }
+        _ => { return 3 }
+    }
     return 0
 }

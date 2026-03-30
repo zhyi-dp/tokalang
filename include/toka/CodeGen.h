@@ -218,7 +218,7 @@ private:
   PhysEntity genLoopExpr(const LoopExpr *expr);
   PhysEntity genForExpr(const ForExpr *expr);
   void genPatternBinding(const MatchArm::Pattern *pat, llvm::Value *targetAddr,
-                         llvm::Type *targetType);
+                         llvm::Type *targetType, std::shared_ptr<Type> targetTypeObj = nullptr);
   PhysEntity genInitStructExpr(const InitStructExpr *expr);
   PhysEntity genAnonymousRecordExpr(const AnonymousRecordExpr *expr);
   PhysEntity genMethodCall(const MethodCallExpr *expr);

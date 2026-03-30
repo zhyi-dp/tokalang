@@ -1017,9 +1017,9 @@ llvm::Value *CodeGen::genVariableDecl(const VariableDecl *var) {
           base.pop_back();
 
         if (m_Shapes.count(base)) {
+          hasDrop = true;
           auto SD = m_Shapes[base];
           if (!SD->MangledDestructorName.empty()) {
-            hasDrop = true;
             dropFunc = SD->MangledDestructorName;
           }
         }
