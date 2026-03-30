@@ -136,6 +136,8 @@ llvm::Value *CodeGen::genStmt(const Stmt *stmt) {
     return genUnsafeStmt(s);
   if (auto s = dynamic_cast<const UnreachableStmt *>(stmt))
     return genUnreachableStmt(s);
+  if (auto s = dynamic_cast<const GuardBindStmt *>(stmt))
+    return genGuardBindStmt(s);
   if (auto s = dynamic_cast<const ExprStmt *>(stmt))
     // genExprStmt returns Value* (wrapper) or PhysEntity?
     // CodeGen.h: genExprStmt returns Value*.

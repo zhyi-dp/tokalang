@@ -61,6 +61,7 @@ private:
   std::unique_ptr<MatchArm::Pattern> parsePattern();
 
   std::unique_ptr<Stmt> parseStmt();
+  std::unique_ptr<GuardBindStmt> parseGuardBindStmt();
   std::unique_ptr<Expr> parseIf();
   std::unique_ptr<Expr> parseGuard();
   std::unique_ptr<Expr> parseRangeExpr(std::unique_ptr<Expr> start);

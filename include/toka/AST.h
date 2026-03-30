@@ -730,13 +730,19 @@ public:
     }
 
     std::unique_ptr<ASTNode> clone() const override {
+      return clonePattern();
+    }
+
+    std::unique_ptr<Pattern> clonePattern() const {
       auto n = std::make_unique<Pattern>(PatternKind);
       n->Name = Name;
       n->LiteralVal = LiteralVal;
       n->IsReference = IsReference;
       n->IsValueMutable = IsValueMutable;
       n->IsValueBlocked = IsValueBlocked;
-      n->SubPatterns = cloneVec(SubPatterns);
+      for (auto& sp : SubPatterns) {
+          n->SubPatterns.push_back(sp->clonePattern());
+      }
       n->Loc = Loc;
       return n;
     }
@@ -1075,6 +1081,28 @@ public:
 
   std::shared_ptr<Type> ResolvedType;
 };
+
+class GuardBindStmt : public Stmt {
+public:
+  std::unique_ptr<MatchArm::Pattern> Pat;
+  std::unique_ptr<Expr> Target;
+  std::unique_ptr<Stmt> ElseBody;
+
+  GuardBindStmt(std::unique_ptr<MatchArm::Pattern> pat,
+                std::unique_ptr<Expr> target, std::unique_ptr<Stmt> elseBody)
+      : Pat(std::move(pat)), Target(std::move(target)), ElseBody(std::move(elseBody)) {}
+
+  std::string toString() const override { return "GuardBind"; }
+  std::unique_ptr<ASTNode> clone() const override {
+    auto n = std::make_unique<GuardBindStmt>(
+        Pat ? Pat->clonePattern() : nullptr, 
+        cloneNode(Target),
+        cloneNode(ElseBody));
+    n->Loc = Loc;
+    return n;
+  }
+};
+
 
 // --- High-level Declarations ---
 

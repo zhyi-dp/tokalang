@@ -142,9 +142,33 @@ std::unique_ptr<Stmt> Parser::parseVariableDecl(bool isPub) {
   return node;
 }
 
+std::unique_ptr<GuardBindStmt> Parser::parseGuardBindStmt() {
+  Token tok = consume(TokenType::KwGuard, "Expected 'guard'");
+  consume(TokenType::KwAuto, "Expected 'auto' after 'guard'");
+  auto pat = parsePattern();
+  consume(TokenType::Equal, "Expected '=' in guard auto statement");
+  auto target = parseExpr();
+  consume(TokenType::KwElse, "Expected 'else' after guard target expression");
+  
+  std::unique_ptr<Stmt> elseBody;
+  if (check(TokenType::LBrace)) {
+      elseBody = parseBlock();
+  } else {
+      elseBody = parseStmt();
+  }
+  
+  auto node = std::make_unique<GuardBindStmt>(std::move(pat), std::move(target), std::move(elseBody));
+  node->setLocation(tok, m_CurrentFile);
+  return node;
+}
+
 std::unique_ptr<Stmt> Parser::parseStmt() {
   if (check(TokenType::LBrace))
     return parseBlock();
+  
+  if (check(TokenType::KwGuard) && checkAt(1, TokenType::KwAuto))
+    return parseGuardBindStmt();
+
   if (check(TokenType::KwIf))
     return std::make_unique<ExprStmt>(parseIf());
   if (match(TokenType::KwMatch))

@@ -384,4 +384,115 @@ llvm::Value *CodeGen::genUnreachableStmt(const UnreachableStmt *stmt) {
   return m_Builder.CreateUnreachable();
 }
 
+llvm::Value *CodeGen::genGuardBindStmt(const GuardBindStmt *gbs) {
+  PhysEntity targetVal_ent = genExpr(gbs->Target.get());
+  llvm::Value *targetVal = targetVal_ent.load(m_Builder);
+  llvm::Type *targetType = targetVal->getType();
+  
+  std::string targetTypeStr = "unknown";
+  if (targetType->isStructTy() && m_TypeToName.count(targetType)) {
+      targetTypeStr = m_TypeToName[targetType];
+  } else if (gbs->Target->ResolvedType) {
+      targetTypeStr = gbs->Target->ResolvedType->toString();
+  }
+
+  llvm::AllocaInst *targetAddr = createEntryBlockAlloca(targetType, nullptr, "guard_target_addr");
+  m_Builder.CreateStore(targetVal, targetAddr);
+
+  llvm::Function *func = m_Builder.GetInsertBlock()->getParent();
+  llvm::BasicBlock *contBB = llvm::BasicBlock::Create(m_Context, "guard_cont", func);
+  llvm::BasicBlock *elseBB = llvm::BasicBlock::Create(m_Context, "guard_else", func);
+
+  int expectedTag = -1;
+  const ShapeMember *variant = nullptr;
+  std::string baseShapeName = targetTypeStr;
+  if (baseShapeName.find('<') != std::string::npos) {
+    baseShapeName = baseShapeName.substr(0, baseShapeName.find('<'));
+  }
+  
+  if (!baseShapeName.empty() && m_Shapes.count(baseShapeName) && m_Shapes[baseShapeName]->Kind == ShapeKind::Enum) {
+    const ShapeDecl *sh = m_Shapes[baseShapeName];
+    std::string patName = gbs->Pat->Name;
+    size_t scopePos = patName.rfind("::");
+    if (scopePos != std::string::npos) patName = patName.substr(scopePos + 2);
+    for (size_t i = 0; i < sh->Members.size(); ++i) {
+      if (sh->Members[i].Name == patName) {
+        expectedTag = (sh->Members[i].TagValue == -1) ? (int)i : (int)sh->Members[i].TagValue;
+        variant = &sh->Members[i];
+        break;
+      }
+    }
+  }
+
+  if (expectedTag != -1) {
+    llvm::Value *tagVal = m_Builder.CreateExtractValue(targetVal, 0, "tag");
+    llvm::Value *cond = m_Builder.CreateICmpEQ(
+        tagVal, llvm::ConstantInt::get(tagVal->getType(), expectedTag), "guard_cond");
+    m_Builder.CreateCondBr(cond, contBB, elseBB);
+  } else {
+    m_Builder.CreateBr(contBB);
+  }
+
+  // --- Else Block ---
+  llvm::BasicBlock *savedBB = m_Builder.GetInsertBlock();
+  m_Builder.SetInsertPoint(elseBB);
+  
+  if (!baseShapeName.empty() && m_Shapes.count(baseShapeName)) {
+      if (!m_Shapes[baseShapeName]->MangledDestructorName.empty()) {
+          emitDropCascade(targetAddr, targetTypeStr);
+      }
+  }
+  
+  genStmt(gbs->ElseBody.get());
+  
+  if (!m_Builder.GetInsertBlock()->getTerminator()) {
+     m_Builder.CreateUnreachable();
+  }
+
+  // --- Cont Block ---
+  m_Builder.SetInsertPoint(contBB);
+  
+  if (variant && !gbs->Pat->SubPatterns.empty()) {
+      llvm::Value *payloadAddr = m_Builder.CreateStructGEP(targetType, targetAddr, 1, "enum_payload_addr");
+      llvm::Type *payloadLayoutType = nullptr;
+      std::vector<llvm::Type*> fieldTypes;
+      
+      if (!variant->SubMembers.empty()) {
+          for (const auto& f : variant->SubMembers) fieldTypes.push_back(resolveType(f.Type, false));
+          payloadLayoutType = llvm::StructType::get(m_Context, fieldTypes, true);
+      } else if (!variant->Type.empty()) {
+          payloadLayoutType = resolveType(variant->Type, false);
+      }
+      
+      if (payloadLayoutType) {
+          llvm::Value *variantAddr = m_Builder.CreateBitCast(payloadAddr, llvm::PointerType::getUnqual(payloadLayoutType), "variant_addr");
+          for (size_t i = 0; i < gbs->Pat->SubPatterns.size(); ++i) {
+              if (fieldTypes.empty() && i > 0) break;
+              if (!fieldTypes.empty() && i >= fieldTypes.size()) break;
+
+              llvm::Value *fieldAddr = variantAddr;
+              llvm::Type *fieldTy = payloadLayoutType;
+
+              if (!fieldTypes.empty()) {
+                  fieldAddr = m_Builder.CreateStructGEP(payloadLayoutType, variantAddr, i);
+                  fieldTy = fieldTypes[i];
+              }
+
+              std::shared_ptr<Type> subTypeObj = nullptr;
+              if (variant->SubMembers.size() > i && variant->SubMembers[i].ResolvedType) {
+                  subTypeObj = variant->SubMembers[i].ResolvedType;
+              } else if (variant->ResolvedType) {
+                  subTypeObj = variant->ResolvedType;
+              }
+
+              genPatternBinding(gbs->Pat->SubPatterns[i].get(), fieldAddr, fieldTy, subTypeObj);
+          }
+      }
+  } else if (!variant && gbs->Pat->PatternKind == MatchArm::Pattern::Variable) {
+      genPatternBinding(gbs->Pat.get(), targetAddr, targetType, gbs->Target->ResolvedType);
+  }
+  
+  return nullptr;
+}
+
 } // namespace toka

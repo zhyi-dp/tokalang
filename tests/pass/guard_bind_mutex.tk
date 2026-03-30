@@ -1,0 +1,30 @@
+import std/sync::{Mutex, MutexGuard}
+import std/io::println
+import core/result::{Result}
+import std/error::{Error}
+
+fn main() -> i32 {
+    auto m# = Mutex<i32>::new(0)
+    
+    // First lock
+    {
+        guard auto Result<MutexGuard<i32>, Error>::Ok(g) = m#.lock() else {
+            println("m.lock failed")
+            return 1
+        }
+        auto *p# = g.get_ref()
+        p = 10
+        println("val: {}", p)
+    }
+    
+    // Test mutability directly
+    {
+        guard auto Result<MutexGuard<i32>, Error>::Ok(g) = m#.lock() else {
+            return 1
+        }
+        auto *p2 = g.get_ref()
+        println("final val: {}", p2)
+    }
+    
+    return 0
+}

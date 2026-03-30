@@ -779,6 +779,25 @@ void Sema::checkStmt(Stmt *S) {
         CurrentScope->define(Var.Name, Info);
       }
     }
+  } else if (auto *GuardBind = dynamic_cast<GuardBindStmt *>(S)) {
+    auto targetTypeObj = checkExpr(GuardBind->Target.get());
+    std::string targetType = targetTypeObj->toString();
+
+    // Check Pattern and bind variables into CurrentScope
+    checkPattern(GuardBind->Pat.get(), targetType, false);
+
+    bool isReceiver = false;
+    if (!m_ControlFlowStack.empty()) {
+      isReceiver = m_ControlFlowStack.back().IsReceiver;
+    }
+    m_ControlFlowStack.push_back({"", "void", false, isReceiver});
+    checkStmt(GuardBind->ElseBody.get());
+    m_ControlFlowStack.pop_back();
+
+    if (!allPathsJump(GuardBind->ElseBody.get())) {
+      DiagnosticEngine::report(getLoc(GuardBind), DiagID::ERR_GUARD_MUST_DIVERGE);
+      HasError = true;
+    }
   } else if (auto *Unreachable = dynamic_cast<UnreachableStmt *>(S)) {
     // No-op for now, it's just a marker
   }
