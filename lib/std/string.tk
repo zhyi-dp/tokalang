@@ -122,6 +122,9 @@ impl SplitIterator {
 // 4. String Implementation
 // ------------------------------------------------------
 
+impl String @Send {}
+impl String @Sync {}
+
 impl String {
 
     // === Constructors ===

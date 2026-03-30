@@ -3562,8 +3562,25 @@ PhysEntity CodeGen::genPassExpr(const PassExpr *pe) {
 
 PhysEntity CodeGen::genCedeExpr(const CedeExpr *ce) {
   // Cede is a move semantic marker checked heavily in Sema. 
-  // In LLVM IR, it simply evaluates to the underlying value.
+  // In LLVM IR, we evaluate it to the underlying value explicitly transferring ownership.
   if (ce->Value) {
+    if (auto *ve = dynamic_cast<const VariableExpr *>(ce->Value.get())) {
+      std::string varName = Type::stripMorphology(ve->Name);
+      bool found = false;
+      for (int i = (int)m_ScopeStack.size() - 1; i >= 0; --i) {
+        auto &scope = m_ScopeStack[i];
+        for (auto &entry : scope) {
+          if (Type::stripMorphology(entry.Name) == varName) {
+            if (entry.HasDrop) {
+              entry.HasDrop = false; // SUPPRESS DROP (Moved)
+            }
+            found = true;
+            break;
+          }
+        }
+        if (found) break;
+      }
+    }
     return genExpr(ce->Value.get());
   }
   return {};

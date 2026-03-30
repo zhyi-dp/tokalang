@@ -35,6 +35,10 @@ pub shape Vec<T> (
     cap: usize
 )
 
+// Explictly bypass raw-pointer structural block by declaring Vec is Send/Sync when its payload is
+impl<T: @Send> Vec<T> @Send {}
+impl<T: @Sync> Vec<T> @Sync {}
+
 impl<T> Vec<T>@encap {
     fn drop(self#) {
         unsafe {

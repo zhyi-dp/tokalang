@@ -640,7 +640,7 @@ void Sema::registerImpl(ImplDecl *Impl) {
   }
 
   // [Toka] Sync Trait: Mark type as IsSync
-  if (Impl->TraitName == "sync" || Impl->TraitName == "@sync") {
+  if (Impl->TraitName == "sync" || Impl->TraitName == "@sync" || Impl->TraitName == "Sync" || Impl->TraitName == "@Sync") {
     if (ShapeMap.count(resolvedTypeName)) {
       ShapeMap[resolvedTypeName]->IsSync = true;
     }
@@ -1042,6 +1042,22 @@ void Sema::computeShapeProperties(const std::string &shapeName, Module &M) {
         props.HasRawPtr = true;
       }
 
+      // [NEW] Trait auto-derivation
+      auto memberTypeObj = toka::Type::fromString(typeStr);
+      if (member.HasPointer) {
+        props.IsSend = false;
+        props.IsSync = false;
+      } else {
+        if (member.IsUnique) memberTypeObj = std::make_shared<toka::UniquePointerType>(memberTypeObj);
+        else if (member.IsShared) memberTypeObj = std::make_shared<toka::SharedPointerType>(memberTypeObj);
+        else if (member.IsReference) memberTypeObj = std::make_shared<toka::ReferenceType>(memberTypeObj);
+
+        if (memberTypeObj) {
+            if (!memberTypeObj->isSend(this)) props.IsSend = false;
+            if (!memberTypeObj->isSync(this)) props.IsSync = false;
+        }
+      }
+
       if (member.IsUnique || member.IsShared || typeStr.rfind("^", 0) == 0 ||
           typeStr.rfind("~", 0) == 0) {
         props.HasDrop = true;
@@ -1115,6 +1131,32 @@ void Sema::computeShapeProperties(const std::string &shapeName, Module &M) {
   }
 
   props.Status = ShapeAnalysisStatus::Analyzed;
+}
+
+bool Sema::isShapeSend(const std::string &shapeName) {
+  // First, explicit manual trait impl ALWAYS takes precedence
+  if (ImplMap.count(shapeName + "@Send")) {
+    // std::cerr << "DEBUG isShapeSend(" << shapeName << ") -> true (ImplMap)\n";
+    return true;
+  }
+  
+  if (!m_ShapeProps.count(shapeName) && CurrentModule) {
+    computeShapeProperties(shapeName, *CurrentModule);
+  }
+  
+  bool res = m_ShapeProps[shapeName].IsSend;
+  if (!res) {
+    std::cerr << "DEBUG isShapeSend(" << shapeName << ") -> false (Props)\n";
+  }
+  return res;
+}
+
+bool Sema::isShapeSync(const std::string &shapeName) {
+  if (ImplMap.count(shapeName + "@Sync") || ImplMap.count(shapeName + "@sync")) return true;
+  if (!m_ShapeProps.count(shapeName) && CurrentModule) {
+    computeShapeProperties(shapeName, *CurrentModule);
+  }
+  return m_ShapeProps[shapeName].IsSync;
 }
 
 FunctionDecl *Sema::instantiateGenericFunction(

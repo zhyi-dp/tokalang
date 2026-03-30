@@ -25,3 +25,6 @@ pub trait @Hash {
 pub trait @PartialEq {
     pub fn eq(self, other: Self) -> bool
 }
+
+pub trait @Send {}
+pub trait @Sync {}

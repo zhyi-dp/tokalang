@@ -319,11 +319,20 @@ bool Sema::checkTraitBounds(SourceLocation Loc, const std::string &ParamName,
 
   for (const auto &bound : TraitBounds) {
     std::string implKey = resolvedConcreteType + "@" + bound;
-    if (!ImplMap.count(implKey)) {
-        DiagnosticEngine::report(Loc, DiagID::ERR_TRAIT_BOUND_UNSATISFIED, ConcreteType, bound, ParamName);
-        HasError = true;
-        success = false;
+    if (ImplMap.count(implKey)) continue;
+
+    // [NEW] Fallback for Auto Traits
+    if (bound == "Send") {
+      auto typeObj = toka::Type::fromString(resolvedConcreteType);
+      if (typeObj && typeObj->isSend(this)) continue;
+    } else if (bound == "Sync") {
+      auto typeObj = toka::Type::fromString(resolvedConcreteType);
+      if (typeObj && typeObj->isSync(this)) continue;
     }
+
+    DiagnosticEngine::report(Loc, DiagID::ERR_TRAIT_BOUND_UNSATISFIED, ConcreteType, bound, ParamName);
+    HasError = true;
+    success = false;
   }
   return success;
 }

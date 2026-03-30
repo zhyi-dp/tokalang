@@ -173,6 +173,13 @@ public:
 
   bool hasErrors() const { return HasError; }
 
+  // [NEW] Trait  // Concurrency type bounds
+  bool isShapeSend(const std::string &shapeName);
+  bool isShapeSync(const std::string &shapeName);
+  std::string resolveType(const std::string &Type, bool force = false);
+  std::shared_ptr<toka::Type> resolveType(std::shared_ptr<toka::Type> Type,
+                                          bool force = false);
+
 private:
   // Shape Analysis Caches
   enum class ShapeAnalysisStatus {
@@ -185,6 +192,8 @@ private:
     bool HasRawPtr = false;
     bool HasDrop = false;
     bool HasManualDrop = false; // [NEW] Derived from explicit 'drop' impl
+    bool IsSend = true;         // [NEW] True by default unless proven otherwise
+    bool IsSync = true;         // [NEW] True by default unless proven otherwise
     ShapeAnalysisStatus Status = ShapeAnalysisStatus::Unvisited;
   };
 
@@ -347,9 +356,6 @@ private:
   std::string getCommonType(const std::string &T1, const std::string &T2);
 
   // Helpers
-  std::string resolveType(const std::string &Type, bool force = false);
-  std::shared_ptr<toka::Type> resolveType(std::shared_ptr<toka::Type> Type,
-                                          bool force = false);
   uint64_t getTypeSize(std::shared_ptr<toka::Type> Type);
   bool checkVisibility(ASTNode *Node, ShapeDecl *SD);
   bool isTypeCompatible(const std::string &Target, const std::string &Source);

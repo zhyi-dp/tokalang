@@ -1,0 +1,19 @@
+shape UnsafeData (
+    value: i32,
+    *ptr: i32
+)
+
+impl UnsafeData {
+    pub fn drop(&self#) {}
+    pub fn clone(&self) -> ^UnsafeData { return new UnsafeData(value=0, *ptr=self.ptr) }
+}
+
+fn process_send<T: @Send>(val: ^T) {}
+
+pub fn main() -> i32 {
+    // ERROR: UnsafeData is not Send because it has a raw pointer
+    auto ^u2 = new UnsafeData(value=0, *ptr=null)
+    process_send<UnsafeData>(u2)
+    
+    return 0
+}

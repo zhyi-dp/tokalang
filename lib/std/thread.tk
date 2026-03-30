@@ -29,13 +29,13 @@ shape TrampBox(f: fn() -> Addr)
 /// Note: To capture variables from the environment safely across threads,
 /// use the `[cede ...]` capture list in the closure to consume variables
 /// by value (move semantics).
-pub fn spawn<T>(f: fn() -> cede T) -> JoinHandle<T> {
+pub fn spawn<T: @Send>(f: fn() -> cede T) -> JoinHandle<T> {
     unsafe {
         // 1. Box the closure explicitly via libc_malloc to avoid compiler managed auto-drop
         auto *box_ptr# = (libc_malloc(sizeof(ClosureBox<T>) as usize) as *ClosureBox<T>)
         auto f_arg = unsafe ((*box_ptr) as Addr)
         
-        box_ptr# = ClosureBox<T>(closure = f, self_ptr = f_arg)
+        box_ptr# = ClosureBox<T>(closure = cede f, self_ptr = f_arg)
         
         // Read the struct value to capture it
         auto captured_box = box_ptr
@@ -61,7 +61,7 @@ pub fn spawn<T>(f: fn() -> cede T) -> JoinHandle<T> {
         
         // Box the trampoline manually via libc_malloc to avoid compiler managed auto-drop
         auto *tramp_buf# = (libc_malloc(sizeof(TrampBox) as usize) as *TrampBox)
-        tramp_buf# = TrampBox(f = tramp_fn)
+        tramp_buf# = TrampBox(f = cede tramp_fn)
         
         // Now safely extract the native C function pointer & environment block
         auto *tramp_mem# = (*tramp_buf) as *Addr
@@ -94,9 +94,9 @@ pub fn spawn<T>(f: fn() -> cede T) -> JoinHandle<T> {
     }
 }
 
-pub shape JoinHandle<T>(id: Addr)
+pub shape JoinHandle<T: @Send>(id: Addr)
 
-impl<T> JoinHandle<T> {
+impl<T: @Send> JoinHandle<T> {
     /// Detaches the thread, letting it run independently to completion.
     /// The OS guarantees reclaiming its runtime resources independently.
     pub fn detach(self#) {
@@ -153,7 +153,7 @@ impl<T> JoinHandle<T> {
     }
 }
 
-impl<T> JoinHandle<T>@encap {
+impl<T: @Send> JoinHandle<T>@encap {
     fn drop(self#) {
         if self.id != 0:Addr {
             unsafe { libc_pthread_detach(self.id) }

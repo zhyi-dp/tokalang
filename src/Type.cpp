@@ -13,6 +13,7 @@
 // limitations under the License.
 #include "toka/Type.h"
 #include "toka/AST.h"
+#include "toka/Sema.h"
 #include <memory>
 #include <sstream>
 #include <string>
@@ -23,6 +24,9 @@ bool Type::equals(const toka::Type &other) const {
   return IsWritable == other.IsWritable && IsNullable == other.IsNullable &&
          IsBlocked == other.IsBlocked && IsCede == other.IsCede;
 }
+
+bool Type::isSend(class Sema *S) const { return false; }
+bool Type::isSync(class Sema *S) const { return false; }
 
 // Check compatibility (Permission Flow)
 bool Type::isCompatibleWith(const Type &target) const {
@@ -58,6 +62,9 @@ std::shared_ptr<Type> cloneWithAttrs(const T *original, bool w, bool n,
 std::shared_ptr<Type> VoidType::withAttributes(bool w, bool n, bool b) const {
   return cloneWithAttrs(this, w, n, b);
 }
+
+bool VoidType::isSend(class Sema *S) const { return true; }
+bool VoidType::isSync(class Sema *S) const { return true; }
 
 std::string PrimitiveType::toString() const {
   std::string s = "";
@@ -102,6 +109,9 @@ bool PrimitiveType::isCompatibleWith(const Type &target) const {
     return true;
   return isInteger() && otherPrim->isInteger();
 }
+
+bool PrimitiveType::isSend(class Sema *S) const { return true; }
+bool PrimitiveType::isSync(class Sema *S) const { return true; }
 
 // --- Pointers ---
 
@@ -154,6 +164,9 @@ std::shared_ptr<Type> RawPointerType::withAttributes(bool w, bool n,
   return cloneWithAttrs(this, w, n, b);
 }
 
+bool RawPointerType::isSend(class Sema *S) const { return false; }
+bool RawPointerType::isSync(class Sema *S) const { return false; }
+
 std::string UniquePointerType::toString() const {
   std::string s = "";
   if (IsCede) s += "cede ";
@@ -183,6 +196,9 @@ std::shared_ptr<Type> UniquePointerType::withAttributes(bool w, bool n,
                                                         bool b) const {
   return cloneWithAttrs(this, w, n, b);
 }
+
+bool UniquePointerType::isSend(class Sema *S) const { return PointeeType ? PointeeType->isSend(S) : false; }
+bool UniquePointerType::isSync(class Sema *S) const { return PointeeType ? PointeeType->isSync(S) : false; }
 
 std::string SharedPointerType::toString() const {
   std::string s = "";
@@ -217,6 +233,9 @@ std::shared_ptr<Type> SharedPointerType::withAttributes(bool w, bool n,
   return cloneWithAttrs(this, w, n, b);
 }
 
+bool SharedPointerType::isSend(class Sema *S) const { return PointeeType ? (PointeeType->isSend(S) && PointeeType->isSync(S)) : false; }
+bool SharedPointerType::isSync(class Sema *S) const { return PointeeType ? (PointeeType->isSend(S) && PointeeType->isSync(S)) : false; }
+
 std::string ReferenceType::toString() const {
   std::string s = "";
   if (IsCede) s += "cede ";
@@ -246,6 +265,9 @@ std::shared_ptr<Type> ReferenceType::withAttributes(bool w, bool n,
                                                     bool b) const {
   return cloneWithAttrs(this, w, n, b);
 }
+
+bool ReferenceType::isSend(class Sema *S) const { return PointeeType ? PointeeType->isSync(S) : false; }
+bool ReferenceType::isSync(class Sema *S) const { return PointeeType ? PointeeType->isSync(S) : false; }
 
 // --- Composite ---
 
@@ -311,6 +333,9 @@ std::shared_ptr<Type> SliceType::withAttributes(bool w, bool n, bool b) const {
   return cloneWithAttrs(this, w, n, b);
 }
 
+bool SliceType::isSend(class Sema *S) const { return ElementType ? ElementType->isSend(S) : false; }
+bool SliceType::isSync(class Sema *S) const { return ElementType ? ElementType->isSync(S) : false; }
+
 bool ArrayType::equals(const Type &other) const {
   if (!Type::equals(other))
     return false;
@@ -330,6 +355,9 @@ bool ArrayType::isCompatibleWith(const Type &target) const {
 std::shared_ptr<Type> ArrayType::withAttributes(bool w, bool n, bool b) const {
   return cloneWithAttrs(this, w, n, b);
 }
+
+bool ArrayType::isSend(class Sema *S) const { return ElementType ? ElementType->isSend(S) : false; }
+bool ArrayType::isSync(class Sema *S) const { return ElementType ? ElementType->isSync(S) : false; }
 
 std::string ShapeType::toString() const {
   std::string s = "";
@@ -391,6 +419,15 @@ void ShapeType::resolve(ShapeDecl *decl) {
   }
 }
 
+bool ShapeType::isSend(class Sema *S) const {
+  if (!S) return false;
+  return S->isShapeSend(S->resolveType(this->toString()));
+}
+bool ShapeType::isSync(class Sema *S) const {
+  if (!S) return false;
+  return S->isShapeSync(S->resolveType(this->toString()));
+}
+
 std::string TupleType::toString() const {
   std::string s = "";
   if (IsCede) s += "cede ";
@@ -444,6 +481,15 @@ std::shared_ptr<Type> TupleType::withAttributes(bool w, bool n, bool b) const {
   return cloneWithAttrs(this, w, n, b);
 }
 
+bool TupleType::isSend(class Sema *S) const {
+  for (auto &e : Elements) if (e && !e->isSend(S)) return false;
+  return true;
+}
+bool TupleType::isSync(class Sema *S) const {
+  for (auto &e : Elements) if (e && !e->isSync(S)) return false;
+  return true;
+}
+
 std::string FunctionType::toString() const {
   std::string s = "";
   if (IsCede) s += "cede ";
@@ -491,6 +537,9 @@ std::shared_ptr<Type> FunctionType::withAttributes(bool w, bool n,
                                                    bool b) const {
   return cloneWithAttrs(this, w, n, b);
 }
+
+bool FunctionType::isSend(class Sema *S) const { return true; } // Function pointers are inherently stateless hence sendable
+bool FunctionType::isSync(class Sema *S) const { return true; }
 
 std::shared_ptr<Type> UnresolvedType::withAttributes(bool w, bool n,
                                                      bool b) const {

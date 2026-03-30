@@ -23,6 +23,7 @@
 namespace toka {
 
 class ShapeDecl; // Forward declaration
+class Sema;      // Forward declaration
 
 class Type : public std::enable_shared_from_this<Type> {
 public:
@@ -61,6 +62,9 @@ public:
 
   virtual std::string toString() const = 0;
   virtual bool equals(const Type &other) const;
+
+  virtual bool isSend(class Sema* S = nullptr) const;
+  virtual bool isSync(class Sema* S = nullptr) const;
 
   // Helpers
   // Checks if 'this' can be assigned to 'target' (handles permission flow)
@@ -124,6 +128,8 @@ public:
   std::string toString() const override { return "void"; }
   std::shared_ptr<Type> withAttributes(bool w, bool n,
                                        bool b = false) const override;
+  bool isSend(class Sema* S = nullptr) const override;
+  bool isSync(class Sema* S = nullptr) const override;
 };
 
 class PrimitiveType : public Type {
@@ -135,6 +141,8 @@ public:
   std::shared_ptr<Type> withAttributes(bool w, bool n,
                                        bool b = false) const override;
   bool isCompatibleWith(const Type &target) const override;
+  bool isSend(class Sema* S = nullptr) const override;
+  bool isSync(class Sema* S = nullptr) const override;
 
   bool isBoolean() const override { return Name == "bool"; }
   bool isInteger() const override {
@@ -179,6 +187,8 @@ public:
                                        bool b = false) const override;
   bool isCompatibleWith(const Type &target) const override;
   Morphology getMorphology() const override { return Morphology::Raw; }
+  bool isSend(class Sema* S = nullptr) const override;
+  bool isSync(class Sema* S = nullptr) const override;
 };
 
 class UniquePointerType : public PointerType {
@@ -190,6 +200,8 @@ public:
                                        bool b = false) const override;
   bool isCompatibleWith(const Type &target) const override;
   Morphology getMorphology() const override { return Morphology::Unique; }
+  bool isSend(class Sema* S = nullptr) const override;
+  bool isSync(class Sema* S = nullptr) const override;
 };
 
 class SharedPointerType : public PointerType {
@@ -201,6 +213,8 @@ public:
                                        bool b = false) const override;
   bool isCompatibleWith(const Type &target) const override;
   Morphology getMorphology() const override { return Morphology::Shared; }
+  bool isSend(class Sema* S = nullptr) const override;
+  bool isSync(class Sema* S = nullptr) const override;
 };
 
 class ReferenceType : public PointerType {
@@ -211,6 +225,8 @@ public:
   std::shared_ptr<Type> withAttributes(bool w, bool n,
                                        bool b = false) const override;
   bool isCompatibleWith(const Type &target) const override;
+  bool isSend(class Sema* S = nullptr) const override;
+  bool isSync(class Sema* S = nullptr) const override;
 };
 
 // --- Composite Types ---
@@ -232,6 +248,8 @@ public:
   std::shared_ptr<Type> getArrayElementType() const override {
     return ElementType;
   }
+  bool isSend(class Sema* S = nullptr) const override;
+  bool isSync(class Sema* S = nullptr) const override;
 };
 
 class SliceType : public Type {
@@ -248,6 +266,8 @@ public:
   std::shared_ptr<Type> getArrayElementType() const override {
     return ElementType;
   }
+  bool isSend(class Sema* S = nullptr) const override;
+  bool isSync(class Sema* S = nullptr) const override;
 };
 
 class ShapeType : public Type {
@@ -267,6 +287,8 @@ public:
                                        bool b = false) const override;
   bool isCompatibleWith(const Type &target) const override;
   std::string getSoulName() const override { return Name; }
+  bool isSend(class Sema* S = nullptr) const override;
+  bool isSync(class Sema* S = nullptr) const override;
 };
 
 class TupleType : public Type {
@@ -280,6 +302,8 @@ public:
   std::shared_ptr<Type> withAttributes(bool w, bool n,
                                        bool b = false) const override;
   bool isCompatibleWith(const Type &target) const override;
+  bool isSend(class Sema* S = nullptr) const override;
+  bool isSync(class Sema* S = nullptr) const override;
 };
 
 class FunctionType : public Type {
@@ -298,6 +322,8 @@ public:
   std::shared_ptr<Type> withAttributes(bool w, bool n,
                                        bool b = false) const override;
   bool isCompatibleWith(const Type &target) const override;
+  bool isSend(class Sema* S = nullptr) const override;
+  bool isSync(class Sema* S = nullptr) const override;
 };
 
 // #include "toka/Type.h" -> Removed self-include
@@ -313,6 +339,8 @@ public:
   } // Should resolve first
   std::shared_ptr<Type> withAttributes(bool w, bool n,
                                        bool b = false) const override;
+  bool isSend(class Sema* S = nullptr) const override { return false; }
+  bool isSync(class Sema* S = nullptr) const override { return false; }
 };
 
 } // namespace toka

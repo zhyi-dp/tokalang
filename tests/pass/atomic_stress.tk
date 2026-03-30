@@ -91,11 +91,11 @@ pub fn main() -> i32 {
 
     println("Spawning 5 threads, each doing 50000 local clone/drops of ~Mutex...")
 
-    auto t1# = spawn<i32>(f1)
-    auto t2# = spawn<i32>(f2)
-    auto t3# = spawn<i32>(f3)
-    auto t4# = spawn<i32>(f4)
-    auto t5# = spawn<i32>(f5)
+    auto t1# = spawn<i32>(cede f1)
+    auto t2# = spawn<i32>(cede f2)
+    auto t3# = spawn<i32>(cede f3)
+    auto t4# = spawn<i32>(cede f4)
+    auto t5# = spawn<i32>(cede f5)
 
     auto r1 = t1#.join().unwrap()
     auto r2 = t2#.join().unwrap()
