@@ -6,7 +6,8 @@ import std/io::{println}
 fn main() -> i32 {
     auto pair = channel<i32>()
     // Test basic send and recv
-    pair.tx.send(42:i32)
+    auto msg_to_send = 42:i32
+    pair.tx.send(cede msg_to_send)
     auto res_opt = pair.rx.recv()
     
     match res_opt {
