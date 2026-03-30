@@ -1,4 +1,4 @@
-import core/libc::{libc_pthread_mutex_init, libc_pthread_mutex_destroy, libc_pthread_mutex_lock, libc_pthread_mutex_unlock, libc_malloc, libc_free}
+import core/libc::{libc_pthread_mutex_init, libc_pthread_mutex_destroy, libc_pthread_mutex_lock, libc_pthread_mutex_unlock, libc_pthread_rwlock_init, libc_pthread_rwlock_destroy, libc_pthread_rwlock_rdlock, libc_pthread_rwlock_wrlock, libc_pthread_rwlock_unlock, libc_malloc, libc_free}
 import core/result::{Result}
 import std/error::{Error}
 import std/string::{String}
@@ -117,6 +117,144 @@ impl<T> MutexLock<T>@encap {
 }
 
 impl<T> MutexLock<T> {
+    pub fn get_ref(self) -> *T {
+        return self.*data
+    }
+}
+
+/// A reader-writer lock
+pub shape RwMutex<T>(
+    handle#: Addr,
+    data#: T
+)
+
+impl<T> RwMutex<T>@sync {}
+
+impl<T> RwMutex<T> {
+    pub fn new(data: cede T) -> RwMutex<T> {
+        unsafe {
+            // macOS pthread_rwlock_t is 192 bytes, Linux is 56 bytes.
+            auto *handle_ptr# = (libc_malloc(256 as usize) as *byte)
+            auto handle_addr = (*handle_ptr) as Addr
+            
+            libc_pthread_rwlock_init(handle_addr, 0:Addr)
+            
+            return RwMutex<T>(
+                handle = handle_addr,
+                data = cede data
+            )
+        }
+    }
+    
+    pub fn read_lock(self) -> Result<RwReadLock<T>, Error> {
+        unsafe {
+            auto rc = libc_pthread_rwlock_rdlock(self.handle)
+            if rc != 0 {
+                auto msg# = String::from("rwlock read_lock failed with error code: ")
+                auto rc_str = String::from_int(rc)
+                msg#.push_str(rc_str.c_str())
+                
+                return Result<RwReadLock<T>, Error>::Err(Error::new(rc, msg))
+            }
+            
+            auto temp_h: Addr = self.handle
+            auto *mut_ptr# = ((*self) as *RwMutex<T>)
+            
+            return Result<RwReadLock<T>, Error>::Ok(RwReadLock<T>(
+                handle = temp_h,
+                *data = *mut_ptr.data
+            ))
+        }
+    }
+    
+    pub fn write_lock(self) -> Result<RwWriteLock<T>, Error> {
+        unsafe {
+            auto rc = libc_pthread_rwlock_wrlock(self.handle)
+            if rc != 0 {
+                auto msg# = String::from("rwlock write_lock failed with error code: ")
+                auto rc_str = String::from_int(rc)
+                msg#.push_str(rc_str.c_str())
+                
+                return Result<RwWriteLock<T>, Error>::Err(Error::new(rc, msg))
+            }
+            
+            auto temp_h: Addr = self.handle
+            auto *mut_ptr# = ((*self) as *RwMutex<T>)
+            
+            return Result<RwWriteLock<T>, Error>::Ok(RwWriteLock<T>(
+                handle = temp_h,
+                *data = *mut_ptr.data
+            ))
+        }
+    }
+    
+    pub fn unlock(self) -> Result<i32, Error> {
+        unsafe {
+            auto rc = libc_pthread_rwlock_unlock(self.handle)
+            if rc != 0 {
+                auto msg# = String::from("rwlock unlock failed with error code: ")
+                auto rc_str = String::from_int(rc)
+                msg#.push_str(rc_str.c_str())
+                
+                return Result<i32, Error>::Err(Error::new(rc, msg))
+            }
+            return Result<i32, Error>::Ok(rc)
+        }
+    }
+}
+
+impl<T> RwMutex<T>@encap {
+    fn drop(self#) {
+        unsafe {
+            auto h: Addr = self.handle
+            if h != 0:Addr {
+                libc_pthread_rwlock_destroy(h)
+                libc_free(h as *void)
+                self.handle = 0:Addr
+            }
+        }
+    }
+}
+
+pub shape RwReadLock<T>(
+    handle: Addr,
+    *data: T
+)
+
+impl<T> RwReadLock<T>@encap {
+    fn drop(self#) {
+        unsafe {
+            if self.handle != 0:Addr {
+                libc_pthread_rwlock_unlock(self.handle)
+                self.handle = 0:Addr
+            }
+        }
+    }
+}
+
+impl<T> RwReadLock<T> {
+    pub fn get_ref(self) -> *T {
+        return self.*data
+    }
+}
+
+pub shape RwWriteLock<T>(
+    handle: Addr,
+    *data: T
+)
+
+impl<T> RwWriteLock<T>@encap {
+    fn drop(self#) {
+        unsafe {
+            if self.handle != 0:Addr {
+                libc_pthread_rwlock_unlock(self.handle)
+                self.handle = 0:Addr
+            }
+        }
+    }
+}
+
+impl<T> RwWriteLock<T> {
     pub fn get_ref(self) -> *T {
         return self.*data
     }

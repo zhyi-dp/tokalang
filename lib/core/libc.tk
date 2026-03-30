@@ -141,3 +141,10 @@ extern fn libc_pthread_mutex_init(mutex: Addr, attr: Addr) -> i32
 extern fn libc_pthread_mutex_destroy(mutex: Addr) -> i32
 extern fn libc_pthread_mutex_lock(mutex: Addr) -> i32
 extern fn libc_pthread_mutex_unlock(mutex: Addr) -> i32
+
+// Reader-Writer Locks (POSIX)
+extern fn libc_pthread_rwlock_init(rwlock: Addr, attr: Addr) -> i32
+extern fn libc_pthread_rwlock_destroy(rwlock: Addr) -> i32
+extern fn libc_pthread_rwlock_rdlock(rwlock: Addr) -> i32
+extern fn libc_pthread_rwlock_wrlock(rwlock: Addr) -> i32
+extern fn libc_pthread_rwlock_unlock(rwlock: Addr) -> i32
