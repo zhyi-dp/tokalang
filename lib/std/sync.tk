@@ -47,7 +47,7 @@ impl<T> Mutex<T> {
         }
     }
     
-    pub fn lock(self) -> Result<MutexGuard<T>, Error> {
+    pub fn lock(self) -> Result<MutexLock<T>, Error> {
         unsafe {
             auto rc = libc_pthread_mutex_lock(self.handle)
             if rc != 0 {
@@ -55,13 +55,13 @@ impl<T> Mutex<T> {
                 auto rc_str = String::from_int(rc)
                 msg#.push_str(rc_str.c_str())
                 
-                return Result<MutexGuard<T>, Error>::Err(Error::new(rc, msg))
+                return Result<MutexLock<T>, Error>::Err(Error::new(rc, msg))
             }
             
             auto temp_h: Addr = self.handle
             auto *mut_ptr# = ((*self) as *Mutex<T>)
             
-            return Result<MutexGuard<T>, Error>::Ok(MutexGuard<T>(
+            return Result<MutexLock<T>, Error>::Ok(MutexLock<T>(
                 handle = temp_h,
                 *data = *mut_ptr.data
             ))
@@ -99,12 +99,12 @@ impl<T> Mutex<T>@encap {
     }
 }
 
-pub shape MutexGuard<T>(
+pub shape MutexLock<T>(
     handle: Addr,
     *data: T
 )
 
-impl<T> MutexGuard<T>@encap {
+impl<T> MutexLock<T>@encap {
     fn drop(self#) {
         println("drop guard")
         unsafe {
@@ -116,7 +116,7 @@ impl<T> MutexGuard<T>@encap {
     }
 }
 
-impl<T> MutexGuard<T> {
+impl<T> MutexLock<T> {
     pub fn get_ref(self) -> *T {
         return self.*data
     }

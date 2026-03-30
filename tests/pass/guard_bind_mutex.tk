@@ -1,4 +1,4 @@
-import std/sync::{Mutex, MutexGuard}
+import std/sync::{Mutex, MutexLock}
 import std/io::println
 import core/result::{Result}
 import std/error::{Error}
@@ -8,7 +8,7 @@ fn main() -> i32 {
     
     // First lock
     {
-        guard auto Result<MutexGuard<i32>, Error>::Ok(g) = m#.lock() else {
+        guard auto Ok(g) = m#.lock() else {
             println("m.lock failed")
             return 1
         }
