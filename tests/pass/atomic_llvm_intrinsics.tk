@@ -1,0 +1,59 @@
+import std/io::println
+import core/intrinsics/atomic::*
+
+pub fn main() -> i32 {
+    println("Testing Native LLVM Atomic Intrinsics...")
+
+    auto val# = 100
+
+    // 1. fetch_add
+    auto old_add = fetch_add(val#, 20, Ordering::Relaxed)
+    println("fetch_add: old={}, new={}", old_add, val#)
+    assert(old_add == 100, "fetch_add failed")
+    assert(val# == 120, "fetch_add failed")
+
+    // 2. fetch_sub
+    auto old_sub = fetch_sub(val#, 10, Ordering::AcqRel)
+    println("fetch_sub: old={}, new={}", old_sub, val#)
+    assert(old_sub == 120, "fetch_sub failed")
+    assert(val# == 110, "fetch_sub failed")
+
+    // 3. fetch_and
+    auto old_and = fetch_and(val#, 0x0F, Ordering::SeqCst)
+    println("fetch_and: old={}, new={}", old_and, val#)
+    assert(old_and == 110, "fetch_and failed")
+
+    // 4. store & load
+    store(val#, 42, Ordering::Release)
+    auto l = load(val#, Ordering::Acquire)
+    println("store/load: read={}, val={}", l, val#)
+    assert(l == 42, "store/load failed")
+
+    // 5. swap
+    auto old_swap = swap(val#, 99, Ordering::AcqRel)
+    println("swap: old={}, new={}", old_swap, val#)
+    assert(old_swap == 42, "swap failed")
+    assert(val# == 99, "swap failed")
+
+    // 6. compare_exchange (success)
+    auto (old_cx1, ok1) = compare_exchange(val#, 99, 1000, Ordering::SeqCst, Ordering::Relaxed)
+    println("cmpxchg(success): old={}, ok={}, new={}", old_cx1, ok1, val#)
+    assert(old_cx1 == 99, "cmpxchg failed")
+    assert(ok1 == true, "cmpxchg failed")
+    assert(val# == 1000, "cmpxchg failed")
+
+    // 7. compare_exchange (failure)
+    auto (old_cx2, ok2) = compare_exchange(val#, 500, 2000, Ordering::SeqCst, Ordering::Relaxed)
+    println("cmpxchg(failure): old={}, ok={}, new={}", old_cx2, ok2, val#)
+    assert(old_cx2 == 1000, "cmpxchg failed (should return current)")
+    assert(ok2 == false, "cmpxchg failed")
+    assert(val# == 1000, "cmpxchg failed")
+
+    // 8. Fences
+    fence(Ordering::SeqCst)
+    fence_acquire()
+    fence_release()
+
+    println("All LLVM Atomic operations executed correctly!")
+    return 0
+}

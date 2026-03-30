@@ -3811,6 +3811,9 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
             // Just proceed with candidate as is.
           }
 
+          // Generic Decay: strip interior writability flags for T
+          candidate = candidate->withAttributes(false, candidate->IsNullable, candidate->IsBlocked);
+
           // Deduce
           if (Deduced.count(PType)) {
             if (!Deduced[PType]->equals(*candidate)) {

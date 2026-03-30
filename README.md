@@ -168,19 +168,18 @@ fn main() {
 }
 
 fn null_safety() {
-    auto nul ^p = nullptr // Identity is Nullable (nul keyword)
+    auto p^? = nullptr // Identity is Nullable (variable-side `?`)
     
-    // 1. Safe Narrowing via 'guard'
-    guard ^p {
-        println("Not Null: {}", *p)
+    // 1. Safe Narrowing via 'is'
+    if p is {
+        println("Not Null: {}", p^)
     } else {
         println("Is Null")
     }
 
     // 2. Direct Assertion (Panics if null)
-    // - Prefix '??' for Identity (Pointer) Check
-    // - Suffix '??' for Soul (Value) Check
-    auto ^must_ptr = ??p        
+    // Suffix '??' unwraps a nullable pointer or Option/Result value
+    auto must_ptr^ = p^??        
     auto val = some_opt_val??
 }
 ```

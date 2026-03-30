@@ -3144,7 +3144,18 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
             // Materialization (genExpr)
             val = nullptr;
           } else {
-            val = getIdentityAddr(ve->Name);
+            std::string baseName = toka::Type::stripMorphology(ve->Name);
+            if (m_Symbols.count(baseName)) {
+               auto &sym = m_Symbols[baseName];
+               if (sym.mode == AddressingMode::Reference || 
+                   (sym.mode == AddressingMode::Pointer && sym.morphology == Morphology::None)) {
+                   val = getEntityAddr(ve->Name);
+               } else {
+                   val = getIdentityAddr(ve->Name);
+               }
+            } else {
+               val = getIdentityAddr(ve->Name);
+            }
           }
         }
 
@@ -3346,6 +3357,96 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
 
     argsV.push_back(val);
   }
+
+  // [NEW] Native LLVM Atomics Intercept
+  if (funcDecl) {
+    std::string fname = funcDecl->Name;
+    if (fname.find("__toka_atomic_") == 0) {
+      fname = fname.substr(14); // strip prefix
+      
+    // Helper to extract Ordering from Argument Value
+    auto getOrder = [&](llvm::Value *v) -> std::pair<llvm::AtomicOrdering, bool> {
+      if (auto *ci = llvm::dyn_cast<llvm::ConstantInt>(v)) {
+        int tag = ci->getSExtValue();
+        switch (tag) {
+          case 0: return {llvm::AtomicOrdering::Monotonic, false}; // Relaxed
+          case 1: return {llvm::AtomicOrdering::Release, false};
+          case 2: return {llvm::AtomicOrdering::Acquire, false};
+          case 3: return {llvm::AtomicOrdering::AcquireRelease, false};
+          case 4: default: return {llvm::AtomicOrdering::SequentiallyConsistent, false};
+        }
+      }
+      // Dynamic fallback
+      return {llvm::AtomicOrdering::SequentiallyConsistent, true};
+    };
+
+    if (fname.find("fence") == 0) {
+      if (fname == "fence_acquire") m_Builder.CreateFence(llvm::AtomicOrdering::Acquire);
+      else if (fname == "fence_release") m_Builder.CreateFence(llvm::AtomicOrdering::Release);
+      else if (argsV.size() > 0) m_Builder.CreateFence(getOrder(argsV.back()).first);
+      else m_Builder.CreateFence(llvm::AtomicOrdering::SequentiallyConsistent);
+      return llvm::ConstantInt::get(m_Builder.getInt32Ty(), 0);
+    }
+
+    if (fname.find("load") == 0) {
+      auto order = getOrder(argsV.back());
+      llvm::Type *valTy = callee->getFunctionType()->getReturnType();
+      llvm::LoadInst *li = m_Builder.CreateLoad(valTy, argsV[0], "atomic_load");
+      li->setAtomic(order.first);
+      if (li->getOrdering() == llvm::AtomicOrdering::NotAtomic) li->setAtomic(llvm::AtomicOrdering::Monotonic);
+      li->setAlignment(llvm::Align(m_Module->getDataLayout().getABITypeAlign(valTy)));
+      return li;
+    }
+
+    if (fname.find("store") == 0) {
+      auto order = getOrder(argsV.back());
+      llvm::Type *valTy = argsV[1]->getType();
+      llvm::StoreInst *si = m_Builder.CreateStore(argsV[1], argsV[0]);
+      llvm::AtomicOrdering o = order.second ? llvm::AtomicOrdering::SequentiallyConsistent : order.first;
+      if (o == llvm::AtomicOrdering::Acquire || o == llvm::AtomicOrdering::AcquireRelease) o = llvm::AtomicOrdering::Release; // Store cannot be Acquire or AcqRel
+      if (o == llvm::AtomicOrdering::NotAtomic) o = llvm::AtomicOrdering::Monotonic;
+      si->setAtomic(o);
+      si->setAlignment(llvm::Align(m_Module->getDataLayout().getABITypeAlign(valTy)));
+      return llvm::ConstantInt::get(m_Builder.getInt32Ty(), 0);
+    }
+
+    if (fname.find("compare_exchange") == 0) {
+      auto success = getOrder(argsV[3]).first;
+      auto fail = getOrder(argsV[4]).first;
+      if (fail == llvm::AtomicOrdering::Release || fail == llvm::AtomicOrdering::AcquireRelease) fail = llvm::AtomicOrdering::Acquire;
+      // LLVM CmpXchg Failure cannot be stronger than Success
+      if (success == llvm::AtomicOrdering::Monotonic && fail != llvm::AtomicOrdering::Monotonic) fail = llvm::AtomicOrdering::Monotonic;
+      if (success == llvm::AtomicOrdering::Release && fail != llvm::AtomicOrdering::Monotonic) fail = llvm::AtomicOrdering::Monotonic;
+      if (success == llvm::AtomicOrdering::Acquire && fail == llvm::AtomicOrdering::SequentiallyConsistent) fail = llvm::AtomicOrdering::Acquire;
+
+      llvm::Type *valTy = argsV[1]->getType();
+      llvm::Align align(m_Module->getDataLayout().getABITypeAlign(valTy));
+      llvm::AtomicCmpXchgInst *cxi = m_Builder.CreateAtomicCmpXchg(argsV[0], argsV[1], argsV[2], llvm::MaybeAlign(align), success, fail);
+      return cxi; // Exact {T, i1} signature match!
+    }
+
+    llvm::AtomicRMWInst::BinOp rop = llvm::AtomicRMWInst::Add;
+    bool isRMW = true;
+    if (fname.find("fetch_add") == 0) rop = llvm::AtomicRMWInst::Add;
+    else if (fname.find("fetch_sub") == 0) rop = llvm::AtomicRMWInst::Sub;
+    else if (fname.find("fetch_and") == 0) rop = llvm::AtomicRMWInst::And;
+    else if (fname.find("fetch_or") == 0) rop = llvm::AtomicRMWInst::Or;
+    else if (fname.find("fetch_xor") == 0) rop = llvm::AtomicRMWInst::Xor;
+    else if (fname.find("swap") == 0) rop = llvm::AtomicRMWInst::Xchg;
+    else isRMW = false;
+
+    if (isRMW) {
+      auto order = getOrder(argsV.back());
+      llvm::Type *valTy = argsV[1]->getType();
+      llvm::Align align(m_Module->getDataLayout().getABITypeAlign(valTy));
+      llvm::AtomicOrdering o = order.second ? llvm::AtomicOrdering::SequentiallyConsistent : order.first;
+      if (o == llvm::AtomicOrdering::NotAtomic) o = llvm::AtomicOrdering::Monotonic;
+      llvm::AtomicRMWInst *rmw = m_Builder.CreateAtomicRMW(rop, argsV[0], argsV[1], llvm::MaybeAlign(align), o);
+      return rmw;
+    }
+  }
+  }
+
   return m_Builder.CreateCall(callee->getFunctionType(), callee, argsV);
 }
 
