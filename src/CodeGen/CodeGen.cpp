@@ -110,6 +110,10 @@ PhysEntity CodeGen::genExpr(const Expr *expr) {
     return genContinueExpr(e);
   if (auto e = dynamic_cast<const UnsafeExpr *>(expr))
     return genUnsafeExpr(e);
+  if (auto e = dynamic_cast<const ArrayInitExpr *>(expr))
+    return genArrayInitExpr(e);
+  if (auto e = dynamic_cast<const ImplicitBoxExpr *>(expr))
+    return genImplicitBoxExpr(e);
   if (auto e = dynamic_cast<const NewExpr *>(expr))
     return genNewExpr(e);
 

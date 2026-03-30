@@ -387,12 +387,31 @@ void Sema::checkStmt(Stmt *S) {
         // morphology from inferred soul
         if (Var->HasPointer || Var->IsUnique || Var->IsShared ||
             Var->IsReference) {
+          if (Inferred.find("nul ") == 0) Inferred = Inferred.substr(4);
           if (!Inferred.empty() && (Inferred[0] == '*' || Inferred[0] == '^' ||
                                     Inferred[0] == '~' || Inferred[0] == '&')) {
             Inferred = Inferred.substr(1);
             if (!Inferred.empty() && (Inferred[0] == '?' ||
                                       Inferred[0] == '!' || Inferred[0] == '#'))
               Inferred = Inferred.substr(1);
+          } else {
+            // [NEW] Implicit Box Support for `auto`
+            if (Var->IsShared || Var->IsUnique) {
+              auto boxExpr = std::make_unique<ImplicitBoxExpr>(std::move(Var->Init), Var->IsShared, Var->IsUnique);
+              std::string boxTy = (Var->IsShared ? "~" : "^") + Inferred;
+              if (Var->IsValueMutable) boxTy += "#";
+              boxExpr->ResolvedType = toka::Type::fromString(resolveType(boxTy));
+              boxExpr->Loc = boxExpr->Initializer->Loc;
+              Var->Init = std::move(boxExpr);
+              // Now the assigned expression *IS* the pointer, so Inferred effectively matches the requested pointer type.
+              // However, since we are in the `auto` block, setting `Var->TypeName = Inferred` (which is just 'Point') 
+              // will cause `DeclFullTy` reconstruction at the end to prepend the sigil correctly without stripping it!
+            } else if (Var->HasPointer) {
+               DiagnosticEngine::report(getLoc(Var), DiagID::ERR_INIT_TYPE_MISMATCH, "*(Raw Pointer)", Inferred);
+               HasError = true;
+               Var->TypeName = "unknown";
+               return;
+            }
           }
         } else {
           // Strict: No sigil, no pointer, except for "str" (implicit *char)
@@ -410,25 +429,7 @@ void Sema::checkStmt(Stmt *S) {
           }
         }
         
-        // [New] Strict mutability check for inferred pointers (auto *p#)
-        if (Var->HasPointer || Var->IsReference || Var->IsUnique || Var->IsShared) {
-            if (Var->IsValueMutable && InitType != "unknown") { // # requested on the value proxy (e.g., *p#)
-                std::string sigilStr = "";
-                if (Var->HasPointer) sigilStr = "*";
-                else if (Var->IsUnique) sigilStr = "^";
-                else if (Var->IsShared) sigilStr = "~";
-                else if (Var->IsReference) sigilStr = "&";
-                
-                std::string requestedTy = sigilStr + Inferred + "#";
-                if (!isTypeCompatible(requestedTy, InitType)) {
-                    DiagnosticEngine::report(getLoc(Var), DiagID::ERR_INIT_TYPE_MISMATCH,
-                                             requestedTy, InitType);
-                    HasError = true;
-                    Var->TypeName = "unknown";
-                    return;
-                }
-            }
-        }
+
         
         Var->TypeName = Inferred;
       }
@@ -451,10 +452,35 @@ void Sema::checkStmt(Stmt *S) {
           Morph = "nul " + Morph;
         DeclFullTy = Morph + DeclFullTy;
       }
+      if (Var->IsValueMutable) {
+        DeclFullTy += "#";
+      }
+
       if (!InitType.empty() && !isTypeCompatible(DeclFullTy, InitType)) {
-        DiagnosticEngine::report(getLoc(Var), DiagID::ERR_INIT_TYPE_MISMATCH,
-                                 DeclFullTy, InitType);
-        HasError = true;
+        // [NEW] Implicit Box Support
+
+        std::string boxedType = (Var->IsShared ? "~" : (Var->IsUnique ? "^" : ""));
+        if (!boxedType.empty()) {
+           std::string testTy = boxedType + InitType;
+           if (Var->IsValueMutable) testTy += "#";
+           if (Var->IsPointerNullable) testTy = "nul " + testTy;
+           
+
+           if (isTypeCompatible(DeclFullTy, testTy)) {
+
+              auto boxExpr = std::make_unique<ImplicitBoxExpr>(std::move(Var->Init), Var->IsShared, Var->IsUnique);
+              boxExpr->ResolvedType = toka::Type::fromString(resolveType(DeclFullTy));
+              boxExpr->Loc = boxExpr->Initializer->Loc;
+              Var->Init = std::move(boxExpr);
+              InitType = DeclFullTy; // Trick subsequent checks
+           } else {
+             DiagnosticEngine::report(getLoc(Var), DiagID::ERR_INIT_TYPE_MISMATCH, DeclFullTy, InitType);
+             HasError = true;
+           }
+        } else {
+           DiagnosticEngine::report(getLoc(Var), DiagID::ERR_INIT_TYPE_MISMATCH, DeclFullTy, InitType);
+           HasError = true;
+        }
       }
     }
 
@@ -471,6 +497,7 @@ void Sema::checkStmt(Stmt *S) {
         lhsMorph = MorphKind::Raw;
 
       MorphKind rhsMorph = getSyntacticMorphology(Var->Init.get());
+
       checkStrictMorphology(Var, lhsMorph, rhsMorph, Var->Name);
     }
 

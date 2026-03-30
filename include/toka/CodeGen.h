@@ -230,6 +230,8 @@ private:
   PhysEntity genContinueExpr(const ContinueExpr *expr);
   PhysEntity genClosureExpr(const ClosureExpr *expr);
   PhysEntity genUnsafeExpr(const UnsafeExpr *expr);
+  PhysEntity genImplicitBoxExpr(const ImplicitBoxExpr *expr);
+  PhysEntity genArrayInitExpr(const ArrayInitExpr *expr);
   PhysEntity genNewExpr(const NewExpr *expr);
   llvm::Value *genReturnStmt(const ReturnStmt *stmt);
   llvm::Value *genBlockStmt(const BlockStmt *stmt);

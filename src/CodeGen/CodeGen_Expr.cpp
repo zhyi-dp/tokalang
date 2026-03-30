@@ -4243,4 +4243,116 @@ PhysEntity CodeGen::genClosureExpr(const ClosureExpr *expr) {
   return PhysEntity(alloca, shapeType->Name, llvmTy, true);
 }
 
+
+PhysEntity CodeGen::genArrayInitExpr(const ArrayInitExpr *expr) {
+  // Not supported as a bare stack value yet. Usually handled within ImplicitBoxExpr or NewExpr.
+  // We'll leave it returning nullptr for now unless explicitly needed on stack.
+  std::cerr << "genArrayInitExpr on stack not fully implemented yet." << std::endl;
+  return nullptr;
+}
+
+PhysEntity CodeGen::genImplicitBoxExpr(const ImplicitBoxExpr *expr) {
+  llvm::Type *type = nullptr;
+  if (expr->ResolvedType) {
+    auto rt = expr->ResolvedType;
+    if (rt->isPointer() || rt->isSmartPointer()) {
+      if (auto ptr = std::dynamic_pointer_cast<toka::PointerType>(rt)) {
+        rt = ptr->PointeeType;
+      }
+    }
+    type = getLLVMType(rt);
+  }
+
+  if (!type)
+    return nullptr;
+
+  llvm::DataLayout dl(m_Module.get());
+  uint64_t size = dl.getTypeAllocSize(type);
+
+  llvm::Function *mallocFn = m_Module->getFunction("malloc");
+  if (!mallocFn) {
+    llvm::Type *sizeTy = llvm::Type::getInt64Ty(m_Context);
+    llvm::Type *ptrTy = m_Builder.getPtrTy();
+    mallocFn = llvm::Function::Create(
+        llvm::FunctionType::get(ptrTy, {sizeTy}, false),
+        llvm::Function::ExternalLinkage, "malloc", m_Module.get());
+  }
+
+  llvm::Value *sizeVal = llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), size);
+  
+  llvm::Value *arrayCount = nullptr;
+  auto arrInit = dynamic_cast<const ArrayInitExpr*>(expr->Initializer.get());
+  if (arrInit && arrInit->ArraySize) {
+    llvm::Value *count = genExpr(arrInit->ArraySize.get()).load(m_Builder);
+    if (count->getType() != llvm::Type::getInt64Ty(m_Context)) {
+      count = m_Builder.CreateIntCast(count, llvm::Type::getInt64Ty(m_Context), false);
+    }
+    arrayCount = count;
+    sizeVal = m_Builder.CreateMul(sizeVal, count);
+  }
+
+  llvm::Value *voidPtr = m_Builder.CreateCall(mallocFn, sizeVal, expr->IsShared ? "sh_payload_alloc" : "unq_payload_alloc");
+  llvm::Value *heapPtr = voidPtr;
+  
+  auto structInit = dynamic_cast<const InitStructExpr*>(expr->Initializer.get());
+  auto callInit = dynamic_cast<const CallExpr*>(expr->Initializer.get());
+
+  llvm::Value *initVal = nullptr;
+  if (arrInit) {
+     if (arrInit->Initializer) initVal = genExpr(arrInit->Initializer.get()).load(m_Builder);
+  } else {
+     if (expr->Initializer) initVal = genExpr(expr->Initializer.get()).load(m_Builder);
+  }
+
+  if (initVal) {
+    if (initVal->getType() != type && !type->isStructTy() && !type->isArrayTy()) {
+      if (initVal->getType()->isIntegerTy() && type->isIntegerTy()) {
+        initVal = m_Builder.CreateIntCast(initVal, type, true);
+      }
+    }
+    
+    if (arrayCount) {
+      llvm::BasicBlock *preHeaderBB = m_Builder.GetInsertBlock();
+      llvm::Function *F = preHeaderBB->getParent();
+      llvm::BasicBlock *loopBB = llvm::BasicBlock::Create(m_Context, "box_init_loop", F);
+      llvm::BasicBlock *afterBB = llvm::BasicBlock::Create(m_Context, "box_init_after", F);
+
+      m_Builder.CreateBr(loopBB);
+      m_Builder.SetInsertPoint(loopBB);
+
+      llvm::PHINode *iVar = m_Builder.CreatePHI(llvm::Type::getInt64Ty(m_Context), 2, "idx");
+      iVar->addIncoming(llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), 0), preHeaderBB);
+
+      llvm::Value *elemPtr = m_Builder.CreateInBoundsGEP(type, heapPtr, iVar);
+      m_Builder.CreateStore(initVal, elemPtr);
+
+      llvm::Value *nextI = m_Builder.CreateAdd(iVar, llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), 1));
+      llvm::Value *cond = m_Builder.CreateICmpULT(nextI, arrayCount);
+      iVar->addIncoming(nextI, loopBB);
+
+      m_Builder.CreateCondBr(cond, loopBB, afterBB);
+      m_Builder.SetInsertPoint(afterBB);
+    } else {
+      m_Builder.CreateStore(initVal, heapPtr);
+    }
+  }
+
+  if (expr->IsShared) {
+    llvm::Value *rcSize = llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), 4);
+    llvm::Value *rcPtr = m_Builder.CreateCall(mallocFn, rcSize, "sh_rc_alloc");
+    m_Builder.CreateStore(llvm::ConstantInt::get(llvm::Type::getInt32Ty(m_Context), 1), rcPtr);
+    
+    llvm::Type *refTy = llvm::PointerType::getUnqual(llvm::Type::getInt32Ty(m_Context));
+    llvm::Type *shTy = llvm::StructType::get(m_Context, {m_Builder.getPtrTy(), refTy});
+    
+    llvm::Value *shVal = llvm::UndefValue::get(shTy);
+    shVal = m_Builder.CreateInsertValue(shVal, heapPtr, 0);
+    shVal = m_Builder.CreateInsertValue(shVal, rcPtr, 1);
+    
+    return PhysEntity(shVal, expr->ResolvedType->toString(), shTy, false);
+  } else {
+    return PhysEntity(heapPtr, expr->ResolvedType->toString(), m_Builder.getPtrTy(), false);
+  }
+}
+
 } // namespace toka

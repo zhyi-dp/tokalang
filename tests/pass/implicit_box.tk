@@ -1,0 +1,32 @@
+import std/io::println
+
+shape Point(x: i32, y: i32, z: i32)
+
+fn implicit_box_unique() {
+    auto ^p# = Point(x = 111, y = 222, z = 333)
+    p.x = 444
+    println("p.x = {}", p.x)
+    assert(p.x == 444, "implicit box unique mutation")
+}
+
+fn implicit_box_shared() {
+    auto ~s1# = Point(x = 100, y = 200, z = 300)
+    auto ~s2 = ~s1
+    s1.x = 999
+    println("s2.x = {}", s2.x)
+    assert(s2.x == 999, "implicit box shared mutation")
+}
+
+fn implicit_box_nul() {
+    auto nul ~s1 = Point(x = 42, y = 42, z = 42)
+    if false {
+       println("dummy")
+    }
+}
+
+fn main() -> i32 {
+    implicit_box_unique()
+    implicit_box_shared()
+    implicit_box_nul()
+    return 0
+}

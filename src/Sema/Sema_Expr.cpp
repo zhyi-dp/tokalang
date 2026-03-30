@@ -104,7 +104,8 @@ std::shared_ptr<toka::Type> Sema::checkExpr(Expr *E) {
 
   if (!dynamic_cast<UnsetExpr *>(E) && !dynamic_cast<InitStructExpr *>(E) &&
       !dynamic_cast<NewExpr *>(E) && !dynamic_cast<CastExpr *>(E) &&
-      !dynamic_cast<CallExpr *>(E) && !dynamic_cast<MethodCallExpr *>(E)) {
+      !dynamic_cast<CallExpr *>(E) && !dynamic_cast<MethodCallExpr *>(E) &&
+      !dynamic_cast<ImplicitBoxExpr *>(E) && !dynamic_cast<ArrayInitExpr *>(E)) {
     m_LastInitMask = ~0ULL;
   }
   return T;
@@ -151,6 +152,14 @@ Sema::MorphKind Sema::getSyntacticMorphology(Expr *E) {
     default:
       return MorphKind::None;
     }
+  }
+
+
+  // [NEW] Implicit Boxing Syntax Support
+  if (auto *IB = dynamic_cast<ImplicitBoxExpr *>(E)) {
+
+    if (IB->IsUnique) return MorphKind::Unique;
+    if (IB->IsShared) return MorphKind::Shared;
   }
 
   // Binary Expressions: Pointer Arithmetic or Computed Values
@@ -205,7 +214,8 @@ Sema::MorphKind Sema::getSyntacticMorphology(Expr *E) {
   if (dynamic_cast<CallExpr *>(E) || dynamic_cast<MethodCallExpr *>(E) ||
       dynamic_cast<NewExpr *>(E) || dynamic_cast<AllocExpr *>(E) ||
       dynamic_cast<NullExpr *>(E) || dynamic_cast<UnsetExpr *>(E) ||
-      dynamic_cast<StringExpr *>(E)) {
+      dynamic_cast<StringExpr *>(E) || dynamic_cast<ImplicitBoxExpr *>(E) ||
+      dynamic_cast<ArrayInitExpr *>(E)) {
     return MorphKind::Valid;
   }
 
@@ -1422,6 +1432,13 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     return toka::Type::fromString("void");
   } else if (auto *Call = dynamic_cast<CallExpr *>(E)) {
     return checkCallExpr(Call);
+  } else if (auto *AIE = dynamic_cast<ArrayInitExpr *>(E)) {
+    auto expectedType = toka::Type::fromString(resolveType(AIE->Type));
+    if (AIE->ArraySize) checkExpr(AIE->ArraySize.get());
+    if (AIE->Initializer) checkExpr(AIE->Initializer.get(), expectedType);
+    return toka::Type::fromString("[" + resolveType(AIE->Type) + "]");
+  } else if (auto *IB = dynamic_cast<ImplicitBoxExpr *>(E)) {
+    return IB->ResolvedType;
   } else if (auto *New = dynamic_cast<NewExpr *>(E)) {
     std::string resolvedName = resolveType(New->Type);
 

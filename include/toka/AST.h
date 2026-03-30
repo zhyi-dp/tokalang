@@ -665,6 +665,48 @@ public:
   }
 };
 
+class ArrayInitExpr : public Expr {
+public:
+  std::string Type;
+  std::unique_ptr<Expr> Initializer;
+  std::unique_ptr<Expr> ArraySize;
+  ArrayInitExpr(const std::string &type, std::unique_ptr<Expr> init, std::unique_ptr<Expr> arraySize)
+      : Type(type), Initializer(std::move(init)), ArraySize(std::move(arraySize)) {}
+  std::string toString() const override {
+    std::string s = "ArrayInit([" + (ArraySize ? ArraySize->toString() : "??") + "]" + Type;
+    s += ", " + (Initializer ? Initializer->toString() : "") + ")";
+    return s;
+  }
+  std::unique_ptr<ASTNode> clone() const override {
+    auto n = std::make_unique<ArrayInitExpr>(Type, cloneNode(Initializer), cloneNode(ArraySize));
+    n->Loc = Loc;
+    n->ResolvedType = ResolvedType;
+    return n;
+  }
+};
+
+class ImplicitBoxExpr : public Expr {
+public:
+  std::unique_ptr<Expr> Initializer;
+  bool IsShared;
+  bool IsUnique;
+
+  ImplicitBoxExpr(std::unique_ptr<Expr> init, bool isShared, bool isUnique)
+      : Initializer(std::move(init)), IsShared(isShared), IsUnique(isUnique) {}
+
+  std::string toString() const override {
+    std::string prefix = IsShared ? "~" : (IsUnique ? "^" : "");
+    return prefix + "Box(" + (Initializer ? Initializer->toString() : "") + ")";
+  }
+
+  std::unique_ptr<ASTNode> clone() const override {
+    auto n = std::make_unique<ImplicitBoxExpr>(cloneNode(Initializer), IsShared, IsUnique);
+    n->Loc = Loc;
+    n->ResolvedType = ResolvedType;
+    return n;
+  }
+};
+
 class PassExpr : public Expr {
 public:
   std::unique_ptr<Expr> Value;

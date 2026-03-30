@@ -518,7 +518,75 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
       }
     }
     consume(TokenType::RBracket, "Expected ']' after array elements");
-    expr = std::make_unique<ArrayExpr>(std::move(elements));
+    if (elements.size() == 1 && check(TokenType::Identifier)) {
+      std::unique_ptr<Expr> arraySize = std::move(elements[0]);
+      std::string typeStr = advance().Text;
+      if (check(TokenType::GenericLT)) {
+        typeStr += advance().Text;
+        int balance = 1;
+        while (balance > 0 && !check(TokenType::EndOfFile)) {
+          if (check(TokenType::GenericLT)) balance++;
+          else if (check(TokenType::Greater)) balance--;
+          typeStr += advance().Text;
+        }
+      }
+      while (check(TokenType::Colon) && checkAt(1, TokenType::Colon)) {
+        advance(); advance();
+        typeStr += "::";
+        typeStr += consume(TokenType::Identifier, "Expected identifier after ::").Text;
+      }
+      
+      std::unique_ptr<Expr> init = nullptr;
+      if (check(TokenType::LParen)) {
+        consume(TokenType::LParen, "Expected '('");
+        bool isNamedInit = false;
+        if (check(TokenType::Identifier) && checkAt(1, TokenType::Equal)) isNamedInit = true;
+        if (!isNamedInit && (check(TokenType::Caret) || check(TokenType::Star) || check(TokenType::Tilde) || check(TokenType::Ampersand))) {
+          if (checkAt(1, TokenType::Identifier) && checkAt(2, TokenType::Equal)) isNamedInit = true;
+          if (!isNamedInit && (checkAt(1, TokenType::TokenNull) || checkAt(1, TokenType::TokenWrite))) {
+            if (checkAt(2, TokenType::Identifier) && checkAt(3, TokenType::Equal)) isNamedInit = true;
+          }
+        }
+        if (isNamedInit) {
+          std::vector<std::pair<std::string, std::unique_ptr<Expr>>> fields;
+          while (!check(TokenType::RParen) && !check(TokenType::EndOfFile)) {
+            std::string prefix = "";
+            if (match(TokenType::Star)) prefix = "*";
+            else if (match(TokenType::Caret)) prefix = "^";
+            else if (match(TokenType::Tilde)) prefix = "~";
+            else if (match(TokenType::Ampersand)) prefix = "&";
+            
+            if (match(TokenType::TokenNull)) prefix += "?";
+            if (match(TokenType::TokenWrite)) prefix += "#";
+            
+            Token fieldName = consume(TokenType::Identifier, "Expected field name");
+            consume(TokenType::Equal, "Expected '='");
+            fields.push_back({prefix + fieldName.Text, parseExpr()});
+            if (!check(TokenType::RParen)) match(TokenType::Comma);
+          }
+          consume(TokenType::RParen, "Expected ')'");
+          auto node = std::make_unique<InitStructExpr>(typeStr, std::move(fields));
+          node->setLocation(m_Tokens[m_Pos-1], m_CurrentFile);
+          init = std::move(node);
+        } else {
+          std::vector<std::unique_ptr<Expr>> args;
+          if (!check(TokenType::RParen)) {
+            do { args.push_back(parseExpr()); } while (match(TokenType::Comma));
+          }
+          consume(TokenType::RParen, "Expected ')'");
+          auto node = std::make_unique<CallExpr>(typeStr, std::move(args));
+          node->setLocation(m_Tokens[m_Pos-1], m_CurrentFile);
+          init = std::move(node);
+        }
+      } else {
+        error(peek(), "Expected '(' initializer for Array Init expression");
+      }
+      auto node = std::make_unique<ArrayInitExpr>(typeStr, std::move(init), std::move(arraySize));
+      node->setLocation(m_Tokens[m_Pos-1], m_CurrentFile);
+      expr = std::move(node);
+    } else {
+      expr = std::make_unique<ArrayExpr>(std::move(elements));
+    }
   } else if (check(TokenType::LParen)) {
     Token tok = peek();
 
