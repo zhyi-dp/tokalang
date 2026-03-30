@@ -215,8 +215,8 @@ Toka supports **Recursive Drop**. When a container struct is dropped (e.g. goes 
 
 ```toka
 shape Tree(
-    left^?: Tree,  // Automatically dropped!
-    right^?: Tree
+    nul ^left: Tree,  // Automatically dropped!
+    nul ^right: Tree
 )
 // No manual 'impl Tree { drop... }' needed.
 ```

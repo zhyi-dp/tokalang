@@ -2387,6 +2387,8 @@ void CodeGen::genPatternBinding(const MatchArm::Pattern *pat,
                                 llvm::Value *targetAddr,
                                 llvm::Type *targetType,
                                 std::shared_ptr<Type> targetTypeObj) {
+  if (targetType && targetType->isVoidTy()) return;
+
   if (pat->PatternKind == MatchArm::Pattern::Variable) {
     llvm::Value *val = targetAddr;
     std::string pName = pat->Name;
@@ -3014,7 +3016,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
               payloadType = resolveType(targetVar->Type, false);
             }
 
-            if (payloadType) {
+            if (payloadType && !payloadType->isVoidTy()) {
               llvm::Value *payloadAddr =
                   m_Builder.CreateStructGEP(st, alloca, 1, "payload_addr");
               llvm::Value *castPtr = m_Builder.CreateBitCast(
@@ -3775,7 +3777,9 @@ PhysEntity CodeGen::genInitStructExpr(const InitStructExpr *init) {
       emitAcquire(fieldVal, f.second->ResolvedType->getPointeeType());
     }
 
-    m_Builder.CreateStore(fieldVal, fieldAddr);
+    if (fieldVal && !fieldVal->getType()->isVoidTy()) {
+      m_Builder.CreateStore(fieldVal, fieldAddr);
+    }
   }
 
   return m_Builder.CreateLoad(st, alloca);

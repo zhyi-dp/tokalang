@@ -1,0 +1,123 @@
+import std/sync::{Mutex, CondVar, MutexLock}
+import std/vec::{Vec}
+import core/result::{Result}
+import std/error::{Error}
+import core/intrinsics/atomic::*
+
+/// The shared state protected by the channel Mutex
+pub shape WaitQueue<T>(
+    queue#: Vec<T>,
+    closed#: bool,
+    senders#: i32,
+    receivers#: i32
+)
+
+/// The channel synchronization core
+pub shape AsyncChannel<T>(
+    state#: Mutex<WaitQueue<T> >,
+    cond_not_empty#: CondVar<WaitQueue<T> >,
+    cond_not_full#: CondVar<WaitQueue<T> >   // For future bounded channels
+)
+
+/// The sender half of a channel
+pub shape Sender<T>(
+    ~inner: AsyncChannel<T>
+)
+
+/// The receiver half of a channel
+pub shape Receiver<T>(
+    ~inner: AsyncChannel<T>
+)
+
+impl<T> WaitQueue<T> {
+    pub fn new() -> WaitQueue<T> {
+        return WaitQueue<T>(
+            queue = Vec<T>::new(),
+            closed = false,
+            senders = 1,
+            receivers = 1
+        )
+    }
+}
+
+pub shape ChannelPair<T>(
+    tx: Sender<T>,
+    rx: Receiver<T>
+)
+
+pub fn channel<T>() -> ChannelPair<T> {
+    auto ~inner = new AsyncChannel<T>(
+        state = Mutex<WaitQueue<T> >::new(WaitQueue<T>::new()),
+        cond_not_empty = CondVar<WaitQueue<T> >::new(),
+        cond_not_full = CondVar<WaitQueue<T> >::new()
+    )
+    
+    return ChannelPair<T>(
+        tx=Sender<T>(~inner = ~inner),
+        rx=Receiver<T>(~inner = ~inner)
+    )
+}
+
+impl<T> Sender<T> {
+    pub fn send(self, val: T) -> Result<(), Error> {
+        guard auto Ok(lguard) = self.inner.state.lock() else {
+            return Result<(), Error>::Err(Error::new(2:i32, "Mutex lock failed"))
+        }
+        
+        auto *q# = lguard.get_ref()
+        if q.closed {
+            return Result<(), Error>::Err(Error::new(1:i32, "Send on closed channel"))
+        }
+        
+        q.queue#.push(val)
+        self.inner.cond_not_empty.notify_one()
+        return Result<(), Error>::Ok(())
+    }
+}
+
+impl<T> Receiver<T> {
+    pub fn recv(self) -> Result<Option<T>, Error> {
+        guard auto Ok(lguard#) = self.inner.state.lock() else {
+            return Result<Option<T>, Error>::Err(Error::new(4:i32, "Mutex lock failed"))
+        }
+
+        auto *q# = lguard.get_ref()
+        while q.queue.len() == 0 {
+            if q.closed && q.queue.len() == 0 {
+                return Result<Option<T>, Error>::Ok(Option<T>::None())
+            }
+            self.inner.cond_not_empty.wait(lguard)
+        }
+        
+        auto item = q.queue#.pop()
+        return Result<Option<T>, Error>::Ok(item)
+    }
+}
+
+// Drop implementations for sender/receiver cloning
+impl<T> Sender<T>@encap {
+    fn drop(self#) {
+        guard auto Ok(lguard#) = self.inner.state.lock() else {
+            return
+        }
+        auto *q# = lguard.get_ref()
+        q.senders = q.senders - 1
+        if q.senders == 0 {
+            q.closed = true
+            self.inner.cond_not_empty.notify_all()
+        }
+    }
+}
+
+impl<T> Receiver<T>@encap {
+    fn drop(self#) {
+        guard auto Ok(lguard#) = self.inner.state.lock() else {
+            return
+        }
+        auto *q# = lguard.get_ref()
+        q.receivers = q.receivers - 1
+        if q.receivers == 0 {
+            q.closed = true
+        }
+    }
+}

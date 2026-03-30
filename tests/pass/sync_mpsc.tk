@@ -1,0 +1,34 @@
+import std/mpsc::{channel, Sender, Receiver}
+import std/vec::{Vec}
+import std/thread::{spawn, JoinHandle}
+import std/io::{println}
+
+fn main() -> i32 {
+    auto pair = channel<i32>()
+    // Test basic send and recv
+    pair.tx.send(42:i32)
+    auto res_opt = pair.rx.recv()
+    
+    match res_opt {
+        auto Result<Option<i32>, Error>::Ok(msg_opt) => {
+            match msg_opt {
+                auto Option<i32>::Some(msg) => {
+                    println("Received: {}", msg)
+                    assert(msg == 42, "msg must be 42")
+                }
+                _ => {
+                    println("Channel closed")
+                }
+            }
+        }
+        auto Result<Option<i32>, Error>::Err(e) => {
+            println("Error receiving: {}", e.message.c_str())
+            return 1
+        }
+        _ => {
+            return 2
+        }
+    }
+    
+    return 0
+}

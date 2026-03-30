@@ -1957,8 +1957,9 @@ llvm::Type *CodeGen::resolveType(const std::string &baseType, bool hasPointer) {
       else
         return nullptr;
     }
-    if (elemTypes.empty())
-      return nullptr;
+    // For "()", content is empty, elemTypes is empty.
+    // Allow empty tuples by removing the 'return nullptr' guard.
+    // If it's not a tuple but invalid, parsing would have caught it or failed earlier.
     type = llvm::StructType::get(m_Context, elemTypes);
 
     // Generate canonical baseType for registration (no spaces)
