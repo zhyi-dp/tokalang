@@ -47,8 +47,7 @@ impl<T> Mutex<T> {
         }
     }
     
-    /// Acquires the mutex, blocking the current thread until it is available.
-    pub fn lock(self) -> Result<i32, Error> {
+    pub fn lock(self) -> Result<MutexGuard<T>, Error> {
         unsafe {
             auto rc = libc_pthread_mutex_lock(self.handle)
             if rc != 0 {
@@ -56,9 +55,16 @@ impl<T> Mutex<T> {
                 auto rc_str = String::from_int(rc)
                 msg#.push_str(rc_str.c_str())
                 
-                return Result<i32, Error>::Err(Error::new(rc, msg))
+                return Result<MutexGuard<T>, Error>::Err(Error::new(rc, msg))
             }
-            return Result<i32, Error>::Ok(rc)
+            
+            auto temp_h: Addr = self.handle
+            auto *mut_ptr# = ((*self) as *Mutex<T>)
+            
+            return Result<MutexGuard<T>, Error>::Ok(MutexGuard<T>(
+                handle = temp_h,
+                *data = *mut_ptr.data
+            ))
         }
     }
     
@@ -87,5 +93,27 @@ impl<T> Mutex<T> {
                 self.handle = 0:Addr
             }
         }
+    }
+}
+
+pub shape MutexGuard<T>(
+    handle: Addr,
+    *data: T
+)
+
+impl<T> MutexGuard<T>@encap {
+    fn drop(self#) {
+        unsafe {
+            if self.handle != 0:Addr {
+                libc_pthread_mutex_unlock(self.handle)
+                self.handle = 0:Addr
+            }
+        }
+    }
+}
+
+impl<T> MutexGuard<T> {
+    pub fn get_ref(self) -> *T {
+        return self.*data
     }
 }

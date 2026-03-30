@@ -1,0 +1,31 @@
+import std/sync::{Mutex, MutexGuard}
+import std/io::println
+import core/result::{Result}
+import std/error::{Error}
+
+fn main() -> i32 {
+    auto m# = Mutex<i32>::new(42)
+    
+    {
+        auto guard_res = m#.lock()
+        match guard_res {
+            Result<MutexGuard<i32>, Error>::Ok(g) => {
+                println("Locked")
+                // g.get_ref() returns the address of target's data
+                auto *p# = g.get_ref()
+                println("Guard target Addr is {}", g.handle as OAddr)
+                println("Pointer Addr is {}", *p as OAddr)
+                if *p != nullptr {
+                    println("Data is {}", p)
+                    p = 100
+                    println("Modified to {}", p)
+                }
+            }
+            Result<MutexGuard<i32>, Error>::Err(e) => {
+                println("failed")
+                return 1
+            }
+        }
+    }
+    return 0
+}
