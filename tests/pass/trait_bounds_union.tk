@@ -1,0 +1,22 @@
+trait Send {}
+trait Sync {}
+trait Clone {}
+
+shape Data (
+    value: i32
+)
+
+impl Data @Send {}
+impl Data @Sync {}
+
+fn process<T: @{Send, Sync}>(val: ^T) {
+}
+
+fn clone_item<T: @{Send, Clone}>(val: ^T) {
+}
+
+pub fn main() -> i32 {
+    auto ^d = new Data(value = 42)
+    process<Data>(d)
+    return 0
+}

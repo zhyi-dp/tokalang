@@ -401,6 +401,15 @@ Sema::instantiateGenericShape(std::shared_ptr<ShapeType> GenericShape) {
     return GenericShape;
   }
 
+  // [NEW] Check Trait Bounds
+  for (size_t i = 0; i < Template->GenericParams.size(); ++i) {
+    if (!Template->GenericParams[i].TraitBounds.empty()) {
+      if (!checkTraitBounds(Template->Loc, Template->GenericParams[i].Name, Template->GenericParams[i].TraitBounds, GenericShape->GenericArgs[i]->toString())) {
+        return nullptr;
+      }
+    }
+  }
+
   // 2. Mangle Name: Name_M_Arg1_Arg2
   // Simple mangling: Name_M + (Arg1.Name or Arg1.Mangling)
   // We need a robust mangler. For Proof of Concept:

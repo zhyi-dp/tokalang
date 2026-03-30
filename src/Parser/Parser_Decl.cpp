@@ -20,6 +20,40 @@
 
 namespace toka {
 
+std::vector<GenericParam> Parser::parseGenericParams() {
+  std::vector<GenericParam> genericParams;
+  if (match(TokenType::GenericLT)) {
+    do {
+      GenericParam gp;
+      if (match(TokenType::KwConst)) {
+        gp.IsConst = true;
+      }
+      gp.Name = consume(TokenType::Identifier, "Expected generic parameter name").Text;
+      if (match(TokenType::Colon)) {
+        if (check(TokenType::At) || check(TokenType::LBrace)) {
+          // Trait bounds: <T: @Send> or <T: @{Read, Write}> or <T: {@Read, @Write}>
+          bool hasOuterAt = match(TokenType::At);
+          bool unionBraces = match(TokenType::LBrace);
+          do {
+            match(TokenType::At); // optional @ prefix inside the trait bound
+            gp.TraitBounds.push_back(consume(TokenType::Identifier, "Expected trait name in constraint").Text);
+          } while (unionBraces && match(TokenType::Comma));
+          if (unionBraces) {
+            consume(TokenType::RBrace, "Expected '}' closing trait bounds");
+          }
+        } else {
+          // Const generic type
+          gp.Type = parseTypeString();
+          gp.IsConst = true;
+        }
+      }
+      genericParams.push_back(gp);
+    } while (match(TokenType::Comma));
+    consume(TokenType::Greater, "Expected '>' to close generic parameters");
+  }
+  return genericParams;
+}
+
 std::unique_ptr<ShapeDecl> Parser::parseShape(bool isPub) {
   bool isUnion = false;
   if (match(TokenType::KwUnion)) {
@@ -36,27 +70,7 @@ std::unique_ptr<ShapeDecl> Parser::parseShape(bool isPub) {
   Token name = consume(TokenType::Identifier, "Expected shape name");
 
   // Parse Generic Parameters: Name<T, U> or Name<T, N_: usize>
-  std::vector<GenericParam> genericParams;
-  if (match(TokenType::GenericLT)) {
-    do {
-      GenericParam gp;
-      if (match(TokenType::KwConst)) {
-        gp.IsConst = true;
-      }
-      gp.Name =
-          consume(TokenType::Identifier, "Expected generic parameter name")
-              .Text;
-      if (match(TokenType::Colon)) {
-        gp.Type = parseTypeString();
-        // Implicit const if type is present? Or require const?
-        // Let's stick to "If type present -> IsConst=true" for backward compat
-        // if any, BUT if 'const' keyword was used, it's definitely const.
-        gp.IsConst = true;
-      }
-      genericParams.push_back(gp);
-    } while (match(TokenType::Comma));
-    consume(TokenType::Greater, "Expected '>' to close generic parameters");
-  }
+  std::vector<GenericParam> genericParams = parseGenericParams();
 
   std::vector<std::string> lifeDeps;
   if (match(TokenType::Dependency)) {
@@ -343,24 +357,7 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
   }
 
   // Parse Generic Parameters: <T, N_: usize>
-  std::vector<GenericParam> genericParams;
-  if (match(TokenType::GenericLT)) {
-    do {
-      GenericParam gp;
-      if (match(TokenType::KwConst)) {
-        gp.IsConst = true;
-      }
-      gp.Name =
-          consume(TokenType::Identifier, "Expected generic parameter name")
-              .Text;
-      if (match(TokenType::Colon)) {
-        gp.Type = parseTypeString();
-        gp.IsConst = true; // Still imply const if type is present
-      }
-      genericParams.push_back(gp);
-    } while (match(TokenType::Comma));
-    consume(TokenType::Greater, "Expected '>' to close generic parameters");
-  }
+  std::vector<GenericParam> genericParams = parseGenericParams();
 
   consume(TokenType::LParen, "Expected '('");
   std::vector<FunctionDecl::Arg> args;
@@ -697,18 +694,7 @@ std::unique_ptr<TypeAliasDecl> Parser::parseTypeAliasDecl(bool isPub) {
   Token name = consume(TokenType::Identifier, "Expected type alias name");
 
   // Parse Generic Parameters: <T, U>
-  std::vector<GenericParam> genericParams;
-  if (check(TokenType::GenericLT)) {
-    match(TokenType::GenericLT); // consume <
-    do {
-      GenericParam gp;
-      Token name =
-          consume(TokenType::Identifier, "Expected generic parameter name");
-      gp.Name = name.Text;
-      genericParams.push_back(gp);
-    } while (match(TokenType::Comma));
-    consume(TokenType::Greater, "Expected '>' after generic parameters");
-  }
+  std::vector<GenericParam> genericParams = parseGenericParams();
 
   consume(TokenType::Equal, "Expected '='");
 
@@ -730,16 +716,7 @@ std::unique_ptr<ImplDecl> Parser::parseImpl() {
   Token startTok = consume(TokenType::KwImpl, "Expected 'impl'");
 
   // 1. [NEW] Parse Generic Parameters <T, U>
-  std::vector<GenericParam> genericParams;
-  if (check(TokenType::GenericLT)) {
-    match(TokenType::GenericLT); // consume <
-    do {
-      Token name =
-          consume(TokenType::Identifier, "Expected generic parameter name");
-      genericParams.push_back({name.Text}); // Simple param for now
-    } while (match(TokenType::Comma));
-    consume(TokenType::Greater, "Expected '>' after generic parameters");
-  }
+  std::vector<GenericParam> genericParams = parseGenericParams();
 
   // 2. Parse First Type/Trait String (Not just Identifier)
   // This allows "Box<T>" or "Iterator<T>"

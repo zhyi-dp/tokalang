@@ -230,6 +230,15 @@ void Sema::instantiateGenericImpl(
     return;
   }
 
+  // [NEW] Check Trait Bounds
+  for (size_t i = 0; i < Template->GenericParams.size(); ++i) {
+    if (!Template->GenericParams[i].TraitBounds.empty()) {
+      if (!checkTraitBounds(Template->Loc, Template->GenericParams[i].Name, Template->GenericParams[i].TraitBounds, GenericArgs[i]->toString())) {
+        return;
+      }
+    }
+  }
+
   std::string MangledName = resolveType(ConcreteTypeName);
   
   // [FIX] Prevent Duplication - Do not instantiate if we already have it
@@ -300,6 +309,23 @@ void Sema::instantiateGenericImpl(
   checkImpl(RawPtr);
 
   // Done.
+}
+
+bool Sema::checkTraitBounds(SourceLocation Loc, const std::string &ParamName, 
+                            const std::vector<std::string> &TraitBounds, 
+                            const std::string &ConcreteType) {
+  bool success = true;
+  std::string resolvedConcreteType = resolveType(ConcreteType);
+
+  for (const auto &bound : TraitBounds) {
+    std::string implKey = resolvedConcreteType + "@" + bound;
+    if (!ImplMap.count(implKey)) {
+        DiagnosticEngine::report(Loc, DiagID::ERR_TRAIT_BOUND_UNSATISFIED, ConcreteType, bound, ParamName);
+        HasError = true;
+        success = false;
+    }
+  }
+  return success;
 }
 
 } // namespace toka

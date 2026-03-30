@@ -59,6 +59,7 @@ private:
   std::unique_ptr<TraitDecl> parseTrait(bool isPub = false);
   std::unique_ptr<Expr> parseMatchExpr();
   std::unique_ptr<MatchArm::Pattern> parsePattern();
+  std::vector<GenericParam> parseGenericParams();
 
   std::unique_ptr<Stmt> parseStmt();
   std::unique_ptr<GuardBindStmt> parseGuardBindStmt();

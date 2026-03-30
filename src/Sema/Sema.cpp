@@ -572,6 +572,7 @@ void Sema::registerImpl(ImplDecl *Impl) {
   // Populate ImplMap
   if (!Impl->TraitName.empty()) {
     std::string implKey = resolvedTypeName + "@" + Impl->TraitName;
+    ImplMap[implKey]; // Ensure the key exists even for empty traits
     for (auto &Method : Impl->Methods) {
       ImplMap[implKey][Method->Name] = Method.get();
     }
@@ -1126,6 +1127,18 @@ FunctionDecl *Sema::instantiateGenericFunction(
                              Template->GenericParams.size(), Args.size());
     HasError = true;
     return nullptr;
+  }
+
+  // [NEW] Check Trait Bounds
+  for (size_t i = 0; i < Template->GenericParams.size(); ++i) {
+    if (!Template->GenericParams[i].TraitBounds.empty()) {
+      if (!checkTraitBounds(CallSite ? getLoc(CallSite) : Template->Loc, 
+                            Template->GenericParams[i].Name, 
+                            Template->GenericParams[i].TraitBounds, 
+                            Args[i]->toString())) {
+        return nullptr;
+      }
+    }
   }
 
   // Magnling: Name_M_Arg1_Arg2

@@ -28,6 +28,7 @@ struct GenericParam {
   std::string Name;
   std::string Type; // Empty if it's a type parameter
   bool IsConst = false;
+  std::vector<std::string> TraitBounds;
 };
 
 class ASTNode {

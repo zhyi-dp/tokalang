@@ -356,6 +356,10 @@ private:
   bool isTypeCompatible(std::shared_ptr<toka::Type> Target,
                         std::shared_ptr<toka::Type> Source);
 
+  bool checkTraitBounds(SourceLocation Loc, const std::string &ParamName, 
+                        const std::vector<std::string> &TraitBounds, 
+                        const std::string &ConcreteType);
+
   // [NEW] Deep Inspection for Union Safety
   std::shared_ptr<toka::Type>
   getDeepestUnderlyingType(std::shared_ptr<toka::Type> Type);

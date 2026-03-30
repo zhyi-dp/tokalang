@@ -1,0 +1,14 @@
+trait Send {}
+
+shape Data (
+    value: i32
+)
+
+fn process<T: @Send>(val: ^T) {
+}
+
+pub fn main() -> i32 {
+    auto ^d = new Data(value = 42)
+    process<Data>(d) // Should fail: Data does not implement Send
+    return 0
+}
