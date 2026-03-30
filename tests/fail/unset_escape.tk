@@ -1,4 +1,4 @@
-// tests/fail/test_unset_escape.tk
+// unset_escape.tk
 
 // Case 1: Escape Dirty Reference via Return
 fn test_return_unset() -> &i32 {

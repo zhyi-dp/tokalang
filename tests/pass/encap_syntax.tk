@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-// tests/pass/test_encap_syntax.tk
+// encap_syntax.tk
 // This file serves as a syntax specification for the @encap system.
 
 import std/io::println

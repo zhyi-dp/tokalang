@@ -1,4 +1,4 @@
-// tests/fail/test_morphology_fail.tk
+// morphology_fail.tk
 
 fn test_assign_mismatch() {
     auto ^p = 10;

@@ -72,6 +72,7 @@ auto ^#p2? = ...    // 可交换(指向可变)、可空、独占指针
     - [x] 共享指针 (`~`) 与引用计数 (Reference Counting)
     - [x] **递归式释放 (Recursive Drop)** (Deep Drop)
     - [x] **Soul-Identity 内存模型** (不透明指针支持)
+    - [x] **指针重绑定 (Pointer Rebinding)** (`&x = ...` 强更新)
 - [x] **面向对象特性**
     - [x] `impl` 块 (方法)
     - [x] **Trait 系统** (接口、默认实现)
@@ -94,11 +95,16 @@ auto ^#p2? = ...    // 可交换(指向可变)、可空、独占指针
 - [x] **高级特性**
     - [x] **泛型 / 模板 (Generics)** (类型与函数)
     - [x] **自动析构合成 (Automatic Drop Synthesis)** (递归 Deep Drop)
-    - [ ] 并发 (`Task`, `async`/`await`)
+    - [x] **显式资源退让 (Explicit Resource Yielding: `cede`)**
+    - [ ] **并发 (Concurrency)**
+        - [x] 原生系统线程 (`std/thread`)
+        - [x] 同步原语 (`Mutex`, `RwMutex`, `CondVar`)
+        - [ ] 通道通信 (MPSC Channels)
+        - [ ] `Task` 与 `async`/`await`
     - [ ] **标准库 (Standard Library)**
         - [x] 基础 I/O
         - [x] 内存管理
-        - [x] `String` 类型
+        - [x] 核心容器类型 (`String`, `Vec`, `Option`, `Result`)
 
 ## 🛠 构建与使用
 
@@ -160,11 +166,13 @@ fn main() {
 }
 
 fn null_safety() {
-    auto ^?p = nullptr // 身份可空 (Identity is Nullable)
+    auto nul ^p = nullptr // 身份可空 (Identity is Nullable)
     
-    // 1. 安全解包 (通过 'is')
-    if ^?p is ^p {
-        println("Not Null: {}", *p) // 只有在指针不为空时执行
+    // 1. 安全降级/解包 (通过 'guard')
+    guard ^p {
+        println("Not Null: {}", p.v) // 只有在指针不为空时执行
+    } else {
+        println("Is Null")
     }
     
     // 2. 直接断言 (空则 Panic)

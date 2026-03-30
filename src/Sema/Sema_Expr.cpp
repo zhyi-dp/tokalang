@@ -261,6 +261,7 @@ bool Sema::checkStrictMorphology(ASTNode *Node, MorphKind Target,
 
   DiagnosticEngine::report(Node->Loc, DiagID::ERR_MORPHOLOGY_MISMATCH, tgtStr,
                            srcStr);
+  HasError = true;
   return false;
 }
 

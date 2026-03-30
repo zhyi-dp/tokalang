@@ -72,6 +72,7 @@ We are actively building the compiler self-hosting capabilities.
     - [x] Shared Pointers (`~`) with Reference Counting
     - [x] **Recursive Drop (Deep Drop)**
     - [x] **Soul-Identity Model** (Opaque Pointers)
+    - [x] **Pointer Rebinding** (Strong Updates via `&x = ...`)
 - [x] **Object Oriented Features**
     - [x] `impl` blocks (Methods)
     - [x] **Trait System** (Interfaces, Default Implementations)
@@ -94,11 +95,16 @@ We are actively building the compiler self-hosting capabilities.
 - [x] **Advanced Features**
     - [x] **Generics / Templates** (Type & Function)
     - [x] **Automatic Drop Synthesis** (Recursive Deep Drop)
-    - [ ] Concurrency (`Task`, `async`/`await`)
+    - [x] **Explicit Resource Yielding (`cede`)**
+    - [ ] **Concurrency**
+        - [x] OS Threads (`std/thread`)
+        - [x] Synchronization Primitives (`Mutex`, `RwMutex`, `CondVar`)
+        - [ ] Channels (MPSC)
+        - [ ] `Task` and `async`/`await`
     - [ ] **Standard Library**
         - [x] Basic I/O
         - [x] Memory Management
-        - [x] `String` Type
+        - [x] Core Types (`String`, `Vec`, `Option`, `Result`)
 
 ## 🛠 Build & Usage
 
@@ -162,11 +168,13 @@ fn main() {
 }
 
 fn null_safety() {
-    auto ^?p = nullptr // Identity is Nullable
+    auto nul ^p = nullptr // Identity is Nullable (nul keyword)
     
-    // 1. Safe Unwrap via 'is'
-    if ^?p is ^p {
+    // 1. Safe Narrowing via 'guard'
+    guard ^p {
         println("Not Null: {}", *p)
+    } else {
+        println("Is Null")
     }
 
     // 2. Direct Assertion (Panics if null)

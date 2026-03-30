@@ -1,8 +1,8 @@
 import std/io::println
 shape Foo(v: i32)
-fn strict_ref(f: &Foo) { println("Inside: {}", f.v) }
+fn read_foo(f: &Foo) { println("val: {}", f.v) }
 pub fn main() -> i32 {
     auto f = Foo(v = 42)
-    strict_ref(f)
+    read_foo(f)
     return 0
 }

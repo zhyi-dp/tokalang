@@ -1,4 +1,4 @@
-// test_token_interior_mut.tk
+// token_interior_mut.tk
 // 验证零成本内部可变性（#:）
 
 shape CounterInfo(
@@ -6,7 +6,7 @@ shape CounterInfo(
     name: str
 )
 
-fn process_info(info: &CounterInfo) {
+fn process_info(&info: CounterInfo) {
     // 即使 info 是只读借用 (&)，我们也允许直接对 #: 修饰的字段进行覆写
     info.accesses = info.accesses + 1
     

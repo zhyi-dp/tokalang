@@ -1,4 +1,4 @@
-// tests/pass/test_unset_init.tk
+// unset_init.tk
 import std/io::println
 
 shape Point(

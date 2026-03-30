@@ -139,7 +139,7 @@ Toka introduces "Morphology" operators to handle object identity, ownership, and
 | Operator | Meaning | Example |
 | :--- | :--- | :--- |
 | `#` | **Mutable**: Used in types or variables to allow modification. | `auto &x# = &y#` |
-| `?` | **Nullable**: Value uses `none`, Identity uses `nullptr`. | `auto x? = none` <br> `auto ^?p = nullptr` |
+| `?` | **Nullable**: Value is nullable. | `auto x? = none` <br> `auto nul ^p = nullptr` |
 | `!` | **Writable & Nullable**: Can be modified AND be `none`/`nullptr`. | `auto x! = none` |
 | `^` | **Ownership/Move**: Indicates an owning pointer or a move operation. | `auto ^r2 = ^r1` |
 | `~` | **Shared Pointer**: Reference counted shared ownership. | `auto ~s2 = ~s1` |
@@ -153,9 +153,11 @@ Toka treats nullability as a type-level feature (`?`). To safely access a nullab
 Use `if source is target` to safely unwrap a nullable variable.
 
 ```toka
-auto ^?p = ...
-if ^?p is ^p {
+auto nul ^p = ...
+guard ^p {
     // p is non-null here
+} else {
+    // Handle null
 }
 ```
 
@@ -213,8 +215,8 @@ Toka supports **Recursive Drop**. When a container struct is dropped (e.g. goes 
 
 ```toka
 shape Tree(
-    left: ^?Tree,  // Automatically dropped!
-    right: ^?Tree
+    nul ^left: Tree,  // Automatically dropped!
+    nul ^right: Tree
 )
 // No manual 'impl Tree { drop... }' needed.
 ```
