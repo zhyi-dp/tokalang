@@ -101,7 +101,7 @@ impl<T> Mutex<T>@encap {
 
 pub shape MutexLock<T>(
     handle: Addr,
-    *data: T
+    *data#: T
 )
 
 impl<T> MutexLock<T>@encap {
@@ -117,7 +117,7 @@ impl<T> MutexLock<T>@encap {
 }
 
 impl<T> MutexLock<T> {
-    pub fn get_ref(self) -> *T {
+    pub fn get_ref(self) -> *T# {
         return self.*data
     }
 }
@@ -240,7 +240,7 @@ impl<T> RwReadLock<T> {
 
 pub shape RwWriteLock<T>(
     handle: Addr,
-    *data: T
+    *data#: T
 )
 
 impl<T> RwWriteLock<T>@encap {
@@ -255,7 +255,7 @@ impl<T> RwWriteLock<T>@encap {
 }
 
 impl<T> RwWriteLock<T> {
-    pub fn get_ref(self) -> *T {
+    pub fn get_ref(self) -> *T# {
         return self.*data
     }
 }
