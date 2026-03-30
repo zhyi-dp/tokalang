@@ -1,0 +1,116 @@
+import std/io::println
+import std/atomic::*
+import std/thread::*
+import std/vec::Vec
+
+pub fn main() -> i32 {
+    println("Testing std/atomic.tk wrappers...")
+
+    // 1. Basic Sequential Test
+    auto b = AtomicBool::new(false)
+    b.store(true, Ordering::SeqCst)
+    assert(b.load(Ordering::SeqCst) == true, "AtomicBool store/load failed")
+
+    auto i = AtomicI32::new(100)
+    assert(i.fetch_add(50, Ordering::SeqCst) == 100, "AtomicI32 fetch_add old val failed")
+    assert(i.load(Ordering::SeqCst) == 150, "AtomicI32 fetch_add new val failed")
+
+    auto (old_val, ok) = i.compare_exchange(150, 200, Ordering::SeqCst, Ordering::Relaxed)
+    assert(ok == true, "AtomicI32 compare_exchange success failed")
+    assert(i.load(Ordering::SeqCst) == 200, "AtomicI32 compare_exchange new val failed")
+
+    // 2. Concurrent Stress Test using ~AtomicUsize
+    println("Spawning 10 threads to aggressively mutate ~AtomicUsize...")
+    auto ~counter = AtomicUsize::make(0)
+    auto ~c1 = ~counter
+    auto ~c2 = ~counter
+    auto ~c3 = ~counter
+    auto ~c4 = ~counter
+    auto ~c5 = ~counter
+    auto ~c6 = ~counter
+    auto ~c7 = ~counter
+    auto ~c8 = ~counter
+    auto ~c9 = ~counter
+    auto ~c10 = ~counter
+    
+    // We will collect 10 join handles
+    auto arr = Vec<JoinHandle<i32>>::new()
+
+    auto t1# = spawn<i32>([cede c1] {
+        auto i# = 0
+        auto ~local = ~c1
+        while i < 10000 { local.fetch_add(1 as usize, Ordering::Relaxed); i = i + 1 }
+        return cede 0
+    })
+    auto t2# = spawn<i32>([cede c2] {
+        auto i# = 0
+        auto ~local = ~c2
+        while i < 10000 { local.fetch_add(1 as usize, Ordering::Relaxed); i = i + 1 }
+        return cede 0
+    })
+    auto t3# = spawn<i32>([cede c3] {
+        auto i# = 0
+        auto ~local = ~c3
+        while i < 10000 { local.fetch_add(1 as usize, Ordering::Relaxed); i = i + 1 }
+        return cede 0
+    })
+    auto t4# = spawn<i32>([cede c4] {
+        auto i# = 0
+        auto ~local = ~c4
+        while i < 10000 { local.fetch_add(1 as usize, Ordering::Relaxed); i = i + 1 }
+        return cede 0
+    })
+    auto t5# = spawn<i32>([cede c5] {
+        auto i# = 0
+        auto ~local = ~c5
+        while i < 10000 { local.fetch_add(1 as usize, Ordering::Relaxed); i = i + 1 }
+        return cede 0
+    })
+    auto t6# = spawn<i32>([cede c6] {
+        auto i# = 0
+        auto ~local = ~c6
+        while i < 10000 { local.fetch_add(1 as usize, Ordering::Relaxed); i = i + 1 }
+        return cede 0
+    })
+    auto t7# = spawn<i32>([cede c7] {
+        auto i# = 0
+        auto ~local = ~c7
+        while i < 10000 { local.fetch_add(1 as usize, Ordering::Relaxed); i = i + 1 }
+        return cede 0
+    })
+    auto t8# = spawn<i32>([cede c8] {
+        auto i# = 0
+        auto ~local = ~c8
+        while i < 10000 { local.fetch_add(1 as usize, Ordering::Relaxed); i = i + 1 }
+        return cede 0
+    })
+    auto t9# = spawn<i32>([cede c9] {
+        auto i# = 0
+        auto ~local = ~c9
+        while i < 10000 { local.fetch_add(1 as usize, Ordering::Relaxed); i = i + 1 }
+        return cede 0
+    })
+    auto t10# = spawn<i32>([cede c10] {
+        auto i# = 0
+        auto ~local = ~c10
+        while i < 10000 { local.fetch_add(1 as usize, Ordering::Relaxed); i = i + 1 }
+        return cede 0
+    })
+
+    auto _ = t1#.join()
+    auto _ = t2#.join()
+    auto _ = t3#.join()
+    auto _ = t4#.join()
+    auto _ = t5#.join()
+    auto _ = t6#.join()
+    auto _ = t7#.join()
+    auto _ = t8#.join()
+    auto _ = t9#.join()
+    auto _ = t10#.join()
+
+    auto final_count = counter.load(Ordering::SeqCst)
+    println("All threads finished. Final count: {}", final_count)
+    assert(final_count == 100000 as usize, "Concurrent fetch_add did not reach expected target")
+
+    return 0
+}

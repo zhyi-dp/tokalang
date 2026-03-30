@@ -1,0 +1,260 @@
+// lib/std/atomic.tk
+// High-level safe abstractions over LLVM atomic intrinsics.
+
+import core/intrinsics/atomic as core_atomic
+pub import core/intrinsics/atomic::Ordering
+
+// ==========================================
+// AtomicI32
+// ==========================================
+
+pub shape AtomicI32 (
+    val#: i32
+)
+
+impl AtomicI32@Send {}
+impl AtomicI32@Sync {}
+
+impl AtomicI32 {
+    pub fn new(v: i32) -> AtomicI32 {
+        return AtomicI32(val = v)
+    }
+
+    pub fn make(v: i32) -> ^AtomicI32 {
+        return new AtomicI32(val = v)
+    }
+
+    pub fn load(self, order: Ordering) -> i32 {
+        return core_atomic::__toka_atomic_load(self.val#, order)
+    }
+
+    pub fn store(self, v: i32, order: Ordering) {
+        core_atomic::__toka_atomic_store(self.val#, v, order)
+    }
+
+    pub fn swap(self, v: i32, order: Ordering) -> i32 {
+        return core_atomic::__toka_atomic_swap(self.val#, v, order)
+    }
+
+    pub fn compare_exchange(
+        self, current: i32, new_val: i32, success: Ordering, failure: Ordering
+    ) -> (i32, bool) {
+        return core_atomic::__toka_atomic_compare_exchange(
+            self.val#, current, new_val, success, failure
+        )
+    }
+
+    pub fn fetch_add(self, v: i32, order: Ordering) -> i32 {
+        return core_atomic::__toka_atomic_fetch_add(self.val#, v, order)
+    }
+
+    pub fn fetch_sub(self, v: i32, order: Ordering) -> i32 {
+        return core_atomic::__toka_atomic_fetch_sub(self.val#, v, order)
+    }
+
+    pub fn fetch_and(self, v: i32, order: Ordering) -> i32 {
+        return core_atomic::__toka_atomic_fetch_and(self.val#, v, order)
+    }
+
+    pub fn fetch_or(self, v: i32, order: Ordering) -> i32 {
+        return core_atomic::__toka_atomic_fetch_or(self.val#, v, order)
+    }
+
+    pub fn fetch_xor(self, v: i32, order: Ordering) -> i32 {
+        return core_atomic::__toka_atomic_fetch_xor(self.val#, v, order)
+    }
+}
+
+
+// ==========================================
+// AtomicUsize
+// ==========================================
+
+pub shape AtomicUsize (
+    val#: usize
+)
+
+impl AtomicUsize@Send {}
+impl AtomicUsize@Sync {}
+
+impl AtomicUsize {
+    pub fn new(v: usize) -> AtomicUsize {
+        return AtomicUsize(val = v)
+    }
+
+    pub fn make(v: usize) -> ^AtomicUsize {
+        return new AtomicUsize(val = v)
+    }
+
+    pub fn load(self, order: Ordering) -> usize {
+        return core_atomic::__toka_atomic_load(self.val#, order)
+    }
+
+    pub fn store(self, v: usize, order: Ordering) {
+        core_atomic::__toka_atomic_store(self.val#, v, order)
+    }
+
+    pub fn swap(self, v: usize, order: Ordering) -> usize {
+        return core_atomic::__toka_atomic_swap(self.val#, v, order)
+    }
+
+    pub fn compare_exchange(
+        self, current: usize, new_val: usize, success: Ordering, failure: Ordering
+    ) -> (usize, bool) {
+        return core_atomic::__toka_atomic_compare_exchange(
+            self.val#, current, new_val, success, failure
+        )
+    }
+
+    pub fn fetch_add(self, v: usize, order: Ordering) -> usize {
+        return core_atomic::__toka_atomic_fetch_add(self.val#, v, order)
+    }
+
+    pub fn fetch_sub(self, v: usize, order: Ordering) -> usize {
+        return core_atomic::__toka_atomic_fetch_sub(self.val#, v, order)
+    }
+
+    pub fn fetch_and(self, v: usize, order: Ordering) -> usize {
+        return core_atomic::__toka_atomic_fetch_and(self.val#, v, order)
+    }
+
+    pub fn fetch_or(self, v: usize, order: Ordering) -> usize {
+        return core_atomic::__toka_atomic_fetch_or(self.val#, v, order)
+    }
+
+    pub fn fetch_xor(self, v: usize, order: Ordering) -> usize {
+        return core_atomic::__toka_atomic_fetch_xor(self.val#, v, order)
+    }
+}
+
+
+// ==========================================
+// AtomicI64
+// ==========================================
+
+pub shape AtomicI64 (
+    val#: i64
+)
+
+impl AtomicI64@Send {}
+impl AtomicI64@Sync {}
+
+impl AtomicI64 {
+    pub fn new(v: i64) -> AtomicI64 {
+        return AtomicI64(val = v)
+    }
+
+    pub fn make(v: i64) -> ^AtomicI64 {
+        return new AtomicI64(val = v)
+    }
+
+    pub fn load(self, order: Ordering) -> i64 {
+        return core_atomic::__toka_atomic_load(self.val#, order)
+    }
+
+    pub fn store(self, v: i64, order: Ordering) {
+        core_atomic::__toka_atomic_store(self.val#, v, order)
+    }
+
+    pub fn swap(self, v: i64, order: Ordering) -> i64 {
+        return core_atomic::__toka_atomic_swap(self.val#, v, order)
+    }
+
+    pub fn compare_exchange(
+        self, current: i64, new_val: i64, success: Ordering, failure: Ordering
+    ) -> (i64, bool) {
+        return core_atomic::__toka_atomic_compare_exchange(
+            self.val#, current, new_val, success, failure
+        )
+    }
+
+    pub fn fetch_add(self, v: i64, order: Ordering) -> i64 {
+        return core_atomic::__toka_atomic_fetch_add(self.val#, v, order)
+    }
+
+    pub fn fetch_sub(self, v: i64, order: Ordering) -> i64 {
+        return core_atomic::__toka_atomic_fetch_sub(self.val#, v, order)
+    }
+
+    pub fn fetch_and(self, v: i64, order: Ordering) -> i64 {
+        return core_atomic::__toka_atomic_fetch_and(self.val#, v, order)
+    }
+
+    pub fn fetch_or(self, v: i64, order: Ordering) -> i64 {
+        return core_atomic::__toka_atomic_fetch_or(self.val#, v, order)
+    }
+
+    pub fn fetch_xor(self, v: i64, order: Ordering) -> i64 {
+        return core_atomic::__toka_atomic_fetch_xor(self.val#, v, order)
+    }
+}
+
+
+// ==========================================
+// AtomicBool
+// ==========================================
+// Note: LLVM requires atomic ops to act on integer types mapping 1:1, usually i8 for bool.
+// Toka's bool natively maps to i1. We wrap it around.
+
+pub shape AtomicBool (
+    val#: i32
+)
+
+impl AtomicBool@Send {}
+impl AtomicBool@Sync {}
+
+impl AtomicBool {
+    pub fn new(v: bool) -> AtomicBool {
+        auto b_val# = 0
+        if v { b_val = 1 }
+        return AtomicBool(val = b_val)
+    }
+
+    pub fn make(v: bool) -> ^AtomicBool {
+        auto b_val# = 0
+        if v { b_val = 1 }
+        return new AtomicBool(val = b_val)
+    }
+
+    pub fn load(self, order: Ordering) -> bool {
+        return core_atomic::__toka_atomic_load(self.val#, order) > 0
+    }
+
+    pub fn store(self, v: bool, order: Ordering) {
+        auto b_val# = 0
+        if v { b_val = 1 }
+        core_atomic::__toka_atomic_store(self.val#, b_val, order)
+    }
+
+    pub fn swap(self, v: bool, order: Ordering) -> bool {
+        auto b_val# = 0
+        if v { b_val = 1 }
+        return core_atomic::__toka_atomic_swap(self.val#, b_val, order) > 0
+    }
+
+    pub fn compare_exchange(
+        self, current: bool, new_val: bool, success: Ordering, failure: Ordering
+    ) -> (bool, bool) {
+        auto c_val# = 0
+        if current { c_val = 1 }
+        auto n_val# = 0
+        if new_val { n_val = 1 }
+        auto (res, ok) = core_atomic::__toka_atomic_compare_exchange(
+            self.val#, c_val, n_val, success, failure
+        )
+        return (res > 0, ok)
+    }
+}
+
+// Global Fences (Re-exports)
+pub fn fence(order: Ordering) {
+    core_atomic::fence(order)
+}
+
+pub fn fence_acquire() {
+    core_atomic::fence_acquire()
+}
+
+pub fn fence_release() {
+    core_atomic::fence_release()
+}
