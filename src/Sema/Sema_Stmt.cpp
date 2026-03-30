@@ -409,6 +409,27 @@ void Sema::checkStmt(Stmt *S) {
             return;
           }
         }
+        
+        // [New] Strict mutability check for inferred pointers (auto *p#)
+        if (Var->HasPointer || Var->IsReference || Var->IsUnique || Var->IsShared) {
+            if (Var->IsValueMutable && InitType != "unknown") { // # requested on the value proxy (e.g., *p#)
+                std::string sigilStr = "";
+                if (Var->HasPointer) sigilStr = "*";
+                else if (Var->IsUnique) sigilStr = "^";
+                else if (Var->IsShared) sigilStr = "~";
+                else if (Var->IsReference) sigilStr = "&";
+                
+                std::string requestedTy = sigilStr + Inferred + "#";
+                if (!isTypeCompatible(requestedTy, InitType)) {
+                    DiagnosticEngine::report(getLoc(Var), DiagID::ERR_INIT_TYPE_MISMATCH,
+                                             requestedTy, InitType);
+                    HasError = true;
+                    Var->TypeName = "unknown";
+                    return;
+                }
+            }
+        }
+        
         Var->TypeName = Inferred;
       }
     } else {

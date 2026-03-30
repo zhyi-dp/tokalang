@@ -36,13 +36,13 @@ fn main() -> i32 {
     {
         auto *b# = unsafe alloc [10]i32(0)
         auto *p = unsafe alloc [10]i32(0)
-        auto *r = unsafe alloc [10]i32(0)
+        auto *r# = unsafe alloc [10]i32(0)
         auto s = S(*ptr = *p, *buf = *b, len = 2, outmut = 4, *rebind = *r)
         //auto x = s.modify() //forbidden
         //auto x = s#.modify() //forbidden
         s.outmut += 1 
         // 允许重绑定句柄
-        auto *r2 = unsafe alloc [10]i32(0)
+        auto *r2# = unsafe alloc [10]i32(0)
         s.*rebind = *r2
         // 不需要的手动 free 之前要把旧的 ptr 解决掉，
         // 或者在这个简单的测试里我们就不演示复杂的 rebind 了
@@ -52,7 +52,7 @@ fn main() -> i32 {
     {
         auto *b# = unsafe alloc [10]i32(0)
         auto *p = unsafe alloc [10]i32(0)
-        auto *r = unsafe alloc [10]i32(0)
+        auto *r# = unsafe alloc [10]i32(0)
         auto s# = S(*ptr = *p, *buf = *b, len = 2, outmut = 4, *rebind = *r)
         //auto x = s.modify() //forbidden
         auto x = s#.modify() //这里属于函数调用，形参要求self#，所以这里必须显式的加上#

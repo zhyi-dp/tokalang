@@ -855,8 +855,15 @@ bool Sema::isTypeCompatible(std::shared_ptr<toka::Type> Target,
   // 4. Writability Stripping (T# compatible with T)
   auto cleanT = Target->withAttributes(false, Target->IsNullable);
   auto cleanS = Source->withAttributes(false, Source->IsNullable);
-  if (cleanT->equals(*cleanS))
-    return true;
+  if (cleanT->equals(*cleanS)) {
+      bool isIndirection = Target->isPointer() || Target->isReference() || Target->isSmartPointer();
+      if (isIndirection && Target->IsWritable && !Source->IsWritable) {
+          // It's technically true they match in base type, but Target demands mutability
+          // that Source does not have. This is illegal for pointers/references!
+          return false;
+      }
+      return true;
+  }
 
   // 5. Pointer Nullability Subtyping (*Data compatible with *?Data)
   if (auto ptrT = std::dynamic_pointer_cast<toka::PointerType>(Target)) {

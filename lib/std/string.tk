@@ -501,7 +501,7 @@ impl String {
         auto res# = String::from_with_len(self.c_str(), self.len)
         unsafe {
             auto i# = 0
-            auto *b# = (res.c_str() as usize) as *[char]
+            auto *b# = (res.c_str() as usize) as *[char]#
             while i < res.len {
                 auto c = b[i]
                 if c >= 97:char && c <= 122:char { // 'a'-'z'
@@ -517,7 +517,7 @@ impl String {
         auto res# = String::from_with_len(self.c_str(), self.len)
         unsafe {
             auto i# = 0
-            auto *b# = (res.c_str() as usize) as *[char]
+            auto *b# = (res.c_str() as usize) as *[char]#
             while i < res.len {
                 auto c = b[i]
                 if c >= 65:char && c <= 90:char { // 'A'-'Z'
@@ -533,7 +533,7 @@ impl String {
         auto res# = String::from_with_len(self.c_str(), self.len)
         unsafe {
             auto i# = 0
-            auto *b# = (res.c_str() as usize) as *[char]
+            auto *b# = (res.c_str() as usize) as *[char]#
             while i < res.len {
                 if b[i] == old_c {
                     b[i] = new_c
@@ -610,7 +610,7 @@ impl String {
         unsafe {
             auto res# = String::from_with_len(self.c_str(), self.len)
             auto i# = 0
-            auto *dest# = (res.c_str() as usize) as *[char]
+            auto *dest# = (res.c_str() as usize) as *[char]#
             auto *src = self.*buf
             while i < self.len {
                 dest[i] = src[self.len - 1 - i]
