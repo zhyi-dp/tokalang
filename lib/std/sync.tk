@@ -87,6 +87,7 @@ impl<T> Mutex<T> {
 
 impl<T> Mutex<T>@encap {
     fn drop(self#) {
+        println("drop mutex")
         unsafe {
             auto h: Addr = self.handle
             if h != 0:Addr {
@@ -105,6 +106,7 @@ pub shape MutexGuard<T>(
 
 impl<T> MutexGuard<T>@encap {
     fn drop(self#) {
+        println("drop guard")
         unsafe {
             if self.handle != 0:Addr {
                 libc_pthread_mutex_unlock(self.handle)

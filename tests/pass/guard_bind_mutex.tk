@@ -19,7 +19,7 @@ fn main() -> i32 {
     
     // Test mutability directly
     {
-        guard auto Result<MutexGuard<i32>, Error>::Ok(g) = m#.lock() else {
+        guard auto Ok(g) = m#.lock() else {
             return 1
         }
         auto *p2 = g.get_ref()
