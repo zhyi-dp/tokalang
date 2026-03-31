@@ -24,7 +24,7 @@ fn main() -> i32 {
     
     // 4. Capture with explicit parameter
     auto x = 100
-    auto res4 = apply(5, [copy &x] { v =>
+    auto res4 = apply(5, { [copy &x] v =>
         v + x
     })
 

@@ -1152,9 +1152,6 @@ std::unique_ptr<Expr> Parser::parsePass() {
 
 bool Parser::isClosureExpression() {
   if (check(TokenType::LBrace)) return true;
-  if (check(TokenType::KwFn) && checkAt(1, TokenType::LParen)) return true;
-  if (check(TokenType::LBracket) && (checkAt(1, TokenType::KwCede) || checkAt(1, TokenType::KwCopy))) return true;
-  if ((check(TokenType::KwCede) || check(TokenType::KwCopy)) && (checkAt(1, TokenType::KwFn) || checkAt(1, TokenType::LParen))) return true;
   
   return false;
 }
@@ -1163,105 +1160,69 @@ std::unique_ptr<Expr> Parser::parseClosureExpr() {
   auto expr = std::make_unique<ClosureExpr>();
   expr->setLocation(peek(), m_CurrentFile);
 
-  // 1. Optional Captures
-  if (match(TokenType::LBracket)) {
-    while (!check(TokenType::RBracket) && !check(TokenType::EndOfFile)) {
-       CaptureItem cap;
-       cap.Loc = peek().Loc;
-       if (match(TokenType::KwCede)) cap.Mode = CaptureMode::ExplicitCede;
-       else if (match(TokenType::KwCopy)) cap.Mode = CaptureMode::ExplicitCopy;
-       else { error(peek(), "Expected 'cede' or 'copy' modifier in closure capture list. Implicit variables do not need to be declared."); return nullptr; }
-       
-       std::string prefix = "";
-       if (match(TokenType::Tilde)) prefix = "~";
-       else if (match(TokenType::Caret)) prefix = "^";
-       else if (match(TokenType::Star)) prefix = "*";
-       else if (match(TokenType::Ampersand)) prefix = "&";
-
-       if (match(TokenType::TokenNull)) prefix += "?";
-       if (match(TokenType::TokenWrite)) prefix += "#";
-
-       cap.Name = prefix + consume(TokenType::Identifier, "Expected variable name to capture").Text;
-       
-       expr->ExplicitCaptures.push_back(cap);
-       if (!check(TokenType::RBracket)) consume(TokenType::Comma, "Expected ',' in capture list");
-    }
-    consume(TokenType::RBracket, "Expected ']' to end capture list");
-  } else if (match(TokenType::KwCede)) {
-    // Global cede
-    CaptureItem cap;
-    cap.Name = "*"; // Special marker for global cede
-    cap.Mode = CaptureMode::ExplicitCede;
-    expr->ExplicitCaptures.push_back(cap);
-  } else if (match(TokenType::KwCopy)) {
-    // Global copy
-    CaptureItem cap;
-    cap.Name = "*"; // Special marker for global copy
-    cap.Mode = CaptureMode::ExplicitCopy;
-    expr->ExplicitCaptures.push_back(cap);
-  }
-
-  // 2. Optional `fn` keyword & explicit typed parameters (Legacy Support)
-  if (match(TokenType::KwFn)) {
-    consume(TokenType::LParen, "Expected '(' for closure parameters");
-    // Ignore legacy params for new AST since we only use ArgNames
-    // We will just populate ArgNames and pretend their types are unknown
-    expr->HasExplicitArgs = true;
-    while (!check(TokenType::RParen) && !check(TokenType::EndOfFile)) {
-      // Skip sigils for now in legacy parsing
-      match(TokenType::Caret); match(TokenType::Tilde); match(TokenType::Star); match(TokenType::Ampersand);
-      match(TokenType::TokenWrite); match(TokenType::TokenNull); match(TokenType::TokenNone);
-
-      Token name = consume(TokenType::Identifier, "Expected parameter name");
-      expr->ArgNames.push_back(name.Text);
-
-      match(TokenType::TokenWrite); match(TokenType::TokenNone);
-
-      if (match(TokenType::Colon)) {
-        parseTypeString(); // discard
-      }
-      
-      if (!check(TokenType::RParen)) consume(TokenType::Comma, "Expected ',' between closure parameters");
-    }
-    consume(TokenType::RParen, "Expected ')' to close closure parameters");
-
-    if (match(TokenType::Arrow)) {
-       expr->ReturnType = parseTypeString();
-    } else {
-       expr->ReturnType = "unknown";
-    }
-    expr->Body = parseBlock();
-    return expr;
-  }
-
-  // 3. New Syntax: `{ [first, second =>] body }`
   Token braceTok = consume(TokenType::LBrace, "Expected '{' for closure body");
   expr->Body = std::make_unique<BlockStmt>();
   expr->Body->setLocation(braceTok, m_CurrentFile);
   expr->ReturnType = "unknown";
 
-  // Check for `first, second =>`
-  // We can't simply consume if we're not sure, so we look ahead.
-  // A valid explicit param list is identifiers separated by commas followed by `=>`.
+  // Lookahead to find '=>'
   int lookahead = 0;
   bool hasArrow = false;
+  
+  if (peekAt(lookahead).Kind == TokenType::LBracket && (peekAt(lookahead + 1).Kind == TokenType::KwCede || peekAt(lookahead + 1).Kind == TokenType::KwCopy)) {
+      lookahead++; // '['
+      while (peekAt(lookahead).Kind != TokenType::RBracket && peekAt(lookahead).Kind != TokenType::EndOfFile) {
+          lookahead++;
+      }
+      if (peekAt(lookahead).Kind == TokenType::RBracket) lookahead++;
+  }
+
   while (true) {
     TokenType t = peekAt(lookahead).Kind;
     if (t == TokenType::FatArrow) {
       hasArrow = true;
       break;
     }
-    if (t != TokenType::Identifier && t != TokenType::Comma && t != TokenType::Ampersand && t != TokenType::Caret && t != TokenType::Tilde && t != TokenType::Star) { // loosely allow sigils just in case
+    if (t == TokenType::EndOfFile) break;
+    if (t != TokenType::Identifier && t != TokenType::Comma && t != TokenType::Ampersand && t != TokenType::Caret && t != TokenType::Tilde && t != TokenType::Star && t != TokenType::TokenNull && t != TokenType::TokenWrite) {
       break;
     }
     lookahead++;
   }
 
   if (hasArrow) {
-    expr->HasExplicitArgs = true;
+    // 1. Optional Captures inside the braces
+    if (match(TokenType::LBracket)) {
+      while (!check(TokenType::RBracket) && !check(TokenType::EndOfFile)) {
+         CaptureItem cap;
+         cap.Loc = peek().Loc;
+         if (match(TokenType::KwCede)) cap.Mode = CaptureMode::ExplicitCede;
+         else if (match(TokenType::KwCopy)) cap.Mode = CaptureMode::ExplicitCopy;
+         else { error(peek(), "Expected 'cede' or 'copy' modifier in closure capture list. Implicit variables do not need to be declared."); return nullptr; }
+         
+         std::string prefix = "";
+         if (match(TokenType::Tilde)) prefix = "~";
+         else if (match(TokenType::Caret)) prefix = "^";
+         else if (match(TokenType::Star)) prefix = "*";
+         else if (match(TokenType::Ampersand)) prefix = "&";
+
+         if (match(TokenType::TokenNull)) prefix += "?";
+         if (match(TokenType::TokenWrite)) prefix += "#";
+
+         cap.Name = prefix + consume(TokenType::Identifier, "Expected variable name to capture").Text;
+         
+         expr->ExplicitCaptures.push_back(cap);
+         if (!check(TokenType::RBracket)) consume(TokenType::Comma, "Expected ',' in capture list");
+      }
+      consume(TokenType::RBracket, "Expected ']' to end capture list");
+    }
+
+    // 2. Explicit typed parameters
     while (!check(TokenType::FatArrow) && !check(TokenType::EndOfFile)) {
       // skip basic sigils if user puts them
       match(TokenType::Caret); match(TokenType::Tilde); match(TokenType::Star); match(TokenType::Ampersand);
+      match(TokenType::TokenNull); match(TokenType::TokenWrite);
+      if (check(TokenType::FatArrow)) break; // handle zero explicit args `{ [cede x] => ... }`
       Token name = consume(TokenType::Identifier, "Expected parameter name");
       expr->ArgNames.push_back(name.Text);
       if (!check(TokenType::FatArrow)) {
@@ -1269,6 +1230,11 @@ std::unique_ptr<Expr> Parser::parseClosureExpr() {
       }
     }
     consume(TokenType::FatArrow, "Expected '=>' after closure parameters");
+  }
+
+  if (!hasArrow && check(TokenType::LBracket) && (checkAt(1, TokenType::KwCede) || checkAt(1, TokenType::KwCopy))) {
+      error(peek(), "Expected '=>' after closure capture list");
+      return nullptr;
   }
 
   int oldMax = m_CurrentClosureMaxImplicitArg;
@@ -1284,6 +1250,18 @@ std::unique_ptr<Expr> Parser::parseClosureExpr() {
     }
   }
   consume(TokenType::RBrace, "Expected '}'");
+
+  if (!hasArrow && m_CurrentClosureMaxImplicitArg == -1) {
+      error(braceTok, "Zero-argument closures must use '{ => ... }' to disambiguate from code blocks");
+  }
+
+  if (!expr->ArgNames.empty()) {
+      expr->HasExplicitArgs = true;
+  } else if (hasArrow && m_CurrentClosureMaxImplicitArg == -1) {
+      expr->HasExplicitArgs = true;
+  } else {
+      expr->HasExplicitArgs = false;
+  }
 
   expr->MaxImplicitArgIndex = m_CurrentClosureMaxImplicitArg;
   m_CurrentClosureMaxImplicitArg = oldMax;

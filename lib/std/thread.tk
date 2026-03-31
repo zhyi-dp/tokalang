@@ -41,7 +41,7 @@ pub fn spawn<T: @Send>(f: fn() -> cede T) -> JoinHandle<T> {
         auto captured_box = box_ptr
         
         // 2. Define capturing trampoline matching C-ABI implicitly via fat ptrs
-        auto tramp_fn: fn() -> Addr = [cede captured_box] {
+        auto tramp_fn: fn() -> Addr = { [cede captured_box] =>
             unsafe {
                 auto closure = captured_box.closure
                 auto self_ptr = captured_box.self_ptr

@@ -36,61 +36,61 @@ pub fn main() -> i32 {
     // We will collect 10 join handles
     auto arr = Vec<JoinHandle<i32>>::new()
 
-    auto t1# = spawn<i32>([cede c1] {
+    auto t1# = spawn<i32>({ [cede c1] =>
         auto i# = 0
         auto ~local = ~c1
         while i < 10000 { local.fetch_add(1 as usize, Ordering::Relaxed); i = i + 1 }
         return cede 0
     })
-    auto t2# = spawn<i32>([cede c2] {
+    auto t2# = spawn<i32>({ [cede c2] =>
         auto i# = 0
         auto ~local = ~c2
         while i < 10000 { local.fetch_add(1 as usize, Ordering::Relaxed); i = i + 1 }
         return cede 0
     })
-    auto t3# = spawn<i32>([cede c3] {
+    auto t3# = spawn<i32>({ [cede c3] =>
         auto i# = 0
         auto ~local = ~c3
         while i < 10000 { local.fetch_add(1 as usize, Ordering::Relaxed); i = i + 1 }
         return cede 0
     })
-    auto t4# = spawn<i32>([cede c4] {
+    auto t4# = spawn<i32>({ [cede c4] =>
         auto i# = 0
         auto ~local = ~c4
         while i < 10000 { local.fetch_add(1 as usize, Ordering::Relaxed); i = i + 1 }
         return cede 0
     })
-    auto t5# = spawn<i32>([cede c5] {
+    auto t5# = spawn<i32>({ [cede c5] =>
         auto i# = 0
         auto ~local = ~c5
         while i < 10000 { local.fetch_add(1 as usize, Ordering::Relaxed); i = i + 1 }
         return cede 0
     })
-    auto t6# = spawn<i32>([cede c6] {
+    auto t6# = spawn<i32>({ [cede c6] =>
         auto i# = 0
         auto ~local = ~c6
         while i < 10000 { local.fetch_add(1 as usize, Ordering::Relaxed); i = i + 1 }
         return cede 0
     })
-    auto t7# = spawn<i32>([cede c7] {
+    auto t7# = spawn<i32>({ [cede c7] =>
         auto i# = 0
         auto ~local = ~c7
         while i < 10000 { local.fetch_add(1 as usize, Ordering::Relaxed); i = i + 1 }
         return cede 0
     })
-    auto t8# = spawn<i32>([cede c8] {
+    auto t8# = spawn<i32>({ [cede c8] =>
         auto i# = 0
         auto ~local = ~c8
         while i < 10000 { local.fetch_add(1 as usize, Ordering::Relaxed); i = i + 1 }
         return cede 0
     })
-    auto t9# = spawn<i32>([cede c9] {
+    auto t9# = spawn<i32>({ [cede c9] =>
         auto i# = 0
         auto ~local = ~c9
         while i < 10000 { local.fetch_add(1 as usize, Ordering::Relaxed); i = i + 1 }
         return cede 0
     })
-    auto t10# = spawn<i32>([cede c10] {
+    auto t10# = spawn<i32>({ [cede c10] =>
         auto i# = 0
         auto ~local = ~c10
         while i < 10000 { local.fetch_add(1 as usize, Ordering::Relaxed); i = i + 1 }

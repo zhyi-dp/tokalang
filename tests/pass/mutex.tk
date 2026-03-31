@@ -18,7 +18,7 @@ pub fn main() -> i32 {
     
     m.unlock().unwrap()
     
-    auto f: fn() -> cede i32 = {
+    auto f: fn() -> cede i32 = { =>
         sleep_ms(100:u32)
         auto l2 = m.lock().unwrap()
         m.data = m.data + 20

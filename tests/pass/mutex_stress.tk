@@ -7,7 +7,7 @@ pub fn main() -> i32 {
     
     // 我们启动 5 个线程，每个线程循环 1000 次，每次将 m.data 加 1
     // 总计预期应该是 5000
-    auto f: fn() -> cede i32 = {
+    auto f: fn() -> cede i32 = { =>
         auto i# = 0
         while i < 1000 {
             auto lock_res = m.lock()
