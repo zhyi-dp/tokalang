@@ -1,0 +1,114 @@
+import std/io::{println}
+import std/net::{TcpListener, TcpStream, Ipv4Addr, SocketAddrV4}
+import std/string::{String}
+import core/libc
+import std/sys/macos as sys
+import core/types
+import core/result::{Result}
+import std/thread::{spawn, JoinHandle}
+
+extern fn sleep(seconds: i32) -> i32
+
+fn run_server(port: u16) -> i32 {
+    unsafe {
+        println("[Server] Binding to 127.0.0.1:{}...", port as i32)
+        auto ip = Ipv4Addr::new(127:u8, 0:u8, 0:u8, 1:u8)
+        auto addr = SocketAddrV4::new(ip, port)
+        
+        auto listener_res = TcpListener::bind(addr)
+        if listener_res.is_err() {
+            println("[Server] Bind failed: {}", listener_res.unwrap_err().c_str())
+            return 1
+        }
+        auto listener# = listener_res.unwrap()
+        println("[Server] Listening...")
+        
+        // Accept connection
+        auto stream_res = listener#.accept()
+        if stream_res.is_err() {
+            println("[Server] Accept failed: {}", stream_res.unwrap_err().c_str())
+            return 1
+        }
+        
+        println("[Server] Accepted connection!")
+        auto stream# = stream_res.unwrap()
+        
+        auto buf: [char; 128] = [0 as char; 128]
+        auto *buf_ptr# = &buf[0] as *u8
+        
+        while true {
+             auto read_res = stream#.read(*buf_ptr, 128)
+             if read_res.is_err() {
+                 println("[Server] Read Error: {}", sys::get_last_error())
+                 break
+             }
+             auto n = read_res.unwrap()
+             if n == 0:usize {
+                 println("[Server] Client disconnected")
+                 break
+             }
+             
+             // Echo back
+             stream#.write(*buf_ptr, n)
+        }
+        
+        println("[Server] Done")
+        return 0
+    }
+}
+
+pub fn main() -> i32 {
+    unsafe {
+        // Spawn server thread
+        auto server_thread# = spawn<i32>({ => 
+            return cede run_server(9095:u16)
+        })
+        
+        // Wait for server to bind
+        sleep(1)
+        
+        println("[Client] Connecting to 127.0.0.1:9095...")
+        auto ip = Ipv4Addr::new(127:u8, 0:u8, 0:u8, 1:u8)
+        auto addr = SocketAddrV4::new(ip, 9095:u16)
+        
+        auto connect_res = TcpStream::connect(addr)
+        if connect_res.is_err() {
+            println("[Client] Connect failed: {}", connect_res.unwrap_err().c_str())
+            return 1
+        }
+        
+        auto stream# = connect_res.unwrap()
+        println("[Client] Connected successfully!")
+        
+        auto msg = String::from("Hello Toka")
+        auto write_res = stream#.write_string(msg)
+        if write_res.is_ok() {
+            println("[Client] Sent {} bytes", write_res.unwrap() as i32)
+        }
+        
+        // Read Echo
+        auto buf: [char; 128] = [0 as char; 128]
+        auto *buf_ptr# = &buf[0] as *u8
+        auto read_res = stream#.read(*buf_ptr, 128)
+        
+        if read_res.is_ok() {
+            auto n = read_res.unwrap()
+            // Null terminate the response for printing
+            auto idx = n as i32
+            auto *chr_ptr# = &buf[idx] as *char
+            chr_ptr = 0 as char
+            
+            auto *p = &buf[0] as *char
+            // To pass the pointer (Handle) to println, we must pass the hat or cast it
+            println("[Client] Echo received ({} bytes)", n as i32)
+            assert(n == 10:usize, "Echo length mismatch")
+        }
+        
+        // Explicitly close so the server receives EOF
+        stream#.close()
+        
+        server_thread#.join()
+        println("[Client] Server thread joined. Test complete.")
+        return 0
+    }
+}
