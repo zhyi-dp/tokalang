@@ -351,12 +351,23 @@ void Sema::checkStmt(Stmt *S) {
       m_ControlFlowStack.push_back({Var->Name, "void", false, true});
       if (!Var->TypeName.empty() && Var->TypeName != "auto") {
         auto declTargetTy = resolveType(toka::Type::fromString(Var->TypeName), false);
-        if (declTargetTy && declTargetTy->typeKind == toka::Type::Function) {
+        if (declTargetTy && (declTargetTy->typeKind == toka::Type::Function || declTargetTy->typeKind == toka::Type::DynFn)) {
            if (auto clo = dynamic_cast<ClosureExpr*>(Var->Init.get())) {
-              auto fnTy = std::static_pointer_cast<toka::FunctionType>(declTargetTy);
-              clo->InjectedParamTypes = fnTy->ParamTypes;
-              if ((clo->ReturnType.empty() || clo->ReturnType == "unknown") && fnTy->ReturnType) {
-                  clo->ReturnType = fnTy->ReturnType->toString();
+              std::vector<std::shared_ptr<Type>> paramTypes;
+              std::shared_ptr<Type> returnType;
+              if (declTargetTy->typeKind == toka::Type::DynFn) {
+                  auto fnTy = std::static_pointer_cast<toka::DynFnType>(declTargetTy);
+                  paramTypes = fnTy->ParamTypes;
+                  returnType = fnTy->ReturnType;
+              } else {
+                  auto fnTy = std::static_pointer_cast<toka::FunctionType>(declTargetTy);
+                  paramTypes = fnTy->ParamTypes;
+                  returnType = fnTy->ReturnType;
+              }
+              
+              clo->InjectedParamTypes = paramTypes;
+              if ((clo->ReturnType.empty() || clo->ReturnType == "unknown") && returnType) {
+                  clo->ReturnType = returnType->toString();
               }
            }
         }

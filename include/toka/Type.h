@@ -39,6 +39,7 @@ public:
     Shape,
     Tuple,
     Function,
+    DynFn,
     Unresolved // String-based placeholder
   };
 
@@ -86,6 +87,7 @@ public:
   bool isSlice() const { return typeKind == Slice; }
   bool isTuple() const { return typeKind == Tuple; }
   bool isFunction() const { return typeKind == Function; }
+  bool isDynFn() const { return typeKind == DynFn; }
   bool isVoid() const { return typeKind == Void; }
   bool isUnknown() const { return typeKind == Unresolved; }
 
@@ -321,6 +323,22 @@ public:
   bool equals(const Type &other) const override;
   std::shared_ptr<Type> withAttributes(bool w, bool n,
                                        bool b = false) const override;
+  bool isCompatibleWith(const Type &target) const override;
+  bool isSend(class Sema* S = nullptr) const override;
+  bool isSync(class Sema* S = nullptr) const override;
+};
+
+class DynFnType : public Type {
+public:
+  std::vector<std::shared_ptr<Type>> ParamTypes;
+  std::shared_ptr<Type> ReturnType;
+
+  DynFnType(std::vector<std::shared_ptr<Type>> params, std::shared_ptr<Type> ret)
+      : Type(DynFn), ParamTypes(std::move(params)), ReturnType(ret) {}
+
+  std::string toString() const override;
+  bool equals(const Type &other) const override;
+  std::shared_ptr<Type> withAttributes(bool w, bool n, bool b = false) const override;
   bool isCompatibleWith(const Type &target) const override;
   bool isSend(class Sema* S = nullptr) const override;
   bool isSync(class Sema* S = nullptr) const override;

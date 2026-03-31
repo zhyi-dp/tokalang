@@ -120,6 +120,36 @@ PhysEntity CodeGen::genAllocExpr(const AllocExpr *ae) {
 void CodeGen::emitDropCascade(llvm::Value *ptrAddr, const std::string &typeName) {
   if (typeName.empty() || !ptrAddr) return;
   
+  // [NEW] Dynamic Closure (dyn fn) Drop Logic
+  if (typeName.find("dyn fn(") == 0) {
+      llvm::Type* envTy = llvm::PointerType::getUnqual(m_Context);
+      llvm::StructType* fatTy = llvm::StructType::get(envTy, envTy, envTy);
+      llvm::Value* fatPtr = m_Builder.CreateLoad(fatTy, ptrAddr);
+      
+      llvm::Value* envVal = m_Builder.CreateExtractValue(fatPtr, 0);
+      llvm::Value* dropVal = m_Builder.CreateExtractValue(fatPtr, 2);
+      
+      llvm::Value* isNotNull = m_Builder.CreateIsNotNull(dropVal);
+      llvm::Function* f = m_Builder.GetInsertBlock()->getParent();
+      llvm::BasicBlock* dropBB = llvm::BasicBlock::Create(m_Context, "dynfn.drop", f);
+      llvm::BasicBlock* endBB = llvm::BasicBlock::Create(m_Context, "dynfn.dropend", f);
+      m_Builder.CreateCondBr(isNotNull, dropBB, endBB);
+      
+      m_Builder.SetInsertPoint(dropBB);
+      llvm::FunctionType* dropFTy = llvm::FunctionType::get(m_Builder.getVoidTy(), {envTy}, false);
+      m_Builder.CreateCall(dropFTy, dropVal, {envVal});
+      
+      llvm::Function *freeFn = m_Module->getFunction("free");
+      if (!freeFn) {
+          freeFn = llvm::Function::Create(llvm::FunctionType::get(m_Builder.getVoidTy(), {envTy}, false), llvm::Function::ExternalLinkage, "free", m_Module.get());
+      }
+      m_Builder.CreateCall(freeFn, {envVal});
+      
+      m_Builder.CreateBr(endBB);
+      m_Builder.SetInsertPoint(endBB);
+      return;
+  }
+  
   std::string dropFunc = "";
   if (m_Shapes.count(typeName)) {
     dropFunc = m_Shapes[typeName]->MangledDestructorName;

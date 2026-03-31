@@ -169,7 +169,7 @@ std::string Parser::parseTypeString() {
 
     Token tok = advance();
     type += tok.Text;
-    if (tok.Text == "cede") {
+    if (tok.Text == "cede" || tok.Text == "dyn") {
       type += " ";
     }
   }

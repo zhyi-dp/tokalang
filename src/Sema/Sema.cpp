@@ -711,6 +711,9 @@ void Sema::checkFunction(FunctionDecl *Fn) {
       // aliases/Self, then parse
       std::string resolvedStr = resolveType(fullType);
       Info.TypeObj = toka::Type::fromString(resolvedStr);
+      if (Arg.Name == "cb") {
+          std::cerr << "[TRACE] checkFunction Arg: cb of type " << resolvedStr << " -> " << Info.TypeObj->toString() << "\n";
+      }
 
       // Assign to AST Node for CodeGen
       Arg.ResolvedType = Info.TypeObj;

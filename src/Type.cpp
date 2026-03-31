@@ -541,6 +541,55 @@ std::shared_ptr<Type> FunctionType::withAttributes(bool w, bool n,
 bool FunctionType::isSend(class Sema *S) const { return true; } // Function pointers are inherently stateless hence sendable
 bool FunctionType::isSync(class Sema *S) const { return true; }
 
+std::string DynFnType::toString() const {
+  std::string s = "";
+  if (IsCede) s += "cede ";
+  s += "dyn fn(";
+  for (size_t i = 0; i < ParamTypes.size(); ++i) {
+    if (i > 0)
+      s += ", ";
+    s += ParamTypes[i]->toString();
+  }
+  s += ")";
+  if (ReturnType && ReturnType->typeKind != Void) {
+    s += " -> ";
+    s += ReturnType->toString();
+  }
+  return s;
+}
+
+bool DynFnType::equals(const Type &other) const {
+  if (!Type::equals(other))
+    return false;
+  const auto *otherFn = dynamic_cast<const DynFnType *>(&other);
+  if (!otherFn || ParamTypes.size() != otherFn->ParamTypes.size())
+    return false;
+  return ReturnType->equals(*otherFn->ReturnType);
+}
+
+bool DynFnType::isCompatibleWith(const Type &target) const {
+  if (!Type::isCompatibleWith(target))
+    return false;
+  const auto *otherFn = dynamic_cast<const DynFnType *>(&target);
+  if (!otherFn || ParamTypes.size() != otherFn->ParamTypes.size())
+    return false;
+  if (!ReturnType->isCompatibleWith(*otherFn->ReturnType))
+    return false;
+  for (size_t i = 0; i < ParamTypes.size(); ++i) {
+    if (!ParamTypes[i]->equals(*otherFn->ParamTypes[i]))
+      return false;
+  }
+  return true;
+}
+
+std::shared_ptr<Type> DynFnType::withAttributes(bool w, bool n,
+                                                   bool b) const {
+  return cloneWithAttrs(this, w, n, b);
+}
+
+bool DynFnType::isSend(class Sema *S) const { return true; }
+bool DynFnType::isSync(class Sema *S) const { return true; }
+
 std::shared_ptr<Type> UnresolvedType::withAttributes(bool w, bool n,
                                                      bool b) const {
   return cloneWithAttrs(this, w, n, b);
@@ -685,6 +734,60 @@ std::shared_ptr<Type> Type::fromString(const std::string &rawType) {
 
   if (s.empty())
     return std::make_shared<UnresolvedType>(rawType);
+
+  bool isDynFnWithSpace = s.rfind("dyn fn(", 0) == 0;
+  bool isDynFnWithoutSpace = s.rfind("dynfn(", 0) == 0;
+  if (isDynFnWithSpace || isDynFnWithoutSpace) {
+    int parenBalance = 0;
+    size_t paramsStart = isDynFnWithSpace ? 7 : 6;
+    size_t paramsEnd = std::string::npos;
+    for (size_t i = paramsStart; i < s.size(); ++i) {
+      if (s[i] == '(') parenBalance++;
+      else if (s[i] == ')') {
+        if (parenBalance == 0) {
+          paramsEnd = i;
+          break;
+        }
+        parenBalance--;
+      }
+    }
+    
+    if (paramsEnd != std::string::npos) {
+      std::string paramsStr = s.substr(paramsStart, paramsEnd - paramsStart);
+      std::vector<std::shared_ptr<Type>> paramTypes;
+      
+      int bal = 0;
+      size_t start = 0;
+      for (size_t i = 0; i < paramsStr.size(); ++i) {
+        if (paramsStr[i] == '<' || paramsStr[i] == '(' || paramsStr[i] == '[') bal++;
+        else if (paramsStr[i] == '>' || paramsStr[i] == ')' || paramsStr[i] == ']') bal--;
+        else if (paramsStr[i] == ',' && bal == 0) {
+          std::string p = trim(paramsStr.substr(start, i - start));
+          if (!p.empty()) paramTypes.push_back(Type::fromString(p));
+          start = i + 1;
+        }
+      }
+      if (start < paramsStr.size()) {
+        std::string p = trim(paramsStr.substr(start));
+        if (!p.empty()) paramTypes.push_back(Type::fromString(p));
+      }
+      
+      std::shared_ptr<Type> retType = nullptr;
+      size_t arrowPos = s.find("->", paramsEnd);
+      if (arrowPos != std::string::npos) {
+        retType = Type::fromString(trim(s.substr(arrowPos + 2)));
+      } else {
+        retType = std::make_shared<VoidType>();
+      }
+      
+      auto fnNode = std::make_shared<DynFnType>(paramTypes, retType);
+      fnNode->IsWritable = isWritable;
+      fnNode->IsNullable = isNullable;
+      fnNode->IsBlocked = isBlocked;
+      fnNode->IsCede = isCede;
+      return fnNode;
+    }
+  }
 
   if (s.rfind("fn(", 0) == 0) {
     int parenBalance = 0;

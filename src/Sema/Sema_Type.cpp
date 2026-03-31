@@ -708,18 +708,30 @@ bool Sema::isTypeCompatible(std::shared_ptr<toka::Type> Target,
   // But wait, resolveType(Target, false) already resolves weak aliases.
   // We only need additional structural checks for non-alias types.
 
-  // [NEW] FunctionType and Closure Compatibility
-  if (T->typeKind == toka::Type::Function && S->typeKind == toka::Type::Shape) {
-    auto tFn = std::dynamic_pointer_cast<toka::FunctionType>(T);
-    auto sSh = std::dynamic_pointer_cast<toka::ShapeType>(S);
+  // [NEW] FunctionType/DynFnType and Closure Compatibility
+  if ((T->typeKind == toka::Type::Function || T->typeKind == toka::Type::DynFn) && S->typeKind == toka::Type::Shape) {
+    bool isDynFn = T->typeKind == toka::Type::DynFn;
+    std::vector<std::shared_ptr<Type>> paramTypes;
+    std::shared_ptr<Type> returnType;
+    
+    if (isDynFn) {
+        auto tFn = std::static_pointer_cast<toka::DynFnType>(T);
+        paramTypes = tFn->ParamTypes;
+        returnType = tFn->ReturnType;
+    } else {
+        auto tFn = std::static_pointer_cast<toka::FunctionType>(T);
+        paramTypes = tFn->ParamTypes;
+        returnType = tFn->ReturnType;
+    }
+    
+    auto sSh = std::static_pointer_cast<toka::ShapeType>(S);
     if (sSh->Name.find("__Closure_") == 0) {
       if (MethodDecls.count(sSh->Name) && MethodDecls[sSh->Name].count("__invoke")) {
         auto *invokeFn = MethodDecls[sSh->Name]["__invoke"];
-        // Check args
-        if (tFn->ParamTypes.size() == invokeFn->Args.size() - 1) {
+        if (paramTypes.size() == invokeFn->Args.size() - 1) {
           bool ok = true;
-          for (size_t i = 0; i < tFn->ParamTypes.size(); ++i) {
-            auto expectedArg = tFn->ParamTypes[i];
+          for (size_t i = 0; i < paramTypes.size(); ++i) {
+            auto expectedArg = paramTypes[i];
             auto actualArg = resolveType(toka::Type::fromString(invokeFn->Args[i + 1].Type), false);
             if (!isTypeCompatible(expectedArg, actualArg)) {
               ok = false;
@@ -728,7 +740,7 @@ bool Sema::isTypeCompatible(std::shared_ptr<toka::Type> Target,
           }
           if (ok) {
             auto sRet = resolveType(invokeFn->ResolvedReturnType ? invokeFn->ResolvedReturnType : toka::Type::fromString(invokeFn->ReturnType), false);
-            if (isTypeCompatible(tFn->ReturnType, sRet)) {
+            if (isTypeCompatible(returnType, sRet)) {
               return true;
             }
           }

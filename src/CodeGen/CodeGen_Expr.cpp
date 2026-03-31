@@ -2902,15 +2902,28 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
             symTy = std::static_pointer_cast<PointerType>(symTy)->PointeeType;
         }
         
-        if (symTy && symTy->isFunction()) {
-            auto fnTy = std::static_pointer_cast<FunctionType>(symTy);
+        if (symTy && (symTy->isFunction() || symTy->isDynFn())) {
+            bool isDynFn = symTy->isDynFn();
+            std::vector<std::shared_ptr<Type>> paramTypes;
+            std::shared_ptr<Type> returnType;
+            if (isDynFn) {
+                auto fnTy = std::static_pointer_cast<DynFnType>(symTy);
+                paramTypes = fnTy->ParamTypes;
+                returnType = fnTy->ReturnType;
+            } else {
+                auto fnTy = std::static_pointer_cast<FunctionType>(symTy);
+                paramTypes = fnTy->ParamTypes;
+                returnType = fnTy->ReturnType;
+            }
             
             auto varExpr = std::make_unique<VariableExpr>(calleeName);
-            varExpr->ResolvedType = fnTy; // Optional, but helps downstream
+            varExpr->ResolvedType = symTy; // Optional, but helps downstream
             PhysEntity fatVal_ent = genExpr(varExpr.get());
             llvm::Value *fatVal = fatVal_ent.load(m_Builder);
             
-            if (fatVal && fatVal->getType()->isStructTy() && fatVal->getType()->getStructNumElements() == 2) {
+            if (fatVal && fatVal->getType()->isStructTy() && 
+                (fatVal->getType()->getStructNumElements() == 2 || fatVal->getType()->getStructNumElements() == 3)) {
+                
                 llvm::Value *envPtr = m_Builder.CreateExtractValue(fatVal, 0, "closure_env");
                 llvm::Value *funcPtr = m_Builder.CreateExtractValue(fatVal, 1, "closure_func");
                 
@@ -2921,7 +2934,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
                 
                 for (size_t i = 0; i < call->Args.size(); ++i) {
                     llvm::Value *av = genExpr(call->Args[i].get()).load(m_Builder);
-                    llvm::Type *expectedTy = getLLVMType(fnTy->ParamTypes[i]);
+                    llvm::Type *expectedTy = getLLVMType(paramTypes[i]);
                     
                     if (av && expectedTy->isPointerTy() && av->getType()->isStructTy()) {
                        llvm::AllocaInst *tmp = createEntryBlockAlloca(av->getType(), nullptr, "arg_tmp_byref");
@@ -2934,11 +2947,11 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
                     argTys.push_back(expectedTy);
                 }
                 
-                llvm::Type *retTy = getLLVMType(fnTy->ReturnType);
+                llvm::Type *retTy = getLLVMType(returnType);
                 llvm::FunctionType *llFnTy = llvm::FunctionType::get(retTy, argTys, false);
                 
                 llvm::Value *retVal = m_Builder.CreateCall(llFnTy, funcPtr, argVals);
-                return PhysEntity(retVal, fnTy->ReturnType->getSoulName(), retVal->getType(), false);
+                return PhysEntity(retVal, returnType->getSoulName(), retVal->getType(), false);
             }
         }
     }
@@ -3217,13 +3230,42 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
         }
         
         if (expectsFunction) {
+           bool isDynFn = false;
+           if (funcDecl && i < funcDecl->Args.size()) {
+               auto resTy = funcDecl->Args[i].ResolvedType;
+               if (resTy && resTy->typeKind == toka::Type::DynFn) isDynFn = true;
+               else if (funcDecl->Args[i].Type.find("dyn fn(") == 0) isDynFn = true;
+           }
+
            llvm::Type *envTy = val->getType();
            llvm::Value *envPtrAddr;
-           if (envTy->isPointerTy()) {
-               envPtrAddr = val;
+           
+           if (isDynFn) {
+               // Heap Allocation for `dyn fn`
+               llvm::Type *objTy = getLLVMType(call->Args[i]->ResolvedType);
+               
+               llvm::Function *mallocFn = m_Module->getFunction("malloc");
+               if (!mallocFn) {
+                   mallocFn = llvm::Function::Create(llvm::FunctionType::get(m_Builder.getPtrTy(), {llvm::Type::getInt64Ty(m_Context)}, false), llvm::Function::ExternalLinkage, "malloc", m_Module.get());
+               }
+               uint64_t size = m_Module->getDataLayout().getTypeAllocSize(objTy);
+               llvm::Value *heapMem = m_Builder.CreateCall(mallocFn, {llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), size)});
+               envPtrAddr = m_Builder.CreatePointerCast(heapMem, llvm::PointerType::getUnqual(objTy));
+               
+               if (envTy->isPointerTy()) {
+                   llvm::Value *loadedEnv = m_Builder.CreateLoad(objTy, val);
+                   m_Builder.CreateStore(loadedEnv, envPtrAddr);
+               } else {
+                   m_Builder.CreateStore(val, envPtrAddr);
+               }
            } else {
-               envPtrAddr = createEntryBlockAlloca(envTy, nullptr, "closure_env_alloc");
-               m_Builder.CreateStore(val, envPtrAddr);
+               // Stack Allocation for `fn`
+               if (envTy->isPointerTy()) {
+                   envPtrAddr = val;
+               } else {
+                   envPtrAddr = createEntryBlockAlloca(envTy, nullptr, "closure_env_alloc");
+                   m_Builder.CreateStore(val, envPtrAddr);
+               }
            }
            
            llvm::Value *opaqueEnv = m_Builder.CreatePointerCast(envPtrAddr, llvm::PointerType::getUnqual(m_Context));
@@ -3236,16 +3278,35 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
            }
            llvm::Value *opaqueFunc = m_Builder.CreatePointerCast(invokeFn, llvm::PointerType::getUnqual(m_Context));
            
-           llvm::StructType *fatPtrTy = llvm::StructType::get(
-               llvm::PointerType::getUnqual(m_Context),
-               llvm::PointerType::getUnqual(m_Context)
-           );
+           llvm::StructType *fatPtrTy;
+           if (isDynFn) {
+               fatPtrTy = llvm::StructType::get(
+                   llvm::PointerType::getUnqual(m_Context),
+                   llvm::PointerType::getUnqual(m_Context),
+                   llvm::PointerType::getUnqual(m_Context)
+               );
+           } else {
+               fatPtrTy = llvm::StructType::get(
+                   llvm::PointerType::getUnqual(m_Context),
+                   llvm::PointerType::getUnqual(m_Context)
+               );
+           }
            
            llvm::Value *fatPtr = llvm::UndefValue::get(fatPtrTy);
            fatPtr = m_Builder.CreateInsertValue(fatPtr, opaqueEnv, 0);
            fatPtr = m_Builder.CreateInsertValue(fatPtr, opaqueFunc, 1);
            
-           // Pass fat pointer by reference (ABI for FunctionType)
+           if (isDynFn) {
+               std::string dropName = "encap_" + shp->Name + "_drop";
+               llvm::Function *dropFn = m_Module->getFunction(dropName);
+               llvm::Value *opaqueDrop = llvm::ConstantPointerNull::get(llvm::PointerType::getUnqual(m_Context));
+               if (dropFn) {
+                   opaqueDrop = m_Builder.CreatePointerCast(dropFn, llvm::PointerType::getUnqual(m_Context));
+               }
+               fatPtr = m_Builder.CreateInsertValue(fatPtr, opaqueDrop, 2);
+           }
+           
+           // Pass fat pointer by reference (ABI for DynFnType/FunctionType)
            llvm::AllocaInst *fatPtrAlloc = createEntryBlockAlloca(fatPtrTy, nullptr, "fat_ptr_alloc");
            m_Builder.CreateStore(fatPtr, fatPtrAlloc);
            val = fatPtrAlloc;

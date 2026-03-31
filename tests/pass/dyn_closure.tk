@@ -1,0 +1,42 @@
+import core/libc
+
+shape HandlerEnv (
+   count: i32
+)
+
+impl HandlerEnv@encap {
+   pub count
+   fn drop(self#) {
+       libc::libc_printf("Dropping handler env! count=%d\n", self.count)
+   }
+}
+
+fn create_counter(start: i32) -> dyn fn(i32) -> i32 {
+   libc::libc_printf("Start is: %d\n", start)
+   auto env# = HandlerEnv(count = start)
+   libc::libc_printf("Init env.count: %d\n", env.count)
+   auto f: dyn fn(i32) -> i32 = { [cede env] x => 
+       libc::libc_printf("Before invoke: count=%d, expected=%d\n", env.count, x)
+       env.count = env.count + x
+       libc::libc_printf("After invoke: count=%d\n", env.count)
+       env.count
+   }
+   return f
+}
+
+fn execute_closure(cb: dyn fn(i32) -> i32, x: i32) -> i32 {
+    return cb(x)
+}
+
+fn main() -> i32 {
+    auto dynC1 = create_counter(10)
+    auto dynC2 = create_counter(200)
+    
+    auto res1# = execute_closure(dynC1, 5)
+    auto res2# = execute_closure(dynC2, 5)
+    
+    libc::libc_printf("res1=%d, res2=%d\n", res1, res2)
+    
+    // We expect both to be automatically scoped and dropped when main returns
+    return 0
+}

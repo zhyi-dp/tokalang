@@ -488,9 +488,6 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
 
 llvm::Value *CodeGen::genVariableDecl(const VariableDecl *var) {
   std::string varName = Type::stripMorphology(var->Name);
-  std::cerr << "DEBUG: genVariableDecl: " << varName
-            << " (original: " << var->Name << ")"
-            << " Init=" << (var->Init ? typeid(*var->Init).name() : "null") << "\n";
 
   llvm::Value *initVal = nullptr;
   llvm::Type *decayArrayType = nullptr;
@@ -917,17 +914,40 @@ llvm::Value *CodeGen::genVariableDecl(const VariableDecl *var) {
   }
 
   // [NEW] Fat pointer synthesis for Closures in VariableDecl
-  if (initVal && initVal->getType() != type && type && type->isStructTy() && type->getStructNumElements() == 2 && type->getStructElementType(0)->isPointerTy() && type->getStructElementType(1)->isPointerTy()) {
+  if (initVal && initVal->getType() != type && type && type->isStructTy() && (type->getStructNumElements() == 2 || type->getStructNumElements() == 3) && type->getStructElementType(0)->isPointerTy() && type->getStructElementType(1)->isPointerTy()) {
       if (var->Init && var->Init->ResolvedType && var->Init->ResolvedType->isShape()) {
          auto shp = std::static_pointer_cast<toka::ShapeType>(var->Init->ResolvedType);
          if (shp->Name.find("__Closure_") == 0) {
+             bool isDynFn = type->getStructNumElements() == 3;
              llvm::Type *envTy = initVal->getType();
              llvm::Value *envPtrAddr;
-             if (envTy->isPointerTy()) {
-                 envPtrAddr = initVal;
+             
+             if (isDynFn) {
+                 // Heap Allocation for `dyn fn`
+                 llvm::Type *objTy = getLLVMType(var->Init->ResolvedType);
+                 
+                 llvm::Function *mallocFn = m_Module->getFunction("malloc");
+                 if (!mallocFn) {
+                     mallocFn = llvm::Function::Create(llvm::FunctionType::get(m_Builder.getPtrTy(), {llvm::Type::getInt64Ty(m_Context)}, false), llvm::Function::ExternalLinkage, "malloc", m_Module.get());
+                 }
+                 uint64_t size = m_Module->getDataLayout().getTypeAllocSize(objTy);
+                 llvm::Value *heapMem = m_Builder.CreateCall(mallocFn, {llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), size)});
+                 envPtrAddr = m_Builder.CreatePointerCast(heapMem, llvm::PointerType::getUnqual(objTy));
+                 
+                 if (envTy->isPointerTy()) {
+                     llvm::Value *loadedEnv = m_Builder.CreateLoad(objTy, initVal);
+                     m_Builder.CreateStore(loadedEnv, envPtrAddr);
+                 } else {
+                     m_Builder.CreateStore(initVal, envPtrAddr);
+                 }
              } else {
-                 envPtrAddr = createEntryBlockAlloca(envTy, nullptr, "closure_env_alloc");
-                 m_Builder.CreateStore(initVal, envPtrAddr);
+                 // Stack Allocation for `fn`
+                 if (envTy->isPointerTy()) {
+                     envPtrAddr = initVal;
+                 } else {
+                     envPtrAddr = createEntryBlockAlloca(envTy, nullptr, "closure_env_alloc");
+                     m_Builder.CreateStore(initVal, envPtrAddr);
+                 }
              }
              
              llvm::Value *opaqueEnv = m_Builder.CreatePointerCast(envPtrAddr, llvm::PointerType::getUnqual(m_Context));
@@ -937,16 +957,21 @@ llvm::Value *CodeGen::genVariableDecl(const VariableDecl *var) {
              if (invokeFn) {
                  llvm::Value *opaqueFunc = m_Builder.CreatePointerCast(invokeFn, llvm::PointerType::getUnqual(m_Context));
                  
-                 llvm::StructType *fatPtrTy = llvm::StructType::get(
-                     llvm::PointerType::getUnqual(m_Context),
-                     llvm::PointerType::getUnqual(m_Context)
-                 );
-                 
-                 llvm::Value *fatPtr = llvm::UndefValue::get(fatPtrTy);
+                 llvm::Value *fatPtr = llvm::UndefValue::get(type);
                  fatPtr = m_Builder.CreateInsertValue(fatPtr, opaqueEnv, 0);
                  fatPtr = m_Builder.CreateInsertValue(fatPtr, opaqueFunc, 1);
                  
-                 initVal = fatPtr; // Value of type { ptr, ptr }
+                 if (isDynFn) {
+                     std::string dropName = "encap_" + shp->Name + "_drop";
+                     llvm::Function *dropFn = m_Module->getFunction(dropName);
+                     llvm::Value *opaqueDrop = llvm::ConstantPointerNull::get(llvm::PointerType::getUnqual(m_Context));
+                     if (dropFn) {
+                         opaqueDrop = m_Builder.CreatePointerCast(dropFn, llvm::PointerType::getUnqual(m_Context));
+                     }
+                     fatPtr = m_Builder.CreateInsertValue(fatPtr, opaqueDrop, 2);
+                 }
+                 
+                 initVal = fatPtr; // Value of type { ptr, ptr } or { ptr, ptr, ptr }
              }
          }
       }
@@ -1856,8 +1881,12 @@ llvm::Type *CodeGen::resolveType(const std::string &baseType, bool hasPointer) {
     return resolveType(baseType.substr(5), hasPointer);
   }
 
-  // Handle Dynamic Traits (dyn @Trait)
+  // Handle Dynamic Traits (dyn @Trait) vs Dynamic Functions (dyn fn)
   if (baseType.size() >= 4 && baseType.substr(0, 3) == "dyn") {
+    if (baseType.size() >= 6 && baseType.substr(0, 6) == "dyn fn") {
+        llvm::Type *voidPtr = llvm::PointerType::getUnqual(m_Context);
+        return llvm::StructType::get(m_Context, {voidPtr, voidPtr, voidPtr});
+    }
     // Fat Pointer: { void* data, void* vtable }
     llvm::Type *voidPtr =
         llvm::PointerType::getUnqual(llvm::Type::getInt8Ty(m_Context));
@@ -2159,6 +2188,9 @@ llvm::Type *CodeGen::getLLVMType(std::shared_ptr<Type> type) {
   if (type->typeKind == Type::Function) {
     llvm::Type *voidPtr = llvm::PointerType::getUnqual(m_Context);
     return llvm::StructType::get(m_Context, {voidPtr, voidPtr}); // { env, fptr }
+  } else if (type->typeKind == Type::DynFn) {
+    llvm::Type *voidPtr = llvm::PointerType::getUnqual(m_Context);
+    return llvm::StructType::get(m_Context, {voidPtr, voidPtr, voidPtr}); // { env, fptr, dropPtr }
   }
 
   // Fallback to string based resolution if we have an Unresolved type

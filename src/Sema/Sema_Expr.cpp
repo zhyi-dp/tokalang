@@ -466,6 +466,17 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
           std::string fnName = CurrentFunction ? CurrentFunction->Name : "NONE";
           std::cerr << "[TRACE] VariableExpr failed to find 'f_arg' in scope! Depth: " << CurrentScope->Depth << " In Function: " << fnName << "\n";
       }
+      if (ve->Name == "cb") {
+          std::cerr << "[TRACE] VariableExpr failed to find 'cb' in scope! Depth: " << CurrentScope->Depth << "\n";
+          // Try to dump the symbol table
+          Scope *s = CurrentScope;
+          while (s) {
+              for (auto &kv : s->Symbols) {
+                  std::cerr << "   Scope Level " << s->Depth << " contains " << kv.first << "\n";
+              }
+              s = s->Parent;
+          }
+      }
       // [NEW] Surgical Plan: Try resolving as a type (handles Option<i32>)
       auto possible = toka::Type::fromString(ve->Name);
       if (possible && !possible->isUnknown()) {
@@ -3687,6 +3698,23 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
   if (!Fn && !Ext && !Sh) {
     if (sym.TypeObj && sym.TypeObj->typeKind == toka::Type::Function) {
       auto fnTy = std::dynamic_pointer_cast<toka::FunctionType>(sym.TypeObj);
+      if (Call->Args.size() != fnTy->ParamTypes.size()) {
+         error(Call, "Closure expects " + std::to_string(fnTy->ParamTypes.size()) +
+                     " arguments, but got " + std::to_string(Call->Args.size()));
+      } else {
+         for (size_t i = 0; i < Call->Args.size(); ++i) {
+            Call->Args[i] = foldGenericConstant(std::move(Call->Args[i]));
+            auto argTy = checkExpr(Call->Args[i].get());
+            if (!isTypeCompatible(fnTy->ParamTypes[i], argTy)) {
+                DiagnosticEngine::report(getLoc(Call->Args[i].get()), DiagID::ERR_TYPE_MISMATCH,
+                                         "Argument " + std::to_string(i + 1), fnTy->ParamTypes[i]->getSoulName(), argTy->getSoulName());
+                HasError = true;
+            }
+         }
+      }
+      return resolveType(fnTy->ReturnType, false);
+    } else if (sym.TypeObj && sym.TypeObj->typeKind == toka::Type::DynFn) {
+      auto fnTy = std::dynamic_pointer_cast<toka::DynFnType>(sym.TypeObj);
       if (Call->Args.size() != fnTy->ParamTypes.size()) {
          error(Call, "Closure expects " + std::to_string(fnTy->ParamTypes.size()) +
                      " arguments, but got " + std::to_string(Call->Args.size()));
