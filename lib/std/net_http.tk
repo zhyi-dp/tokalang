@@ -1,0 +1,106 @@
+import std/string::{String, SplitIterator}
+
+pub shape HttpMethod (
+    GET = 0 |
+    POST = 1 |
+    PUT = 2 |
+    DELETE = 3 |
+    UNKNOWN = 4
+)
+
+pub shape HttpRequest (
+    method: HttpMethod,
+    path: String,
+    body: String
+)
+
+impl HttpRequest@encap {
+    pub method
+    pub path
+    pub body
+    fn drop(self#) {} // String fields auto drop
+}
+
+pub shape HttpResponse (
+    status_code: i32,
+    content_type: String,
+    body: String
+)
+
+impl HttpResponse@encap {
+    pub status_code
+    pub content_type
+    pub body
+    fn drop(self#) {} 
+}
+
+impl HttpResponse {
+    pub fn ok(body: String) -> HttpResponse {
+        return HttpResponse(
+            status_code = 200,
+            content_type = String::from("text/plain"),
+            body = body
+        )
+    }
+
+    pub fn html(body: String) -> HttpResponse {
+        return HttpResponse(
+            status_code = 200,
+            content_type = String::from("text/html"),
+            body = body
+        )
+    }
+
+    pub fn not_found() -> HttpResponse {
+        return HttpResponse(
+            status_code = 404,
+            content_type = String::from("text/plain"),
+            body = String::from("404 Not Found")
+        )
+    }
+
+    pub fn to_string(self#) -> String {
+        auto res# = String::from("HTTP/1.1 ")
+        if self.status_code == 200 {
+            res#.push_str("200 OK\r\n")
+        } else if self.status_code == 404 {
+            res#.push_str("404 Not Found\r\n")
+        } else {
+            res#.push_str("500 Internal Server Error\r\n")
+        }
+
+        res#.push_str("Content-Type: ")
+        res#.push_str(self.content_type.c_str())
+        res#.push_str("\r\nContent-Length: ")
+        auto len_str = String::from_int(self.body.len())
+        res#.push_str(len_str.c_str())
+        res#.push_str("\r\nConnection: close\r\n\r\n")
+        
+        res#.push_str(self.body.c_str())
+        return res
+    }
+}
+
+pub fn parse_http_request(req_str: String) -> HttpRequest {
+    auto iter# = req_str.split(10) // split by \n
+    if iter#.is_done() {
+        return HttpRequest(method = HttpMethod::UNKNOWN, path = String::from("/"), body = String::from(""))
+    }
+    
+    auto first_line# = iter#.next()
+    first_line = first_line.trim_end() // remove \r
+    
+    auto parts_iter# = first_line.split(32) // split by space
+    auto method_str = parts_iter#.next()
+    auto path_str = parts_iter#.next()
+    
+    auto method# = HttpMethod::UNKNOWN
+    if method_str.eq(String::from("GET")) { method = HttpMethod::GET }
+    else if method_str.eq(String::from("POST")) { method = HttpMethod::POST }
+    
+    return HttpRequest(
+        method = method,
+        path = path_str.clone(),
+        body = String::from("") // Ignore body parsing for this micro engine
+    )
+}

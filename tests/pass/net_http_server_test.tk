@@ -1,0 +1,135 @@
+import std/io::{println}
+import std/net_http::{HttpRequest, HttpResponse, HttpMethod, parse_http_request}
+import std/net::{TcpListener, TcpStream, Ipv4Addr, SocketAddrV4}
+import std/string::{String}
+import core/libc
+import core/types
+import core/result::{Result}
+import std/thread::{spawn, JoinHandle}
+
+extern fn sleep(seconds: i32) -> i32
+
+// Basic handler router
+fn handle_request(req#: HttpRequest) -> HttpResponse {
+    auto is_get# = false
+    match req.method {
+           auto HttpMethod::GET => { is_get = true }
+           _ => {}
+    }
+    
+    auto is_home# = false
+    if req.path.eq(String::from("/home")) { is_home = true }
+    
+    if is_get && is_home {
+        auto res = HttpResponse::html(String::from("<h1>Welcome to Toka HTTP Framework</h1>"))
+        return res
+    }
+    
+    return HttpResponse::not_found()
+}
+
+fn run_server(port: u16) -> i32 {
+    unsafe {
+        println("[Server] Binding to 127.0.0.1:{}...", port as i32)
+        auto ip = Ipv4Addr::new(127:u8, 0:u8, 0:u8, 1:u8)
+        auto addr = SocketAddrV4::new(ip, port)
+        
+        auto listener_res = TcpListener::bind(addr)
+        if listener_res.is_err() {
+             return 1
+        }
+        auto listener# = listener_res.unwrap()
+        println("[Server] Listening...")
+        
+        auto stream_res = listener#.accept()
+        if stream_res.is_err() {
+             return 1
+        }
+        
+        println("[Server] Accepted Web connection!")
+        auto stream# = stream_res.unwrap()
+        
+        auto buf: [char; 1024] = [0 as char; 1024]
+        auto *buf_ptr# = &buf[0] as *u8
+        
+        auto read_res = stream#.read(*buf_ptr, 1024)
+        if read_res.is_err() {
+            println("[Server] Read error")
+            return 1
+        }
+        
+        auto n = read_res.unwrap()
+        if n == 0:usize {
+            return 0
+        }
+        
+        auto req_str = String::from_with_len(&buf[0] as *char, n as i32)
+        println("[Server] Incoming Request length: {} bytes", n as i32)
+        
+        auto req# = parse_http_request(req_str)
+        auto is_get# = false
+        match req.method {
+             auto HttpMethod::GET => { is_get = true }
+             _ => {}
+        }
+
+        if is_get {
+             println("[Server] Method: GET, Path: {}", req.path.c_str())
+        }
+        
+        // Pass to handler
+        auto resp# = handle_request(req)
+        auto resp_str = resp#.to_string()
+        
+        println("[Server] Responding with HTTP {}...", resp.status_code)
+        
+        auto *ptr = resp_str.c_str() as *u8
+        auto w_res = stream#.write(*ptr, resp_str.len() as usize)
+        
+        // Let it close naturally to end server.
+        return 0
+    }
+}
+
+pub fn main() -> i32 {
+    unsafe {
+        // Spawn server thread
+        auto server_thread# = spawn<i32>({ => 
+            return cede run_server(8080:u16)
+        })
+        
+        sleep(1)
+        
+        // Connect and send HTTP GET
+        auto ip = Ipv4Addr::new(127:u8, 0:u8, 0:u8, 1:u8)
+        auto addr = SocketAddrV4::new(ip, 8080:u16)
+        
+        auto connect_res = TcpStream::connect(addr)
+        if connect_res.is_err() { return 1 }
+        
+        auto stream# = connect_res.unwrap()
+        
+        auto req_line = String::from("GET /home HTTP/1.1\r\nHost: localhost:8080\r\nAccept: */*\r\n\r\n")
+        auto write_res = stream#.write_string(req_line)
+        
+        // Read response
+        auto buf: [char; 1024] = [0 as char; 1024]
+        auto *buf_ptr# = &buf[0] as *u8
+        auto read_res = stream#.read(*buf_ptr, 1024)
+        
+        if read_res.is_ok() {
+            auto n = read_res.unwrap()
+            auto idx = n as i32
+            auto *chr_ptr# = &buf[idx] as *char
+            chr_ptr = 0 as char
+            
+            println("[Client] HTTP Response received ({} bytes):", n as i32)
+            println("{}", &buf[0] as *char)
+        }
+        
+        stream#.close()
+        server_thread#.join()
+        println("[Test] Web Server HTTP engine successful!")
+        return 0
+    }
+}
