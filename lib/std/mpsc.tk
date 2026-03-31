@@ -55,13 +55,23 @@ pub fn channel<T: @Send>() -> ChannelPair<T> {
     )
     
     return ChannelPair<T>(
-        tx=Sender<T>(channel = ~inner),
-        rx=Receiver<T>(channel = ~inner)
+        tx=Sender<T>(~channel = ~inner),
+        rx=Receiver<T>(~channel = ~inner)
     )
 }
 
 impl<T: @Send> Sender<T> {
-    pub fn send(self, val: cede T) -> Result<(), Error> {
+    pub fn clone(self#) -> Sender<T> {
+        guard auto Ok(lguard#) = self.channel.state.lock() else {
+            assert(false, "Mutex lock failed during Sender clone")
+            return Sender<T>(~channel = self.~channel)
+        }
+        auto *q# = lguard.get_ref()
+        q.senders = q.senders + 1
+        return Sender<T>(~channel = self.~channel)
+    }
+    
+    pub fn send(self#, val: cede T) -> Result<(), Error> {
         guard auto Ok(lguard) = self.channel.state.lock() else {
             return Result<(), Error>::Err(Error::new(2:i32, "Mutex lock failed"))
         }
@@ -78,7 +88,7 @@ impl<T: @Send> Sender<T> {
 }
 
 impl<T: @Send> Receiver<T> {
-    pub fn recv(self) -> Result<Option<T>, Error> {
+    pub fn recv(self#) -> Result<Option<T>, Error> {
         guard auto Ok(lguard#) = self.channel.state.lock() else {
             return Result<Option<T>, Error>::Err(Error::new(4:i32, "Mutex lock failed"))
         }

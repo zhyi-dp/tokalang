@@ -1236,6 +1236,11 @@ PhysEntity CodeGen::genUnaryExpr(const UnaryExpr *unary) {
           handleTy = llvm::StructType::get(m_Context, {ptrTy, refTy});
         }
       }
+    } else if (auto *m = dynamic_cast<const MemberExpr *>(unary->RHS.get())) {
+      PhysEntity pe = genMemberExpr(m);
+      if (pe.isAddress && pe.irType) {
+        handleTy = pe.irType;
+      }
     }
     if (!handleTy)
       handleTy = getLLVMType(unary->RHS->ResolvedType);
@@ -4232,6 +4237,22 @@ PhysEntity CodeGen::genClosureExpr(const ClosureExpr *expr) {
                    m_Builder.CreateStore(llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(loadTy)), srcAddr);
                } else if (loadTy->isStructTy()) {
                    m_Builder.CreateStore(llvm::ConstantAggregateZero::get(loadTy), srcAddr);
+               }
+               
+               std::string varName = Type::stripMorphology(member.Name);
+               bool found = false;
+               for (int scopeIdx = (int)m_ScopeStack.size() - 1; scopeIdx >= 0; --scopeIdx) {
+                   auto &scope = m_ScopeStack[scopeIdx];
+                   for (auto &entry : scope) {
+                       if (Type::stripMorphology(entry.Name) == varName) {
+                           if (entry.HasDrop) {
+                               entry.HasDrop = false; // SUPPRESS DROP (Moved)
+                           }
+                           found = true;
+                           break;
+                       }
+                   }
+                   if (found) break;
                }
            }
        } else {

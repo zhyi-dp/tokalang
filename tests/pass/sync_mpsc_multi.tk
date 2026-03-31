@@ -1,0 +1,59 @@
+import std/mpsc::{channel, Sender, Receiver}
+import std/vec::{Vec}
+import core/result::{Result}
+import std/error::{Error}
+import std/thread::{spawn, JoinHandle, sleep_ms}
+import std/io::{println}
+
+pub fn main() -> i32 {
+    auto pair# = channel<i32>()
+    auto t1_tx# = pair.tx#.clone()
+    auto t2_tx# = pair.tx#.clone()
+    
+    // Thread 1
+    auto t1# = spawn<i32>({ [cede t1_tx#] => 
+        sleep_ms(10:u32)
+        t1_tx#.send(cede 100)
+        return cede 0
+    })
+    
+    // Thread 2
+    auto t2# = spawn<i32>({ [cede t2_tx#] => 
+        sleep_ms(20:u32)
+        t2_tx#.send(cede 200)
+        return cede 0
+    })
+    
+    // Receiver on Main Thread
+    auto count# = 0
+    auto sum# = 0
+    
+    while count < 2 {
+        auto res_opt = pair.rx#.recv()
+        match res_opt {
+            auto Result<Option<i32>, Error>::Ok(opt) => {
+                match opt {
+                    auto Option<i32>::Some(val) => {
+                        sum = sum + val
+                        count = count + 1
+                    }
+                    _ => {
+                        println("Channel unexpectedly closed prematurely!")
+                        return 1
+                    }
+                }
+            }
+            _ => { return 2 }
+        }
+    }
+    
+    println("Total received sum from 2 threads: {}", sum)
+    if sum != 300 {
+        return 3
+    }
+
+    t1#.join().unwrap()
+    t2#.join().unwrap()
+    
+    return 0
+}
