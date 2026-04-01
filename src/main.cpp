@@ -18,6 +18,13 @@
 #include "toka/Sema.h"
 #include "toka/SourceLocation.h"
 #include "toka/SourceManager.h"
+#include "llvm/Support/InitLLVM.h"
+#include "llvm/Support/TargetSelect.h"
+#include "llvm/Transforms/Coroutines/CoroCleanup.h"
+#include "llvm/Transforms/Coroutines/CoroEarly.h"
+#include "llvm/Transforms/Coroutines/CoroElide.h"
+#include "llvm/Transforms/Coroutines/CoroSplit.h"
+
 #include "toka/Version.h"
 #include "llvm/Support/raw_ostream.h"
 #include <fstream>
@@ -208,10 +215,20 @@ int main(int argc, char **argv) {
   PB.registerFunctionAnalyses(FAM);
   PB.registerLoopAnalyses(LAM);
   PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
+  
+  PB.registerPipelineStartEPCallback(
+      [](llvm::ModulePassManager &MPM, llvm::OptimizationLevel Level) {
+        MPM.addPass(llvm::CoroEarlyPass());
+        llvm::CGSCCPassManager CGPM;
+        CGPM.addPass(llvm::CoroSplitPass());
+        MPM.addPass(llvm::createModuleToPostOrderCGSCCPassAdaptor(std::move(CGPM)));
+        llvm::FunctionPassManager FPM;
+        FPM.addPass(llvm::CoroElidePass());
+        MPM.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(FPM)));
+        MPM.addPass(llvm::CoroCleanupPass());
+      });
 
-  // Use O2 pipeline which includes Coroutine lowering out-of-the-box in LLVM 15+
   llvm::ModulePassManager MPM = PB.buildO0DefaultPipeline(llvm::OptimizationLevel::O0);
-
   MPM.run(*codegen.getModule(), MAM);
 
   codegen.print(llvm::outs());

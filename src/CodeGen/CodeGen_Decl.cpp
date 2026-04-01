@@ -155,9 +155,16 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
       return nullptr;
     }
 
+    if (func->Effect == EffectKind::Async) {
+      retType = llvm::PointerType::getUnqual(m_Context);
+    }
+
     llvm::FunctionType *ft = llvm::FunctionType::get(retType, argTypes, false);
     f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, funcName,
                                m_Module.get());
+    if (func->Effect == EffectKind::Async) {
+      f->setPresplitCoroutine();
+    }
   }
 
   // [Fix] Prevent double generation of function bodies (e.g. from multiple
@@ -173,8 +180,44 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
 
   llvm::BasicBlock *bb = llvm::BasicBlock::Create(m_Context, "entry", f);
   m_Builder.SetInsertPoint(bb);
-
   m_ScopeStack.push_back({});
+
+  if (func->Effect == EffectKind::Async) {
+      std::shared_ptr<Type> retTypeObj;
+      if (func->ResolvedReturnType) {
+        retTypeObj = func->ResolvedReturnType;
+      } else {
+        retTypeObj = Type::fromString(func->ReturnType);
+      }
+      llvm::Type *actualRetTy = getLLVMType(retTypeObj);
+      if (actualRetTy->isVoidTy()) {
+          actualRetTy = llvm::Type::getInt8Ty(m_Context);
+      }
+      m_CurrentCoroPromise = createEntryBlockAlloca(actualRetTy, nullptr, "coro.promise");
+      
+      llvm::Function *idFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_id);
+      llvm::Value *zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(m_Context), 0);
+      llvm::Value *nullPtr = llvm::ConstantPointerNull::get(llvm::PointerType::getUnqual(m_Context));
+      m_CurrentCoroId = m_Builder.CreateCall(idFn, {zero, m_CurrentCoroPromise, nullPtr, nullPtr});
+      
+      llvm::Function *sizeFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_size, {llvm::Type::getInt64Ty(m_Context)});
+      llvm::Value *size = m_Builder.CreateCall(sizeFn);
+      
+      llvm::Function *mallocFn = m_Module->getFunction("malloc");
+      if (!mallocFn) {
+          std::vector<llvm::Type*> args = {llvm::Type::getInt64Ty(m_Context)};
+          llvm::FunctionType *ft = llvm::FunctionType::get(llvm::PointerType::getUnqual(m_Context), args, false);
+          mallocFn = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, "malloc", m_Module.get());
+      }
+      llvm::Value *alloc = m_Builder.CreateCall(mallocFn, {size});
+      
+      llvm::Function *beginFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_begin);
+      m_CurrentCoroHandle = m_Builder.CreateCall(beginFn, {m_CurrentCoroId, alloc});
+  } else {
+      m_CurrentCoroHandle = nullptr;
+      m_CurrentCoroPromise = nullptr;
+      m_CurrentCoroId = nullptr;
+  }
 
   size_t idx = 0;
   for (auto &arg : f->args()) {
@@ -471,7 +514,9 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
   if (!m_Builder.GetInsertBlock()->getTerminator()) {
     cleanupScopes(0);
 
-    if (func->ReturnType == "void" || func->Name == "main") {
+    if (func->Effect == EffectKind::Async) {
+      genCoroutineReturn(nullptr);
+    } else if (func->ReturnType == "void" || func->Name == "main") {
       if (func->Name == "main" && !f->getReturnType()->isVoidTy()) {
         m_Builder.CreateRet(
             llvm::ConstantInt::get(llvm::Type::getInt32Ty(m_Context), 0));

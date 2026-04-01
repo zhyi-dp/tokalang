@@ -1,0 +1,10 @@
+extern fn __builtin_await() -> void
+
+fn foo() -> async i32 {
+    __builtin_await()
+    return 42
+}
+
+pub fn main() -> i32 {
+    return 0
+}

@@ -96,8 +96,36 @@ PhysEntity CodeGen::genExpr(const Expr *expr) {
     return genCallExpr(e);
   if (auto e = dynamic_cast<const PostfixExpr *>(expr))
     return genPostfixExpr(e);
-  if (auto e = dynamic_cast<const AwaitExpr *>(expr))
-    return genExpr(e->Expression.get());
+  if (auto e = dynamic_cast<const AwaitExpr *>(expr)) {
+      if (!m_CurrentCoroHandle) {
+          error(e, "await can only be used inside an async function");
+          return {};
+      }
+      llvm::Function *suspendFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_suspend);
+      llvm::Value *suspendRes = m_Builder.CreateCall(suspendFn, {llvm::ConstantTokenNone::get(m_Context), m_Builder.getInt1(false)});
+      
+      llvm::BasicBlock *suspendBB = llvm::BasicBlock::Create(m_Context, "await.suspend", m_Builder.GetInsertBlock()->getParent());
+      llvm::BasicBlock *resumeBB = llvm::BasicBlock::Create(m_Context, "await.resume", m_Builder.GetInsertBlock()->getParent());
+      llvm::BasicBlock *cleanupBB = llvm::BasicBlock::Create(m_Context, "await.cleanup", m_Builder.GetInsertBlock()->getParent());
+      
+      llvm::SwitchInst *sw = m_Builder.CreateSwitch(suspendRes, suspendBB, 2);
+      sw->addCase(m_Builder.getInt8(0), resumeBB);
+      sw->addCase(m_Builder.getInt8(1), cleanupBB);
+      
+      m_Builder.SetInsertPoint(suspendBB);
+      m_Builder.CreateRet(m_CurrentCoroHandle);
+      
+      m_Builder.SetInsertPoint(cleanupBB);
+      llvm::Function *freeIdFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_free);
+      llvm::Value *memToFree = m_Builder.CreateCall(freeIdFn, {m_CurrentCoroId, m_CurrentCoroHandle});
+      llvm::Function *freeFn = m_Module->getFunction("free");
+      m_Builder.CreateCall(freeFn, memToFree);
+      m_Builder.CreateUnreachable();
+      
+      m_Builder.SetInsertPoint(resumeBB);
+      
+      return PhysEntity(llvm::ConstantInt::get(m_Builder.getInt32Ty(), 0), "i32", m_Builder.getInt32Ty(), false);
+  }
   if (auto e = dynamic_cast<const WaitExpr *>(expr))
     return genExpr(e->Expression.get());
   if (auto e = dynamic_cast<const SpawnExpr *>(expr)) {
@@ -270,6 +298,9 @@ CodeGen::GenContext CodeGen::saveContext() {
   ctx.InsertBlock = m_Builder.GetInsertBlock();
   if (ctx.InsertBlock)
     ctx.InsertPoint = m_Builder.GetInsertPoint();
+  ctx.CurrentCoroHandle = m_CurrentCoroHandle;
+  ctx.CurrentCoroPromise = m_CurrentCoroPromise;
+  ctx.CurrentCoroId = m_CurrentCoroId;
   return ctx;
 }
 
@@ -279,6 +310,9 @@ void CodeGen::restoreContext(const GenContext &ctx) {
   m_CurrentSelfType = ctx.CurrentSelfType;
   m_CFStack = ctx.CFStack;
   m_ScopeStack = ctx.ScopeStack;
+  m_CurrentCoroHandle = ctx.CurrentCoroHandle;
+  m_CurrentCoroPromise = ctx.CurrentCoroPromise;
+  m_CurrentCoroId = ctx.CurrentCoroId;
   if (ctx.InsertBlock) {
     if (ctx.InsertPoint != ctx.InsertBlock->end())
       m_Builder.SetInsertPoint(ctx.InsertBlock, ctx.InsertPoint);

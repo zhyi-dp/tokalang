@@ -2550,6 +2550,39 @@ void CodeGen::genPatternBinding(const MatchArm::Pattern *pat,
 }
 
 PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
+  if (call->Callee == "__builtin_await") {
+      if (!m_CurrentCoroHandle) {
+          error(call, "await can only be used inside an async function");
+          return {};
+      }
+      llvm::Function *saveFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_save);
+      llvm::Value *saveToken = m_Builder.CreateCall(saveFn, {m_CurrentCoroHandle});
+      
+      llvm::Function *suspendFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_suspend);
+      llvm::Value *suspendRes = m_Builder.CreateCall(suspendFn, {saveToken, m_Builder.getInt1(false)});
+      
+      llvm::BasicBlock *suspendBB = llvm::BasicBlock::Create(m_Context, "await.suspend", m_Builder.GetInsertBlock()->getParent());
+      llvm::BasicBlock *resumeBB = llvm::BasicBlock::Create(m_Context, "await.resume", m_Builder.GetInsertBlock()->getParent());
+      llvm::BasicBlock *cleanupBB = llvm::BasicBlock::Create(m_Context, "await.cleanup", m_Builder.GetInsertBlock()->getParent());
+      
+      llvm::SwitchInst *sw = m_Builder.CreateSwitch(suspendRes, suspendBB, 2);
+      sw->addCase(m_Builder.getInt8(0), resumeBB);
+      sw->addCase(m_Builder.getInt8(1), cleanupBB);
+      
+      m_Builder.SetInsertPoint(suspendBB);
+      m_Builder.CreateRet(m_CurrentCoroHandle);
+      
+      m_Builder.SetInsertPoint(cleanupBB);
+      llvm::Function *freeIdFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_free);
+      llvm::Value *memToFree = m_Builder.CreateCall(freeIdFn, {m_CurrentCoroId, m_CurrentCoroHandle});
+      llvm::Function *freeFn = m_Module->getFunction("free");
+      m_Builder.CreateCall(freeFn, memToFree);
+      m_Builder.CreateUnreachable();
+      
+      m_Builder.SetInsertPoint(resumeBB);
+      return PhysEntity(llvm::ConstantInt::get(m_Builder.getInt32Ty(), 0), "i32", m_Builder.getInt32Ty(), false);
+  }
+
   // Primitives as constructors: i32(42)
   if (call->Callee == "i32" || call->Callee == "u32" || call->Callee == "i64" ||
       call->Callee == "u64" || call->Callee == "f32" || call->Callee == "f64" ||

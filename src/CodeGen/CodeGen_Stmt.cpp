@@ -154,6 +154,12 @@ llvm::Value *CodeGen::genReturnStmt(const ReturnStmt *ret) {
   llvm::Function *f = m_Builder.GetInsertBlock()->getParent();
   std::cerr << "DEBUG: genReturnStmt cleanupScopes\n";
   cleanupScopes(0);
+
+  if (m_CurrentCoroHandle) {
+    genCoroutineReturn(retVal);
+    return nullptr;
+  }
+
   if (retVal) {
     std::cerr << "DEBUG: genReturnStmt has valid retVal of type: ";
     retVal->getType()->print(llvm::errs()); llvm::errs() << "\n";
@@ -493,6 +499,52 @@ llvm::Value *CodeGen::genGuardBindStmt(const GuardBindStmt *gbs) {
   }
   
   return nullptr;
+}
+
+void CodeGen::genCoroutineReturn(llvm::Value *retVal) {
+    if (retVal && m_CurrentCoroPromise) {
+        llvm::Type *promTy = m_CurrentCoroPromise->getType();
+        if (auto *ai = llvm::dyn_cast<llvm::AllocaInst>(m_CurrentCoroPromise)) {
+            promTy = ai->getAllocatedType();
+        }
+        if (retVal->getType() != promTy) {
+            if (promTy->isVoidTy()) {
+               // do nothing
+            } else {
+               retVal = m_Builder.CreateBitCast(retVal, promTy);
+               m_Builder.CreateStore(retVal, m_CurrentCoroPromise);
+            }
+        } else {
+            m_Builder.CreateStore(retVal, m_CurrentCoroPromise);
+        }
+    }
+    
+    llvm::Function *suspendFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_suspend);
+    llvm::Function *endFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_end);
+    
+    llvm::BasicBlock *suspendBB = llvm::BasicBlock::Create(m_Context, "coro.suspend.final", m_Builder.GetInsertBlock()->getParent());
+    llvm::BasicBlock *cleanupBB = llvm::BasicBlock::Create(m_Context, "coro.cleanup", m_Builder.GetInsertBlock()->getParent());
+    llvm::BasicBlock *trapBB = llvm::BasicBlock::Create(m_Context, "coro.trap", m_Builder.GetInsertBlock()->getParent());
+    
+    llvm::Value *suspendRes = m_Builder.CreateCall(suspendFn, {llvm::ConstantTokenNone::get(m_Context), m_Builder.getInt1(true)});
+    
+    llvm::SwitchInst *sw = m_Builder.CreateSwitch(suspendRes, suspendBB, 2);
+    sw->addCase(m_Builder.getInt8(0), trapBB);
+    sw->addCase(m_Builder.getInt8(1), cleanupBB);
+    
+    m_Builder.SetInsertPoint(trapBB);
+    m_Builder.CreateUnreachable();
+    
+    m_Builder.SetInsertPoint(cleanupBB);
+    llvm::Function *freeIdFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_free);
+    llvm::Value *memToFree = m_Builder.CreateCall(freeIdFn, {m_CurrentCoroId, m_CurrentCoroHandle});
+    llvm::Function *freeFn = m_Module->getFunction("free");
+    m_Builder.CreateCall(freeFn, memToFree);
+    m_Builder.CreateBr(suspendBB);
+    
+    m_Builder.SetInsertPoint(suspendBB);
+    m_Builder.CreateCall(endFn, {m_CurrentCoroHandle, m_Builder.getInt1(false), llvm::ConstantTokenNone::get(m_Context)});
+    m_Builder.CreateRet(m_CurrentCoroHandle);
 }
 
 } // namespace toka

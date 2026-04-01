@@ -121,8 +121,10 @@ private:
   std::string m_CurrentSelfType;
   std::map<std::string, llvm::Value *> m_NamedValues;
   bool m_InLHS = false;
-
-  // NOTE: These are NOT legacy. They are essential context tracking maps.
+  llvm::Value *m_CurrentCoroHandle = nullptr;
+  llvm::Value *m_CurrentCoroPromise = nullptr;
+  llvm::Value *m_CurrentCoroId = nullptr;
+  void genCoroutineReturn(llvm::Value *retVal);
   // Although m_ValueElementTypes is redundant with m_Symbols for Variables, it
   // might be used elsewhere. But m_StructTypes, m_Shapes, etc. are absolutely
   // required.
@@ -260,6 +262,9 @@ private:
     std::vector<std::vector<VariableScopeInfo>> ScopeStack;
     llvm::BasicBlock *InsertBlock;
     llvm::BasicBlock::iterator InsertPoint;
+    llvm::Value *CurrentCoroHandle;
+    llvm::Value *CurrentCoroPromise;
+    llvm::Value *CurrentCoroId;
   };
 
   GenContext saveContext();
