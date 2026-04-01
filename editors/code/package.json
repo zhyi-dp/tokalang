@@ -35,5 +35,8 @@
         "path": "./syntaxes/toka.tmLanguage.json"
       }
     ]
+  },
+  "dependencies": {
+    "@vscode/vsce": "^3.7.1"
   }
 }

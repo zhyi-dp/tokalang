@@ -18,7 +18,7 @@ pub import std::io::println
 pub import std::string::String
 pub import std::error::{Error}
 
-import std/sys/macOS::*
+import std/sys/os::*
 
 /*
 pub fn panic(message: str) {

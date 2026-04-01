@@ -621,6 +621,12 @@ std::unique_ptr<ImportDecl> Parser::parseImport(bool isPub) {
       break;
   }
 
+#if defined(__linux__)
+  if (physicalPath == "std/sys/os") physicalPath = "std/sys/linux";
+#elif defined(__APPLE__)
+  if (physicalPath == "std/sys/os") physicalPath = "std/sys/macos";
+#endif
+
   std::vector<ImportItem> items;
   std::string moduleAlias;
 

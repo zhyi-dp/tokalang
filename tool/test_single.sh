@@ -47,9 +47,16 @@ echo "  - Running ($LLI)..."
 # Shift to get extra args
 shift
 
+# Set ATOMIC_ARG for Linux
+if [ "$(uname)" == "Linux" ] && [ -f "/usr/lib/x86_64-linux-gnu/libatomic.so.1" ]; then
+    ATOMIC_ARG="-load=/usr/lib/x86_64-linux-gnu/libatomic.so.1"
+else
+    ATOMIC_ARG=""
+fi
+
 echo "  - Running ($LLI) with args: $@"
 # Run with lli
-"$LLI" "$LL_FILE" "$@"
+"$LLI" $ATOMIC_ARG "$LL_FILE" "$@"
 RUN_STATUS=$?
 
 echo "  - Finished with Exit Code: $RUN_STATUS"

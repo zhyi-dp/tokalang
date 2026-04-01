@@ -39,8 +39,15 @@ run_worker() {
         exit 1
     fi
 
+    # Set ATOMIC_ARG for Linux
+    if [ "$(uname)" == "Linux" ] && [ -f "/usr/lib/x86_64-linux-gnu/libatomic.so.1" ]; then
+        ATOMIC_ARG="-load=/usr/lib/x86_64-linux-gnu/libatomic.so.1"
+    else
+        ATOMIC_ARG=""
+    fi
+
     # Step 2: Run
-    { "$LLI" "$ll_file" >> "$log_file" 2>&1; } 2>&1 | grep -v "Abort trap"
+    { "$LLI" $ATOMIC_ARG "$ll_file" >> "$log_file" 2>&1; } 2>&1 | grep -v "Abort trap"
     exit_code=${PIPESTATUS[0]}
 
     # Step 3: Extract & Verify

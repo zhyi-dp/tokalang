@@ -72,6 +72,7 @@ pub fn __toka_panic(message: str, file_name: str, line: i32) {
     libc_printf(" runtime error: Panic with \"%s\"", message)    
     libc_printf(" ***\n\n")
     unsafe {
+        libc_fflush(nullptr)
         libc_abort()
     }
 }

@@ -5,7 +5,7 @@ import std/string::{String}
 import core/libc::*
 import core/result::{Result}
 import core/option::{Option}
-import std/sys/macos as sys 
+import std/sys/os as sys 
 import std/io 
 
 // Error type for network operations
