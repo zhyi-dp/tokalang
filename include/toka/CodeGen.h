@@ -105,6 +105,7 @@ public:
   void generate(const Module &ast);
   bool hasErrors() const { return m_ErrorCount > 0; }
   void print(llvm::raw_ostream &os);
+  llvm::Module *getModule() { return m_Module.get(); }
 
 private:
   int m_ErrorCount = 0;

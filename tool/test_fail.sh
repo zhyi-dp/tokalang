@@ -8,6 +8,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Configuration
+LLI=$(which lli-17 || which lli || echo "/usr/local/opt/llvm@17/bin/lli")
 VERIFIER="tool/test_verify_fail.py"
 
 if [ ! -f "$VERIFIER" ]; then

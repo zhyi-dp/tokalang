@@ -18,6 +18,6 @@ CodeGen/CodeGen_Decl.cpp
 )
 
 # Link against LLVM libraries
-llvm_map_components_to_libnames(llvm_libs Support Core)
+llvm_map_components_to_libnames(llvm_libs Support Core Passes Analysis Coroutines)
 
 target_link_libraries(tokac PUBLIC ${llvm_libs})

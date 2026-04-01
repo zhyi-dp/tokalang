@@ -57,7 +57,7 @@ pub fn get_arg_impl(index: i32) -> String {
             if p == (0 as char) {
                 if count == index {
                     auto *str_ptr = (*buf as usize + start) as *char
-                    auto s = String::from(str_ptr)
+                    auto s = String::from(*str_ptr)
                     libc_free(*buf as *void)
                     return s
                 }
@@ -90,7 +90,7 @@ pub fn readdir_impl(dir_handle: Addr) -> String {
         // d_name is at offset 21
         auto *name_ptr = ((entry as u64 + 21) as Addr) as *char
         
-        return String::from(name_ptr)
+        return String::from(*name_ptr)
     }
 }
 

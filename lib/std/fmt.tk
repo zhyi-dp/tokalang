@@ -42,8 +42,8 @@ impl StringBuilder {
         self.buffer#.push_str(s.c_str())
     }
 
-    pub fn append_str(self#, s: *char) {
-        self.buffer#.push_str(s)
+    pub fn append_str(self#, *s: char) {
+        self.buffer#.push_str(*s)
     }
     
     pub fn append_char(self#, c: char) {

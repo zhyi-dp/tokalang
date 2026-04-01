@@ -25,6 +25,10 @@
 #include <set>
 #include <sstream>
 
+#include "llvm/Passes/PassBuilder.h"
+#include "llvm/Passes/StandardInstrumentations.h"
+#include <sstream>
+
 void parseSource(const std::string &filename,
                  std::vector<std::unique_ptr<toka::Module>> &astModules,
                  std::set<std::string> &visited,
@@ -188,6 +192,27 @@ int main(int argc, char **argv) {
   if (codegen.hasErrors()) {
     return 1;
   }
+
+  fprintf(stderr, "Pass 4: Optimization (Coroutines & O2)...\n");
+  fflush(stderr);
+
+  llvm::LoopAnalysisManager LAM;
+  llvm::FunctionAnalysisManager FAM;
+  llvm::CGSCCAnalysisManager CGAM;
+  llvm::ModuleAnalysisManager MAM;
+
+  llvm::PassBuilder PB;
+
+  PB.registerModuleAnalyses(MAM);
+  PB.registerCGSCCAnalyses(CGAM);
+  PB.registerFunctionAnalyses(FAM);
+  PB.registerLoopAnalyses(LAM);
+  PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
+
+  // Use O2 pipeline which includes Coroutine lowering out-of-the-box in LLVM 15+
+  llvm::ModulePassManager MPM = PB.buildO0DefaultPipeline(llvm::OptimizationLevel::O0);
+
+  MPM.run(*codegen.getModule(), MAM);
 
   codegen.print(llvm::outs());
 
