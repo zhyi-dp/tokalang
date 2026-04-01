@@ -9,7 +9,8 @@ pub shape WaitQueue<T: @Send>(
     queue#: Vec<T>,
     closed#: bool,
     senders#: i32,
-    receivers#: i32
+    receivers#: i32,
+    capacity#: i32
 )
 
 /// The channel synchronization core
@@ -32,12 +33,13 @@ pub shape Receiver<T: @Send>(
 impl<T: @Send> Receiver<T>@Send {}
 
 impl<T: @Send> WaitQueue<T> {
-    pub fn new() -> WaitQueue<T> {
+    pub fn new(capacity: i32) -> WaitQueue<T> {
         return WaitQueue<T>(
             queue = Vec<T>::new(),
             closed = false,
             senders = 1,
-            receivers = 1
+            receivers = 1,
+            capacity = capacity
         )
     }
 }
@@ -49,7 +51,20 @@ pub shape ChannelPair<T: @Send>(
 
 pub fn channel<T: @Send>() -> ChannelPair<T> {
     auto ~inner = new AsyncChannel<T>(
-        state = Mutex<WaitQueue<T> >::new(WaitQueue<T>::new()),
+        state = Mutex<WaitQueue<T> >::new(WaitQueue<T>::new(-1:i32)),
+        cond_not_empty = CondVar<WaitQueue<T> >::new(),
+        cond_not_full = CondVar<WaitQueue<T> >::new()
+    )
+    
+    return ChannelPair<T>(
+        tx=Sender<T>(~channel = ~inner),
+        rx=Receiver<T>(~channel = ~inner)
+    )
+}
+
+pub fn sync_channel<T: @Send>(bound: i32) -> ChannelPair<T> {
+    auto ~inner = new AsyncChannel<T>(
+        state = Mutex<WaitQueue<T> >::new(WaitQueue<T>::new(bound)),
         cond_not_empty = CondVar<WaitQueue<T> >::new(),
         cond_not_full = CondVar<WaitQueue<T> >::new()
     )
@@ -81,9 +96,27 @@ impl<T: @Send> Sender<T> {
             return Result<(), Error>::Err(Error::new(1:i32, "Send on closed channel"))
         }
         
+        if q.capacity >= 0 {
+            while q.queue.len() >= (q.capacity as u64) {
+                if q.closed {
+                    return Result<(), Error>::Err(Error::new(1:i32, "Send on closed channel"))
+                }
+                self.channel.cond_not_full.wait(lguard)
+            }
+        }
+        
         q.queue#.push(cede val)
         self.channel.cond_not_empty.notify_one()
         return Result<(), Error>::Ok(())
+    }
+
+    pub fn clone(self) -> Sender<T> {
+        guard auto Ok(lguard#) = self.channel.state.lock() else {
+            return Sender<T>(~channel = ~self.channel)
+        }
+        auto *q# = lguard.get_ref()
+        q.senders = q.senders + 1
+        return Sender<T>(~channel = ~self.channel)
     }
 }
 
@@ -102,6 +135,9 @@ impl<T: @Send> Receiver<T> {
         }
         
         auto item = q.queue#.pop()
+        if q.capacity >= 0 {
+            self.channel.cond_not_full.notify_one()
+        }
         return Result<Option<T>, Error>::Ok(cede item)
     }
 }
@@ -130,6 +166,7 @@ impl<T: @Send> Receiver<T>@encap {
         q.receivers = q.receivers - 1
         if q.receivers == 0 {
             q.closed = true
+            self.channel.cond_not_full.notify_all()
         }
     }
 }
