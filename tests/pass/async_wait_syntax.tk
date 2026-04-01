@@ -1,14 +1,11 @@
 fn fetch() -> async str {
-    "hello".await
     return "hello"
 }
 
 fn read_config() -> wait str {
-    "config".wait
     return "config"
 }
 
-// pure caller is no longer passively infected; must explicitly suppress via spawn_blocking
 fn pure_caller() {
     spawn_blocking(read_config())
 }

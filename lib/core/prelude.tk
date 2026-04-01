@@ -16,6 +16,7 @@
 pub import core/types::*
 pub import core/option::*
 pub import core/result::*
+pub import core/task::*
 
 import core/internal/runtime::__toka_panic_handler;
 

@@ -1451,6 +1451,21 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     return toka::Type::fromString("void");
   } else if (auto *Call = dynamic_cast<CallExpr *>(E)) {
     return checkCallExpr(Call);
+  } else if (auto *awaitEx = dynamic_cast<AwaitExpr *>(E)) {
+    bool oldConsuming = m_IsConsumingEffect;
+    m_IsConsumingEffect = true;
+    auto innerType = checkExpr(awaitEx->Expression.get());
+    m_IsConsumingEffect = oldConsuming;
+    
+    std::string tName = innerType->toString();
+    if (tName.find("JoinHandle_M_") != std::string::npos) {
+        size_t pos = tName.find("JoinHandle_M_");
+        std::string inner = tName.substr(pos + 13);
+        awaitEx->ResolvedType = toka::Type::fromString(inner);
+        return awaitEx->ResolvedType;
+    }
+    error(E, "Cannot await a non-JoinHandle type: " + tName);
+    return toka::Type::fromString("unknown");
   } else if (auto *AIE = dynamic_cast<ArrayInitExpr *>(E)) {
     auto expectedType = toka::Type::fromString(resolveType(AIE->Type));
     if (AIE->ArraySize) checkExpr(AIE->ArraySize.get());
@@ -4407,6 +4422,18 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
                                      paramType->toString() + ", got " +
                                      argType->toString());
     }
+  }
+  
+  bool isAsync = false;
+  if (Fn && Fn->Effect == EffectKind::Async) isAsync = true;
+  if (Ext && Ext->Effect == EffectKind::Async) isAsync = true;
+  
+  std::cerr << "[DEBUG] checkCallExpr CallName=" << CallName << " Fn=" << (Fn ? "yes" : "no") << " isAsync=" << isAsync << "\n";
+  
+  if (isAsync) {
+      std::string tName = "JoinHandle<" + ReturnType->toString() + ">";
+      std::cerr << "[DEBUG] Wrapping return type to " << tName << "\n";
+      return toka::Type::fromString(tName);
   }
 
   return ReturnType;

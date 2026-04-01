@@ -88,6 +88,8 @@ PhysEntity CodeGen::genExpr(const Expr *expr) {
     return genWhileExpr(e);
   if (auto e = dynamic_cast<const LoopExpr *>(expr))
     return genLoopExpr(e);
+  if (auto e = dynamic_cast<const AwaitExpr *>(expr))
+    return genAwaitExpr(e);
   if (auto e = dynamic_cast<const ForExpr *>(expr))
     return genForExpr(e);
   if (auto e = dynamic_cast<const MethodCallExpr *>(expr))
@@ -301,6 +303,8 @@ CodeGen::GenContext CodeGen::saveContext() {
   ctx.CurrentCoroHandle = m_CurrentCoroHandle;
   ctx.CurrentCoroPromise = m_CurrentCoroPromise;
   ctx.CurrentCoroId = m_CurrentCoroId;
+  ctx.CurrentCoroPromiseType = m_CurrentCoroPromiseType;
+  ctx.CurrentCoroRetTy = m_CurrentCoroRetTy;
   return ctx;
 }
 
@@ -313,6 +317,8 @@ void CodeGen::restoreContext(const GenContext &ctx) {
   m_CurrentCoroHandle = ctx.CurrentCoroHandle;
   m_CurrentCoroPromise = ctx.CurrentCoroPromise;
   m_CurrentCoroId = ctx.CurrentCoroId;
+  m_CurrentCoroPromiseType = ctx.CurrentCoroPromiseType;
+  m_CurrentCoroRetTy = ctx.CurrentCoroRetTy;
   if (ctx.InsertBlock) {
     if (ctx.InsertPoint != ctx.InsertBlock->end())
       m_Builder.SetInsertPoint(ctx.InsertBlock, ctx.InsertPoint);

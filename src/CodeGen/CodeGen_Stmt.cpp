@@ -502,33 +502,51 @@ llvm::Value *CodeGen::genGuardBindStmt(const GuardBindStmt *gbs) {
 }
 
 void CodeGen::genCoroutineReturn(llvm::Value *retVal) {
-    if (retVal && m_CurrentCoroPromise) {
-        llvm::Type *promTy = m_CurrentCoroPromise->getType();
-        if (auto *ai = llvm::dyn_cast<llvm::AllocaInst>(m_CurrentCoroPromise)) {
-            promTy = ai->getAllocatedType();
-        }
-        if (retVal->getType() != promTy) {
-            if (promTy->isVoidTy()) {
-               // do nothing
-            } else {
-               retVal = m_Builder.CreateBitCast(retVal, promTy);
-               m_Builder.CreateStore(retVal, m_CurrentCoroPromise);
+    if (m_CurrentCoroPromiseType) {
+        if (!m_CurrentCoroRetTy->isVoidTy() && retVal) {
+            llvm::Value *valPtr = m_Builder.CreateStructGEP(m_CurrentCoroPromiseType, m_CurrentCoroPromise, 0);
+            if (retVal->getType() != m_CurrentCoroRetTy) {
+                retVal = m_Builder.CreateBitCast(retVal, m_CurrentCoroRetTy);
             }
-        } else {
-            m_Builder.CreateStore(retVal, m_CurrentCoroPromise);
+            m_Builder.CreateStore(retVal, valPtr);
         }
+        
+        llvm::Value *statePtr = m_Builder.CreateStructGEP(m_CurrentCoroPromiseType, m_CurrentCoroPromise, m_CurrentCoroRetTy->isVoidTy() ? 0 : 1);
+        m_Builder.CreateStore(m_Builder.getInt8(1), statePtr);
+        
+        llvm::Value *awaiterPtr = m_Builder.CreateStructGEP(m_CurrentCoroPromiseType, m_CurrentCoroPromise, m_CurrentCoroRetTy->isVoidTy() ? 1 : 2);
+        llvm::Value *awaiter = m_Builder.CreateLoad(m_Builder.getPtrTy(), awaiterPtr);
+        llvm::Value *isNotNull = m_Builder.CreateIsNotNull(awaiter);
+        
+        llvm::BasicBlock *resumeBB = llvm::BasicBlock::Create(m_Context, "coro.resume.awaiter", m_Builder.GetInsertBlock()->getParent());
+        llvm::BasicBlock *suspendFinalBB = llvm::BasicBlock::Create(m_Context, "coro.suspend.final", m_Builder.GetInsertBlock()->getParent());
+        
+        m_Builder.CreateCondBr(isNotNull, resumeBB, suspendFinalBB);
+        
+        m_Builder.SetInsertPoint(resumeBB);
+        llvm::Function *resumeFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_resume);
+        m_Builder.CreateCall(resumeFn, {awaiter});
+        m_Builder.CreateBr(suspendFinalBB);
+        
+        m_Builder.SetInsertPoint(suspendFinalBB);
+    } else {
+        // Fallback or missing promise type cases
+        llvm::BasicBlock *suspendFinalBB = llvm::BasicBlock::Create(m_Context, "coro.suspend.final", m_Builder.GetInsertBlock()->getParent());
+        m_Builder.CreateBr(suspendFinalBB);
+        m_Builder.SetInsertPoint(suspendFinalBB);
     }
     
     llvm::Function *suspendFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_suspend);
     llvm::Function *endFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_end);
     
-    llvm::BasicBlock *suspendBB = llvm::BasicBlock::Create(m_Context, "coro.suspend.final", m_Builder.GetInsertBlock()->getParent());
+    llvm::BasicBlock *suspendBB = m_Builder.GetInsertBlock(); // Already at suspendFinalBB
     llvm::BasicBlock *cleanupBB = llvm::BasicBlock::Create(m_Context, "coro.cleanup", m_Builder.GetInsertBlock()->getParent());
     llvm::BasicBlock *trapBB = llvm::BasicBlock::Create(m_Context, "coro.trap", m_Builder.GetInsertBlock()->getParent());
+    llvm::BasicBlock *suspendRetBB = llvm::BasicBlock::Create(m_Context, "coro.suspend.ret", m_Builder.GetInsertBlock()->getParent());
     
     llvm::Value *suspendRes = m_Builder.CreateCall(suspendFn, {llvm::ConstantTokenNone::get(m_Context), m_Builder.getInt1(true)});
     
-    llvm::SwitchInst *sw = m_Builder.CreateSwitch(suspendRes, suspendBB, 2);
+    llvm::SwitchInst *sw = m_Builder.CreateSwitch(suspendRes, suspendRetBB, 2);
     sw->addCase(m_Builder.getInt8(0), trapBB);
     sw->addCase(m_Builder.getInt8(1), cleanupBB);
     
@@ -542,7 +560,7 @@ void CodeGen::genCoroutineReturn(llvm::Value *retVal) {
     m_Builder.CreateCall(freeFn, memToFree);
     m_Builder.CreateBr(suspendBB);
     
-    m_Builder.SetInsertPoint(suspendBB);
+    m_Builder.SetInsertPoint(suspendRetBB);
     m_Builder.CreateCall(endFn, {m_CurrentCoroHandle, m_Builder.getInt1(false), llvm::ConstantTokenNone::get(m_Context)});
     m_Builder.CreateRet(m_CurrentCoroHandle);
 }

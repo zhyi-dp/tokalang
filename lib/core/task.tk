@@ -1,0 +1,8 @@
+// Copyright (c) 2026 Toka Project. All rights reserved.
+
+// core/task.tk
+// This file provides the core primitives for asynchronous tasks.
+
+pub shape JoinHandle<T>(
+    ^coro_handle: void
+)

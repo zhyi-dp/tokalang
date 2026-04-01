@@ -1,10 +1,23 @@
-extern fn __builtin_await() -> void
+import std/io::println
+import core/task
+
+fn bar() -> async i32 {
+    println("Inside bar")
+    return 42
+}
 
 fn foo() -> async i32 {
-    __builtin_await()
-    return 42
+    println("Before bar")
+    auto res = bar().await
+    println("After bar")
+    return res
 }
 
 pub fn main() -> i32 {
     return 0
+}
+
+// 借用测试用例的特性消除悬挂限制
+fn pure_caller() {
+    spawn_blocking(foo())
 }

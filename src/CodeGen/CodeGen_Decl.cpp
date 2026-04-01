@@ -190,10 +190,16 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
         retTypeObj = Type::fromString(func->ReturnType);
       }
       llvm::Type *actualRetTy = getLLVMType(retTypeObj);
+      m_CurrentCoroRetTy = actualRetTy;
+      
+      llvm::Type *promiseType;
       if (actualRetTy->isVoidTy()) {
-          actualRetTy = llvm::Type::getInt8Ty(m_Context);
+          promiseType = llvm::StructType::get(m_Context, {m_Builder.getInt8Ty(), m_Builder.getPtrTy()});
+      } else {
+          promiseType = llvm::StructType::get(m_Context, {actualRetTy, m_Builder.getInt8Ty(), m_Builder.getPtrTy()});
       }
-      m_CurrentCoroPromise = createEntryBlockAlloca(actualRetTy, nullptr, "coro.promise");
+      m_CurrentCoroPromiseType = promiseType;
+      m_CurrentCoroPromise = createEntryBlockAlloca(promiseType, nullptr, "coro.promise");
       
       llvm::Function *idFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_id);
       llvm::Value *zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(m_Context), 0);
@@ -213,6 +219,11 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
       
       llvm::Function *beginFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_begin);
       m_CurrentCoroHandle = m_Builder.CreateCall(beginFn, {m_CurrentCoroId, alloc});
+      
+      llvm::Value *statePtr = m_Builder.CreateStructGEP(promiseType, m_CurrentCoroPromise, actualRetTy->isVoidTy() ? 0 : 1);
+      m_Builder.CreateStore(m_Builder.getInt8(0), statePtr);
+      llvm::Value *awaiterPtr = m_Builder.CreateStructGEP(promiseType, m_CurrentCoroPromise, actualRetTy->isVoidTy() ? 1 : 2);
+      m_Builder.CreateStore(llvm::ConstantPointerNull::get(m_Builder.getPtrTy()), awaiterPtr);
   } else {
       m_CurrentCoroHandle = nullptr;
       m_CurrentCoroPromise = nullptr;

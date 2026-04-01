@@ -4470,4 +4470,92 @@ PhysEntity CodeGen::genImplicitBoxExpr(const ImplicitBoxExpr *expr) {
   }
 }
 
+PhysEntity CodeGen::genAwaitExpr(const AwaitExpr *awaitExpr) {
+    if (!m_CurrentCoroPromiseType) {
+        error(awaitExpr, "await can only be used inside an async function");
+        return {};
+    }
+    
+    PhysEntity handleEnt = genExpr(awaitExpr->Expression.get());
+    llvm::Value *handleVal = handleEnt.load(m_Builder);
+    
+    llvm::Value *targetCoroHandle = handleVal;
+    if (handleVal->getType()->isStructTy()) {
+        targetCoroHandle = m_Builder.CreateExtractValue(handleVal, 0, "await.coro_handle");
+    }
+    
+    llvm::Function *promiseFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_promise);
+    llvm::Value *alignment = m_Builder.getInt32(8);
+    llvm::Value *fromPromise = m_Builder.getInt1(false);
+    llvm::Value *targetPromisePtrRaw = m_Builder.CreateCall(promiseFn, {targetCoroHandle, alignment, fromPromise}, "target.promise.raw");
+    
+    std::shared_ptr<Type> targetInnerTyObj = awaitExpr->ResolvedType;
+    llvm::Type *targetInnerTy = getLLVMType(targetInnerTyObj);
+    
+    llvm::Type *targetPromiseType;
+    if (targetInnerTy->isVoidTy()) {
+        targetPromiseType = llvm::StructType::get(m_Context, {m_Builder.getInt8Ty(), m_Builder.getPtrTy()});
+    } else {
+        targetPromiseType = llvm::StructType::get(m_Context, {targetInnerTy, m_Builder.getInt8Ty(), m_Builder.getPtrTy()});
+    }
+    
+    int stateIdx = targetInnerTy->isVoidTy() ? 0 : 1;
+    llvm::Value *targetStatePtr = m_Builder.CreateStructGEP(targetPromiseType, targetPromisePtrRaw, stateIdx, "target.state.ptr");
+    llvm::Value *targetState = m_Builder.CreateLoad(m_Builder.getInt8Ty(), targetStatePtr, "target.state");
+    
+    llvm::Value *isReady = m_Builder.CreateICmpEQ(targetState, m_Builder.getInt8(1), "is_ready");
+    
+    llvm::BasicBlock *readyBB = llvm::BasicBlock::Create(m_Context, "await.ready", m_Builder.GetInsertBlock()->getParent());
+    llvm::BasicBlock *suspendBB = llvm::BasicBlock::Create(m_Context, "await.suspend", m_Builder.GetInsertBlock()->getParent());
+    
+    m_Builder.CreateCondBr(isReady, readyBB, suspendBB);
+    
+    m_Builder.SetInsertPoint(suspendBB);
+    
+    int awaiterIdx = targetInnerTy->isVoidTy() ? 1 : 2;
+    llvm::Value *targetAwaiterPtr = m_Builder.CreateStructGEP(targetPromiseType, targetPromisePtrRaw, awaiterIdx, "target.awaiter.ptr");
+    m_Builder.CreateStore(m_CurrentCoroHandle, targetAwaiterPtr);
+    
+    llvm::Function *saveFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_save);
+    llvm::Function *suspFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_suspend);
+    
+    llvm::Value *saveToken = m_Builder.CreateCall(saveFn, {m_CurrentCoroHandle});
+    llvm::Value *suspendRes = m_Builder.CreateCall(suspFn, {saveToken, m_Builder.getInt1(false)});
+    
+    llvm::BasicBlock *resumeContBB = llvm::BasicBlock::Create(m_Context, "await.resume", m_Builder.GetInsertBlock()->getParent());
+    llvm::BasicBlock *cleanupContBB = llvm::BasicBlock::Create(m_Context, "await.cleanup.await", m_Builder.GetInsertBlock()->getParent());
+    llvm::BasicBlock *trapContBB = llvm::BasicBlock::Create(m_Context, "await.trap", m_Builder.GetInsertBlock()->getParent());
+    
+    llvm::SwitchInst *sw = m_Builder.CreateSwitch(suspendRes, trapContBB, 2);
+    sw->addCase(m_Builder.getInt8(0), resumeContBB);
+    sw->addCase(m_Builder.getInt8(1), cleanupContBB);
+    
+    m_Builder.SetInsertPoint(trapContBB);
+    m_Builder.CreateUnreachable();
+    
+    m_Builder.SetInsertPoint(cleanupContBB);
+    llvm::Function *freeIdFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_free);
+    llvm::Value *memToFree = m_Builder.CreateCall(freeIdFn, {m_CurrentCoroId, m_CurrentCoroHandle});
+    llvm::Function *freeFn = m_Module->getFunction("free");
+    if (!freeFn) {
+        std::vector<llvm::Type*> freeArgs = {m_Builder.getPtrTy()};
+        llvm::FunctionType *freeFt = llvm::FunctionType::get(m_Builder.getVoidTy(), freeArgs, false);
+        freeFn = llvm::Function::Create(freeFt, llvm::Function::ExternalLinkage, "free", m_Module.get());
+    }
+    m_Builder.CreateCall(freeFn, memToFree);
+    m_Builder.CreateUnreachable();
+    
+    m_Builder.SetInsertPoint(resumeContBB);
+    m_Builder.CreateBr(readyBB);
+    
+    m_Builder.SetInsertPoint(readyBB);
+    if (!targetInnerTy->isVoidTy()) {
+        llvm::Value *targetValPtr = m_Builder.CreateStructGEP(targetPromiseType, targetPromisePtrRaw, 0, "target.val.ptr");
+        llvm::Value *targetVal = m_Builder.CreateLoad(targetInnerTy, targetValPtr, "target.val");
+        return PhysEntity(targetVal, awaitExpr->ResolvedType->toString(), targetInnerTy, false);
+    }
+    
+    return PhysEntity(llvm::Constant::getNullValue(m_Builder.getInt32Ty()), "void", targetInnerTy, false);
+}
+
 } // namespace toka
