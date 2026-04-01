@@ -110,6 +110,7 @@ DIAG(ERR_GENERIC_ARITY_MISMATCH, Error, "E0602", "Generic mismatch for '{}': exp
 DIAG(ERR_GENERIC_RECURSION_LIMIT, Error, "E0603", "Generic instantiation recursion limit reached for '{}'")
 DIAG(ERR_GENERIC_CODEGEN,    Error, "E0604", "Generic instantiation failed: {}")
 DIAG(ERR_CODEGEN,            Error, "E0701", "Code generation failed: {}")
+DIAG(ERR_DANGLING_EFFECT,    Error, "E0702", "Dangling effect call rejected: '{}' must be consumed by .await, .wait or spawn()")
 DIAG(ERR_CONST_GENERIC_NAMING, Error, "E0605", "Const generic parameter '{}' must end with '_' (e.g., 'N_') to denote compile-time constant.")
 DIAG(ERR_TRAIT_BOUND_UNSATISFIED, Error, "E0606", "Type '{}' does not satisfy trait bound '@{}' for generic parameter '{}'")
 

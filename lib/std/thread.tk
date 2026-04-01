@@ -29,7 +29,7 @@ shape TrampBox(f: fn() -> Addr)
 /// Note: To capture variables from the environment safely across threads,
 /// use the `[cede ...]` capture list in the closure to consume variables
 /// by value (move semantics).
-pub fn spawn<T: @Send>(f: fn() -> cede T) -> JoinHandle<T> {
+pub fn thread_spawn<T: @Send>(f: fn() -> cede T) -> JoinHandle<T> {
     unsafe {
         // 1. Box the closure explicitly via libc_malloc to avoid compiler managed auto-drop
         auto *box_ptr# = (libc_malloc(sizeof(ClosureBox<T>) as usize) as *ClosureBox<T>)

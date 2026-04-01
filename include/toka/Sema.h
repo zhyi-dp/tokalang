@@ -273,6 +273,7 @@ private:
   bool m_IsPrecomputingCaptures = false; // [NEW] Disable errors in closures
   bool m_IsMemberBase =
       false; // [NEW] Track if we are checking the base of a member access
+  bool m_IsConsumingEffect = false; // [NEW] Track if current eval context consumes async/wait effects
   TokenType m_OuterPointerSigil =
       TokenType::TokenNone; // [NEW] Track outer pointer sigil for nested member
                             // access

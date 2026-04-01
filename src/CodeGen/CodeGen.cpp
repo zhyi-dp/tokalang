@@ -100,6 +100,12 @@ PhysEntity CodeGen::genExpr(const Expr *expr) {
     return genExpr(e->Expression.get());
   if (auto e = dynamic_cast<const WaitExpr *>(expr))
     return genExpr(e->Expression.get());
+  if (auto e = dynamic_cast<const SpawnExpr *>(expr)) {
+    return PhysEntity(llvm::ConstantInt::get(m_Builder.getInt32Ty(), 0), "i32", m_Builder.getInt32Ty(), false);
+  }
+  if (auto e = dynamic_cast<const SpawnBlockingExpr *>(expr)) {
+    return PhysEntity(llvm::ConstantInt::get(m_Builder.getInt32Ty(), 0), "i32", m_Builder.getInt32Ty(), false);
+  }
   if (auto e = dynamic_cast<const ClosureExpr *>(expr))
     return genClosureExpr(e);
   if (auto e = dynamic_cast<const InitStructExpr *>(expr))

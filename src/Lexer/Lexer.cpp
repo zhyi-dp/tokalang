@@ -67,6 +67,8 @@ static std::unordered_map<std::string, TokenType> Keywords = {
     {"cancel", TokenType::KwCancel},
     {"await", TokenType::KwAwait},
     {"wait", TokenType::KwWait},
+    {"spawn", TokenType::KwSpawn},
+    {"spawn_blocking", TokenType::KwSpawnBlocking},
     {"Channel", TokenType::KwChannel},
     {"cede", TokenType::KwCede},
     {"copy", TokenType::KwCopy},

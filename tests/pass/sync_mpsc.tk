@@ -1,6 +1,6 @@
 import std/mpsc::{channel, Sender, Receiver}
 import std/vec::{Vec}
-import std/thread::{spawn, JoinHandle}
+import std/thread::{thread_spawn, JoinHandle}
 import std/io::{println}
 
 fn main() -> i32 {

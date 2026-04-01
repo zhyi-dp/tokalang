@@ -5,7 +5,7 @@ import core/libc
 import std/sys/macos as sys
 import core/types
 import core/result::{Result}
-import std/thread::{spawn, JoinHandle}
+import std/thread::{thread_spawn, JoinHandle}
 
 extern fn sleep(seconds: i32) -> i32
 
@@ -60,7 +60,7 @@ fn run_server(port: u16) -> i32 {
 pub fn main() -> i32 {
     unsafe {
         // Spawn server thread
-        auto server_thread# = spawn<i32>({ => 
+        auto server_thread# = thread_spawn<i32>({ => 
             return cede run_server(9095:u16)
         })
         

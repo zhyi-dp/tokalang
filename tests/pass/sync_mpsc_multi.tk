@@ -2,7 +2,7 @@ import std/mpsc::{channel, Sender, Receiver}
 import std/vec::{Vec}
 import core/result::{Result}
 import std/error::{Error}
-import std/thread::{spawn, JoinHandle, sleep_ms}
+import std/thread::{thread_spawn, JoinHandle, sleep_ms}
 import std/io::{println}
 
 pub fn main() -> i32 {
@@ -11,14 +11,14 @@ pub fn main() -> i32 {
     auto t2_tx# = pair.tx#.clone()
     
     // Thread 1
-    auto t1# = spawn<i32>({ [cede t1_tx#] => 
+    auto t1# = thread_spawn<i32>({ [cede t1_tx#] => 
         sleep_ms(10:u32)
         t1_tx#.send(cede 100)
         return cede 0
     })
     
     // Thread 2
-    auto t2# = spawn<i32>({ [cede t2_tx#] => 
+    auto t2# = thread_spawn<i32>({ [cede t2_tx#] => 
         sleep_ms(20:u32)
         t2_tx#.send(cede 200)
         return cede 0

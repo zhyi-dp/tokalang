@@ -8,13 +8,13 @@ fn read_config() -> wait str {
     return "config"
 }
 
-// pure caller gets infected becoming wait implicitly
+// pure caller is no longer passively infected; must explicitly suppress via spawn_blocking
 fn pure_caller() {
-    read_config()
+    spawn_blocking(read_config())
 }
 
-fn main() -> i32 {
-    fetch()
+pub fn main() -> i32 {
+    spawn(fetch())
     pure_caller()
     return 0
 }

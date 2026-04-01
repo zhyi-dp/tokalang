@@ -1,5 +1,5 @@
 import std/sync::{Mutex}
-import std/thread::{spawn, yield_now}
+import std/thread::{thread_spawn, yield_now}
 import std/io::{println}
 
 pub fn main() -> i32 {
@@ -31,11 +31,11 @@ pub fn main() -> i32 {
     
     println("Spawning 5 threads to increment Mutex data 1000 times each...")
 
-    auto t1# = spawn<i32>(f)
-    auto t2# = spawn<i32>(f)
-    auto t3# = spawn<i32>(f)
-    auto t4# = spawn<i32>(f)
-    auto t5# = spawn<i32>(f)
+    auto t1# = thread_spawn<i32>(f)
+    auto t2# = thread_spawn<i32>(f)
+    auto t3# = thread_spawn<i32>(f)
+    auto t4# = thread_spawn<i32>(f)
+    auto t5# = thread_spawn<i32>(f)
     
     t1#.join().unwrap()
     t2#.join().unwrap()

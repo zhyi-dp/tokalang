@@ -1,5 +1,5 @@
 import std/sync::{Mutex}
-import std/thread::{spawn, sleep_ms}
+import std/thread::{thread_spawn, sleep_ms}
 import std/io::{println}
 
 pub fn main() -> i32 {
@@ -26,7 +26,7 @@ pub fn main() -> i32 {
         m.unlock().unwrap()
         return cede 0
     }
-    auto handle# = spawn<i32>(f)
+    auto handle# = thread_spawn<i32>(f)
     
     auto join_res = handle#.join()
     join_res.unwrap()

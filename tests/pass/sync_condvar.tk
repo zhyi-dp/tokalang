@@ -1,5 +1,5 @@
 import std/sync::{Mutex, CondVar}
-import std/thread::{spawn, yield_now}
+import std/thread::{thread_spawn, yield_now}
 import std/io::{println}
 
 shape State(
@@ -29,7 +29,7 @@ pub fn main() -> i32 {
         return cede 0
     }
     
-    auto t# = spawn<i32>(consumer)
+    auto t# = thread_spawn<i32>(consumer)
     
     // Producer
     yield_now() // Allow consumer to run and hit sleep

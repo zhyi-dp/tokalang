@@ -1604,13 +1604,8 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
         FunctionDecl *FD = MethodDecls[soulType][Met->Method];
         
         // [Effect] Concurrency Check for Method Call
-        if (FD->Effect == EffectKind::Wait) {
-          if (CurrentFunction && CurrentFunction->Effect == EffectKind::Async) {
-            error(Met, DiagID::ERR_CODEGEN, "Cannot call blocking method '" + Met->Method + "' directly inside an 'async' function.");
-          }
-          if (CurrentFunction && CurrentFunction->Effect == EffectKind::None) {
-            CurrentFunction->Effect = EffectKind::Wait;
-          }
+        if (FD->Effect != EffectKind::None && !m_IsConsumingEffect && !m_IsPrecomputingCaptures) {
+          error(Met, DiagID::ERR_DANGLING_EFFECT, Met->Method);
         }
         
         if (!FD->IsPub) {
@@ -1716,7 +1711,11 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     if (CurrentFunction && CurrentFunction->Effect != EffectKind::Async) {
       CurrentFunction->Effect = EffectKind::Async;
     }
-    return checkExpr(Aw->Expression.get());
+    bool old = m_IsConsumingEffect;
+    m_IsConsumingEffect = true;
+    auto res = checkExpr(Aw->Expression.get());
+    m_IsConsumingEffect = old;
+    return res;
   } else if (auto *Wt = dynamic_cast<WaitExpr *>(E)) {
     if (CurrentFunction && CurrentFunction->Effect == EffectKind::Async) {
       error(Wt, DiagID::ERR_CODEGEN, "Cannot use '.wait' inside an 'async' function. This would block the thread pool.");
@@ -1724,7 +1723,23 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     if (CurrentFunction && CurrentFunction->Effect == EffectKind::None) {
       CurrentFunction->Effect = EffectKind::Wait;
     }
-    return checkExpr(Wt->Expression.get());
+    bool old = m_IsConsumingEffect;
+    m_IsConsumingEffect = true;
+    auto res = checkExpr(Wt->Expression.get());
+    m_IsConsumingEffect = old;
+    return res;
+  } else if (auto *Sp = dynamic_cast<SpawnExpr *>(E)) {
+    bool old = m_IsConsumingEffect;
+    m_IsConsumingEffect = true;
+    auto res = checkExpr(Sp->Expression.get());
+    m_IsConsumingEffect = old;
+    return toka::Type::fromString("i32"); // Temp stub
+  } else if (auto *Spb = dynamic_cast<SpawnBlockingExpr *>(E)) {
+    bool old = m_IsConsumingEffect;
+    m_IsConsumingEffect = true;
+    auto res = checkExpr(Spb->Expression.get());
+    m_IsConsumingEffect = old;
+    return toka::Type::fromString("i32"); // Temp stub
   } else if (auto *Post = dynamic_cast<PostfixExpr *>(E)) {
     // [Fix] Do NOT disable soul collapse.
     // If the user wants the handle, they must use explicit prefix (e.g.
@@ -3943,13 +3958,8 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
     IsVariadic = Fn->IsVariadic;
 
     // [Effect] Concurrency Check for Function Call
-    if (Fn->Effect == EffectKind::Wait) {
-      if (CurrentFunction && CurrentFunction->Effect == EffectKind::Async) {
-        error(Call, DiagID::ERR_CODEGEN, "Cannot call blocking function '" + Fn->Name + "' directly inside an 'async' function.");
-      }
-      if (CurrentFunction && CurrentFunction->Effect == EffectKind::None) {
-        CurrentFunction->Effect = EffectKind::Wait;
-      }
+    if (Fn->Effect != EffectKind::None && !m_IsConsumingEffect && !m_IsPrecomputingCaptures) {
+      error(Call, DiagID::ERR_DANGLING_EFFECT, Fn->Name);
     }
   } else if (Ext) {
     Call->ResolvedExtern = Ext;
@@ -3961,13 +3971,8 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
     IsVariadic = Ext->IsVariadic;
 
     // [Effect] Concurrency Check for Extern Call
-    if (Ext->Effect == EffectKind::Wait) {
-      if (CurrentFunction && CurrentFunction->Effect == EffectKind::Async) {
-        error(Call, DiagID::ERR_CODEGEN, "Cannot call blocking extern function '" + Ext->Name + "' directly inside an 'async' function.");
-      }
-      if (CurrentFunction && CurrentFunction->Effect == EffectKind::None) {
-        CurrentFunction->Effect = EffectKind::Wait;
-      }
+    if (Ext->Effect != EffectKind::None && !m_IsConsumingEffect && !m_IsPrecomputingCaptures) {
+      error(Call, DiagID::ERR_DANGLING_EFFECT, Ext->Name);
     }
   } else if (Sh) {
     if (!checkVisibility(Call, Sh)) {

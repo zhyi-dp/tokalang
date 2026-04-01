@@ -344,6 +344,36 @@ public:
   }
 };
 
+class SpawnExpr : public Expr {
+public:
+  std::unique_ptr<Expr> Expression;
+  SpawnExpr(std::unique_ptr<Expr> expr) : Expression(std::move(expr)) {}
+  std::string toString() const override {
+    return "Spawn(" + Expression->toString() + ")";
+  }
+  std::unique_ptr<ASTNode> clone() const override {
+    auto n = std::make_unique<SpawnExpr>(cloneNode(Expression));
+    n->Loc = Loc;
+    n->ResolvedType = ResolvedType;
+    return n;
+  }
+};
+
+class SpawnBlockingExpr : public Expr {
+public:
+  std::unique_ptr<Expr> Expression;
+  SpawnBlockingExpr(std::unique_ptr<Expr> expr) : Expression(std::move(expr)) {}
+  std::string toString() const override {
+    return "SpawnBlocking(" + Expression->toString() + ")";
+  }
+  std::unique_ptr<ASTNode> clone() const override {
+    auto n = std::make_unique<SpawnBlockingExpr>(cloneNode(Expression));
+    n->Loc = Loc;
+    n->ResolvedType = ResolvedType;
+    return n;
+  }
+};
+
 class CastExpr : public Expr {
 public:
   std::unique_ptr<Expr> Expression;

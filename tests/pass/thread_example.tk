@@ -1,5 +1,5 @@
 import std/io::println
-import std/thread::{spawn, sleep_ms}
+import std/thread::{thread_spawn, sleep_ms}
 import std/string::{String}
 
 pub fn main() -> i32 {
@@ -15,11 +15,11 @@ pub fn main() -> i32 {
     }
     
     // Spawn a thread and explicitly capture `target` by moving it (cede) into the thread!
-    auto handle# = spawn<String>(f)
+    auto handle# = thread_spawn<String>(f)
 
     //println("target = {}", target) //error: use of moved value: `target`
 
-    auto handle2# = spawn<String>({ =>
+    auto handle2# = thread_spawn<String>({ =>
         auto text = String::from("Hello from background thread!")
         println("Thread 2 OK")
         return cede text

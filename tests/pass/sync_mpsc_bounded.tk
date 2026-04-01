@@ -1,5 +1,5 @@
 import std/io::{println}
-import std/thread::{spawn, JoinHandle}
+import std/thread::{thread_spawn, JoinHandle}
 import std/mpsc::{sync_channel, Sender, Receiver}
 
 pub fn main() -> i32 {
@@ -17,7 +17,7 @@ pub fn main() -> i32 {
         auto val3 = pair.rx#.recv().unwrap()
         return cede 0
     }
-    auto t# = spawn<i32>(cede f)
+    auto t# = thread_spawn<i32>(cede f)
     
     // Now send the 3rd item, this should block until the receiver pops
     tx2#.send(cede 3:i32).unwrap()
