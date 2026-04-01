@@ -20,7 +20,7 @@ pub fn main() -> i32 {
         loop {
             if s_ptr.ready { break }
             println("Consumer sleeping...")
-            cv.wait(lock)
+            cv.wait_cond(lock)
             println("Consumer woke up")
         }
         

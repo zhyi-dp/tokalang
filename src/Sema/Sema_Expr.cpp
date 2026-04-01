@@ -185,6 +185,14 @@ Sema::MorphKind Sema::getSyntacticMorphology(Expr *E) {
     return MorphKind::None;
   }
 
+  if (auto *Aw = dynamic_cast<AwaitExpr *>(E)) {
+    return getSyntacticMorphology(Aw->Expression.get());
+  }
+
+  if (auto *Wt = dynamic_cast<WaitExpr *>(E)) {
+    return getSyntacticMorphology(Wt->Expression.get());
+  }
+
   if (auto *Post = dynamic_cast<PostfixExpr *>(E)) {
     if (Post->Op == TokenType::DoubleQuestion)
       return MorphKind::None;
@@ -1594,6 +1602,17 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       if (MethodDecls.count(soulType) &&
           MethodDecls[soulType].count(Met->Method)) {
         FunctionDecl *FD = MethodDecls[soulType][Met->Method];
+        
+        // [Effect] Concurrency Check for Method Call
+        if (FD->Effect == EffectKind::Wait) {
+          if (CurrentFunction && CurrentFunction->Effect == EffectKind::Async) {
+            error(Met, DiagID::ERR_CODEGEN, "Cannot call blocking method '" + Met->Method + "' directly inside an 'async' function.");
+          }
+          if (CurrentFunction && CurrentFunction->Effect == EffectKind::None) {
+            CurrentFunction->Effect = EffectKind::Wait;
+          }
+        }
+        
         if (!FD->IsPub) {
           bool sameModule = false;
           if (CurrentModule) {
@@ -1693,6 +1712,19 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     return checkShapeInit(Init);
   } else if (auto *Memb = dynamic_cast<MemberExpr *>(E)) {
     return checkMemberExpr(Memb);
+  } else if (auto *Aw = dynamic_cast<AwaitExpr *>(E)) {
+    if (CurrentFunction && CurrentFunction->Effect != EffectKind::Async) {
+      CurrentFunction->Effect = EffectKind::Async;
+    }
+    return checkExpr(Aw->Expression.get());
+  } else if (auto *Wt = dynamic_cast<WaitExpr *>(E)) {
+    if (CurrentFunction && CurrentFunction->Effect == EffectKind::Async) {
+      error(Wt, DiagID::ERR_CODEGEN, "Cannot use '.wait' inside an 'async' function. This would block the thread pool.");
+    }
+    if (CurrentFunction && CurrentFunction->Effect == EffectKind::None) {
+      CurrentFunction->Effect = EffectKind::Wait;
+    }
+    return checkExpr(Wt->Expression.get());
   } else if (auto *Post = dynamic_cast<PostfixExpr *>(E)) {
     // [Fix] Do NOT disable soul collapse.
     // If the user wants the handle, they must use explicit prefix (e.g.
@@ -3909,6 +3941,16 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
     }
     ReturnType = toka::Type::fromString(Fn->ReturnType);
     IsVariadic = Fn->IsVariadic;
+
+    // [Effect] Concurrency Check for Function Call
+    if (Fn->Effect == EffectKind::Wait) {
+      if (CurrentFunction && CurrentFunction->Effect == EffectKind::Async) {
+        error(Call, DiagID::ERR_CODEGEN, "Cannot call blocking function '" + Fn->Name + "' directly inside an 'async' function.");
+      }
+      if (CurrentFunction && CurrentFunction->Effect == EffectKind::None) {
+        CurrentFunction->Effect = EffectKind::Wait;
+      }
+    }
   } else if (Ext) {
     Call->ResolvedExtern = Ext;
     for (auto &arg : Ext->Args) {
@@ -3917,6 +3959,16 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
     }
     ReturnType = toka::Type::fromString(Ext->ReturnType);
     IsVariadic = Ext->IsVariadic;
+
+    // [Effect] Concurrency Check for Extern Call
+    if (Ext->Effect == EffectKind::Wait) {
+      if (CurrentFunction && CurrentFunction->Effect == EffectKind::Async) {
+        error(Call, DiagID::ERR_CODEGEN, "Cannot call blocking extern function '" + Ext->Name + "' directly inside an 'async' function.");
+      }
+      if (CurrentFunction && CurrentFunction->Effect == EffectKind::None) {
+        CurrentFunction->Effect = EffectKind::Wait;
+      }
+    }
   } else if (Sh) {
     if (!checkVisibility(Call, Sh)) {
       return toka::Type::fromString("unknown");

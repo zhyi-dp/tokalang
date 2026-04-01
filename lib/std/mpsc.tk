@@ -101,7 +101,7 @@ impl<T: @Send> Sender<T> {
                 if q.closed {
                     return Result<(), Error>::Err(Error::new(1:i32, "Send on closed channel"))
                 }
-                self.channel.cond_not_full.wait(lguard)
+                self.channel.cond_not_full.wait_cond(lguard)
             }
         }
         
@@ -131,7 +131,7 @@ impl<T: @Send> Receiver<T> {
             if q.closed && q.queue.len() == 0 {
                 return Result<Option<T>, Error>::Ok(Option<T>::None())
             }
-            self.channel.cond_not_empty.wait(lguard)
+            self.channel.cond_not_empty.wait_cond(lguard)
         }
         
         auto item = q.queue#.pop()

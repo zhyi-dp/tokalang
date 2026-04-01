@@ -8,7 +8,7 @@ import core/types::{Addr, ADDR0, char, usize}
 pub shape Child(pid: i32)
 
 impl Child {
-    pub fn wait(self#) -> i32 {
+    pub fn wait_exit(self#) -> i32 {
         unsafe {
             // Allocate 4 bytes for status
             // Pass null for status to ignore it for now
@@ -79,6 +79,6 @@ impl Command {
         if child.pid == -1 {
             return -1
         }
-        return child#.wait()
+        return child#.wait_exit()
     }
 }

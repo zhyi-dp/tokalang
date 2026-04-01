@@ -314,6 +314,36 @@ public:
   }
 };
 
+class AwaitExpr : public Expr {
+public:
+  std::unique_ptr<Expr> Expression;
+  AwaitExpr(std::unique_ptr<Expr> expr) : Expression(std::move(expr)) {}
+  std::string toString() const override {
+    return "Await(" + Expression->toString() + ")";
+  }
+  std::unique_ptr<ASTNode> clone() const override {
+    auto n = std::make_unique<AwaitExpr>(cloneNode(Expression));
+    n->Loc = Loc;
+    n->ResolvedType = ResolvedType;
+    return n;
+  }
+};
+
+class WaitExpr : public Expr {
+public:
+  std::unique_ptr<Expr> Expression;
+  WaitExpr(std::unique_ptr<Expr> expr) : Expression(std::move(expr)) {}
+  std::string toString() const override {
+    return "Wait(" + Expression->toString() + ")";
+  }
+  std::unique_ptr<ASTNode> clone() const override {
+    auto n = std::make_unique<WaitExpr>(cloneNode(Expression));
+    n->Loc = Loc;
+    n->ResolvedType = ResolvedType;
+    return n;
+  }
+};
+
 class CastExpr : public Expr {
 public:
   std::unique_ptr<Expr> Expression;
@@ -1336,6 +1366,8 @@ public:
   }
 };
 
+enum class EffectKind { None, Async, Wait };
+
 class FunctionDecl : public ASTNode {
 public:
   struct Arg {
@@ -1381,6 +1413,7 @@ public:
   std::string Name;
   std::vector<Arg> Args;
   std::string ReturnType;
+  EffectKind Effect = EffectKind::None;
   std::shared_ptr<toka::Type> ResolvedReturnType;
   std::vector<std::string> LifeDependencies; // [NEW] e.g., <- x|y
   std::unique_ptr<BlockStmt> Body;
@@ -1391,9 +1424,10 @@ public:
   FunctionDecl(bool isPub, const std::string &name, std::vector<Arg> args,
                std::unique_ptr<BlockStmt> body, const std::string &retType,
                std::vector<GenericParam> generics = {},
-               std::vector<std::string> lifeDeps = {})
+               std::vector<std::string> lifeDeps = {},
+               EffectKind effect = EffectKind::None)
       : IsPub(isPub), Name(name), Args(std::move(args)), ReturnType(retType),
-        Body(std::move(body)), GenericParams(std::move(generics)),
+        Effect(effect), Body(std::move(body)), GenericParams(std::move(generics)),
         LifeDependencies(std::move(lifeDeps)) {}
   std::string toString() const override {
     return std::string(IsPub ? "Pub" : "") + "Fn(" + Name + ")";
@@ -1416,7 +1450,7 @@ public:
 
     auto n = std::make_unique<FunctionDecl>(IsPub, Name, std::move(clonedArgs),
                                             std::move(clonedBody), ReturnType,
-                                            GenericParams, LifeDependencies);
+                                            GenericParams, LifeDependencies, Effect);
     n->IsVariadic = IsVariadic;
     n->Loc = Loc;
     n->ResolvedReturnType = ResolvedReturnType;
@@ -1522,11 +1556,12 @@ public:
   std::string Name;
   std::vector<Arg> Args;
   std::string ReturnType;
+  EffectKind Effect = EffectKind::None;
   bool IsVariadic = false;
 
   ExternDecl(const std::string &name, std::vector<Arg> args,
-             std::string retType)
-      : Name(name), Args(std::move(args)), ReturnType(retType) {}
+             std::string retType, EffectKind effect = EffectKind::None)
+      : Name(name), Args(std::move(args)), ReturnType(retType), Effect(effect) {}
   std::string toString() const override { return "Extern(" + Name + ")"; }
   std::unique_ptr<ASTNode> clone() const override {
     std::vector<Arg> clonedArgs;
@@ -1534,7 +1569,7 @@ public:
       clonedArgs.push_back(arg.clone());
     }
     auto n =
-        std::make_unique<ExternDecl>(Name, std::move(clonedArgs), ReturnType);
+        std::make_unique<ExternDecl>(Name, std::move(clonedArgs), ReturnType, Effect);
     n->IsVariadic = IsVariadic;
     n->Loc = Loc;
     return n;

@@ -1,0 +1,19 @@
+fn read_config() -> wait str {
+    return "config"
+}
+
+fn fetch() -> async str {
+    // Should trigger an error.
+    read_config()
+    return "hello"
+}
+
+fn fetch2() -> async str {
+    // Should trigger an error
+    "hello".wait
+    return "hello"
+}
+
+fn main() -> i32 {
+    return 0
+}

@@ -1,0 +1,20 @@
+fn fetch() -> async str {
+    "hello".await
+    return "hello"
+}
+
+fn read_config() -> wait str {
+    "config".wait
+    return "config"
+}
+
+// pure caller gets infected becoming wait implicitly
+fn pure_caller() {
+    read_config()
+}
+
+fn main() -> i32 {
+    fetch()
+    pure_caller()
+    return 0
+}

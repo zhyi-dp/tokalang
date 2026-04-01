@@ -469,8 +469,14 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
 
   // Return Type
   std::string retType = "void"; // default
+  EffectKind effect = EffectKind::None;
   if (match(TokenType::Arrow)) {
-    retType = parseTypeString();
+    if (match(TokenType::KwAsync)) effect = EffectKind::Async;
+    else if (match(TokenType::KwWait)) effect = EffectKind::Wait;
+
+    if (!check(TokenType::Dependency) && !check(TokenType::LBrace)) {
+      retType = parseTypeString();
+    }
   }
   std::vector<std::string> lifeDeps;
 
@@ -533,7 +539,7 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
   }
   auto decl = std::make_unique<FunctionDecl>(
       isPub, name.Text, std::move(args), std::move(body), retType,
-      genericParams, std::move(lifeDeps));
+      genericParams, std::move(lifeDeps), effect);
   decl->IsVariadic = isVariadic;
   decl->setLocation(name, m_CurrentFile);
   return decl;
@@ -581,12 +587,18 @@ std::unique_ptr<ExternDecl> Parser::parseExternDecl() {
   consume(TokenType::RParen, "Expected ')'");
 
   std::string retType = "void";
+  EffectKind effect = EffectKind::None;
   if (match(TokenType::Arrow)) {
-    retType = parseTypeString();
+    if (match(TokenType::KwAsync)) effect = EffectKind::Async;
+    else if (match(TokenType::KwWait)) effect = EffectKind::Wait;
+
+    if (!check(TokenType::Semicolon)) {
+      retType = parseTypeString();
+    }
   }
   expectEndOfStatement();
 
-  auto node = std::make_unique<ExternDecl>(name.Text, std::move(args), retType);
+  auto node = std::make_unique<ExternDecl>(name.Text, std::move(args), retType, effect);
   node->setLocation(name, m_CurrentFile);
   node->IsVariadic = isVariadic;
   return node;

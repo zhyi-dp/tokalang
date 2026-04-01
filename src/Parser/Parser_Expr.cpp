@@ -860,6 +860,16 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
             expr = std::move(node);
           }
         }
+      } else if (match(TokenType::KwAwait)) {
+        Token opTok = previous();
+        auto node = std::make_unique<AwaitExpr>(std::move(expr));
+        node->setLocation(opTok, m_CurrentFile);
+        expr = std::move(node);
+      } else if (match(TokenType::KwWait)) {
+        Token opTok = previous();
+        auto node = std::make_unique<WaitExpr>(std::move(expr));
+        node->setLocation(opTok, m_CurrentFile);
+        expr = std::move(node);
       } else if (prefix.empty() && match(TokenType::Integer)) {
         auto node =
             std::make_unique<MemberExpr>(std::move(expr), previous().Text);
