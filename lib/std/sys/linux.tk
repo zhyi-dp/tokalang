@@ -296,15 +296,9 @@ fn fill_sockaddr_in(*addr_buf: char, ip: usize, port: i32) -> bool {
         auto *p_port# = (*base_ptr as usize + 2) as *u16
         p_port = nport
         
-        // Offset 4: addr (u32, via inet_pton)
-        auto *p_addr = (*base_ptr as usize + 4) as *void
-        // Pass HANDLE (*p_addr) to external function
-        auto *ip_ptr# = ip as *char
-        auto res = libc_inet_pton(2, *ip_ptr, *p_addr)
-        
-        if res != 1 {
-             return false
-        }
+        // Offset 4: addr (u32)
+        auto *p_addr# = (*base_ptr as usize + 4) as *u32
+        p_addr = ip as u32
         
         // Offset 8..16: Zero
         auto i# = 8:usize
