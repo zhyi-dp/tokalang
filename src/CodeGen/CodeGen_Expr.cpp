@@ -2607,6 +2607,63 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
       return PhysEntity(llvm::ConstantInt::get(m_Builder.getInt32Ty(), 0), "i32", m_Builder.getInt32Ty(), false);
   }
 
+  if (call->Callee == "__builtin_async_sleep") {
+      if (!m_CurrentCoroHandle) {
+          error(call, "async_sleep can only be used inside an async function");
+          return {};
+      }
+      if (call->Args.empty()) {
+          error(call, "async_sleep requires ms context");
+          return {};
+      }
+      PhysEntity msEnt = genExpr(call->Args[0].get());
+      llvm::Value *msVal = msEnt.load(m_Builder);
+
+      llvm::Function *regFn = m_Module->getFunction("__toka_register_timer");
+      if (!regFn) {
+          llvm::FunctionType *ft = llvm::FunctionType::get(
+              m_Builder.getVoidTy(), {m_Builder.getPtrTy(), m_Builder.getInt32Ty()}, false);
+          regFn = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, "__toka_register_timer", m_Module.get());
+      }
+      
+      if (msVal->getType() != m_Builder.getInt32Ty()) {
+          msVal = m_Builder.CreateIntCast(msVal, m_Builder.getInt32Ty(), true);
+      }
+      m_Builder.CreateCall(regFn, {m_CurrentCoroHandle, msVal});
+
+      llvm::Function *saveFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_save);
+      llvm::Value *saveToken = m_Builder.CreateCall(saveFn, {m_CurrentCoroHandle});
+      
+      llvm::Function *suspendFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_suspend);
+      llvm::Value *suspendRes = m_Builder.CreateCall(suspendFn, {saveToken, m_Builder.getInt1(false)});
+      
+      llvm::BasicBlock *suspendBB = llvm::BasicBlock::Create(m_Context, "sleep.suspend", m_Builder.GetInsertBlock()->getParent());
+      llvm::BasicBlock *resumeBB = llvm::BasicBlock::Create(m_Context, "sleep.resume", m_Builder.GetInsertBlock()->getParent());
+      llvm::BasicBlock *cleanupBB = llvm::BasicBlock::Create(m_Context, "sleep.cleanup", m_Builder.GetInsertBlock()->getParent());
+      
+      llvm::SwitchInst *sw = m_Builder.CreateSwitch(suspendRes, suspendBB, 2);
+      sw->addCase(m_Builder.getInt8(0), resumeBB);
+      sw->addCase(m_Builder.getInt8(1), cleanupBB);
+      
+      m_Builder.SetInsertPoint(suspendBB);
+      m_Builder.CreateRet(m_CurrentCoroHandle);
+      
+      m_Builder.SetInsertPoint(cleanupBB);
+      llvm::Function *freeIdFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_free);
+      llvm::Value *memToFree = m_Builder.CreateCall(freeIdFn, {m_CurrentCoroId, m_CurrentCoroHandle});
+      llvm::Function *freeFn = m_Module->getFunction("free");
+      if (!freeFn) {
+        std::vector<llvm::Type*> freeArgs = {m_Builder.getPtrTy()};
+        llvm::FunctionType *freeFt = llvm::FunctionType::get(m_Builder.getVoidTy(), freeArgs, false);
+        freeFn = llvm::Function::Create(freeFt, llvm::Function::ExternalLinkage, "free", m_Module.get());
+      }
+      m_Builder.CreateCall(freeFn, memToFree);
+      m_Builder.CreateUnreachable();
+      
+      m_Builder.SetInsertPoint(resumeBB);
+      return PhysEntity(llvm::ConstantInt::get(m_Builder.getInt32Ty(), 0), "i32", m_Builder.getInt32Ty(), false);
+  }
+
   // Primitives as constructors: i32(42)
   if (call->Callee == "i32" || call->Callee == "u32" || call->Callee == "i64" ||
       call->Callee == "u64" || call->Callee == "f32" || call->Callee == "f64" ||
@@ -4565,14 +4622,14 @@ PhysEntity CodeGen::genAwaitExpr(const AwaitExpr *awaitExpr) {
     
     llvm::BasicBlock *resumeContBB = llvm::BasicBlock::Create(m_Context, "await.resume", m_Builder.GetInsertBlock()->getParent());
     llvm::BasicBlock *cleanupContBB = llvm::BasicBlock::Create(m_Context, "await.cleanup.await", m_Builder.GetInsertBlock()->getParent());
-    llvm::BasicBlock *trapContBB = llvm::BasicBlock::Create(m_Context, "await.trap", m_Builder.GetInsertBlock()->getParent());
+    llvm::BasicBlock *suspendRetBB = llvm::BasicBlock::Create(m_Context, "await.suspend.ret", m_Builder.GetInsertBlock()->getParent());
     
-    llvm::SwitchInst *sw = m_Builder.CreateSwitch(suspendRes, trapContBB, 2);
+    llvm::SwitchInst *sw = m_Builder.CreateSwitch(suspendRes, suspendRetBB, 2);
     sw->addCase(m_Builder.getInt8(0), resumeContBB);
     sw->addCase(m_Builder.getInt8(1), cleanupContBB);
     
-    m_Builder.SetInsertPoint(trapContBB);
-    m_Builder.CreateUnreachable();
+    m_Builder.SetInsertPoint(suspendRetBB);
+    m_Builder.CreateRet(m_CurrentCoroHandle);
     
     m_Builder.SetInsertPoint(cleanupContBB);
     llvm::Function *freeIdFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_free);

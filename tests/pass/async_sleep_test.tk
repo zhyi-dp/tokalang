@@ -1,0 +1,37 @@
+import std/io::{println}
+import std/task::{sleep_async}
+import core/libc::{libc_exit}
+
+fn worker_a() -> async i32 {
+    println("[Worker A] 准备沉睡 50ms。等待中...")
+    sleep_async(50).await
+    println("[Worker A] 从 50ms 沉睡中苏醒并完成任务！")
+    return 0
+}
+
+fn worker_b() -> async i32 {
+    println("[Worker B] 准备沉睡 10ms。等待中...")
+    sleep_async(10).await
+    println("[Worker B] (短睡插队) 从 10ms 沉睡中苏醒！我先跑完了！")
+    return 0
+}
+
+fn entry_point() -> async i32 {
+    println("[Main] 初始化测试并启动工作流")
+    
+    // 入队 A 和 B，它们均会运行到初始挂起点 `sleep_async` 后将执行权完全交还调度器！
+    spawn(worker_a())
+    spawn(worker_b())
+    
+    // 主协程也可以跟着挂起一下，或者正常结束
+    println("[Main] A 和 B 已释放，我主动休眠 300ms 等待队列完结。")
+    sleep_async(300).await
+    
+    println("[Main] 测试结束！通过物理毫秒时钟完美触发乱序交叉！")
+    return 0
+}
+
+pub fn main() -> i32 {
+    spawn_blocking(entry_point())
+    return 0
+}

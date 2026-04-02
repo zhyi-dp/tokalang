@@ -4,16 +4,39 @@
 // This file provides the runtime task scheduler and synchronization context.
 
 import std/vec::{Vec}
-import core/libc::{libc_usleep, libc_pthread_mutex_lock, libc_pthread_mutex_unlock, libc_pthread_mutex_init, libc_malloc}
+import core/libc::{libc_usleep, libc_pthread_mutex_lock, libc_pthread_mutex_unlock, libc_pthread_mutex_init, libc_malloc, libc_gettimeofday}
 import core/task::{JoinHandle, __toka_coro_resume, __toka_coro_done, __toka_coro_destroy}
 import core/types::{Addr}
 
+shape timeval (
+    tv_sec: i64,
+    tv_usec: i64
+)
+
+pub fn current_time_ms() -> i64 {
+    unsafe {
+        // 使用单元素堆分配获取合法的底层指针以传递给 C 接口
+        auto *tv_ptr# = unsafe alloc [1]timeval
+        libc_gettimeofday(*tv_ptr as *void, nullptr)
+        auto sec = tv_ptr[0].tv_sec
+        auto usec = tv_ptr[0].tv_usec
+        unsafe free [1] *#tv_ptr
+        return (sec * 1000:i64) + (usec / 1000:i64)
+    }
+}
+
 pub shape TaskPtr(addr: Addr)
+
+shape TimerEntry(
+    addr: Addr, // coro handle
+    expire_at: i64
+)
 
 // ==========================================
 // 全局就绪任务队列 (基于底层内联 pthread_mutex + Vec)
 // ==========================================
 auto g_task_queue# = Vec<TaskPtr>(*buf=nullptr, len=0:usize, cap=0:usize)
+auto g_timer_queue# = Vec<TimerEntry>(*buf=nullptr, len=0:usize, cap=0:usize)
 auto g_mutex_ptr#: Addr = 0:Addr
 auto g_mutex_init#: bool = false
 
@@ -35,8 +58,17 @@ fn unlock_queue() {
 // 这是编译器展开 spawn(expr) 时链接到的底层调动点
 pub fn __toka_spawn(*task: void) {
     if *task != nullptr {
+        // tokac 具有 suspend_never 初始执行特性，意味着它会同步运行到第一个 await
+        // 在这里，task 如果存活，那么它必然已被挂载在某处（比如 Timer Queue 或者其他 Promise 的 awaiter）
+        // 强行推入 g_task_queue 会导致意外的立刻双重恢复引发崩溃
+    }
+}
+
+pub fn __toka_register_timer(*task: void, ms: i32) {
+    if *task != nullptr {
+        auto expire_time = current_time_ms() + (ms as i64)
         lock_queue()
-        g_task_queue#.push(TaskPtr(addr=*task as Addr))
+        g_timer_queue#.push(TimerEntry(addr=*task as Addr, expire_at=expire_time))
         unlock_queue()
     }
 }
@@ -46,19 +78,50 @@ pub fn __toka_spawn_blocking(*task: void) {
     if *task == nullptr { return }
     __toka_spawn(*task)
     
-    // 开始阻塞自旋直到 task 进入 done 状态
+    // 开始阻塞自旋直到 task 进入 done 状态，并且挂起队列全部排空
     while true {
-        if __toka_coro_done(*task) {
+        lock_queue()
+        auto task_q_len = g_task_queue.len()
+        auto timer_q_len = g_timer_queue.len()
+        unlock_queue()
+
+        if __toka_coro_done(*task) && task_q_len == 0:usize && timer_q_len == 0:usize {
             break
         }
         
         lock_queue()
+        auto now = current_time_ms()
+        auto keep_len# = 0:usize
+        auto j# = 0:usize
+        auto initial_timer_len = g_timer_queue.len()
+        
+        // Timer Queue 检查并释放到期的挂起协程到 Task Queue
+        while j < initial_timer_len {
+            auto t = g_timer_queue.get(j)
+            if now >= t.expire_at {
+                // println("[Loop] Time reached for timer handle, pushing to task queue!")
+                g_task_queue#.push(TaskPtr(addr=t.addr))
+            } else {
+                g_timer_queue#.set(keep_len, t)
+                keep_len += 1
+            }
+            j += 1
+        }
+        
+        // 出队所有已被移动或者失效的后续元素，以截断数组长度
+        while g_timer_queue.len() > keep_len {
+            g_timer_queue#.pop()
+        }
+        
+        // 尝试从就绪队列消费协程
         if g_task_queue.len() > 0:usize {
             auto popped = g_task_queue#.pop()
             unlock_queue()
             
             auto addr = popped.unwrap().addr
+            // println("[Loop] Resuming task from queue!")
             __toka_coro_resume(addr as *void)
+            // println("[Loop] Task yielded back!")
             continue
         }
         unlock_queue()
@@ -66,6 +129,18 @@ pub fn __toka_spawn_blocking(*task: void) {
         // 没有任务就歇息，避免 100% 耗尽 CPU
         libc_usleep(1000)
     }
+}
+
+// === Thread & Time Utilities ===
+extern fn __builtin_async_sleep(ms: i32) -> i32
+
+pub fn sleep_async(ms: i32) -> async i32 {
+    __builtin_async_sleep(ms)
+    return 0
+}
+
+pub fn sleep(ms: i32) {
+    libc_usleep(ms * 1000)
 }
 
 // 事件主循环，阻塞直到指定的主协程进入 done 状态
