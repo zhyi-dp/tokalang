@@ -40,7 +40,8 @@ void parseSource(const std::string &filename,
                  std::vector<std::unique_ptr<toka::Module>> &astModules,
                  std::set<std::string> &visited,
                  std::vector<std::string> &recursionStack,
-                 toka::SourceManager &sm) {
+                 toka::SourceManager &sm,
+                 const std::vector<std::string> &searchPaths) {
   // Check recursion stack for circular dependency
   for (const auto &f : recursionStack) {
     if (f == filename) {
@@ -72,10 +73,20 @@ void parseSource(const std::string &filename,
     resolvedPath = filename + ".tk";
     found = true;
   }
-  // 3. Try lib/ paths
+  // 3. Try user-provided search paths and default lib/ paths
   else {
-    std::string paths[] = {"lib/", "../lib/"};
-    for (const auto &p : paths) {
+    std::vector<std::string> pathsToTry;
+    for (const auto &p : searchPaths) {
+      if (!p.empty() && p.back() != '/') {
+        pathsToTry.push_back(p + "/");
+      } else {
+        pathsToTry.push_back(p);
+      }
+    }
+    pathsToTry.push_back("lib/");
+    pathsToTry.push_back("../lib/");
+
+    for (const auto &p : pathsToTry) {
       std::string libPath = p + filename;
       if (std::ifstream(libPath).good()) {
         resolvedPath = libPath;
@@ -122,7 +133,7 @@ void parseSource(const std::string &filename,
       // TODO: Handle logic import symbol filtering if we add per-module symbol
       // tables. For now, we just parse the file to register its globals.
     }
-    parseSource(imp->PhysicalPath, astModules, visited, recursionStack, sm);
+    parseSource(imp->PhysicalPath, astModules, visited, recursionStack, sm, searchPaths);
   }
 
   astModules.push_back(std::move(module));
@@ -131,16 +142,43 @@ void parseSource(const std::string &filename,
 }
 
 int main(int argc, char **argv) {
-  if (argc < 2) {
-    llvm::errs() << "Usage: tokac <filename>\n";
-    llvm::errs() << "       tokac --version\n";
-    return 1;
+  std::vector<std::string> searchPaths;
+  if (const char* env_p = std::getenv("TOKA_LIB_PATH")) {
+    std::string envStr(env_p);
+    std::stringstream ss(envStr);
+    std::string item;
+    while (std::getline(ss, item, ':')) {
+        if (!item.empty()) {
+            searchPaths.push_back(item);
+        }
+    }
   }
 
-  std::string arg1 = argv[1];
-  if (arg1 == "--version" || arg1 == "-v") {
-    llvm::outs() << TOKA_FULL_VERSION_STRING << "\n";
-    return 0;
+  std::vector<std::string> inputFiles;
+  for (int i = 1; i < argc; ++i) {
+    std::string arg = argv[i];
+    if (arg == "-I") {
+      if (i + 1 < argc) {
+        searchPaths.push_back(argv[++i]);
+      } else {
+        llvm::errs() << "-I requires an argument\n";
+        return 1;
+      }
+    } else if (arg.rfind("-I", 0) == 0 && arg.length() > 2) {
+      searchPaths.push_back(arg.substr(2));
+    } else if (arg == "--version" || arg == "-v") {
+      llvm::outs() << "toka version 0.8.0\n";
+      return 0;
+    } else if (arg.rfind("-", 0) == 0) {
+      // Ignore other flags for now or report error
+    } else {
+      inputFiles.push_back(arg);
+    }
+  }
+
+  if (inputFiles.empty()) {
+    llvm::errs() << "Usage: tokac [options] <filename>\n";
+    return 1;
   }
 
   toka::SourceManager sm;
@@ -150,8 +188,8 @@ int main(int argc, char **argv) {
   std::set<std::string> visited;
 
   std::vector<std::string> recursionStack;
-  for (int i = 1; i < argc; ++i) {
-    parseSource(argv[i], astModules, visited, recursionStack, sm);
+  for (const auto &file : inputFiles) {
+    parseSource(file, astModules, visited, recursionStack, sm, searchPaths);
   }
 
   if (astModules.empty())

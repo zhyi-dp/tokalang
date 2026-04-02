@@ -65,12 +65,24 @@ fn main() {
 
 ## Environment Variables
 
-The `toka` tool respects the following environment variables if you need to override default behaviors:
+The `toka` tool and `tokac` compiler respect the following environment variables if you need to override default behaviors:
 
-- `TOKA_CLANG`: Path to the `clang` compiler to use for linking (defaults to `/usr/local/opt/llvm@20/bin/clang` or system `clang`).
-- `TOKA_LIB_PATH`: Path to the Toka standard library (if not in default locations).
+- `TOKA_LIB_PATH`: **CRITICAL**. Path to the Toka standard library (the `lib/` directory). Required for compiling projects from subdirectories. You can provide multiple paths separated by `:`.
+- `TOKA_CLANG`: Path to the `clang` compiler to use for linking. **Ensure this matches the LLVM version of your `tokac`** (currently LLVM 20).
+- `PATH`: Ensure `/Users/zhyi/GitDP/toka/build/src` and `/Users/zhyi/GitDP/toka/build` are in your `PATH` so `toka` and `tokac` can be found globally.
+
+## Recommended Shell Configuration (.zshrc)
+
+For the best experience, add the following to your `~/.zshrc`:
+
+```bash
+export PATH="$PATH:/Users/zhyi/GitDP/toka/build/src:/Users/zhyi/GitDP/toka/build"
+export TOKA_LIB_PATH="/Users/zhyi/GitDP/toka/lib"
+export TOKA_CLANG="/usr/local/opt/llvm@20/bin/clang"
+```
 
 ## Troubleshooting
 
-- **"Module 'build' not found"**: Ensure your `lib/` directory is accessible. `tokac` looks for the standard library in `./lib` and `../lib`.
-- **Linking errors**: Ensure `clang` is installed and the macOS SDK path is correct (checked via `xcrun --show-sdk-path`).
+- **"Module 'build' not found"**: Ensure `TOKA_LIB_PATH` is set correctly to the absolute path of the `lib/` directory.
+- **LLVM IR Syntax Error (e.g. `nuw` or `expected type`)**: Your `clang` version is too old for the LLVM IR emitted by `tokac`. Set `TOKA_CLANG` to a version that matches the `tokac` LLVM backend (LLVM 17-20).
+- **"tokac: command not found"**: Ensure the directory containing the `tokac` binary is in your `PATH`.
