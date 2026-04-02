@@ -1,0 +1,48 @@
+import std/task
+import std/io::{File, remove_file}
+import std/string::{String}
+
+fn async_write(file_name: String) -> async bool {
+    auto res# = false
+    auto f = File::open(file_name, String::from("w"))
+    if !f.is_err() {
+        auto file# = f.unwrap()
+        file#.write(String::from("Hello Async IO"))
+        file#.close()
+        res = true
+    }
+    return res
+}
+
+fn async_read(file_name: String) -> async String {
+    auto res# = String::from("")
+    auto f = File::open(file_name, String::from("r"))
+    if !f.is_err() {
+        auto file# = f.unwrap()
+        auto content = file#.read_to_string()
+        file#.close()
+        if !content.is_err() {
+            res = content.unwrap()
+        }
+    }
+    return res
+}
+
+fn handle_io() -> async i32 {
+    auto path = String::from("test_async_io_file.txt")
+    auto success = async_write(path.clone()).await
+    if success {
+        auto content = async_read(path.clone()).await
+        remove_file(path)
+    }
+    return 0
+}
+
+fn run() {
+    spawn_blocking(handle_io())
+}
+
+pub fn main() -> i32 {
+    run()
+    return 0
+}
