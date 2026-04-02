@@ -400,3 +400,81 @@ pub fn net_write_impl(fd: i32, *buf: u8, len: usize) -> i64 {
         return libc_write(fd, *buf, len as i64)
     }
 }
+
+extern fn epoll_create1(flags: i32) -> i32
+extern fn epoll_ctl(epfd: i32, op: i32, fd: i32, *event: void) -> i32
+extern fn epoll_wait(epfd: i32, *events: void, maxevents: i32, timeout: i32) -> i32
+extern fn fcntl(fd: i32, cmd: i32, arg: i32) -> i32
+
+pub fn get_eagain_impl() -> i32 {
+    return 11
+}
+
+pub fn net_set_nonblocking_impl(fd: i32) -> bool {
+    unsafe {
+        auto flags = fcntl(fd, 3, 0)
+        if flags < 0 {
+            return false
+        }
+        return fcntl(fd, 4, flags bor 2048) == 0
+    }
+}
+
+pub fn reactor_create_impl() -> i32 {
+    unsafe {
+        return epoll_create1(0)
+    }
+}
+
+pub fn reactor_add_read_impl(reactor_fd: i32, fd: i32, coro_handle: Addr) -> bool {
+    unsafe {
+        auto *ev# = libc_malloc(12) as *char
+        if *ev as usize == 0 {
+             return false
+        }
+        
+        auto base = *ev as usize
+        
+        // events = EPOLLIN (1) | EPOLLONESHOT (1073741824) = 1073741825:u32
+        auto *p_events# = base as *u32
+        p_events = 1073741825:u32
+        
+        // data.ptr = coro_handle
+        auto *p_data# = (base + 4:usize) as *Addr
+        p_data = coro_handle  
+        
+        // 1 = EPOLL_CTL_ADD, 3 = EPOLL_CTL_MOD
+        auto res = epoll_ctl(reactor_fd, 1, fd, *ev as *void)
+        if res != 0 {
+             res = epoll_ctl(reactor_fd, 3, fd, *ev as *void)
+        }
+        
+        libc_free(*ev as *void)
+        return res == 0
+    }
+}
+
+pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, max: i32) -> i32 {
+    unsafe {
+        auto *events# = libc_malloc((12 * max) as usize) as *void
+        if *events as usize == 0 {
+            return -1
+        }
+        
+        auto n = epoll_wait(reactor_fd, *events, max, timeout_ms)
+        
+        // copy data.ptr to out_events
+        auto i# = 0
+        while i < n {
+            auto ev_base = *events as usize + ((12 * i) as usize)
+            auto *p_data = (ev_base + 4:usize) as *Addr
+            auto h = p_data // value
+            auto *dest# = (*out_events as usize + ((8 * i) as usize)) as *Addr
+            dest = h
+            i += 1
+        }
+        
+        libc_free(*events)
+        return n
+    }
+}

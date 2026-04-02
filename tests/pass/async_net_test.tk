@@ -1,0 +1,49 @@
+import std/net::{TcpListener, SocketAddrV4, Ipv4Addr, TcpStream, net_async_accept, net_async_read}
+import std/task::{sleep_async, block_on}
+import std/string::{String}
+
+pub fn async_server() -> async i32 {
+    auto addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8081)
+    auto listener_res = TcpListener::bind(addr)
+    auto listener# = listener_res.unwrap()
+    auto stream_res = net_async_accept(listener#).await
+    auto stream# = stream_res.unwrap()
+    
+    // Read using async_read
+    unsafe {
+        auto *buf# = unsafe alloc [128]u8
+        auto r_res = net_async_read(stream#, *buf as *u8, 128:usize).await
+        auto n = r_res.unwrap()
+        
+        // Echo back
+        stream#.write(*buf as *u8, n)
+        unsafe free [128] *#buf
+    }
+
+    stream#.close()
+    return 0
+}
+
+pub fn async_client() -> async i32 {
+    sleep_async(50).await
+    auto addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8081)
+    auto stream_res = TcpStream::connect(addr)
+    auto stream# = stream_res.unwrap()
+    stream#.write_string(String::from("Hello Async"))
+    
+    unsafe {
+        auto *buf# = unsafe alloc [128]u8
+        auto r_res = net_async_read(stream#, *buf as *u8, 128:usize).await
+        auto n = r_res.unwrap()
+        unsafe free [128] *#buf
+    }
+    
+    stream#.close()
+    return 0
+}
+
+pub fn main() {
+    async_client().start
+    auto server = async_server().start
+    block_on<i32>(server)
+}

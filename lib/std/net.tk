@@ -7,6 +7,10 @@ import core/result::{Result}
 import core/option::{Option}
 import std/sys/os as sys 
 import std/io 
+import std/task::{get_reactor_fd}
+
+extern fn __builtin_coro_current_handle() -> *void
+extern fn __builtin_coro_suspend()
 
 // Error type for network operations
 alias NetResult<T> = Result<T, String>
@@ -113,6 +117,7 @@ impl TcpStream {
         }
     }
     
+
     // Helper to write string
     pub fn write_string(self#, s: String) -> Result<usize, String> {
         auto *ptr = s.c_str() as *u8
@@ -202,4 +207,71 @@ impl TcpListener {
     pub fn is_valid(self) -> bool {
         return self.fd >= 0
     }
+}
+
+// ==== Top Level Async Helpers ====
+pub fn net_async_read(stream#: TcpStream, *buf: u8, len: usize) -> async Result<usize, String> {
+    auto ret# = Result<usize, String>::Err(String::from("Unreachable"))
+    unsafe {
+        if stream.closed {
+            ret = Result<usize, String>::Err(String::from("Stream closed"))
+        } else {
+            sys::net_set_nonblocking_impl(stream.fd)
+            
+            auto done# = false
+            while !done {
+                auto n: i64 = sys::net_read_impl(stream.fd, *buf, len)
+                if n >= 0:i64 {
+                    ret = Result<usize, String>::Ok(n as usize)
+                    done = true
+                } else {
+                    auto err = sys::get_last_error()
+                    auto eagain = sys::get_eagain_impl()
+                    
+                    if err == eagain {
+                        auto coro = __builtin_coro_current_handle() as Addr
+                        sys::reactor_add_read_impl(get_reactor_fd(), stream.fd, coro)
+                        __builtin_coro_suspend()
+                    } else {
+                        ret = Result<usize, String>::Err(String::from("Read error"))
+                        done = true
+                    }
+                }
+            }
+        }
+    }
+    return ret
+}
+
+pub fn net_async_accept(listener#: TcpListener) -> async Result<TcpStream, String> {
+    auto ret# = Result<TcpStream, String>::Err(String::from("Unreachable"))
+    unsafe {
+        if listener.closed {
+             ret = Result<TcpStream, String>::Err(String::from("Listener closed"))
+        } else {
+            sys::net_set_nonblocking_impl(listener.fd)
+            
+            auto done# = false
+            while !done {
+                auto client_fd = sys::net_accept_impl(listener.fd)
+                if client_fd >= 0 {
+                    ret = Result<TcpStream, String>::Ok(TcpStream(fd=client_fd, closed=false))
+                    done = true
+                } else {
+                    auto err = sys::get_last_error()
+                    auto eagain = sys::get_eagain_impl()
+                    
+                    if err == eagain {
+                        auto coro = __builtin_coro_current_handle() as Addr
+                        sys::reactor_add_read_impl(get_reactor_fd(), listener.fd, coro)
+                        __builtin_coro_suspend()
+                    } else {
+                        ret = Result<TcpStream, String>::Err(String::from("Accept failed"))
+                        done = true
+                    }
+                }
+            }
+        }
+    }
+    return ret
 }
