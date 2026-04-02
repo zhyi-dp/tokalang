@@ -1,0 +1,10 @@
+import build::{Executable, run_build}
+
+fn main() {
+    auto app = Executable(
+        name = "app",
+        version = "0.1.0",
+        src = "src/main.tk"
+    )
+    run_build(app)
+}

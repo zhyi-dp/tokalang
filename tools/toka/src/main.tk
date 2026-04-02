@@ -1,0 +1,106 @@
+import std/string::{String}
+import std/env
+import core/libc::{libc_system, libc_printf}
+
+fn print_help() {
+    unsafe {
+        libc_printf("Toka %s\n" as *char, "0.8.0")
+        libc_printf("\nUsage: toka <command>\n\nCommands:\n" as *char)
+        libc_printf("  new <name>   Create a new project\n" as *char)
+        libc_printf("  build        Compile current project\n" as *char)
+        libc_printf("  run          Compile and execute\n" as *char)
+    }
+}
+
+fn cmd_new(name: String) -> i32 {
+    unsafe {
+        auto cmd# = String::from("mkdir -p ")
+        cmd#.push_str(name.c_str())
+        cmd#.push_str("/src")
+        libc_system(cmd.c_str())
+        
+        // Write src/main.tk
+        auto tk_file# = String::from("echo 'import core/libc::{libc_printf}\n\nfn main() {\n    unsafe { libc_printf(\"Hello, Toka!\\\\n\" as *char) }\n}' > ")
+        tk_file#.push_str(name.c_str())
+        tk_file#.push_str("/src/main.tk")
+        libc_system(tk_file.c_str())
+        
+        // Write Project.tk
+        auto proj_file# = String::from("echo 'import build::{Executable, run_build}\n\nfn main() {\n    auto app = Executable(\n        name = \"app\",\n        version = \"0.1.0\",\n        src = \"src/main.tk\"\n    )\n    run_build(app)\n}' > ")
+        proj_file#.push_str(name.c_str())
+        proj_file#.push_str("/Project.tk")
+        libc_system(proj_file.c_str())
+        
+        libc_printf("Created new Toka project: %s\n" as *char, name.c_str())
+        return 0
+    }
+}
+fn cmd_build() -> i32 {
+    unsafe {
+        auto sys_clang# = String::from("clang")
+        auto addr = libc_getenv("TOKA_CLANG" as *char) as Addr
+        if addr != 0:Addr {
+            sys_clang# = String::from(addr as *char)
+        }
+        
+        auto cmd# = String::from("tokac Project.tk > .toka_build.ll && ")
+        cmd#.push_str(sys_clang.c_str())
+        cmd#.push_str(" .toka_build.ll -isysroot $(xcrun --show-sdk-path) -o .toka_build_exe && ./.toka_build_exe")
+
+        auto res = libc_system(cmd.c_str())
+        if res != 0 {
+            libc_printf("Error executing Project.tk -> compile failed\n" as *char)
+        }
+        libc_system("rm -f .toka_build.ll .toka_build_exe" as *char)
+        return res
+    }
+}
+
+fn cmd_run() -> i32 {
+    auto res = cmd_build()
+    if res != 0 { return res }
+    
+    unsafe {
+        return libc_system("./target/debug/app" as *char)
+    }
+}
+
+fn main() -> i32 {
+    auto argc = env::args()
+    if argc < 2 {
+        print_help()
+        return 1
+    }
+    
+    auto cmd# = env::get_arg(1)
+    auto shift# = 0
+    // If run via lli, argv[1] might be the .ll file itself
+    if cmd.ends_with(String::from(".ll")) {
+        shift = 1
+        if argc < 3 {
+            print_help()
+            return 1
+        }
+        cmd = env::get_arg(2)
+    }
+    
+    if cmd.eq(String::from("new")) {
+        if argc < 3 + shift {
+             unsafe { libc_printf("Error: 'toka new' requires a project name.\n" as *char) }
+             return 1
+        }
+        auto name = env::get_arg(2 + shift)
+        return cmd_new(name)
+    }
+    
+    if cmd.eq(String::from("build")) {
+        return cmd_build()
+    }
+    
+    if cmd.eq(String::from("run")) {
+        return cmd_run()
+    }
+    
+    unsafe { libc_printf("Error: unknown command '%s'\n" as *char, cmd.c_str()) }
+    return 1
+}

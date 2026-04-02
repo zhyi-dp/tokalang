@@ -14,6 +14,9 @@ Toka*.md
 build/
 build-linux/
 bin/
+target/
+.toka_build_exe
+.toka_build.ll
 # Prerequisites
 *.d
 *_bin

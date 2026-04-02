@@ -1,0 +1,60 @@
+import core/libc::{libc_system}
+import std/string::{String}
+import core/traits::{@encap}
+
+pub shape Executable (
+    *name: char,
+    *version: char,
+    *src: char
+)
+
+impl Executable@encap {
+    fn drop(self#) { }
+    pub fn clone(self) -> Executable {
+        return Executable(name = self.*name, version = self.*version, src = self.*src)
+    }
+}
+
+pub fn run_build(proj: Executable) -> i32 {
+    unsafe {
+        // Create target directory using std/fs or system()
+        libc_system("mkdir -p target/debug" as *char)
+        
+        auto *n = proj.*name
+        auto *v = proj.*version
+        auto *s = proj.*src
+        
+        // Build tokac string: "tokac src_path > target/debug/main.ll"
+        auto cmd1# = String::from("tokac ")
+        cmd1#.push_str(&s)
+        cmd1#.push_str(" > target/debug/main.ll")
+        
+        // Execute compiler
+        auto res1 = libc_system(cmd1.c_str())
+        if res1 != 0 {
+            libc_system("echo 'Toka compilation failed.'" as *char)
+            return res1
+        }
+        auto clang_path# = String::from("clang ")
+        auto addr = libc_getenv("TOKA_CLANG" as *char) as Addr
+        if addr != 0:Addr {
+            clang_path# = String::from(addr as *char)
+        } else {
+            clang_path# = String::from("/usr/local/opt/llvm@20/bin/clang")
+        }
+        
+        auto cmd2# = String::from("")
+        cmd2#.push_str(clang_path.c_str())
+        cmd2#.push_str(" target/debug/main.ll -isysroot $(xcrun --show-sdk-path) -o target/debug/")
+        cmd2#.push_str(&n)
+        
+        auto res2 = libc_system(cmd2.c_str())
+        if res2 != 0 {
+            libc_system("echo 'Clang linking failed.'" as *char)
+            return res2
+        }
+        
+        libc_system("echo 'Build successful!'\n" as *char)
+        return 0
+    }
+}
