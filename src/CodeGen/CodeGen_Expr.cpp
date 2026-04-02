@@ -4629,20 +4629,6 @@ PhysEntity CodeGen::genAwaitExpr(const AwaitExpr *awaitExpr) {
     llvm::Value *targetStatePtr = m_Builder.CreateStructGEP(targetPromiseType, targetPromisePtrRaw, 0, "target.state.ptr");
     llvm::Value *targetState = m_Builder.CreateLoad(m_Builder.getInt8Ty(), targetStatePtr, "target.state");
     
-    llvm::Function *printfFn = m_Module->getFunction("printf");
-    if (!printfFn) {
-        llvm::FunctionType *printfType = llvm::FunctionType::get(m_Builder.getInt32Ty(), {m_Builder.getPtrTy()}, true);
-        printfFn = llvm::Function::Create(printfType, llvm::Function::ExternalLinkage, "printf", m_Module.get());
-    }
-    llvm::Value *fmtStr = m_Builder.CreateGlobalStringPtr("[LLVM DIAG] Await target.state = %d\\n");
-    m_Builder.CreateCall(printfFn, {fmtStr, m_Builder.CreateZExt(targetState, m_Builder.getInt32Ty())});
-    llvm::Function *fflushFn = m_Module->getFunction("fflush");
-    if (!fflushFn) {
-        llvm::FunctionType *fflushType = llvm::FunctionType::get(m_Builder.getInt32Ty(), {m_Builder.getPtrTy()}, false);
-        fflushFn = llvm::Function::Create(fflushType, llvm::Function::ExternalLinkage, "fflush", m_Module.get());
-    }
-    m_Builder.CreateCall(fflushFn, {llvm::ConstantPointerNull::get(m_Builder.getPtrTy())});
-
     llvm::Value *isReady = m_Builder.CreateICmpEQ(targetState, m_Builder.getInt8(1), "is_ready");
     
     llvm::BasicBlock *readyBB = llvm::BasicBlock::Create(m_Context, "await.ready", m_Builder.GetInsertBlock()->getParent());

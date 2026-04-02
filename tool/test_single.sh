@@ -26,8 +26,19 @@ BASE_NAME=$(basename "$TK_FILE")
 LL_FILE="${BASE_NAME}.ll"
 LOG_FILE="${BASE_NAME}.log"
 # Configuration
+# --- Configuration ---
 TOKAC="./build/src/tokac"
-LLI=$(which lli-20 || which lli || echo "/usr/local/opt/llvm@20/bin/lli")
+if which lli-20 >/dev/null 2>&1; then
+    LLI="lli-20"
+elif [ -x "/opt/homebrew/opt/llvm@20/bin/lli" ]; then
+    LLI="/opt/homebrew/opt/llvm@20/bin/lli"
+elif [ -x "/usr/local/opt/llvm@20/bin/lli" ]; then
+    LLI="/usr/local/opt/llvm@20/bin/lli"
+elif [ -x "/usr/lib/llvm-20/bin/lli" ]; then
+    LLI="/usr/lib/llvm-20/bin/lli"
+else
+    LLI=$(which lli)
+fi
 
 echo "[TEST] Running $TK_FILE"
 echo "  - Compiling..."
