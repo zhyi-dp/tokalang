@@ -40,8 +40,22 @@ configure_file(
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Find LLVM 20
-set(LLVM_DIR "/usr/lib/llvm-20/lib/cmake/llvm")
+# Find LLVM 20 intelligently
+if(NOT LLVM_DIR)
+    if(APPLE)
+        # Check standard Homebrew locations for LLVM 20
+        if(EXISTS "/opt/homebrew/opt/llvm@20/lib/cmake/llvm")
+            set(LLVM_DIR "/opt/homebrew/opt/llvm@20/lib/cmake/llvm")
+        elseif(EXISTS "/usr/local/opt/llvm@20/lib/cmake/llvm")
+            set(LLVM_DIR "/usr/local/opt/llvm@20/lib/cmake/llvm")
+        endif()
+    elseif(UNIX AND NOT APPLE)
+        # Check standard Ubuntu APT locations
+        if(EXISTS "/usr/lib/llvm-20/lib/cmake/llvm")
+            set(LLVM_DIR "/usr/lib/llvm-20/lib/cmake/llvm")
+        endif()
+    endif()
+endif()
 find_package(LLVM REQUIRED CONFIG)
 
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")

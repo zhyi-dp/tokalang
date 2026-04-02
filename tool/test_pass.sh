@@ -3,7 +3,17 @@
 
 # --- Configuration ---
 TOKAC="./build/src/tokac"
-LLI=$(which lli-20 || which lli || echo "/usr/local/opt/llvm@20/bin/lli")
+if which lli-20 >/dev/null 2>&1; then
+    LLI="lli-20"
+elif [ -x "/opt/homebrew/opt/llvm@20/bin/lli" ]; then
+    LLI="/opt/homebrew/opt/llvm@20/bin/lli"
+elif [ -x "/usr/local/opt/llvm@20/bin/lli" ]; then
+    LLI="/usr/local/opt/llvm@20/bin/lli"
+elif [ -x "/usr/lib/llvm-20/bin/lli" ]; then
+    LLI="/usr/lib/llvm-20/bin/lli"
+else
+    LLI=$(which lli)
+fi
 
 GREEN='\033[0;32m'
 RED='\033[0;31m'
