@@ -1,0 +1,10 @@
+import std/io::println
+
+auto g_count# = 42
+
+pub fn main() -> i32 {
+    println("Global: {}", g_count)
+    g_count = 100
+    println("Global mutated: {}", g_count)
+    return 0
+}

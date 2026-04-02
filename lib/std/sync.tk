@@ -85,7 +85,6 @@ impl<T: @Send> Mutex<T> {
 
 impl<T: @Send> Mutex<T>@encap {
     fn drop(self#) {
-        println("drop mutex")
         unsafe {
             auto h: Addr = self.handle
             if h != 0:Addr {
@@ -107,7 +106,6 @@ impl<T: @Sync> MutexLock<T>@Sync {}
 
 impl<T: @Send> MutexLock<T>@encap {
     fn drop(self#) {
-        println("drop guard")
         unsafe {
             if self.handle != 0:Addr {
                 libc_pthread_mutex_unlock(self.handle)

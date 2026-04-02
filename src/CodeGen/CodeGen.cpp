@@ -131,10 +131,10 @@ PhysEntity CodeGen::genExpr(const Expr *expr) {
   if (auto e = dynamic_cast<const WaitExpr *>(expr))
     return genExpr(e->Expression.get());
   if (auto e = dynamic_cast<const SpawnExpr *>(expr)) {
-    return PhysEntity(llvm::ConstantInt::get(m_Builder.getInt32Ty(), 0), "i32", m_Builder.getInt32Ty(), false);
+    return genSpawnExpr(e);
   }
   if (auto e = dynamic_cast<const SpawnBlockingExpr *>(expr)) {
-    return PhysEntity(llvm::ConstantInt::get(m_Builder.getInt32Ty(), 0), "i32", m_Builder.getInt32Ty(), false);
+    return genSpawnBlockingExpr(e);
   }
   if (auto e = dynamic_cast<const ClosureExpr *>(expr))
     return genClosureExpr(e);
@@ -248,6 +248,7 @@ void CodeGen::resolveSignatures(const Module &ast) {
 }
 
 void CodeGen::generate(const Module &ast) {
+  std::cerr << "[DEBUG] CodeGen::generate starting for module.\n";
   m_AST = &ast;
 
   // Generate Globals (Emission)

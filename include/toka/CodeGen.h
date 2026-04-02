@@ -103,6 +103,7 @@ public:
   void discover(const Module &ast);
   void resolveSignatures(const Module &ast);
   void generate(const Module &ast);
+  void finalizeGlobals();
   bool hasErrors() const { return m_ErrorCount > 0; }
   void print(llvm::raw_ostream &os);
   llvm::Module *getModule() { return m_Module.get(); }
@@ -114,6 +115,10 @@ private:
   llvm::IRBuilder<> m_Builder;
   std::unique_ptr<llvm::Module> m_Module;
   const Module *m_AST = nullptr;
+
+  llvm::Function *m_GlobalInitFunc = nullptr;
+  std::unique_ptr<llvm::IRBuilder<>> m_GlobalInitBuilder = nullptr;
+  llvm::Function *getOrCreateGlobalInit();
 
   std::map<std::string, const FunctionDecl *> m_Functions;
   std::map<std::string, const ExternDecl *> m_Externs;
@@ -206,7 +211,9 @@ private:
   void genShape(const ShapeDecl *sh);
   void genImpl(const ImplDecl *impl, bool declOnly = false);
   PhysEntity genMatchExpr(const MatchExpr *expr);
-  PhysEntity genAwaitExpr(const AwaitExpr *expr);
+  PhysEntity genAwaitExpr(const AwaitExpr *E);
+  PhysEntity genSpawnExpr(const SpawnExpr *E);
+  PhysEntity genSpawnBlockingExpr(const SpawnBlockingExpr *E);
   PhysEntity genBinaryExpr(const BinaryExpr *expr);
   PhysEntity genAllocExpr(const AllocExpr *expr);
   PhysEntity genMemberExpr(const MemberExpr *expr);

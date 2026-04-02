@@ -284,7 +284,7 @@ impl<T> VecIterator<T>@encap {
 
 // Concrete Implementation
 impl<T> VecIterator<T> {
-    pub fn next(self) -> Option<T> {
+    pub fn next(self#) -> Option<T> {
         unsafe {
             if self.pos >= self.len {
                 return Option<T>::None

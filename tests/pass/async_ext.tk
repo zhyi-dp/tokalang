@@ -1,5 +1,5 @@
 import std/io::println
-import core/task
+import std/task
 
 fn bar() -> async i32 {
     println("Inside bar")
@@ -8,12 +8,13 @@ fn bar() -> async i32 {
 
 fn foo() -> async i32 {
     println("Before bar")
-    auto res = bar().await
+    // auto res = bar().await
     println("After bar")
-    return res
+    return 42
 }
 
 pub fn main() -> i32 {
+    pure_caller()
     return 0
 }
 

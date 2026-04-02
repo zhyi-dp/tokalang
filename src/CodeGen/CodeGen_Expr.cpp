@@ -441,13 +441,22 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
       return emitAssignment(bin->LHS.get(), bin->RHS.get());
     }
 
-    // Compound Assignment: LHS = LHS op RHS (Always Soul view)
+    std::cerr << "[DEBUG] genBinaryExpr: Computing soulAddr for LHS...\n";
     llvm::Value *soulAddr = emitEntityAddr(bin->LHS.get());
-    PhysEntity rhsVal_ent = genExpr(bin->RHS.get()).load(m_Builder);
+    std::cerr << "[DEBUG] genBinaryExpr: Computed soulAddr=" << soulAddr << "\n";
+    
+    std::cerr << "[DEBUG] genBinaryExpr: Computing RHS...\n";
+    PhysEntity rhsVal_ent = genExpr(bin->RHS.get());
+    std::cerr << "[DEBUG] genBinaryExpr: Loading RHS value...\n";
     llvm::Value *rhsVal = rhsVal_ent.load(m_Builder);
-    if (!soulAddr || !rhsVal)
+    std::cerr << "[DEBUG] genBinaryExpr: Loaded RHS value=" << rhsVal << "\n";
+    
+    if (!soulAddr || !rhsVal) {
+      std::cerr << "[DEBUG] genBinaryExpr: soulAddr or rhsVal is null, returning nullptr\n";
       return nullptr;
+    }
 
+    std::cerr << "[DEBUG] genBinaryExpr: Resolving destType\n";
     // Determine destType for Load [Fix for Opaque Pointers]
     llvm::Type *destType = nullptr;
     if (auto *ve = dynamic_cast<const VariableExpr *>(bin->LHS.get())) {
@@ -471,19 +480,28 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
     if (!destType) {
       destType = rhsVal->getType(); // Fallback
     }
+    
+    std::cerr << "[DEBUG] genBinaryExpr: destType resolved. Is Null: " << (destType == nullptr ? "Yes" : "No") << "\n";
 
     // Standard Compound Logic
+    std::cerr << "[DEBUG] genBinaryExpr: Creating Load instruction... soulAddr=" << soulAddr << "\n";
     llvm::Value *lhsVal = m_Builder.CreateLoad(destType, soulAddr, "lhs_val");
+    std::cerr << "[DEBUG] genBinaryExpr: Load created. val=" << lhsVal << "\n";
+    
     // [Fix] If LHS is reference-like, soulAddr might be address-of-pointer.
     // However, emitEntityAddr is supposed to return the final Soul address.
     // Let's ensure we are using the correct value for the operation.
+    std::cerr << "[DEBUG] genBinaryExpr: Calling unwrapHandle...\n";
     lhsVal = unwrapHandle(lhsVal);
+    std::cerr << "[DEBUG] genBinaryExpr: unwrapHandle finished. val=" << lhsVal << "\n";
 
     llvm::Type *lhsTy = lhsVal->getType();
     llvm::Type *rhsTy = rhsVal->getType();
+    std::cerr << "[DEBUG] genBinaryExpr: Extract getType... LHS=" << lhsTy << ", RHS=" << rhsTy << "\n";
 
     // [Fix] Handle Pointer Arithmetic in Compound Assignment
     if (lhsTy->isPointerTy() && rhsTy->isIntegerTy()) {
+      std::cerr << "[DEBUG] genBinaryExpr: Pointer Arithmetic Mode\n";
       if (bin->Op == "+=" || bin->Op == "-=") {
         llvm::Type *elemTy = nullptr;
         elemTy = llvm::Type::getInt8Ty(m_Context);
@@ -502,11 +520,14 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
       }
     }
 
+    std::cerr << "[DEBUG] genBinaryExpr: Type Promotion Mode...\n";
     // [Fix] Type Promotion for Compound Assignment
     if (lhsTy != rhsTy) {
       if (lhsTy->isIntegerTy() && rhsTy->isIntegerTy()) {
+        std::cerr << "[DEBUG] genBinaryExpr: Creating CreateIntCast\n";
         rhsVal = m_Builder.CreateIntCast(rhsVal, lhsTy, false);
       } else if (lhsTy->isFloatingPointTy() && rhsTy->isFloatingPointTy()) {
+        std::cerr << "[DEBUG] genBinaryExpr: Creating CreateFPCast\n";
         rhsVal = m_Builder.CreateFPCast(rhsVal, lhsTy);
       } else {
         error(bin, "Type mismatch in compound assignment");
@@ -525,9 +546,10 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
       else if (bin->Op == "/=")
         res = m_Builder.CreateFDiv(lhsVal, rhsVal);
     } else {
-      if (bin->Op == "+=")
+      if (bin->Op == "+=") {
+        std::cerr << "[DEBUG] genBinaryExpr: Creating CreateAdd\n";
         res = m_Builder.CreateAdd(lhsVal, rhsVal);
-      else if (bin->Op == "-=")
+      } else if (bin->Op == "-=")
         res = m_Builder.CreateSub(lhsVal, rhsVal);
       else if (bin->Op == "*=")
         res = m_Builder.CreateMul(lhsVal, rhsVal);
@@ -553,7 +575,9 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
       }
     }
 
+    std::cerr << "[DEBUG] genBinaryExpr: Creating CreateStore\n";
     m_Builder.CreateStore(res, soulAddr);
+    std::cerr << "[DEBUG] genBinaryExpr: CreateStore finished\n";
     return res;
   }
 
@@ -3460,8 +3484,25 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
   }
 
   // [NEW] Native LLVM Atomics Intercept
-  if (funcDecl) {
-    std::string fname = funcDecl->Name;
+  std::string fname = call->Callee;
+
+  if (!fname.empty()) {
+    if (fname == "__toka_coro_resume") {
+        llvm::Function *resFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_resume);
+        m_Builder.CreateCall(resFn->getFunctionType(), resFn, argsV);
+        return PhysEntity(llvm::ConstantInt::get(m_Builder.getInt32Ty(), 0), "void", m_Builder.getVoidTy(), false);
+    }
+    if (fname == "__toka_coro_done") {
+        llvm::Function *doneFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_done);
+        llvm::Value *res = m_Builder.CreateCall(doneFn->getFunctionType(), doneFn, argsV);
+        return PhysEntity(res, "bool", m_Builder.getInt1Ty(), false);
+    }
+    if (fname == "__toka_coro_destroy") {
+        llvm::Function *destroyFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_destroy);
+        m_Builder.CreateCall(destroyFn->getFunctionType(), destroyFn, argsV);
+        return PhysEntity(llvm::ConstantInt::get(m_Builder.getInt32Ty(), 0), "void", m_Builder.getVoidTy(), false);
+    }
+
     if (fname.find("__toka_atomic_") == 0) {
       fname = fname.substr(14); // strip prefix
       
@@ -4558,4 +4599,40 @@ PhysEntity CodeGen::genAwaitExpr(const AwaitExpr *awaitExpr) {
     return PhysEntity(llvm::Constant::getNullValue(m_Builder.getInt32Ty()), "void", targetInnerTy, false);
 }
 
-} // namespace toka
+PhysEntity CodeGen::genSpawnExpr(const SpawnExpr *E) {
+    PhysEntity handleEnt = genExpr(E->Expression.get());
+    llvm::Value *handleVal = handleEnt.load(m_Builder);
+    llvm::Value *coroHandle = handleVal;
+    if (handleVal->getType()->isStructTy()) {
+        coroHandle = m_Builder.CreateExtractValue(handleVal, 0, "coro_handle");
+    }
+    
+    llvm::Function *spawnFn = m_Module->getFunction("__toka_spawn");
+    if (!spawnFn) {
+        llvm::FunctionType *ft = llvm::FunctionType::get(m_Builder.getVoidTy(), {m_Builder.getPtrTy()}, false);
+        spawnFn = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, "__toka_spawn", m_Module.get());
+    }
+    m_Builder.CreateCall(spawnFn, {coroHandle});
+    
+    return PhysEntity(llvm::ConstantInt::get(m_Builder.getInt32Ty(), 0), "i32", m_Builder.getInt32Ty(), false);
+}
+
+PhysEntity CodeGen::genSpawnBlockingExpr(const SpawnBlockingExpr *E) {
+    PhysEntity handleEnt = genExpr(E->Expression.get());
+    llvm::Value *handleVal = handleEnt.load(m_Builder);
+    llvm::Value *coroHandle = handleVal;
+    if (handleVal->getType()->isStructTy()) {
+        coroHandle = m_Builder.CreateExtractValue(handleVal, 0, "coro_handle");
+    }
+    
+    llvm::Function *spawnFn = m_Module->getFunction("__toka_spawn_blocking");
+    if (!spawnFn) {
+        llvm::FunctionType *ft = llvm::FunctionType::get(m_Builder.getVoidTy(), {m_Builder.getPtrTy()}, false);
+        spawnFn = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, "__toka_spawn_blocking", m_Module.get());
+    }
+    m_Builder.CreateCall(spawnFn, {coroHandle});
+    
+    return PhysEntity(llvm::ConstantInt::get(m_Builder.getInt32Ty(), 0), "i32", m_Builder.getInt32Ty(), false);
+}
+}
+ // namespace toka

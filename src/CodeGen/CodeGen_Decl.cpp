@@ -15,6 +15,7 @@
 #include "toka/CodeGen.h"
 #include "toka/DiagnosticEngine.h"
 #include "toka/Type.h"
+#include "llvm/Transforms/Utils/ModuleUtils.h"
 #include <cctype>
 #include <iostream>
 #include <set>
@@ -1253,7 +1254,11 @@ llvm::Value *CodeGen::genDestructuringDecl(const DestructuringDecl *dest) {
 
 void CodeGen::genGlobal(const Stmt *stmt) {
   if (auto *var = dynamic_cast<const VariableDecl *>(stmt)) {
+    std::cerr << "[DEBUG] genGlobal: Starting for " << var->Name << "\n";
     llvm::Value *initVal = nullptr;
+    llvm::Constant *constInit = nullptr;
+    bool needsDynamicInit = false;
+
     if (var->Init) {
       // Try resolving type hint first
       llvm::Type *hintType = nullptr;
@@ -1261,13 +1266,13 @@ void CodeGen::genGlobal(const Stmt *stmt) {
         hintType = resolveType(var->TypeName, var->HasPointer);
       }
 
-      // Try compile-time constant generation first (Critical for Anonymous
-      // Records)
+      // Try compile-time constant generation first
       if (auto *c = genConstant(var->Init.get(), hintType)) {
-        initVal = c;
+        constInit = c;
+        initVal = constInit;
       } else {
-        // Fallback to legacy genExpr (might crash if it uses instructions)
-        initVal = genExpr(var->Init.get()).load(m_Builder);
+        // Fallback to Dynamic Initialization
+        needsDynamicInit = true;
       }
     }
 
@@ -1278,34 +1283,32 @@ void CodeGen::genGlobal(const Stmt *stmt) {
       type = initVal->getType();
     }
 
-    if (!type) {
-      // Potentially resolve via initVal if TypeName is empty
-      if (initVal) {
-        type = initVal->getType();
-      }
+    if (!type && needsDynamicInit) {
+      // Need type inference for globals with dynamic init but no hint
+      getOrCreateGlobalInit();
+      CodeGen::GenContext ctx = saveContext();
+      m_Builder.SetInsertPoint(m_GlobalInitBuilder->GetInsertBlock(), m_GlobalInitBuilder->GetInsertPoint());
+      PhysEntity dynValEnt = genExpr(var->Init.get());
+      if (dynValEnt.value) type = dynValEnt.value->getType();
+      m_GlobalInitBuilder->SetInsertPoint(m_Builder.GetInsertBlock(), m_Builder.GetInsertPoint());
+      m_Builder.ClearInsertionPoint();
+      restoreContext(ctx);
+    }
 
-      if (!type) {
-        std::cerr << "DEBUG: genGlobal: Could not resolve type for '"
-                  << var->Name << "' (TypeName: '" << var->TypeName << "')\n";
-        type = llvm::Type::getInt32Ty(m_Context);
-      }
+    if (!type) {
+      std::cerr << "DEBUG: genGlobal: Could not resolve type for '"
+                << var->Name << "' (TypeName: '" << var->TypeName << "')\n";
+      type = llvm::Type::getInt32Ty(m_Context);
+    }
+
+    llvm::Constant *finalConstInit = constInit;
+    if (!constInit) {
+      finalConstInit = llvm::Constant::getNullValue(type);
     }
 
     auto *globalVar = new llvm::GlobalVariable(
-        *m_Module, type, false, llvm::GlobalValue::ExternalLinkage, nullptr,
+        *m_Module, type, false, llvm::GlobalValue::ExternalLinkage, finalConstInit,
         var->Name);
-
-    if (initVal) {
-      if (auto *constInit = llvm::dyn_cast<llvm::Constant>(initVal)) {
-        globalVar->setInitializer(constInit);
-      } else {
-        std::cerr << "DEBUG: genGlobal: Non-constant initializer for '"
-                  << var->Name << "'\n";
-        globalVar->setInitializer(llvm::ConstantInt::get(type, 0));
-      }
-    } else {
-      globalVar->setInitializer(llvm::ConstantInt::get(type, 0));
-    }
 
     m_NamedValues[var->Name] = globalVar;
 
@@ -1317,6 +1320,30 @@ void CodeGen::genGlobal(const Stmt *stmt) {
     sym.isRebindable = var->IsRebindable;
     sym.isContinuous = type->isArrayTy();
     m_Symbols[var->Name] = sym;
+
+    // Do actual assignment in .init_array constructor
+    if (needsDynamicInit) {
+       getOrCreateGlobalInit();
+       CodeGen::GenContext ctx = saveContext();
+       m_Builder.SetInsertPoint(m_GlobalInitBuilder->GetInsertBlock(), m_GlobalInitBuilder->GetInsertPoint());
+       
+       PhysEntity dynValEnt = genExpr(var->Init.get());
+       llvm::Value *dynVal = dynValEnt.load(m_Builder);
+       
+       if (dynVal) {
+          if (dynVal->getType() != type) {
+               if (dynVal->getType()->isIntegerTy() && type->isIntegerTy()) {
+                   dynVal = m_Builder.CreateIntCast(dynVal, type, false);
+               } else if (dynVal->getType()->isPointerTy() && type->isPointerTy()) {
+                   dynVal = m_Builder.CreatePointerCast(dynVal, type);
+               }
+          }
+          m_Builder.CreateStore(dynVal, globalVar);
+       }
+       m_GlobalInitBuilder->SetInsertPoint(m_Builder.GetInsertBlock(), m_Builder.GetInsertPoint());
+       m_Builder.ClearInsertionPoint();
+       restoreContext(ctx);
+    }
   } else {
     // We could support global destructuring here, but for now just skip or
     // error
@@ -2342,6 +2369,26 @@ void CodeGen::fillSymbolMetadata(TokaSymbol &sym, std::shared_ptr<Type> typeObj,
   // Drop logic placeholder (caller should refine if needed)
   sym.hasDrop = false;
   sym.dropFunc = "";
+}
+
+llvm::Function *CodeGen::getOrCreateGlobalInit() {
+  if (m_GlobalInitFunc)
+    return m_GlobalInitFunc;
+  llvm::FunctionType *ft =
+      llvm::FunctionType::get(llvm::Type::getVoidTy(m_Context), false);
+  m_GlobalInitFunc = llvm::Function::Create(
+      ft, llvm::Function::InternalLinkage, "__toka_global_init", m_Module.get());
+  llvm::BasicBlock *bb =
+      llvm::BasicBlock::Create(m_Context, "entry", m_GlobalInitFunc);
+  m_GlobalInitBuilder = std::make_unique<llvm::IRBuilder<>>(bb);
+  return m_GlobalInitFunc;
+}
+
+void CodeGen::finalizeGlobals() {
+  if (m_GlobalInitFunc) {
+    m_GlobalInitBuilder->CreateRetVoid();
+    llvm::appendToGlobalCtors(*m_Module, m_GlobalInitFunc, 65535);
+  }
 }
 
 } // namespace toka

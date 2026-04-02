@@ -1,7 +1,11 @@
 // Copyright (c) 2026 Toka Project. All rights reserved.
 
 // core/task.tk
-// This file provides the core primitives for asynchronous tasks.
+// This file provides the core compiler-injected primitives for asynchronous tasks.
+
+extern fn __toka_coro_resume(*handle: void) -> void
+extern fn __toka_coro_done(*handle: void) -> bool
+extern fn __toka_coro_destroy(*handle: void) -> void
 
 pub shape JoinHandle<T>(
     ^coro_handle: void
