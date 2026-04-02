@@ -40,7 +40,8 @@ configure_file(
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Find LLVM
+# Find LLVM 20
+set(LLVM_DIR "/usr/lib/llvm-20/lib/cmake/llvm")
 find_package(LLVM REQUIRED CONFIG)
 
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")

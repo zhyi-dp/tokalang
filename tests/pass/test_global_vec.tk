@@ -1,0 +1,23 @@
+import std/vec::{Vec}
+import std/io::{println}
+import core/libc::{libc_printf, libc_fflush}
+
+auto g_dummy_vec# = Vec<i32>(*buf=nullptr, len=0:usize, cap=0:usize)
+
+pub fn modify_vec() {
+    g_dummy_vec#.push(10)
+    g_dummy_vec#.push(20)
+    libc_printf("[DIAG] Inside modify_vec, len=%d\n" as *i8, g_dummy_vec.len() as i32)
+    libc_fflush(0 as *void)
+}
+
+pub fn main() -> i32 {
+    libc_printf("[DIAG] Start main, len=%d\n" as *i8, g_dummy_vec.len() as i32)
+    libc_fflush(0 as *void)
+    
+    modify_vec()
+    
+    libc_printf("[DIAG] Back in main, len=%d\n" as *i8, g_dummy_vec.len() as i32)
+    libc_fflush(0 as *void)
+    return 0
+}

@@ -1466,6 +1466,21 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     }
     error(E, "Cannot await a non-JoinHandle type: " + tName);
     return toka::Type::fromString("unknown");
+  } else if (auto *waitEx = dynamic_cast<WaitExpr *>(E)) {
+    bool oldConsuming = m_IsConsumingEffect;
+    m_IsConsumingEffect = true;
+    auto innerType = checkExpr(waitEx->Expression.get());
+    m_IsConsumingEffect = oldConsuming;
+    
+    std::string tName = innerType->toString();
+    if (tName.find("JoinHandle_M_") != std::string::npos) {
+        size_t pos = tName.find("JoinHandle_M_");
+        std::string inner = tName.substr(pos + 13);
+        waitEx->ResolvedType = toka::Type::fromString(inner);
+        return waitEx->ResolvedType;
+    }
+    error(E, "Cannot wait on a non-JoinHandle type: " + tName);
+    return toka::Type::fromString("unknown");
   } else if (auto *AIE = dynamic_cast<ArrayInitExpr *>(E)) {
     auto expectedType = toka::Type::fromString(resolveType(AIE->Type));
     if (AIE->ArraySize) checkExpr(AIE->ArraySize.get());
@@ -1743,18 +1758,13 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     auto res = checkExpr(Wt->Expression.get());
     m_IsConsumingEffect = old;
     return res;
-  } else if (auto *Sp = dynamic_cast<SpawnExpr *>(E)) {
+  } else if (auto *St = dynamic_cast<StartExpr *>(E)) {
     bool old = m_IsConsumingEffect;
     m_IsConsumingEffect = true;
-    auto res = checkExpr(Sp->Expression.get());
+    auto res = checkExpr(St->Expression.get());
     m_IsConsumingEffect = old;
-    return toka::Type::fromString("i32"); // Temp stub
-  } else if (auto *Spb = dynamic_cast<SpawnBlockingExpr *>(E)) {
-    bool old = m_IsConsumingEffect;
-    m_IsConsumingEffect = true;
-    auto res = checkExpr(Spb->Expression.get());
-    m_IsConsumingEffect = old;
-    return toka::Type::fromString("i32"); // Temp stub
+    St->ResolvedType = res;
+    return res;
   } else if (auto *Post = dynamic_cast<PostfixExpr *>(E)) {
     // [Fix] Do NOT disable soul collapse.
     // If the user wants the handle, they must use explicit prefix (e.g.
@@ -3472,6 +3482,16 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
   std::string CallName = Call->Callee;
   std::string OriginalName = CallName;
 
+  struct EffectRestorer {
+      bool &ref;
+      bool oldVal;
+      EffectRestorer(bool &r) : ref(r), oldVal(r) {}
+      ~EffectRestorer() { ref = oldVal; }
+  } _restorer(m_IsConsumingEffect);
+  if (CallName == "block_on" || CallName == "std/task::block_on") {
+      m_IsConsumingEffect = true;
+  }
+
   // 1. Primitives (Constructors/Casts) e.g. i32(42)
   if (CallName == "i32" || CallName == "u32" || CallName == "i64" ||
       CallName == "u64" || CallName == "f32" || CallName == "f64" ||
@@ -3753,6 +3773,16 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
           
           return invokeFn->ResolvedReturnType ? invokeFn->ResolvedReturnType : toka::Type::fromString(MethodMap[shapeName]["__invoke"]);
         }
+      }
+    }
+  }
+
+  // [Fix] Fallback for implicitly instantiated generics that are in GlobalFunctions but not in CurrentScope
+  if (!Fn && !Ext && !Sh) {
+    for (auto *GF : GlobalFunctions) {
+      if (GF->Name == CallName) {
+        Fn = GF;
+        break;
       }
     }
   }
@@ -4974,6 +5004,10 @@ void toka::Sema::tryInjectAutoClone(std::unique_ptr<Expr> &expr) {
 }
 
 std::shared_ptr<toka::Type> toka::Sema::checkClosureExpr(ClosureExpr *Clo) {
+  if (!Clo->SynthesizedShapeName.empty()) {
+      return toka::Type::fromString(Clo->SynthesizedShapeName);
+  }
+
   static int closureCounter = 0;
   std::string UniqueName = "__Closure_" + std::to_string(closureCounter++);
   Clo->SynthesizedShapeName = UniqueName;

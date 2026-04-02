@@ -57,7 +57,7 @@ PhysEntity CodeGen::genAllocExpr(const AllocExpr *ae) {
   } else {
     elemTy = resolveType(ae->TypeName, false);
   }
-  llvm::DataLayout dl(m_Module.get());
+  const llvm::DataLayout &dl = m_Module->getDataLayout();
   uint64_t size = dl.getTypeAllocSize(elemTy);
   llvm::Value *sizeVal =
       llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), size);

@@ -38,17 +38,17 @@ bool Sema::checkModule(Module &M) {
 
   // 2b. Check function bodies (reordered)
 
-  for (auto &Fn : M.Functions) {
-    if (!Fn->GenericParams.empty())
+  for (size_t i = 0; i < M.Functions.size(); ++i) {
+    if (!M.Functions[i]->GenericParams.empty())
       continue; // [NEW] Skip Generic Templates
-    checkFunction(Fn.get());
+    checkFunction(M.Functions[i].get());
   }
 
   // 2c. Check Impl blocks (NEW: Proper Self Injection)
-  for (auto &Impl : M.Impls) {
-    if (!Impl->GenericParams.empty())
+  for (size_t i = 0; i < M.Impls.size(); ++i) {
+    if (!M.Impls[i]->GenericParams.empty())
       continue; // Skip templates, they are checked upon instantiation
-    checkImpl(Impl.get());
+    checkImpl(M.Impls[i].get());
   }
   // ...
 

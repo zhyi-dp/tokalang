@@ -1,4 +1,5 @@
 import std/task
+import std/task::{block_on}
 import core/libc::{libc_usleep}
 import std/io::{println}
 
@@ -9,13 +10,13 @@ fn secondary_task() -> async i32 {
 
 fn primary_task() -> async i32 {
     println("[Task A] Step 1")
-    spawn(secondary_task())
+    secondary_task().start
     println("[Task A] Task B has been spawned, but I am still running step 2...")
     return 0
 }
 
 fn supervisor() -> async i32 {
-    spawn(primary_task())
+    primary_task().start
     // 强制阻塞一会，防止 supervisor 太早结束导致 spawn_blocking 结束
     // 但是这里用 usleep(...) 然后再稍微“等待”一下
     libc_usleep(100000)
@@ -25,7 +26,7 @@ fn supervisor() -> async i32 {
 pub fn main() -> i32 {
     // 但是这里 spawn_blocking 会在 supervisor 跑完后直接退出。
     // 我们没法保证内部 task 被消费。我们可以怎么做呢？
-    spawn(supervisor())
+    supervisor().start
     // 直接循环消费所有任务直到为空，或者我们自己写个简单的 block_on
     return 0
 }

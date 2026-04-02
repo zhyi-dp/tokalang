@@ -90,6 +90,8 @@ PhysEntity CodeGen::genExpr(const Expr *expr) {
     return genLoopExpr(e);
   if (auto e = dynamic_cast<const AwaitExpr *>(expr))
     return genAwaitExpr(e);
+  if (auto e = dynamic_cast<const WaitExpr *>(expr))
+    return genWaitExpr(e);
   if (auto e = dynamic_cast<const ForExpr *>(expr))
     return genForExpr(e);
   if (auto e = dynamic_cast<const MethodCallExpr *>(expr))
@@ -130,11 +132,8 @@ PhysEntity CodeGen::genExpr(const Expr *expr) {
   }
   if (auto e = dynamic_cast<const WaitExpr *>(expr))
     return genExpr(e->Expression.get());
-  if (auto e = dynamic_cast<const SpawnExpr *>(expr)) {
-    return genSpawnExpr(e);
-  }
-  if (auto e = dynamic_cast<const SpawnBlockingExpr *>(expr)) {
-    return genSpawnBlockingExpr(e);
+  if (auto e = dynamic_cast<const StartExpr *>(expr)) {
+    return genStartExpr(e);
   }
   if (auto e = dynamic_cast<const ClosureExpr *>(expr))
     return genClosureExpr(e);
@@ -304,8 +303,8 @@ CodeGen::GenContext CodeGen::saveContext() {
   ctx.CurrentCoroHandle = m_CurrentCoroHandle;
   ctx.CurrentCoroPromise = m_CurrentCoroPromise;
   ctx.CurrentCoroId = m_CurrentCoroId;
-  ctx.CurrentCoroPromiseType = m_CurrentCoroPromiseType;
   ctx.CurrentCoroRetTy = m_CurrentCoroRetTy;
+  ctx.CurrentCoroSuspendRetBB = m_CurrentCoroSuspendRetBB;
   return ctx;
 }
 
@@ -318,8 +317,8 @@ void CodeGen::restoreContext(const GenContext &ctx) {
   m_CurrentCoroHandle = ctx.CurrentCoroHandle;
   m_CurrentCoroPromise = ctx.CurrentCoroPromise;
   m_CurrentCoroId = ctx.CurrentCoroId;
-  m_CurrentCoroPromiseType = ctx.CurrentCoroPromiseType;
   m_CurrentCoroRetTy = ctx.CurrentCoroRetTy;
+  m_CurrentCoroSuspendRetBB = ctx.CurrentCoroSuspendRetBB;
   if (ctx.InsertBlock) {
     if (ctx.InsertPoint != ctx.InsertBlock->end())
       m_Builder.SetInsertPoint(ctx.InsertBlock, ctx.InsertPoint);

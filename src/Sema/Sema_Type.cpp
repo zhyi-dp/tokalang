@@ -269,12 +269,8 @@ std::shared_ptr<toka::Type> Sema::resolveType(std::shared_ptr<toka::Type> type,
                 SyntheticShapes.push_back(std::unique_ptr<ShapeDecl>(cloned));
               }
 
-              // 4. Return new ShapeType pointing to clone
               auto newShape = std::make_shared<ShapeType>(mangledName);
               newShape->resolve(ShapeMap[mangledName]);
-              // We don't attach GenericArgs to the new shape to avoid
-              // re-triggering instantiation logic It behaves like a concrete
-              // shape now.
 
               auto res = std::dynamic_pointer_cast<toka::Type>(newShape);
               return res->withAttributes(type->IsWritable, type->IsNullable);

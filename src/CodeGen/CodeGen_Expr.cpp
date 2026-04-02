@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#include <llvm/IR/InlineAsm.h>
 #include "toka/AST.h"
 #include "toka/CodeGen.h"
 #include "toka/DiagnosticEngine.h"
@@ -2585,16 +2586,12 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
       llvm::Function *suspendFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_suspend);
       llvm::Value *suspendRes = m_Builder.CreateCall(suspendFn, {saveToken, m_Builder.getInt1(false)});
       
-      llvm::BasicBlock *suspendBB = llvm::BasicBlock::Create(m_Context, "await.suspend", m_Builder.GetInsertBlock()->getParent());
       llvm::BasicBlock *resumeBB = llvm::BasicBlock::Create(m_Context, "await.resume", m_Builder.GetInsertBlock()->getParent());
       llvm::BasicBlock *cleanupBB = llvm::BasicBlock::Create(m_Context, "await.cleanup", m_Builder.GetInsertBlock()->getParent());
       
-      llvm::SwitchInst *sw = m_Builder.CreateSwitch(suspendRes, suspendBB, 2);
+      llvm::SwitchInst *sw = m_Builder.CreateSwitch(suspendRes, m_CurrentCoroSuspendRetBB, 2);
       sw->addCase(m_Builder.getInt8(0), resumeBB);
       sw->addCase(m_Builder.getInt8(1), cleanupBB);
-      
-      m_Builder.SetInsertPoint(suspendBB);
-      m_Builder.CreateRet(m_CurrentCoroHandle);
       
       m_Builder.SetInsertPoint(cleanupBB);
       llvm::Function *freeIdFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_free);
@@ -2605,6 +2602,29 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
       
       m_Builder.SetInsertPoint(resumeBB);
       return PhysEntity(llvm::ConstantInt::get(m_Builder.getInt32Ty(), 0), "i32", m_Builder.getInt32Ty(), false);
+  }
+  if (call->Callee == "__builtin_coro_resume") {
+      PhysEntity handleEnt = genExpr(call->Args[0].get());
+      llvm::Value *handleVal = handleEnt.load(m_Builder);
+      llvm::Function *resumeFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_resume);
+      m_Builder.CreateCall(resumeFn, {handleVal});
+      return PhysEntity(llvm::Constant::getNullValue(m_Builder.getInt32Ty()), "void", m_Builder.getVoidTy(), false);
+  }
+  
+  if (call->Callee == "__builtin_coro_done") {
+      PhysEntity handleEnt = genExpr(call->Args[0].get());
+      llvm::Value *handleVal = handleEnt.load(m_Builder);
+      llvm::Function *doneFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_done);
+      llvm::Value *res = m_Builder.CreateCall(doneFn, {handleVal});
+      return PhysEntity(res, "bool", m_Builder.getInt1Ty(), false);
+  }
+  
+  if (call->Callee == "__builtin_coro_destroy") {
+      PhysEntity handleEnt = genExpr(call->Args[0].get());
+      llvm::Value *handleVal = handleEnt.load(m_Builder);
+      llvm::Function *destroyFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_destroy);
+      m_Builder.CreateCall(destroyFn, {handleVal});
+      return PhysEntity(llvm::Constant::getNullValue(m_Builder.getInt32Ty()), "void", m_Builder.getVoidTy(), false);
   }
 
   if (call->Callee == "__builtin_async_sleep") {
@@ -2637,16 +2657,12 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
       llvm::Function *suspendFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_suspend);
       llvm::Value *suspendRes = m_Builder.CreateCall(suspendFn, {saveToken, m_Builder.getInt1(false)});
       
-      llvm::BasicBlock *suspendBB = llvm::BasicBlock::Create(m_Context, "sleep.suspend", m_Builder.GetInsertBlock()->getParent());
       llvm::BasicBlock *resumeBB = llvm::BasicBlock::Create(m_Context, "sleep.resume", m_Builder.GetInsertBlock()->getParent());
       llvm::BasicBlock *cleanupBB = llvm::BasicBlock::Create(m_Context, "sleep.cleanup", m_Builder.GetInsertBlock()->getParent());
       
-      llvm::SwitchInst *sw = m_Builder.CreateSwitch(suspendRes, suspendBB, 2);
+      llvm::SwitchInst *sw = m_Builder.CreateSwitch(suspendRes, m_CurrentCoroSuspendRetBB, 2);
       sw->addCase(m_Builder.getInt8(0), resumeBB);
       sw->addCase(m_Builder.getInt8(1), cleanupBB);
-      
-      m_Builder.SetInsertPoint(suspendBB);
-      m_Builder.CreateRet(m_CurrentCoroHandle);
       
       m_Builder.SetInsertPoint(cleanupBB);
       llvm::Function *freeIdFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_free);
@@ -2825,7 +2841,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
 
     auto printfFunc = m_Module->getOrInsertFunction(
         "printf", llvm::FunctionType::get(m_Builder.getInt32Ty(),
-                                          {m_Builder.getInt8PtrTy()}, true));
+                                          {m_Builder.getPtrTy()}, true));
 
     while ((pos = fmt.find("{}", lastPos)) != std::string::npos) {
       // Print text segment
@@ -3545,21 +3561,20 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
 
   if (!fname.empty()) {
     if (fname == "__toka_coro_resume") {
-        llvm::Function *resFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_resume);
+        llvm::Function *resFn = llvm::Intrinsic::getOrInsertDeclaration(m_Module.get(), llvm::Intrinsic::coro_resume);
         m_Builder.CreateCall(resFn->getFunctionType(), resFn, argsV);
         return PhysEntity(llvm::ConstantInt::get(m_Builder.getInt32Ty(), 0), "void", m_Builder.getVoidTy(), false);
     }
     if (fname == "__toka_coro_done") {
-        llvm::Function *doneFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_done);
+        llvm::Function *doneFn = llvm::Intrinsic::getOrInsertDeclaration(m_Module.get(), llvm::Intrinsic::coro_done);
         llvm::Value *res = m_Builder.CreateCall(doneFn->getFunctionType(), doneFn, argsV);
         return PhysEntity(res, "bool", m_Builder.getInt1Ty(), false);
     }
     if (fname == "__toka_coro_destroy") {
-        llvm::Function *destroyFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_destroy);
+        llvm::Function *destroyFn = llvm::Intrinsic::getOrInsertDeclaration(m_Module.get(), llvm::Intrinsic::coro_destroy);
         m_Builder.CreateCall(destroyFn->getFunctionType(), destroyFn, argsV);
         return PhysEntity(llvm::ConstantInt::get(m_Builder.getInt32Ty(), 0), "void", m_Builder.getVoidTy(), false);
     }
-
     if (fname.find("__toka_atomic_") == 0) {
       fname = fname.substr(14); // strip prefix
       
@@ -3646,7 +3661,29 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
   }
   }
 
-  return m_Builder.CreateCall(callee->getFunctionType(), callee, argsV);
+  llvm::CallInst *ci = m_Builder.CreateCall(callee->getFunctionType(), callee, argsV);
+
+  bool isAsync = false;
+  if (funcDecl && funcDecl->Effect == EffectKind::Async) isAsync = true;
+  if (extDecl && extDecl->Effect == EffectKind::Async) isAsync = true;
+
+  if (isAsync) {
+      if (!call->ResolvedType) {
+          error(call, "Internal CodeGen Error: Async call missing ResolvedType.");
+          return nullptr;
+      }
+      std::string tName = call->ResolvedType->toString();
+      llvm::Type *handleTy = m_StructTypes[tName];
+      if (!handleTy) {
+          error(call, "Internal CodeGen Error: JoinHandle struct not found for async return.");
+          return nullptr;
+      }
+      llvm::Value *structVal = llvm::UndefValue::get(handleTy);
+      structVal = m_Builder.CreateInsertValue(structVal, ci, 0);
+      return PhysEntity(structVal, tName, handleTy, false);
+  }
+
+  return ci;
 }
 
 PhysEntity CodeGen::genPostfixExpr(const PostfixExpr *post) {
@@ -4017,7 +4054,7 @@ PhysEntity CodeGen::genNewExpr(const NewExpr *newExpr) {
     return nullptr;
 
   // Size of type
-  llvm::DataLayout dl(m_Module.get());
+  const llvm::DataLayout &dl = m_Module->getDataLayout();
   uint64_t size = dl.getTypeAllocSize(type);
 
   // Call malloc
@@ -4307,15 +4344,7 @@ llvm::Constant *CodeGen::genConstant(const Expr *expr, llvm::Type *targetType) {
     if (rhs->getType() == destTy)
       return rhs;
 
-    if (destTy->isIntegerTy() && rhs->getType()->isIntegerTy()) {
-      return llvm::ConstantExpr::getIntegerCast(rhs, destTy, true);
-    } else if (destTy->isFloatingPointTy() && rhs->getType()->isIntegerTy()) {
-      return llvm::ConstantExpr::getSIToFP(rhs, destTy);
-    } else if (destTy->isIntegerTy() && rhs->getType()->isFloatingPointTy()) {
-      return llvm::ConstantExpr::getFPToSI(rhs, destTy);
-    } else {
-      return llvm::ConstantExpr::getBitCast(rhs, destTy);
-    }
+    return nullptr;
   }
 
   return nullptr;
@@ -4479,7 +4508,7 @@ PhysEntity CodeGen::genImplicitBoxExpr(const ImplicitBoxExpr *expr) {
   if (!type)
     return nullptr;
 
-  llvm::DataLayout dl(m_Module.get());
+  const llvm::DataLayout &dl = m_Module->getDataLayout();
   uint64_t size = dl.getTypeAllocSize(type);
 
   llvm::Function *mallocFn = m_Module->getFunction("malloc");
@@ -4594,13 +4623,26 @@ PhysEntity CodeGen::genAwaitExpr(const AwaitExpr *awaitExpr) {
     if (targetInnerTy->isVoidTy()) {
         targetPromiseType = llvm::StructType::get(m_Context, {m_Builder.getInt8Ty(), m_Builder.getPtrTy()});
     } else {
-        targetPromiseType = llvm::StructType::get(m_Context, {targetInnerTy, m_Builder.getInt8Ty(), m_Builder.getPtrTy()});
+        targetPromiseType = llvm::StructType::get(m_Context, {m_Builder.getInt8Ty(), m_Builder.getPtrTy(), targetInnerTy});
     }
     
-    int stateIdx = targetInnerTy->isVoidTy() ? 0 : 1;
-    llvm::Value *targetStatePtr = m_Builder.CreateStructGEP(targetPromiseType, targetPromisePtrRaw, stateIdx, "target.state.ptr");
+    llvm::Value *targetStatePtr = m_Builder.CreateStructGEP(targetPromiseType, targetPromisePtrRaw, 0, "target.state.ptr");
     llvm::Value *targetState = m_Builder.CreateLoad(m_Builder.getInt8Ty(), targetStatePtr, "target.state");
     
+    llvm::Function *printfFn = m_Module->getFunction("printf");
+    if (!printfFn) {
+        llvm::FunctionType *printfType = llvm::FunctionType::get(m_Builder.getInt32Ty(), {m_Builder.getPtrTy()}, true);
+        printfFn = llvm::Function::Create(printfType, llvm::Function::ExternalLinkage, "printf", m_Module.get());
+    }
+    llvm::Value *fmtStr = m_Builder.CreateGlobalStringPtr("[LLVM DIAG] Await target.state = %d\\n");
+    m_Builder.CreateCall(printfFn, {fmtStr, m_Builder.CreateZExt(targetState, m_Builder.getInt32Ty())});
+    llvm::Function *fflushFn = m_Module->getFunction("fflush");
+    if (!fflushFn) {
+        llvm::FunctionType *fflushType = llvm::FunctionType::get(m_Builder.getInt32Ty(), {m_Builder.getPtrTy()}, false);
+        fflushFn = llvm::Function::Create(fflushType, llvm::Function::ExternalLinkage, "fflush", m_Module.get());
+    }
+    m_Builder.CreateCall(fflushFn, {llvm::ConstantPointerNull::get(m_Builder.getPtrTy())});
+
     llvm::Value *isReady = m_Builder.CreateICmpEQ(targetState, m_Builder.getInt8(1), "is_ready");
     
     llvm::BasicBlock *readyBB = llvm::BasicBlock::Create(m_Context, "await.ready", m_Builder.GetInsertBlock()->getParent());
@@ -4610,8 +4652,7 @@ PhysEntity CodeGen::genAwaitExpr(const AwaitExpr *awaitExpr) {
     
     m_Builder.SetInsertPoint(suspendBB);
     
-    int awaiterIdx = targetInnerTy->isVoidTy() ? 1 : 2;
-    llvm::Value *targetAwaiterPtr = m_Builder.CreateStructGEP(targetPromiseType, targetPromisePtrRaw, awaiterIdx, "target.awaiter.ptr");
+    llvm::Value *targetAwaiterPtr = m_Builder.CreateStructGEP(targetPromiseType, targetPromisePtrRaw, 1, "target.awaiter.ptr");
     m_Builder.CreateStore(m_CurrentCoroHandle, targetAwaiterPtr);
     
     llvm::Function *saveFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_save);
@@ -4622,25 +4663,13 @@ PhysEntity CodeGen::genAwaitExpr(const AwaitExpr *awaitExpr) {
     
     llvm::BasicBlock *resumeContBB = llvm::BasicBlock::Create(m_Context, "await.resume", m_Builder.GetInsertBlock()->getParent());
     llvm::BasicBlock *cleanupContBB = llvm::BasicBlock::Create(m_Context, "await.cleanup.await", m_Builder.GetInsertBlock()->getParent());
-    llvm::BasicBlock *suspendRetBB = llvm::BasicBlock::Create(m_Context, "await.suspend.ret", m_Builder.GetInsertBlock()->getParent());
     
-    llvm::SwitchInst *sw = m_Builder.CreateSwitch(suspendRes, suspendRetBB, 2);
+    llvm::SwitchInst *sw = m_Builder.CreateSwitch(suspendRes, m_CurrentCoroSuspendRetBB, 3);
+    sw->addCase(m_Builder.getInt8(-1), m_CurrentCoroSuspendRetBB);
     sw->addCase(m_Builder.getInt8(0), resumeContBB);
     sw->addCase(m_Builder.getInt8(1), cleanupContBB);
     
-    m_Builder.SetInsertPoint(suspendRetBB);
-    m_Builder.CreateRet(m_CurrentCoroHandle);
-    
     m_Builder.SetInsertPoint(cleanupContBB);
-    llvm::Function *freeIdFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_free);
-    llvm::Value *memToFree = m_Builder.CreateCall(freeIdFn, {m_CurrentCoroId, m_CurrentCoroHandle});
-    llvm::Function *freeFn = m_Module->getFunction("free");
-    if (!freeFn) {
-        std::vector<llvm::Type*> freeArgs = {m_Builder.getPtrTy()};
-        llvm::FunctionType *freeFt = llvm::FunctionType::get(m_Builder.getVoidTy(), freeArgs, false);
-        freeFn = llvm::Function::Create(freeFt, llvm::Function::ExternalLinkage, "free", m_Module.get());
-    }
-    m_Builder.CreateCall(freeFn, memToFree);
     m_Builder.CreateUnreachable();
     
     m_Builder.SetInsertPoint(resumeContBB);
@@ -4648,7 +4677,7 @@ PhysEntity CodeGen::genAwaitExpr(const AwaitExpr *awaitExpr) {
     
     m_Builder.SetInsertPoint(readyBB);
     if (!targetInnerTy->isVoidTy()) {
-        llvm::Value *targetValPtr = m_Builder.CreateStructGEP(targetPromiseType, targetPromisePtrRaw, 0, "target.val.ptr");
+        llvm::Value *targetValPtr = m_Builder.CreateStructGEP(targetPromiseType, targetPromisePtrRaw, 2, "target.val.ptr");
         llvm::Value *targetVal = m_Builder.CreateLoad(targetInnerTy, targetValPtr, "target.val");
         return PhysEntity(targetVal, awaitExpr->ResolvedType->toString(), targetInnerTy, false);
     }
@@ -4656,7 +4685,40 @@ PhysEntity CodeGen::genAwaitExpr(const AwaitExpr *awaitExpr) {
     return PhysEntity(llvm::Constant::getNullValue(m_Builder.getInt32Ty()), "void", targetInnerTy, false);
 }
 
-PhysEntity CodeGen::genSpawnExpr(const SpawnExpr *E) {
+PhysEntity CodeGen::genWaitExpr(const WaitExpr *waitExpr) {
+    PhysEntity handleEnt = genExpr(waitExpr->Expression.get());
+    llvm::Value *handleVal = handleEnt.load(m_Builder);
+    
+    llvm::Value *targetCoroHandle = handleVal;
+    if (handleVal->getType()->isStructTy()) {
+        targetCoroHandle = m_Builder.CreateExtractValue(handleVal, 0, "wait.coro_handle");
+    }
+    
+    llvm::Function *promiseFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_promise);
+    llvm::Value *alignment = m_Builder.getInt32(8);
+    llvm::Value *fromPromise = m_Builder.getInt1(false);
+    llvm::Value *targetPromisePtrRaw = m_Builder.CreateCall(promiseFn, {targetCoroHandle, alignment, fromPromise}, "target.promise.raw");
+    
+    std::shared_ptr<Type> targetInnerTyObj = waitExpr->ResolvedType;
+    llvm::Type *targetInnerTy = getLLVMType(targetInnerTyObj);
+    
+    llvm::Type *targetPromiseType;
+    if (targetInnerTy->isVoidTy()) {
+        targetPromiseType = llvm::StructType::get(m_Context, {m_Builder.getInt8Ty(), m_Builder.getPtrTy()});
+    } else {
+        targetPromiseType = llvm::StructType::get(m_Context, {m_Builder.getInt8Ty(), m_Builder.getPtrTy(), targetInnerTy});
+    }
+    
+    if (!targetInnerTy->isVoidTy()) {
+        llvm::Value *targetValPtr = m_Builder.CreateStructGEP(targetPromiseType, targetPromisePtrRaw, 2, "target.val.ptr");
+        llvm::Value *targetVal = m_Builder.CreateLoad(targetInnerTy, targetValPtr, "target.val");
+        return PhysEntity(targetVal, waitExpr->ResolvedType->toString(), targetInnerTy, false);
+    }
+    
+    return PhysEntity(llvm::Constant::getNullValue(m_Builder.getInt32Ty()), "void", targetInnerTy, false);
+}
+
+PhysEntity CodeGen::genStartExpr(const StartExpr *E) {
     PhysEntity handleEnt = genExpr(E->Expression.get());
     llvm::Value *handleVal = handleEnt.load(m_Builder);
     llvm::Value *coroHandle = handleVal;
@@ -4671,25 +4733,6 @@ PhysEntity CodeGen::genSpawnExpr(const SpawnExpr *E) {
     }
     m_Builder.CreateCall(spawnFn, {coroHandle});
     
-    return PhysEntity(llvm::ConstantInt::get(m_Builder.getInt32Ty(), 0), "i32", m_Builder.getInt32Ty(), false);
+    return handleEnt;
 }
-
-PhysEntity CodeGen::genSpawnBlockingExpr(const SpawnBlockingExpr *E) {
-    PhysEntity handleEnt = genExpr(E->Expression.get());
-    llvm::Value *handleVal = handleEnt.load(m_Builder);
-    llvm::Value *coroHandle = handleVal;
-    if (handleVal->getType()->isStructTy()) {
-        coroHandle = m_Builder.CreateExtractValue(handleVal, 0, "coro_handle");
-    }
-    
-    llvm::Function *spawnFn = m_Module->getFunction("__toka_spawn_blocking");
-    if (!spawnFn) {
-        llvm::FunctionType *ft = llvm::FunctionType::get(m_Builder.getVoidTy(), {m_Builder.getPtrTy()}, false);
-        spawnFn = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, "__toka_spawn_blocking", m_Module.get());
-    }
-    m_Builder.CreateCall(spawnFn, {coroHandle});
-    
-    return PhysEntity(llvm::ConstantInt::get(m_Builder.getInt32Ty(), 0), "i32", m_Builder.getInt32Ty(), false);
-}
-}
- // namespace toka
+} // namespace toka

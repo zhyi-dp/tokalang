@@ -27,7 +27,7 @@ LL_FILE="${BASE_NAME}.ll"
 LOG_FILE="${BASE_NAME}.log"
 # Configuration
 TOKAC="./build/src/tokac"
-LLI=$(which lli-17 || which lli || echo "/usr/local/opt/llvm@17/bin/lli")
+LLI=$(which lli-20 || which lli || echo "/usr/local/opt/llvm@20/bin/lli")
 
 echo "[TEST] Running $TK_FILE"
 echo "  - Compiling..."

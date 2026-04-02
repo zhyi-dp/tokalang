@@ -162,7 +162,7 @@
                 },
                 {
                     "name": "keyword.control.async.toka",
-                    "match": "\\b(async|await|suspend|cancel)\\b"
+                    "match": "\\b(async|await|suspend|cancel|start|wait|blocking|block_on)\\b"
                 },
                 {
                     "name": "storage.type.toka",

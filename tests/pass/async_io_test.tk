@@ -1,4 +1,5 @@
 import std/task
+import std/task::{block_on, __toka_spawn_blocking}
 import std/io::{File, remove_file}
 import std/string::{String}
 
@@ -39,7 +40,7 @@ fn handle_io() -> async i32 {
 }
 
 fn run() {
-    spawn_blocking(handle_io())
+    block_on<i32>(handle_io())
 }
 
 pub fn main() -> i32 {

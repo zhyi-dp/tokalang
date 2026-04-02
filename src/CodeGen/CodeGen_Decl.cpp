@@ -170,14 +170,22 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
 
   // [Fix] Prevent double generation of function bodies (e.g. from multiple
   // imports)
-  if (!f->empty())
+  if (!f->empty()) {
+    if (funcName == "__Closure_3___invoke") std::cerr << "DEBUG: __Closure_3___invoke skipped: not empty\n";
     return f;
+  }
 
-  if (declOnly)
+  if (declOnly) {
+    if (funcName == "__Closure_3___invoke") std::cerr << "DEBUG: __Closure_3___invoke skipped: declOnly\n";
     return f;
+  }
 
-  if (!func->Body)
+  if (!func->Body) {
+    if (funcName == "__Closure_3___invoke") std::cerr << "DEBUG: __Closure_3___invoke skipped: no body\n";
     return f;
+  }
+
+  if (funcName == "__Closure_3___invoke") std::cerr << "DEBUG: __Closure_3___invoke generating body!\n";
 
   llvm::BasicBlock *bb = llvm::BasicBlock::Create(m_Context, "entry", f);
   m_Builder.SetInsertPoint(bb);
@@ -197,17 +205,17 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
       if (actualRetTy->isVoidTy()) {
           promiseType = llvm::StructType::get(m_Context, {m_Builder.getInt8Ty(), m_Builder.getPtrTy()});
       } else {
-          promiseType = llvm::StructType::get(m_Context, {actualRetTy, m_Builder.getInt8Ty(), m_Builder.getPtrTy()});
+          promiseType = llvm::StructType::get(m_Context, {m_Builder.getInt8Ty(), m_Builder.getPtrTy(), actualRetTy});
       }
       m_CurrentCoroPromiseType = promiseType;
       m_CurrentCoroPromise = createEntryBlockAlloca(promiseType, nullptr, "coro.promise");
       
-      llvm::Function *idFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_id);
+      llvm::Function *idFn = llvm::Intrinsic::getOrInsertDeclaration(m_Module.get(), llvm::Intrinsic::coro_id);
       llvm::Value *zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(m_Context), 0);
       llvm::Value *nullPtr = llvm::ConstantPointerNull::get(llvm::PointerType::getUnqual(m_Context));
       m_CurrentCoroId = m_Builder.CreateCall(idFn, {zero, m_CurrentCoroPromise, nullPtr, nullPtr});
       
-      llvm::Function *sizeFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_size, {llvm::Type::getInt64Ty(m_Context)});
+      llvm::Function *sizeFn = llvm::Intrinsic::getOrInsertDeclaration(m_Module.get(), llvm::Intrinsic::coro_size, {llvm::Type::getInt64Ty(m_Context)});
       llvm::Value *size = m_Builder.CreateCall(sizeFn);
       
       llvm::Function *mallocFn = m_Module->getFunction("malloc");
@@ -218,17 +226,22 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
       }
       llvm::Value *alloc = m_Builder.CreateCall(mallocFn, {size});
       
-      llvm::Function *beginFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_begin);
+      llvm::Function *beginFn = llvm::Intrinsic::getOrInsertDeclaration(m_Module.get(), llvm::Intrinsic::coro_begin);
       m_CurrentCoroHandle = m_Builder.CreateCall(beginFn, {m_CurrentCoroId, alloc});
       
-      llvm::Value *statePtr = m_Builder.CreateStructGEP(promiseType, m_CurrentCoroPromise, actualRetTy->isVoidTy() ? 0 : 1);
+      m_CurrentCoroSuspendRetBB = llvm::BasicBlock::Create(m_Context, "coro.suspend.ret");
+      
+      llvm::Value *statePtr = m_Builder.CreateStructGEP(promiseType, m_CurrentCoroPromise, 0);
       m_Builder.CreateStore(m_Builder.getInt8(0), statePtr);
-      llvm::Value *awaiterPtr = m_Builder.CreateStructGEP(promiseType, m_CurrentCoroPromise, actualRetTy->isVoidTy() ? 1 : 2);
+      llvm::Value *awaiterPtr = m_Builder.CreateStructGEP(promiseType, m_CurrentCoroPromise, 1);
       m_Builder.CreateStore(llvm::ConstantPointerNull::get(m_Builder.getPtrTy()), awaiterPtr);
   } else {
       m_CurrentCoroHandle = nullptr;
       m_CurrentCoroPromise = nullptr;
       m_CurrentCoroId = nullptr;
+      m_CurrentCoroPromiseType = nullptr;
+      m_CurrentCoroRetTy = nullptr;
+      m_CurrentCoroSuspendRetBB = nullptr;
   }
 
   size_t idx = 0;
@@ -539,7 +552,14 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
       m_Builder.CreateUnreachable();
     }
   }
-  m_ScopeStack.pop_back();
+  if (func->Effect == EffectKind::Async && m_CurrentCoroSuspendRetBB) {
+      f->insert(f->end(), m_CurrentCoroSuspendRetBB);
+      llvm::IRBuilder<> tmpB(m_CurrentCoroSuspendRetBB);
+      llvm::Function *endFn = llvm::Intrinsic::getOrInsertDeclaration(m_Module.get(), llvm::Intrinsic::coro_end);
+      tmpB.CreateCall(endFn, {m_CurrentCoroHandle, tmpB.getInt1(false), llvm::ConstantTokenNone::get(m_Context)});
+      tmpB.CreateRet(m_CurrentCoroHandle);
+  }
+
   return f;
 }
 
@@ -866,7 +886,7 @@ llvm::Value *CodeGen::genVariableDecl(const VariableDecl *var) {
                   initVal, llvm::PointerType::getUnqual(elemTy));
             } else {
               // Value Type -> Allocate and Copy
-              llvm::DataLayout dl(m_Module.get());
+              const llvm::DataLayout &dl = m_Module->getDataLayout();
               uint64_t dataSz = dl.getTypeAllocSize(elemTy);
               llvm::Value *valSize = llvm::ConstantInt::get(
                   llvm::Type::getInt64Ty(m_Context), dataSz);
@@ -1381,7 +1401,7 @@ void CodeGen::genShape(const ShapeDecl *sh) {
   m_TypeToName[st] = sh->Name;
 
   std::vector<llvm::Type *> body;
-  llvm::DataLayout DL(m_Module.get());
+  const llvm::DataLayout &DL = m_Module->getDataLayout();
 
   if (sh->Kind == ShapeKind::Struct || sh->Kind == ShapeKind::Tuple) {
     std::vector<std::string> fieldNames;

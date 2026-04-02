@@ -344,35 +344,21 @@ public:
   }
 };
 
-class SpawnExpr : public Expr {
+class StartExpr : public Expr {
 public:
   std::unique_ptr<Expr> Expression;
-  SpawnExpr(std::unique_ptr<Expr> expr) : Expression(std::move(expr)) {}
+  StartExpr(std::unique_ptr<Expr> expr) : Expression(std::move(expr)) {}
   std::string toString() const override {
-    return "Spawn(" + Expression->toString() + ")";
+    return "Start(" + Expression->toString() + ")";
   }
   std::unique_ptr<ASTNode> clone() const override {
-    auto n = std::make_unique<SpawnExpr>(cloneNode(Expression));
+    auto n = std::make_unique<StartExpr>(cloneNode(Expression));
     n->Loc = Loc;
     n->ResolvedType = ResolvedType;
     return n;
   }
 };
 
-class SpawnBlockingExpr : public Expr {
-public:
-  std::unique_ptr<Expr> Expression;
-  SpawnBlockingExpr(std::unique_ptr<Expr> expr) : Expression(std::move(expr)) {}
-  std::string toString() const override {
-    return "SpawnBlocking(" + Expression->toString() + ")";
-  }
-  std::unique_ptr<ASTNode> clone() const override {
-    auto n = std::make_unique<SpawnBlockingExpr>(cloneNode(Expression));
-    n->Loc = Loc;
-    n->ResolvedType = ResolvedType;
-    return n;
-  }
-};
 
 class CastExpr : public Expr {
 public:

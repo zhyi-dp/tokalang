@@ -342,34 +342,6 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
     auto node = std::make_unique<SizeOfExpr>(typeStr);
     node->setLocation(tok, m_CurrentFile);
     expr = std::move(node);
-  } else if (match(TokenType::KwSpawn)) {
-    Token tok = previous();
-    if (!match(TokenType::LParen)) {
-      error(tok, "Expected '(' after spawn");
-      return nullptr;
-    }
-    auto val = parseExpr();
-    if (!match(TokenType::RParen)) {
-      error(previous(), "Expected ')' after spawn expression");
-      return nullptr;
-    }
-    auto node = std::make_unique<SpawnExpr>(std::move(val));
-    node->setLocation(tok, m_CurrentFile);
-    expr = std::move(node);
-  } else if (match(TokenType::KwSpawnBlocking)) {
-    Token tok = previous();
-    if (!match(TokenType::LParen)) {
-      error(tok, "Expected '(' after spawn_blocking");
-      return nullptr;
-    }
-    auto val = parseExpr();
-    if (!match(TokenType::RParen)) {
-      error(previous(), "Expected ')' after spawn_blocking expression");
-      return nullptr;
-    }
-    auto node = std::make_unique<SpawnBlockingExpr>(std::move(val));
-    node->setLocation(tok, m_CurrentFile);
-    expr = std::move(node);
   } else if (match(TokenType::KwSelf)) {
     Token tok = previous();
     auto node = std::make_unique<VariableExpr>("self");
@@ -852,6 +824,12 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
       if (match(TokenType::Identifier) || match(TokenType::KwUnset) ||
           match(TokenType::KwNull) || match(TokenType::KwSelf)) {
         std::string memberName = prefix + previous().Text;
+        if (memberName == "start" && !check(TokenType::LParen)) {
+          auto node = std::make_unique<StartExpr>(std::move(expr));
+          node->setLocation(dotTok, m_CurrentFile);
+          expr = std::move(node);
+          continue;
+        }
         // Method Call check
         if (match(TokenType::LParen)) {
           std::vector<std::unique_ptr<Expr>> args;

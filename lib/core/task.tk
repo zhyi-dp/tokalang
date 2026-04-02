@@ -8,5 +8,5 @@ extern fn __toka_coro_done(*handle: void) -> bool
 extern fn __toka_coro_destroy(*handle: void) -> void
 
 pub shape JoinHandle<T>(
-    ^coro_handle: void
+    *coro_handle: void
 )

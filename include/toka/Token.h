@@ -82,8 +82,6 @@ enum class TokenType {
   KwCancel,
   KwAwait,
   KwWait,
-  KwSpawn,
-  KwSpawnBlocking,
   KwChannel,
   KwCede,
   KwCopy,

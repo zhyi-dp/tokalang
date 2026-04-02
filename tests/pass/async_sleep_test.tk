@@ -1,37 +1,54 @@
 import std/io::{println}
-import std/task::{sleep_async}
-import core/libc::{libc_exit}
+import std/task::{sleep_async, block_on, __toka_spawn_blocking}
+import core/libc::{libc_exit, libc_fflush, libc_printf}
 
 fn worker_a() -> async i32 {
-    println("[Worker A] 准备沉睡 50ms。等待中...")
+    println("[Worker A] OK!")
+    libc_fflush(0 as *void)
     sleep_async(50).await
-    println("[Worker A] 从 50ms 沉睡中苏醒并完成任务！")
+    println("[Worker A] FINISHED!")
+    libc_fflush(0 as *void)
     return 0
 }
 
 fn worker_b() -> async i32 {
-    println("[Worker B] 准备沉睡 10ms。等待中...")
+    println("[Worker B] OK!")
+    libc_fflush(0 as *void)
     sleep_async(10).await
-    println("[Worker B] (短睡插队) 从 10ms 沉睡中苏醒！我先跑完了！")
+    println("[Worker B] FINISHED!")
+    libc_fflush(0 as *void)
     return 0
 }
 
 fn entry_point() -> async i32 {
-    println("[Main] 初始化测试并启动工作流")
+    println("[ENTRY] init")
+    libc_fflush(0 as *void)
+    auto ta = worker_a().start
+    auto tb = worker_b().start
     
-    // 入队 A 和 B，它们均会运行到初始挂起点 `sleep_async` 后将执行权完全交还调度器！
-    spawn(worker_a())
-    spawn(worker_b())
+    ta.await
+    println("[ENTRY] a.await done")
+    libc_fflush(0 as *void)
     
-    // 主协程也可以跟着挂起一下，或者正常结束
-    println("[Main] A 和 B 已释放，我主动休眠 300ms 等待队列完结。")
-    sleep_async(300).await
+    tb.await
+    println("[ENTRY] b.await done")
+    libc_fflush(0 as *void)
     
-    println("[Main] 测试结束！通过物理毫秒时钟完美触发乱序交叉！")
+    auto sl = sleep_async(300).start
+    sl.await
+    println("[ENTRY] sleep done")
+    libc_fflush(0 as *void)
     return 0
 }
 
 pub fn main() -> i32 {
-    spawn_blocking(entry_point())
+    println("[MAIN] 1. call block_on")
+    libc_fflush(0 as *void)
+    // block on completion
+    auto handle = entry_point().start
+    
+    block_on<i32>(handle)
+    println("[MAIN] 2. block_on returned!")
+    libc_fflush(0 as *void)
     return 0
 }

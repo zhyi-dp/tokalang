@@ -1,4 +1,4 @@
-import std/task::{sleep}
+import std/task::{sleep, block_on, __toka_spawn_blocking}
 import std/io::{println}
 import core/libc::{libc_exit}
 
@@ -27,14 +27,14 @@ pub fn main() -> async i32 {
     println("2. [Async Main] Spawning background Workers to event queue...")
     
     // 入队两个挂起的后台任务
-    spawn(worker_a())
-    spawn(worker_b())
+    worker_a().start
+    worker_b().start
     
     println("3. [Async Main] Doing other heavy work synchronously before I yield...")
     
     // 强制当前主协程阻塞，消费所有背景队列里的 WorkerA 和 WorkerB。
     // 这行就是展现协程“乱序/分发”魔法的地方。
-    spawn_blocking(event_loop_sentinel())
+    block_on<i32>(event_loop_sentinel())
     
     println("4. [Async Main] All done, shutting down the process safely.")
     libc_exit(0)

@@ -131,6 +131,7 @@ private:
   llvm::Value *m_CurrentCoroId = nullptr;
   llvm::Type *m_CurrentCoroPromiseType = nullptr;
   llvm::Type *m_CurrentCoroRetTy = nullptr;
+  llvm::BasicBlock *m_CurrentCoroSuspendRetBB = nullptr;
   void genCoroutineReturn(llvm::Value *retVal);
   // Although m_ValueElementTypes is redundant with m_Symbols for Variables, it
   // might be used elsewhere. But m_StructTypes, m_Shapes, etc. are absolutely
@@ -212,8 +213,8 @@ private:
   void genImpl(const ImplDecl *impl, bool declOnly = false);
   PhysEntity genMatchExpr(const MatchExpr *expr);
   PhysEntity genAwaitExpr(const AwaitExpr *E);
-  PhysEntity genSpawnExpr(const SpawnExpr *E);
-  PhysEntity genSpawnBlockingExpr(const SpawnBlockingExpr *E);
+  PhysEntity genWaitExpr(const WaitExpr *waitExpr);
+  PhysEntity genStartExpr(const StartExpr *E);
   PhysEntity genBinaryExpr(const BinaryExpr *expr);
   PhysEntity genAllocExpr(const AllocExpr *expr);
   PhysEntity genMemberExpr(const MemberExpr *expr);
@@ -277,6 +278,7 @@ private:
     llvm::Value *CurrentCoroId;
     llvm::Type *CurrentCoroPromiseType;
     llvm::Type *CurrentCoroRetTy;
+    llvm::BasicBlock *CurrentCoroSuspendRetBB;
   };
 
   GenContext saveContext();

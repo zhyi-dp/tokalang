@@ -145,6 +145,6 @@ pub fn sleep(ms: i32) {
 
 // 事件主循环，阻塞直到指定的主协程进入 done 状态
 pub fn block_on<T>(handle: JoinHandle<T>) -> T {
-    __toka_spawn_blocking(handle.coro_handle as *void)
-    return handle.await
+    __toka_spawn_blocking(handle.*coro_handle)
+    return handle.wait
 }
