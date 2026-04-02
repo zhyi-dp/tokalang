@@ -1,13 +1,18 @@
 import std/net::{TcpListener, SocketAddrV4, Ipv4Addr, TcpStream, net_async_accept, net_async_read}
 import std/task::{sleep_async, block_on}
 import std/string::{String}
+import std/io::{println}
 
 pub fn async_server() -> async i32 {
+    println("[Server] Binding to 127.0.0.1:8081...")
     auto addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8081)
     auto listener_res = TcpListener::bind(addr)
     auto listener# = listener_res.unwrap()
+    
+    println("[Server] Awaiting incoming connection...")
     auto stream_res = net_async_accept(listener#).await
     auto stream# = stream_res.unwrap()
+    println("[Server] Client connected! Awaiting data...")
     
     // Read using async_read
     unsafe {
@@ -15,35 +20,50 @@ pub fn async_server() -> async i32 {
         auto r_res = net_async_read(stream#, *buf as *u8, 128:usize).await
         auto n = r_res.unwrap()
         
+        println("[Server] Received data from client. Echoing back...")
         // Echo back
         stream#.write(*buf as *u8, n)
         unsafe free [128] *#buf
     }
 
+    println("[Server] Shutting down.")
     stream#.close()
     return 0
 }
 
 pub fn async_client() -> async i32 {
+    println("[Client] Yielding for 50ms before connecting...")
     sleep_async(50).await
+    
+    println("[Client] Connecting to server...")
     auto addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8081)
     auto stream_res = TcpStream::connect(addr)
     auto stream# = stream_res.unwrap()
+    
+    println("[Client] Writing 'Hello Async' to server...")
     stream#.write_string(String::from("Hello Async"))
     
+    println("[Client] Awaiting response...")
     unsafe {
         auto *buf# = unsafe alloc [128]u8
         auto r_res = net_async_read(stream#, *buf as *u8, 128:usize).await
         auto n = r_res.unwrap()
+        println("[Client] Received Echo Payload!")
         unsafe free [128] *#buf
     }
     
+    println("[Client] Shutting down.")
     stream#.close()
     return 0
 }
 
-pub fn main() {
+pub fn main() -> i32 {
+    println("[Main] Spawning client and server...")
     async_client().start
     auto server = async_server().start
+    
+    println("[Main] Blocking on server completion...")
     block_on<i32>(server)
+    println("[Main] Async environment safely shut down.")
+    return 0
 }

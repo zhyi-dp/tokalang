@@ -21,6 +21,8 @@
 namespace toka {
 
 bool Type::equals(const toka::Type &other) const {
+  if (typeKind != other.typeKind)
+    return false;
   return IsWritable == other.IsWritable && IsNullable == other.IsNullable &&
          IsBlocked == other.IsBlocked && IsCede == other.IsCede;
 }
@@ -155,8 +157,10 @@ bool RawPointerType::isCompatibleWith(const Type &target) const {
     return false;
   // Raw pointers are unsafe; we relax soul mutability checks to allow
   // easier interfacing with memory management (e.g. malloc/realloc).
-  return Type::isCompatibleWith(target) &&
-         PointeeType->isCompatibleWith(*otherPtr->PointeeType);
+  if (!Type::isCompatibleWith(target)) return false;
+  if (PointeeType->typeKind == Void || otherPtr->PointeeType->typeKind == Void)
+    return true;
+  return PointeeType->isCompatibleWith(*otherPtr->PointeeType);
 }
 
 std::shared_ptr<Type> RawPointerType::withAttributes(bool w, bool n,
