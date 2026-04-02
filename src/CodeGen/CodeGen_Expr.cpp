@@ -2627,29 +2627,19 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
       return PhysEntity(llvm::Constant::getNullValue(m_Builder.getInt32Ty()), "void", m_Builder.getVoidTy(), false);
   }
 
-  if (call->Callee == "__builtin_async_sleep") {
+  if (call->Callee == "__builtin_coro_current_handle") {
       if (!m_CurrentCoroHandle) {
-          error(call, "async_sleep can only be used inside an async function");
+          error(call, "__builtin_coro_current_handle can only be used inside an async function");
           return {};
       }
-      if (call->Args.empty()) {
-          error(call, "async_sleep requires ms context");
-          return {};
-      }
-      PhysEntity msEnt = genExpr(call->Args[0].get());
-      llvm::Value *msVal = msEnt.load(m_Builder);
+      return PhysEntity(m_CurrentCoroHandle, "*void", m_Builder.getPtrTy(), false);
+  }
 
-      llvm::Function *regFn = m_Module->getFunction("__toka_register_timer");
-      if (!regFn) {
-          llvm::FunctionType *ft = llvm::FunctionType::get(
-              m_Builder.getVoidTy(), {m_Builder.getPtrTy(), m_Builder.getInt32Ty()}, false);
-          regFn = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, "__toka_register_timer", m_Module.get());
+  if (call->Callee == "__builtin_coro_suspend") {
+      if (!m_CurrentCoroHandle) {
+          error(call, "__builtin_coro_suspend can only be used inside an async function");
+          return {};
       }
-      
-      if (msVal->getType() != m_Builder.getInt32Ty()) {
-          msVal = m_Builder.CreateIntCast(msVal, m_Builder.getInt32Ty(), true);
-      }
-      m_Builder.CreateCall(regFn, {m_CurrentCoroHandle, msVal});
 
       llvm::Function *saveFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_save);
       llvm::Value *saveToken = m_Builder.CreateCall(saveFn, {m_CurrentCoroHandle});
@@ -2657,8 +2647,8 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
       llvm::Function *suspendFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_suspend);
       llvm::Value *suspendRes = m_Builder.CreateCall(suspendFn, {saveToken, m_Builder.getInt1(false)});
       
-      llvm::BasicBlock *resumeBB = llvm::BasicBlock::Create(m_Context, "sleep.resume", m_Builder.GetInsertBlock()->getParent());
-      llvm::BasicBlock *cleanupBB = llvm::BasicBlock::Create(m_Context, "sleep.cleanup", m_Builder.GetInsertBlock()->getParent());
+      llvm::BasicBlock *resumeBB = llvm::BasicBlock::Create(m_Context, "suspend.resume", m_Builder.GetInsertBlock()->getParent());
+      llvm::BasicBlock *cleanupBB = llvm::BasicBlock::Create(m_Context, "suspend.cleanup", m_Builder.GetInsertBlock()->getParent());
       
       llvm::SwitchInst *sw = m_Builder.CreateSwitch(suspendRes, m_CurrentCoroSuspendRetBB, 2);
       sw->addCase(m_Builder.getInt8(0), resumeBB);
@@ -2677,7 +2667,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
       m_Builder.CreateUnreachable();
       
       m_Builder.SetInsertPoint(resumeBB);
-      return PhysEntity(llvm::ConstantInt::get(m_Builder.getInt32Ty(), 0), "i32", m_Builder.getInt32Ty(), false);
+      return PhysEntity(llvm::Constant::getNullValue(m_Builder.getInt32Ty()), "void", m_Builder.getVoidTy(), false);
   }
 
   // Primitives as constructors: i32(42)
