@@ -47,7 +47,7 @@ pub fn main() -> i32 {
     // block on completion
     auto handle = entry_point().start
     
-    block_on<i32>(handle)
+    block_on<i32>(handle#)
     println("[MAIN] 2. block_on returned!")
     libc_fflush(0 as *void)
     return 0

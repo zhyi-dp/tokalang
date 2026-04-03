@@ -1458,13 +1458,13 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     m_IsConsumingEffect = oldConsuming;
     
     std::string tName = innerType->toString();
-    if (tName.find("JoinHandle_M_") != std::string::npos) {
-        size_t pos = tName.find("JoinHandle_M_");
+    if (tName.find("TaskHandle_M_") != std::string::npos) {
+        size_t pos = tName.find("TaskHandle_M_");
         std::string inner = tName.substr(pos + 13);
         awaitEx->ResolvedType = toka::Type::fromString(inner);
         return awaitEx->ResolvedType;
     }
-    error(E, "Cannot await a non-JoinHandle type: " + tName);
+    error(E, "Cannot await a non-TaskHandle type: " + tName);
     return toka::Type::fromString("unknown");
   } else if (auto *waitEx = dynamic_cast<WaitExpr *>(E)) {
     bool oldConsuming = m_IsConsumingEffect;
@@ -1473,13 +1473,13 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     m_IsConsumingEffect = oldConsuming;
     
     std::string tName = innerType->toString();
-    if (tName.find("JoinHandle_M_") != std::string::npos) {
-        size_t pos = tName.find("JoinHandle_M_");
+    if (tName.find("TaskHandle_M_") != std::string::npos) {
+        size_t pos = tName.find("TaskHandle_M_");
         std::string inner = tName.substr(pos + 13);
         waitEx->ResolvedType = toka::Type::fromString(inner);
         return waitEx->ResolvedType;
     }
-    error(E, "Cannot wait on a non-JoinHandle type: " + tName);
+    error(E, "Cannot wait on a non-TaskHandle type: " + tName);
     return toka::Type::fromString("unknown");
   } else if (auto *AIE = dynamic_cast<ArrayInitExpr *>(E)) {
     auto expectedType = toka::Type::fromString(resolveType(AIE->Type));
@@ -1701,7 +1701,12 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
           }
         }
 
-        return toka::Type::fromString(MethodMap[soulType][Met->Method]);
+        auto retType = toka::Type::fromString(MethodMap[soulType][Met->Method]);
+        if (FD && FD->Effect == EffectKind::Async) {
+            std::string tName = "TaskHandle<" + retType->toString() + ">";
+            return toka::Type::fromString(tName);
+        }
+        return retType;
       }
     }
 
@@ -4461,7 +4466,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
   std::cerr << "[DEBUG] checkCallExpr CallName=" << CallName << " Fn=" << (Fn ? "yes" : "no") << " isAsync=" << isAsync << "\n";
   
   if (isAsync) {
-      std::string tName = "JoinHandle<" + ReturnType->toString() + ">";
+      std::string tName = "TaskHandle<" + ReturnType->toString() + ">";
       std::cerr << "[DEBUG] Wrapping return type to " << tName << "\n";
       return toka::Type::fromString(tName);
   }

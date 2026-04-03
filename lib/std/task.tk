@@ -5,7 +5,7 @@
 
 import std/vec::{Vec}
 import core/libc::{libc_usleep, libc_pthread_mutex_lock, libc_pthread_mutex_unlock, libc_pthread_mutex_init, libc_malloc, libc_gettimeofday, libc_free}
-import core/task::{JoinHandle, __toka_coro_resume, __toka_coro_done, __toka_coro_destroy}
+import core/task::{TaskHandle, __toka_coro_resume, __toka_coro_done, __toka_coro_destroy}
 import core/types::{Addr}
 import std/sys/os as sys
 
@@ -193,7 +193,7 @@ pub fn sleep(ms: i32) {
 }
 
 // 事件主循环，阻塞直到指定的主协程进入 done 状态
-pub fn block_on<T>(handle: JoinHandle<T>) -> T {
+pub fn block_on<T>(handle#: TaskHandle<T>) -> T {
     __toka_spawn_blocking(handle.*coro_handle)
     return handle.wait
 }

@@ -454,6 +454,34 @@ pub fn reactor_add_read_impl(reactor_fd: i32, fd: i32, coro_handle: Addr) -> boo
     }
 }
 
+pub fn reactor_add_write_impl(reactor_fd: i32, fd: i32, coro_handle: Addr) -> bool {
+    unsafe {
+        auto *ev# = libc_malloc(12) as *char
+        if *ev as usize == 0 {
+             return false
+        }
+        
+        auto base = *ev as usize
+        
+        // events = EPOLLOUT (4) | EPOLLONESHOT (1073741824) = 1073741828:u32
+        auto *p_events# = base as *u32
+        p_events = 1073741828:u32
+        
+        // data.ptr = coro_handle
+        auto *p_data# = (base + 4:usize) as *Addr
+        p_data = coro_handle  
+        
+        // 1 = EPOLL_CTL_ADD, 3 = EPOLL_CTL_MOD
+        auto res = epoll_ctl(reactor_fd, 1, fd, *ev as *void)
+        if res != 0 {
+             res = epoll_ctl(reactor_fd, 3, fd, *ev as *void)
+        }
+        
+        libc_free(*ev as *void)
+        return res == 0
+    }
+}
+
 pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, max: i32) -> i32 {
     unsafe {
         auto *events# = libc_malloc((12 * max) as usize) as *void

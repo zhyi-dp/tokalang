@@ -22,7 +22,8 @@ pub fn async_server() -> async i32 {
         
         println("[Server] Received data from client. Echoing back...")
         // Echo back
-        stream#.write(*buf as *u8, n)
+        auto w_res = stream#.write_async(*buf as *u8, n).await
+        w_res.unwrap()
         unsafe free [128] *#buf
     }
 
@@ -40,8 +41,9 @@ pub fn async_client() -> async i32 {
     auto stream_res = TcpStream::connect(addr)
     auto stream# = stream_res.unwrap()
     
-    println("[Client] Writing 'Hello Async' to server...")
-    stream#.write_string(String::from("Hello Async"))
+    println("[Client] Writing 'Hello Async' to server (non-blocking)...")
+    auto w_res = stream#.write_string_async(String::from("Hello Async")).await
+    w_res.unwrap()
     
     println("[Client] Awaiting response...")
     unsafe {

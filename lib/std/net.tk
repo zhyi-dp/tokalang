@@ -124,6 +124,15 @@ impl TcpStream {
         return self#.write(*ptr, s.len() as usize)
     }
     
+    pub fn write_async(self#, *buf: u8, len: usize) -> async Result<usize, String> {
+        return net_async_write(self#, *buf, len).await
+    }
+    
+    pub fn write_string_async(self#, s: String) -> async Result<usize, String> {
+        auto *ptr = s.c_str() as *u8
+        return self#.write_async(*ptr, s.len() as usize).await
+    }
+
     pub fn close(self#) {
         unsafe {
             if !self.closed {
@@ -267,6 +276,39 @@ pub fn net_async_accept(listener#: TcpListener) -> async Result<TcpStream, Strin
                         __builtin_coro_suspend()
                     } else {
                         ret = Result<TcpStream, String>::Err(String::from("Accept failed"))
+                        done = true
+                    }
+                }
+            }
+        }
+    }
+    return ret
+}
+
+pub fn net_async_write(stream#: TcpStream, *buf: u8, len: usize) -> async Result<usize, String> {
+    auto ret# = Result<usize, String>::Err(String::from("Unreachable"))
+    unsafe {
+        if stream.closed {
+            ret = Result<usize, String>::Err(String::from("Stream closed"))
+        } else {
+            sys::net_set_nonblocking_impl(stream.fd)
+            
+            auto done# = false
+            while !done {
+                auto n: i64 = sys::net_write_impl(stream.fd, *buf, len)
+                if n >= 0:i64 {
+                    ret = Result<usize, String>::Ok(n as usize)
+                    done = true
+                } else {
+                    auto err = sys::get_last_error()
+                    auto eagain = sys::get_eagain_impl()
+                    
+                    if err == eagain {
+                        auto coro = __builtin_coro_current_handle() as Addr
+                        sys::reactor_add_write_impl(get_reactor_fd(), stream.fd, coro)
+                        __builtin_coro_suspend()
+                    } else {
+                        ret = Result<usize, String>::Err(String::from("Write error"))
                         done = true
                     }
                 }
