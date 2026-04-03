@@ -108,10 +108,15 @@ auto ^#p2? = ...    // 可交换(指向可变)、可空、独占指针
 
 ## 🛠 构建与使用
 
+### 支持平台 (Target Platforms)
+Toka 编译器及标准库目前提供对以下操作系统的原生支持与开发生态：
+- **macOS** (x86_64 / arm64)：基于 `kqueue` 的网络异步反应器。
+- **Linux** (x86_64)：基于 `epoll` 的网络异步反应器。
+
 ### 前置要求
 - **C++17** 兼容的编译器 (Clang/GCC)
 - **CMake** 3.15+
-- **LLVM 17** (Libraries and Headers)
+- **LLVM 20** (Libraries and Headers, 本项目深度依赖 LLVM 20 的 Opaque Pointers 与协程 Intrinsics 特性)
 
 ### 构建编译器
 ```bash

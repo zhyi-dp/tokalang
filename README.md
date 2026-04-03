@@ -108,10 +108,15 @@ We are actively building the compiler self-hosting capabilities.
 
 ## 🛠 Build & Usage
 
+### Target Platforms
+Toka compiler and its standard library officially support:
+- **macOS** (x86_64 / arm64) natively via `kqueue` reactor.
+- **Linux** (x86_64) native execution via `epoll` reactor.
+
 ### Prerequisites
 - **C++17** compatible compiler (Clang/GCC)
 - **CMake** 3.15+
-- **LLVM 17** (Libraries and Headers)
+- **LLVM 20** (Libraries and Headers, required for Opaque Pointers and modern Coroutine Intrinsics)
 
 ### Building the Compiler
 ```bash
