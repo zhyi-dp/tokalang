@@ -348,28 +348,6 @@ pub fn net_getsockopt_error_impl(fd: i32) -> i32 {
     }
 }
 
-pub fn reactor_add_write_impl(reactor_fd: i32, fd: i32, coro_handle: Addr) -> bool {
-    unsafe {
-        auto *ev# = libc_malloc(12) as *char
-        if *ev as usize == 0 { return false }
-        
-        auto base = *ev as usize
-        auto *p_events# = base as *u32
-        // EPOLLOUT (4) | EPOLLONESHOT (1073741824) = 0x40000004
-        p_events = 1073741828:u32
-        
-        auto *p_data# = (base + 4:usize) as *Addr
-        p_data = coro_handle
-        
-        auto res = epoll_ctl(reactor_fd, 1, fd, *ev as *void)
-        if res != 0 {
-             res = epoll_ctl(reactor_fd, 3, fd, *ev as *void)
-        }
-        
-        libc_free(*ev as *void)
-        return res == 0
-    }
-}
 
 pub fn net_bind_impl(fd: i32, host: usize, port: i32) -> i32 {
     unsafe {
@@ -497,7 +475,7 @@ pub fn reactor_add_read_impl(reactor_fd: i32, fd: i32, coro_handle: Addr) -> boo
         p_data = coro_handle  
         
         // 1 = EPOLL_CTL_ADD, 3 = EPOLL_CTL_MOD
-        auto res = epoll_ctl(reactor_fd, 1, fd, *ev as *void)
+        auto res# = epoll_ctl(reactor_fd, 1, fd, *ev as *void)
         if res != 0 {
              res = epoll_ctl(reactor_fd, 3, fd, *ev as *void)
         }
@@ -525,7 +503,7 @@ pub fn reactor_add_write_impl(reactor_fd: i32, fd: i32, coro_handle: Addr) -> bo
         p_data = coro_handle  
         
         // 1 = EPOLL_CTL_ADD, 3 = EPOLL_CTL_MOD
-        auto res = epoll_ctl(reactor_fd, 1, fd, *ev as *void)
+        auto res# = epoll_ctl(reactor_fd, 1, fd, *ev as *void)
         if res != 0 {
              res = epoll_ctl(reactor_fd, 3, fd, *ev as *void)
         }
