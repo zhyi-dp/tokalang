@@ -31,7 +31,7 @@ std::vector<GenericParam> Parser::parseGenericParams() {
       gp.Name = consume(TokenType::Identifier, "Expected generic parameter name").Text;
       if (!gp.Name.empty() && gp.Name[0] == '\'') {
         gp.IsMorphic = true;
-        gp.Name = gp.Name.substr(1);
+        // gp.Name = gp.Name.substr(1); // Leave quote attached to parameter name!
       }
       if (match(TokenType::Colon)) {
         if (check(TokenType::At) || check(TokenType::LBrace)) {

@@ -7,10 +7,10 @@ pub shape Option<'T> (
     None = 0
 )
 
-impl<'T> Option<T> {
+impl<'T> Option<'T> {
     pub fn is_some(self) -> bool {
         match self {
-            auto Option<T>::Some(_) => return true
+            auto Option<'T>::Some(_) => return true
             _ => return false
         }
     }
@@ -21,7 +21,7 @@ impl<'T> Option<T> {
 
     pub fn unwrap(self) -> 'T {
         match self {
-            auto Option<T>::Some('val) => return 'val
+            auto Option<'T>::Some('val) => return 'val
             _ => {
                 libc_exit(1)
                 return self.unwrap() 
@@ -29,9 +29,9 @@ impl<'T> Option<T> {
         }
     }
 
-    pub fn unwrap_or(self, 'def_val: T) -> 'T {
+    pub fn unwrap_or(self, 'def_val: 'T) -> 'T {
         match self {    
-            auto Option<T>::Some('val) => return 'val
+            auto Option<'T>::Some('val) => return 'val
             _ => return 'def_val
         }
     }

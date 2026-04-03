@@ -9,11 +9,11 @@ pub shape Mutex<'T: @Send>(
     data#: 'T
 )
 
-impl<'T: @Send> Mutex<T>@Sync {}
-impl<'T: @Send> Mutex<T>@Send {}
+impl<'T: @Send> Mutex<'T>@Sync {}
+impl<'T: @Send> Mutex<'T>@Send {}
 
-impl<'T: @Send> Mutex<T> {
-    pub fn new(data: cede T) -> Mutex<T> {
+impl<'T: @Send> Mutex<'T> {
+    pub fn new(data: cede 'T) -> Mutex<'T> {
         unsafe {
 
             // Allocate 64 bytes for macOS pthread_mutex_t (64 bytes covers Linux as well)
@@ -23,7 +23,7 @@ impl<'T: @Send> Mutex<T> {
             // Initialize the mutex with default attributes (0:Addr)
             libc_pthread_mutex_init(handle_addr, 0:Addr)
             
-            return Mutex<T>(
+            return Mutex<'T>(
                 handle = handle_addr,
                 data = cede data
             )
@@ -31,21 +31,21 @@ impl<'T: @Send> Mutex<T> {
     }
     
     /// Directly allocates and initializes a new Mutex as a shared pointer (~Mutex)
-    pub fn make(data: cede T) -> ^Mutex<T> {
+    pub fn make(data: cede 'T) -> ^Mutex<'T> {
         unsafe {
             auto *handle_ptr# = (libc_malloc(64 as usize) as *byte)
             auto handle_addr = (*handle_ptr) as Addr
             
             libc_pthread_mutex_init(handle_addr, 0:Addr)
             
-            return new Mutex<T>(
+            return new Mutex<'T>(
                 handle = handle_addr,
                 data = cede data
             )
         }
     }
     
-    pub fn lock(self) -> Result<MutexLock<T>, Error> {
+    pub fn lock(self) -> Result<MutexLock<'T>, Error> {
         unsafe {
             auto rc = libc_pthread_mutex_lock(self.handle)
             if rc != 0 {
@@ -53,13 +53,13 @@ impl<'T: @Send> Mutex<T> {
                 auto rc_str = String::from_int(rc)
                 msg#.push_str(rc_str.c_str())
                 
-                return Result<MutexLock<T>, Error>::Err(Error::new(rc, msg))
+                return Result<MutexLock<'T>, Error>::Err(Error::new(rc, msg))
             }
             
             auto temp_h: Addr = self.handle
-            auto *mut_ptr# = ((*self) as *Mutex<T>)
+            auto *mut_ptr# = ((*self) as *Mutex<'T>)
             
-            return Result<MutexLock<T>, Error>::Ok(MutexLock<T>(
+            return Result<MutexLock<'T>, Error>::Ok(MutexLock<'T>(
                 handle = temp_h,
                 *data = *mut_ptr.data
             ))
@@ -83,7 +83,7 @@ impl<'T: @Send> Mutex<T> {
     
 }
 
-impl<'T: @Send> Mutex<T>@encap {
+impl<'T: @Send> Mutex<'T>@encap {
     fn drop(self#) {
         unsafe {
             auto h: Addr = self.handle
@@ -101,10 +101,10 @@ pub shape MutexLock<'T: @Send>(
     *data#: 'T
 )
 
-impl<'T: @Send> MutexLock<T>@Send {}
-impl<'T: @Sync> MutexLock<T>@Sync {}
+impl<'T: @Send> MutexLock<'T>@Send {}
+impl<'T: @Sync> MutexLock<'T>@Sync {}
 
-impl<'T: @Send> MutexLock<T>@encap {
+impl<'T: @Send> MutexLock<'T>@encap {
     fn drop(self#) {
         unsafe {
             if self.handle != 0:Addr {
@@ -115,8 +115,8 @@ impl<'T: @Send> MutexLock<T>@encap {
     }
 }
 
-impl<'T: @Send> MutexLock<T> {
-    pub fn get_ref(self) -> *T# {
+impl<'T: @Send> MutexLock<'T> {
+    pub fn get_ref(self) -> *'T# {
         return self.*data
     }
 }
@@ -127,11 +127,11 @@ pub shape RwMutex<'T: {@Send, @Sync}>(
     data#: 'T
 )
 
-impl<'T: {@Send, @Sync}> RwMutex<T>@Sync {}
-impl<'T: {@Send, @Sync}> RwMutex<T>@Send {}
+impl<'T: {@Send, @Sync}> RwMutex<'T>@Sync {}
+impl<'T: {@Send, @Sync}> RwMutex<'T>@Send {}
 
-impl<'T: {@Send, @Sync}> RwMutex<T> {
-    pub fn new(data: cede T) -> RwMutex<T> {
+impl<'T: {@Send, @Sync}> RwMutex<'T> {
+    pub fn new(data: cede 'T) -> RwMutex<'T> {
         unsafe {
             // macOS pthread_rwlock_t is 192 bytes, Linux is 56 bytes.
             auto *handle_ptr# = (libc_malloc(256 as usize) as *byte)
@@ -139,14 +139,14 @@ impl<'T: {@Send, @Sync}> RwMutex<T> {
             
             libc_pthread_rwlock_init(handle_addr, 0:Addr)
             
-            return RwMutex<T>(
+            return RwMutex<'T>(
                 handle = handle_addr,
                 data = cede data
             )
         }
     }
     
-    pub fn read_lock(self) -> Result<RwReadLock<T>, Error> {
+    pub fn read_lock(self) -> Result<RwReadLock<'T>, Error> {
         unsafe {
             auto rc = libc_pthread_rwlock_rdlock(self.handle)
             if rc != 0 {
@@ -154,20 +154,20 @@ impl<'T: {@Send, @Sync}> RwMutex<T> {
                 auto rc_str = String::from_int(rc)
                 msg#.push_str(rc_str.c_str())
                 
-                return Result<RwReadLock<T>, Error>::Err(Error::new(rc, msg))
+                return Result<RwReadLock<'T>, Error>::Err(Error::new(rc, msg))
             }
             
             auto temp_h: Addr = self.handle
-            auto *mut_ptr# = ((*self) as *RwMutex<T>)
+            auto *mut_ptr# = ((*self) as *RwMutex<'T>)
             
-            return Result<RwReadLock<T>, Error>::Ok(RwReadLock<T>(
+            return Result<RwReadLock<'T>, Error>::Ok(RwReadLock<'T>(
                 handle = temp_h,
                 *data = *mut_ptr.data
             ))
         }
     }
     
-    pub fn write_lock(self) -> Result<RwWriteLock<T>, Error> {
+    pub fn write_lock(self) -> Result<RwWriteLock<'T>, Error> {
         unsafe {
             auto rc = libc_pthread_rwlock_wrlock(self.handle)
             if rc != 0 {
@@ -175,13 +175,13 @@ impl<'T: {@Send, @Sync}> RwMutex<T> {
                 auto rc_str = String::from_int(rc)
                 msg#.push_str(rc_str.c_str())
                 
-                return Result<RwWriteLock<T>, Error>::Err(Error::new(rc, msg))
+                return Result<RwWriteLock<'T>, Error>::Err(Error::new(rc, msg))
             }
             
             auto temp_h: Addr = self.handle
-            auto *mut_ptr# = ((*self) as *RwMutex<T>)
+            auto *mut_ptr# = ((*self) as *RwMutex<'T>)
             
-            return Result<RwWriteLock<T>, Error>::Ok(RwWriteLock<T>(
+            return Result<RwWriteLock<'T>, Error>::Ok(RwWriteLock<'T>(
                 handle = temp_h,
                 *data = *mut_ptr.data
             ))
@@ -203,7 +203,7 @@ impl<'T: {@Send, @Sync}> RwMutex<T> {
     }
 }
 
-impl<'T: {@Send, @Sync}> RwMutex<T>@encap {
+impl<'T: {@Send, @Sync}> RwMutex<'T>@encap {
     fn drop(self#) {
         unsafe {
             auto h: Addr = self.handle
@@ -221,10 +221,10 @@ pub shape RwReadLock<'T: {@Send, @Sync}>(
     *data: 'T
 )
 
-impl<'T: {@Send, @Sync}> RwReadLock<T>@Send {}
-impl<'T: {@Send, @Sync}> RwReadLock<T>@Sync {}
+impl<'T: {@Send, @Sync}> RwReadLock<'T>@Send {}
+impl<'T: {@Send, @Sync}> RwReadLock<'T>@Sync {}
 
-impl<'T: {@Send, @Sync}> RwReadLock<T>@encap {
+impl<'T: {@Send, @Sync}> RwReadLock<'T>@encap {
     fn drop(self#) {
         unsafe {
             if self.handle != 0:Addr {
@@ -235,8 +235,8 @@ impl<'T: {@Send, @Sync}> RwReadLock<T>@encap {
     }
 }
 
-impl<'T: {@Send, @Sync}> RwReadLock<T> {
-    pub fn get_ref(self) -> *T {
+impl<'T: {@Send, @Sync}> RwReadLock<'T> {
+    pub fn get_ref(self) -> *'T {
         return self.*data
     }
 }
@@ -246,10 +246,10 @@ pub shape RwWriteLock<'T: {@Send, @Sync}>(
     *data#: 'T
 )
 
-impl<'T: {@Send, @Sync}> RwWriteLock<T>@Send {}
-impl<'T: {@Send, @Sync}> RwWriteLock<T>@Sync {}
+impl<'T: {@Send, @Sync}> RwWriteLock<'T>@Send {}
+impl<'T: {@Send, @Sync}> RwWriteLock<'T>@Sync {}
 
-impl<'T: {@Send, @Sync}> RwWriteLock<T>@encap {
+impl<'T: {@Send, @Sync}> RwWriteLock<'T>@encap {
     fn drop(self#) {
         unsafe {
             if self.handle != 0:Addr {
@@ -260,8 +260,8 @@ impl<'T: {@Send, @Sync}> RwWriteLock<T>@encap {
     }
 }
 
-impl<'T: {@Send, @Sync}> RwWriteLock<T> {
-    pub fn get_ref(self) -> *T# {
+impl<'T: {@Send, @Sync}> RwWriteLock<'T> {
+    pub fn get_ref(self) -> *'T# {
         return self.*data
     }
 }
@@ -271,15 +271,15 @@ impl<'T: {@Send, @Sync}> RwWriteLock<T> {
 // ------------------------------------------------------
 
 /// A Condition Variable for thread synchronization.
-/// Parametrized with T to ensure it pairs safely with MutexLock<T>.
+/// Parametrized with 'T to ensure it pairs safely with MutexLock<'T>.
 pub shape CondVar<'T: @Send> (
     handle#: Addr
 )
 
-impl<'T: @Send> CondVar<T>@Sync {}
-impl<'T: @Send> CondVar<T>@Send {}
+impl<'T: @Send> CondVar<'T>@Sync {}
+impl<'T: @Send> CondVar<'T>@Send {}
 
-impl<'T: @Send> CondVar<T>@encap {
+impl<'T: @Send> CondVar<'T>@encap {
     fn drop(self#) {
         unsafe {
             auto h: Addr = self.handle
@@ -292,9 +292,9 @@ impl<'T: @Send> CondVar<T>@encap {
     }
 }
 
-impl<'T: @Send> CondVar<T> {
+impl<'T: @Send> CondVar<'T> {
     /// Creates a new Condition Variable
-    pub fn new() -> CondVar<T> {
+    pub fn new() -> CondVar<'T> {
         unsafe {
             // Allocate 64 bytes for macOS/Linux pthread_cond_t safely
             auto *handle_ptr# = (libc_malloc(64 as usize) as *byte)
@@ -302,21 +302,21 @@ impl<'T: @Send> CondVar<T> {
             
             libc_pthread_cond_init(handle_addr, 0:Addr)
             
-            return CondVar<T>(
+            return CondVar<'T>(
                 handle = handle_addr
             )
         }
     }
     
-    /// Directly allocates and initializes a new CondVar as a shared pointer (~CondVar<T>)
-    pub fn make() -> ^CondVar<T> {
+    /// Directly allocates and initializes a new CondVar as a shared pointer (~CondVar<'T>)
+    pub fn make() -> ^CondVar<'T> {
         unsafe {
             auto *handle_ptr# = (libc_malloc(64 as usize) as *byte)
             auto handle_addr = (*handle_ptr) as Addr
             
             libc_pthread_cond_init(handle_addr, 0:Addr)
             
-            return new CondVar<T>(
+            return new CondVar<'T>(
                 handle = handle_addr
             )
         }
@@ -325,7 +325,7 @@ impl<'T: @Send> CondVar<T> {
     /// Suspends the current thread until another thread calls notify_one() or notify_all().
     /// This method temporarily and atomically unlocks the MutexLock before sleeping.
     /// The lock is guaranteed to be re-acquired natively before this method returns.
-    pub fn wait_cond(self, mut_lock: MutexLock<T>) {
+    pub fn wait_cond(self, mut_lock: MutexLock<'T>) {
         unsafe {
             // Unlocks the mutex, puts the thread to sleep, and wakes up locked again.
             libc_pthread_cond_wait(self.handle, mut_lock.handle)
