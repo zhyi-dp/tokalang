@@ -85,6 +85,7 @@ struct SymbolInfo {
   bool HasConstValue = false;
   uint64_t ConstValue = 0;
   bool IsRebindable = false; // [NEW] prefix '#' or '!' rebind permission
+  bool IsMorphicExempt = false; // [NEW] Track morphic exemption
 };
 
 class Scope {

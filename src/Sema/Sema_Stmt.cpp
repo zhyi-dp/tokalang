@@ -662,6 +662,7 @@ void Sema::checkStmt(Stmt *S) {
       Info.TypeObj = toka::Type::fromString(fullType);
     }
     Info.IsRebindable = Var->IsRebindable;
+    Info.IsMorphicExempt = Var->IsMorphicExempt; // [NEW]
     Var->ResolvedType = Info.TypeObj;
 
     if (Var->Init) {

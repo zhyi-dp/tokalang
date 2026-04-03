@@ -467,6 +467,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     if (CurrentScope->findVariableWithDeref(ve->Name, InfoPtr, actualName)) {
       isImplicitDeref = (actualName != ve->Name);
       Info = *InfoPtr;
+      ve->IsMorphicExempt = Info.IsMorphicExempt; // [NEW]
     }
 
     if (!InfoPtr) {
@@ -2111,6 +2112,7 @@ std::shared_ptr<toka::Type> Sema::checkMemberExpr(MemberExpr *Memb) {
       const auto &Field = SD->Members[i];
       if (toka::Type::stripMorphology(Field.Name) == requestedMember) {
         Memb->Index = i; // [FIX] Set index for CodeGen
+        Memb->IsMorphicExempt = Field.IsMorphicExempt; // [NEW]
         // Visibility Check: God-eye view (same file)
         std::string membFile =
             DiagnosticEngine::SrcMgr->getFullSourceLoc(Memb->Loc).FileName;
@@ -3168,8 +3170,22 @@ std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
         // `getSyntacticMorphology` returning None for VariableExpr is
         // correct.
 
+        // Determine if either side is morphic exempt.
+        auto isExempt = [](Expr *E) {
+            if (!E) return false;
+            while (E) {
+                if (E->IsMorphicExempt) return true;
+                if (auto *Un = dynamic_cast<UnaryExpr *>(E)) { E = Un->RHS.get(); }
+                else if (auto *Idx = dynamic_cast<ArrayIndexExpr *>(E)) { E = Idx->Array.get(); }
+                else { break; }
+            }
+            return false;
+        };
+
         MorphKind sourceMorph = getSyntacticMorphology(Bin->RHS.get());
-        checkStrictMorphology(Bin, targetMorph, sourceMorph, LHS);
+        if (!isExempt(Bin->LHS.get()) && !isExempt(Bin->RHS.get())) {
+          checkStrictMorphology(Bin, targetMorph, sourceMorph, LHS);
+        }
       }
     }
 
@@ -4777,6 +4793,26 @@ Sema::checkStructInit(InitStructExpr *Init, ShapeDecl *SD,
     auto memberTypeObj = pDefMember->ResolvedType;
     if (!memberTypeObj)
       memberTypeObj = toka::Type::fromString(pDefMember->Type);
+
+    // [New] Morphic Exemption: Validating Caller Transparency
+    if (pDefMember->IsMorphicExempt) {
+      MorphKind providedMorph = MorphKind::None;
+      if (pair.first.find('^') != std::string::npos) providedMorph = MorphKind::Unique;
+      else if (pair.first.find('~') != std::string::npos) providedMorph = MorphKind::Shared;
+      else if (pair.first.find('&') != std::string::npos) providedMorph = MorphKind::Ref;
+      else if (pair.first.find('*') != std::string::npos) providedMorph = MorphKind::Raw;
+
+      MorphKind expectedMorph = MorphKind::None;
+      if (memberTypeObj->isRawPointer()) expectedMorph = MorphKind::Raw;
+      else if (memberTypeObj->isUniquePtr()) expectedMorph = MorphKind::Unique;
+      else if (memberTypeObj->isSharedPtr()) expectedMorph = MorphKind::Shared;
+      else if (memberTypeObj->isReference()) expectedMorph = MorphKind::Ref;
+
+      // [DEBUG TRACE] Let's see what Toka thinks memberTypeObj is
+      std::cerr << "[DEBUG] checkStructInit field: " << pair.first << " expectedMorph: " << (int)expectedMorph << " providedMorph: " << (int)providedMorph << " memberType: " << memberTypeObj->toString() << "\n";
+
+      checkStrictMorphology(Init, expectedMorph, providedMorph, pDefMember->Name);
+    }
 
     std::shared_ptr<toka::Type> exprTypeObj =
         checkExpr(pair.second.get(), memberTypeObj);

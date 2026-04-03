@@ -29,6 +29,10 @@ std::vector<GenericParam> Parser::parseGenericParams() {
         gp.IsConst = true;
       }
       gp.Name = consume(TokenType::Identifier, "Expected generic parameter name").Text;
+      if (!gp.Name.empty() && gp.Name[0] == '\'') {
+        gp.IsMorphic = true;
+        gp.Name = gp.Name.substr(1);
+      }
       if (match(TokenType::Colon)) {
         if (check(TokenType::At) || check(TokenType::LBrace)) {
           // Trait bounds: <T: @Send> or <T: @{Read, Write}> or <T: {@Read, @Write}>
@@ -297,6 +301,10 @@ std::unique_ptr<ShapeDecl> Parser::parseShape(bool isPub) {
 
           Token nameTok = consume(TokenType::Identifier, "Expected field name");
           m.Name = nameTok.Text;
+          if (!m.Name.empty() && m.Name[0] == '\'') {
+              m.IsMorphicExempt = true;
+              m.Name = m.Name.substr(1);
+          }
           m.IsValueMutable = nameTok.HasWrite;
           m.IsValueNullable = nameTok.HasNull;
           m.IsValueBlocked = nameTok.IsBlocked;

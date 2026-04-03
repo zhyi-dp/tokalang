@@ -720,6 +720,7 @@ void Sema::checkFunction(FunctionDecl *Fn) {
     }
 
     Info.IsRebindable = Arg.IsRebindable;
+    Info.IsMorphicExempt = Arg.IsMorphicExempt; // [NEW]
 
     CurrentScope->define(Arg.Name, Info);
   }

@@ -397,10 +397,21 @@ Sema::instantiateGenericShape(std::shared_ptr<ShapeType> GenericShape) {
     return GenericShape;
   }
 
-  // [NEW] Check Trait Bounds
+  // [NEW] Check Trait Bounds and Morphic Exemption
   for (size_t i = 0; i < Template->GenericParams.size(); ++i) {
-    if (!Template->GenericParams[i].TraitBounds.empty()) {
-      if (!checkTraitBounds(Template->Loc, Template->GenericParams[i].Name, Template->GenericParams[i].TraitBounds, GenericShape->GenericArgs[i]->toString())) {
+    auto &Param = Template->GenericParams[i];
+    auto ArgType = GenericShape->GenericArgs[i];
+
+    // Morphic constraint check
+    if (!Param.IsMorphic) {
+      if (ArgType->isRawPointer() || ArgType->isUniquePtr() || ArgType->isSharedPtr() || ArgType->isReference()) {
+        DiagnosticEngine::report(Template->Loc, DiagID::ERR_MORPHIC_CONSTRAINT, Param.Name, Param.Name);
+        return GenericShape;
+      }
+    }
+
+    if (!Param.TraitBounds.empty()) {
+      if (!checkTraitBounds(Template->Loc, Param.Name, Param.TraitBounds, ArgType->toString())) {
         return nullptr;
       }
     }
@@ -415,7 +426,14 @@ Sema::instantiateGenericShape(std::shared_ptr<ShapeType> GenericShape) {
     // Sanitize literal values for mangled name (e.g. "10" is fine, but maybe
     // others are not)
     for (char &c : argStr) {
-      if (!std::isalnum(c) && c != '_')
+      if (c == '^') c = 'U';
+      else if (c == '*') c = 'R';
+      else if (c == '~') c = 'S';
+      else if (c == '&') c = 'B';
+      else if (c == '?') c = 'O';
+      else if (c == '#') c = 'M';
+      else if (c == '!') c = 'K';
+      else if (!std::isalnum(c) && c != '_')
         c = '_';
     }
     mangledName += "_" + argStr;

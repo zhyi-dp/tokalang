@@ -1,0 +1,39 @@
+// Test Morphic Generics ('T) bypass of explicit hat
+shape Box<'T>(
+  'data: T
+)
+
+fn test_morphic_unique() -> i32 {
+  unsafe {
+    auto ptr = Box<^i32>(^data=new i32(42))
+    auto val = ptr.data
+    return val - 42
+  }
+}
+
+fn test_morphic_raw() -> i32 {
+  auto local = 100
+  auto ptr = Box<&i32>(&data=&local)
+  auto val = ptr.data
+  return val - 100
+}
+
+fn test_morphic_nohat() -> i32 {
+  auto local = 100
+  auto ptr = Box<i32>(data=local)
+  auto val = ptr.data
+  return val - 100
+}
+
+fn main() -> i32 {
+  auto r1 = test_morphic_unique()
+  if r1 != 0 { return 1 }
+  
+  auto r2 = test_morphic_raw()
+  if r2 != 0 { return 2 }
+  
+  auto r3 = test_morphic_nohat()
+  if r3 != 0 { return 3 }
+  
+  return 0
+}

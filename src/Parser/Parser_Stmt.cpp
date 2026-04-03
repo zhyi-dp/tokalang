@@ -105,7 +105,12 @@ std::unique_ptr<Stmt> Parser::parseVariableDecl(bool isPub) {
     return node;
   }
 
+  bool isMorphicExempt = false;
   Token name = consume(TokenType::Identifier, "Expected variable name");
+  if (!name.Text.empty() && name.Text[0] == '\'') {
+      isMorphicExempt = true;
+      name.Text = name.Text.substr(1);
+  }
   std::string fullVarName = morphologyPrefix + name.Text;
 
   std::string typeName = "";
@@ -133,6 +138,7 @@ std::unique_ptr<Stmt> Parser::parseVariableDecl(bool isPub) {
   node->IsValueMutable = name.HasWrite;
   node->IsValueNullable = name.HasNull;
   node->IsValueBlocked = name.IsBlocked;
+  node->IsMorphicExempt = isMorphicExempt; // [NEW]
   node->IsRebindable = isRebindable;
   node->IsPointerNullable = isPtrNullable;
   node->IsRebindBlocked = isRebindBlocked;

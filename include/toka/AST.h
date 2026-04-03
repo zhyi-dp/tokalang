@@ -29,6 +29,7 @@ struct GenericParam {
   std::string Type; // Empty if it's a type parameter
   bool IsConst = false;
   std::vector<std::string> TraitBounds;
+  bool IsMorphic = false; // [NEW] True if name starts with '
 };
 
 class ASTNode {
@@ -72,6 +73,7 @@ cloneVec(const std::vector<std::unique_ptr<T>> &vec) {
 class Expr : public ASTNode {
 public:
   std::shared_ptr<Type> ResolvedType;
+  bool IsMorphicExempt = false; // [NEW] Track morphic exemption at expression level
 };
 class Stmt : public ASTNode {};
 
@@ -1143,6 +1145,7 @@ public:
   bool IsValueNullable = false;   // Identifier Attribute ? (p?)
   bool IsRebindBlocked = false;   // Pointer Attribute $ (^$p)
   bool IsValueBlocked = false;    // Identifier Attribute $ (p$)
+  bool IsMorphicExempt = false;   // [NEW] Exempt from strict hat rules
 
   VariableDecl(const std::string &name, std::unique_ptr<Expr> init)
       : Name(name), Init(std::move(init)) {}
@@ -1160,6 +1163,7 @@ public:
     n->IsRebindable = IsRebindable;
     n->IsValueMutable = IsValueMutable; // VariableDecl has this field
     n->IsValueBlocked = IsValueBlocked;
+    n->IsMorphicExempt = IsMorphicExempt;
     n->IsPointerNullable = IsPointerNullable;
     n->IsValueNullable = IsValueNullable;
     n->IsRebindBlocked = IsRebindBlocked;
@@ -1230,6 +1234,7 @@ struct ShapeMember {
   bool IsRebindBlocked = false;   // "$" pointer attribute
   bool IsValueBlocked = false;    // "$" identifier attribute
   bool IsExplicitBound = false;   // "`" explicit lifetime binding attribute
+  bool IsMorphicExempt = false;   // [NEW] Exempt from strict hat rules
 
   // For Bare Union (as ...)
   std::vector<ShapeMember> SubMembers;
@@ -1258,6 +1263,7 @@ struct ShapeMember {
     IsRebindBlocked = other.IsRebindBlocked;
     IsValueBlocked = other.IsValueBlocked;
     IsExplicitBound = other.IsExplicitBound;
+    IsMorphicExempt = other.IsMorphicExempt;
     SubMembers = other.SubMembers;
     SubKind = other.SubKind;
     ResolvedType = other.ResolvedType;
@@ -1284,6 +1290,7 @@ struct ShapeMember {
     IsRebindBlocked = other.IsRebindBlocked;
     IsValueBlocked = other.IsValueBlocked;
     IsExplicitBound = other.IsExplicitBound;
+    IsMorphicExempt = other.IsMorphicExempt;
     SubMembers = other.SubMembers;
     SubKind = other.SubKind;
     ResolvedType = other.ResolvedType;
@@ -1401,6 +1408,7 @@ public:
     bool IsValueNullable = false;
     bool IsRebindBlocked = false; // "$" pointer attribute
     bool IsValueBlocked = false;  // "$" identifier attribute
+    bool IsMorphicExempt = false; // [NEW] Exempt from strict hat rules
 
     std::shared_ptr<toka::Type> ResolvedType;
     std::unique_ptr<Expr> DefaultValue;
@@ -1419,6 +1427,7 @@ public:
       a.IsValueNullable = IsValueNullable;
       a.IsRebindBlocked = IsRebindBlocked;
       a.IsValueBlocked = IsValueBlocked;
+      a.IsMorphicExempt = IsMorphicExempt;
       a.ResolvedType = ResolvedType;
       a.DefaultValue = cloneNode(DefaultValue);
       return a;

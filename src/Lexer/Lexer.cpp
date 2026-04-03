@@ -446,8 +446,22 @@ Token Lexer::punctuation() {
 
   case '"':
     return string(); // Call string handler
-  case '\'':
+  case '\'': {
+    if (isAlpha(peek())) {
+      const char *lookahead = m_Current;
+      while (isAlpha(*lookahead) || isDigit(*lookahead) || *lookahead == '_') {
+        lookahead++;
+      }
+      if (*lookahead != '\'') {
+        std::string text = "'";
+        while (isAlpha(peek()) || isDigit(peek()) || peek() == '_') {
+          text += advance();
+        }
+        return Token{TokenType::Identifier, text, line, col};
+      }
+    }
     return charLiteral();
+  }
   case '`':
     return Token{TokenType::Backtick, "`", line, col};
   default:

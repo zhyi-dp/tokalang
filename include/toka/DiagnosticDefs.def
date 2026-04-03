@@ -108,6 +108,7 @@ DIAG(ERR_UNKNOWN_SHAPE_IN_PAT, Error, "E0552", "Unknown type '{}' in pattern mat
 DIAG(ERR_GENERIC_COUNT_MISMATCH, Error, "E0601", "Type '{}' expects {} generic arguments, but got {}")
 DIAG(ERR_GENERIC_ARITY_MISMATCH, Error, "E0602", "Generic mismatch for '{}': expected {} arguments, got {}")
 DIAG(ERR_GENERIC_RECURSION_LIMIT, Error, "E0603", "Generic instantiation recursion limit reached for '{}'")
+DIAG(ERR_MORPHIC_CONSTRAINT, Error, "E0604", "Cannot pass pointer type to rigid generic parameter '{}', use '{}' with single quote prefix if pointer is expected")
 DIAG(ERR_GENERIC_CODEGEN,    Error, "E0604", "Generic instantiation failed: {}")
 DIAG(ERR_CODEGEN,            Error, "E0701", "Code generation failed: {}")
 DIAG(ERR_DANGLING_EFFECT,    Error, "E0702", "Dangling effect call rejected: '{}' must be consumed by .await, .wait or .start")
