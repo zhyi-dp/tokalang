@@ -4,15 +4,15 @@ import std/error::{Error}
 import std/string::{String}
 
 /// A mutual exclusion primitive useful for protecting shared data
-pub shape Mutex<T: @Send>(
+pub shape Mutex<'T: @Send>(
     handle#: Addr,
-    data#: T
+    data#: 'T
 )
 
-impl<T: @Send> Mutex<T>@Sync {}
-impl<T: @Send> Mutex<T>@Send {}
+impl<'T: @Send> Mutex<T>@Sync {}
+impl<'T: @Send> Mutex<T>@Send {}
 
-impl<T: @Send> Mutex<T> {
+impl<'T: @Send> Mutex<T> {
     pub fn new(data: cede T) -> Mutex<T> {
         unsafe {
 
@@ -83,7 +83,7 @@ impl<T: @Send> Mutex<T> {
     
 }
 
-impl<T: @Send> Mutex<T>@encap {
+impl<'T: @Send> Mutex<T>@encap {
     fn drop(self#) {
         unsafe {
             auto h: Addr = self.handle
@@ -96,15 +96,15 @@ impl<T: @Send> Mutex<T>@encap {
     }
 }
 
-pub shape MutexLock<T: @Send>(
+pub shape MutexLock<'T: @Send>(
     handle: Addr,
-    *data#: T
+    *data#: 'T
 )
 
-impl<T: @Send> MutexLock<T>@Send {}
-impl<T: @Sync> MutexLock<T>@Sync {}
+impl<'T: @Send> MutexLock<T>@Send {}
+impl<'T: @Sync> MutexLock<T>@Sync {}
 
-impl<T: @Send> MutexLock<T>@encap {
+impl<'T: @Send> MutexLock<T>@encap {
     fn drop(self#) {
         unsafe {
             if self.handle != 0:Addr {
@@ -115,22 +115,22 @@ impl<T: @Send> MutexLock<T>@encap {
     }
 }
 
-impl<T: @Send> MutexLock<T> {
+impl<'T: @Send> MutexLock<T> {
     pub fn get_ref(self) -> *T# {
         return self.*data
     }
 }
 
 /// A reader-writer lock
-pub shape RwMutex<T: {@Send, @Sync}>(
+pub shape RwMutex<'T: {@Send, @Sync}>(
     handle#: Addr,
-    data#: T
+    data#: 'T
 )
 
-impl<T: {@Send, @Sync}> RwMutex<T>@Sync {}
-impl<T: {@Send, @Sync}> RwMutex<T>@Send {}
+impl<'T: {@Send, @Sync}> RwMutex<T>@Sync {}
+impl<'T: {@Send, @Sync}> RwMutex<T>@Send {}
 
-impl<T: {@Send, @Sync}> RwMutex<T> {
+impl<'T: {@Send, @Sync}> RwMutex<T> {
     pub fn new(data: cede T) -> RwMutex<T> {
         unsafe {
             // macOS pthread_rwlock_t is 192 bytes, Linux is 56 bytes.
@@ -203,7 +203,7 @@ impl<T: {@Send, @Sync}> RwMutex<T> {
     }
 }
 
-impl<T: {@Send, @Sync}> RwMutex<T>@encap {
+impl<'T: {@Send, @Sync}> RwMutex<T>@encap {
     fn drop(self#) {
         unsafe {
             auto h: Addr = self.handle
@@ -216,15 +216,15 @@ impl<T: {@Send, @Sync}> RwMutex<T>@encap {
     }
 }
 
-pub shape RwReadLock<T: {@Send, @Sync}>(
+pub shape RwReadLock<'T: {@Send, @Sync}>(
     handle: Addr,
-    *data: T
+    *data: 'T
 )
 
-impl<T: {@Send, @Sync}> RwReadLock<T>@Send {}
-impl<T: {@Send, @Sync}> RwReadLock<T>@Sync {}
+impl<'T: {@Send, @Sync}> RwReadLock<T>@Send {}
+impl<'T: {@Send, @Sync}> RwReadLock<T>@Sync {}
 
-impl<T: {@Send, @Sync}> RwReadLock<T>@encap {
+impl<'T: {@Send, @Sync}> RwReadLock<T>@encap {
     fn drop(self#) {
         unsafe {
             if self.handle != 0:Addr {
@@ -235,21 +235,21 @@ impl<T: {@Send, @Sync}> RwReadLock<T>@encap {
     }
 }
 
-impl<T: {@Send, @Sync}> RwReadLock<T> {
+impl<'T: {@Send, @Sync}> RwReadLock<T> {
     pub fn get_ref(self) -> *T {
         return self.*data
     }
 }
 
-pub shape RwWriteLock<T: {@Send, @Sync}>(
+pub shape RwWriteLock<'T: {@Send, @Sync}>(
     handle: Addr,
-    *data#: T
+    *data#: 'T
 )
 
-impl<T: {@Send, @Sync}> RwWriteLock<T>@Send {}
-impl<T: {@Send, @Sync}> RwWriteLock<T>@Sync {}
+impl<'T: {@Send, @Sync}> RwWriteLock<T>@Send {}
+impl<'T: {@Send, @Sync}> RwWriteLock<T>@Sync {}
 
-impl<T: {@Send, @Sync}> RwWriteLock<T>@encap {
+impl<'T: {@Send, @Sync}> RwWriteLock<T>@encap {
     fn drop(self#) {
         unsafe {
             if self.handle != 0:Addr {
@@ -260,7 +260,7 @@ impl<T: {@Send, @Sync}> RwWriteLock<T>@encap {
     }
 }
 
-impl<T: {@Send, @Sync}> RwWriteLock<T> {
+impl<'T: {@Send, @Sync}> RwWriteLock<T> {
     pub fn get_ref(self) -> *T# {
         return self.*data
     }
@@ -272,14 +272,14 @@ impl<T: {@Send, @Sync}> RwWriteLock<T> {
 
 /// A Condition Variable for thread synchronization.
 /// Parametrized with T to ensure it pairs safely with MutexLock<T>.
-pub shape CondVar<T: @Send> (
+pub shape CondVar<'T: @Send> (
     handle#: Addr
 )
 
-impl<T: @Send> CondVar<T>@Sync {}
-impl<T: @Send> CondVar<T>@Send {}
+impl<'T: @Send> CondVar<T>@Sync {}
+impl<'T: @Send> CondVar<T>@Send {}
 
-impl<T: @Send> CondVar<T>@encap {
+impl<'T: @Send> CondVar<T>@encap {
     fn drop(self#) {
         unsafe {
             auto h: Addr = self.handle
@@ -292,7 +292,7 @@ impl<T: @Send> CondVar<T>@encap {
     }
 }
 
-impl<T: @Send> CondVar<T> {
+impl<'T: @Send> CondVar<T> {
     /// Creates a new Condition Variable
     pub fn new() -> CondVar<T> {
         unsafe {

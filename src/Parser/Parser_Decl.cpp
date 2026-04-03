@@ -222,7 +222,7 @@ std::unique_ptr<ShapeDecl> Parser::parseShape(bool isPub) {
           v.SubKind = ShapeKind::Tuple;
           while (!check(TokenType::RParen) && !check(TokenType::EndOfFile)) {
             ShapeMember field;
-            field.Type = advance().Text;
+            field.Type = parseTypeString();
             v.SubMembers.push_back(std::move(field));
             if (!check(TokenType::RParen))
               match(TokenType::Comma);

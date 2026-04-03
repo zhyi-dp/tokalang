@@ -2,16 +2,16 @@
 
 import core/libc::libc_exit
 
-pub shape Result<T, E> (
-    Ok(T) = 1 |
-    Err(E) = 0 |
+pub shape Result<'T, 'E> (
+    Ok('T) = 1 |
+    Err('E) = 0 |
     Moved(i32) = 2
 )
 
-impl<T, E> Result<T, E> {
+impl<'T, 'E> Result<'T, 'E> {
     pub fn is_ok(self) -> bool {
         match self {
-            auto Result<T, E>::Ok(_) => return true
+            auto Result<'T, 'E>::Ok(_) => return true
             _ => return false
         }
     }
@@ -20,9 +20,9 @@ impl<T, E> Result<T, E> {
         return self.is_ok() == false
     }
 
-    pub fn unwrap(self) -> T {
+    pub fn unwrap(self) -> 'T {
         match self {
-            auto Result<T, E>::Ok(val) => return val
+            auto Result<'T, 'E>::Ok('val) => return 'val
             _ => {
                 libc_exit(1)
                 return self.unwrap()
@@ -30,9 +30,9 @@ impl<T, E> Result<T, E> {
         }
     }
 
-    pub fn unwrap_err(self) -> E {
+    pub fn unwrap_err(self) -> 'E {
         match self {
-            auto Result<T, E>::Err(e) => return e
+            auto Result<'T, 'E>::Err('e) => return 'e
             _ => {
                 libc_exit(1)
                 return self.unwrap_err()

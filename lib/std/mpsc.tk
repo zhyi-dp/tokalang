@@ -5,7 +5,7 @@ import std/error::{Error}
 import core/intrinsics/atomic::*
 
 /// The shared state protected by the channel Mutex
-pub shape WaitQueue<T: @Send>(
+pub shape WaitQueue<'T: @Send>(
     queue#: Vec<T>,
     closed#: bool,
     senders#: i32,
@@ -14,25 +14,25 @@ pub shape WaitQueue<T: @Send>(
 )
 
 /// The channel synchronization core
-pub shape AsyncChannel<T: @Send>(
+pub shape AsyncChannel<'T: @Send>(
     state#: Mutex<WaitQueue<T> >,
     cond_not_empty#: CondVar<WaitQueue<T> >,
     cond_not_full#: CondVar<WaitQueue<T> >   // For future bounded channels
 )
 
 /// The sender half of a channel
-pub shape Sender<T: @Send>(
+pub shape Sender<'T: @Send>(
     ~channel#: AsyncChannel<T>
 )
-impl<T: @Send> Sender<T>@Send {}
+impl<'T: @Send> Sender<T>@Send {}
 
 /// The receiver half of a channel
-pub shape Receiver<T: @Send>(
+pub shape Receiver<'T: @Send>(
     ~channel#: AsyncChannel<T>
 )
-impl<T: @Send> Receiver<T>@Send {}
+impl<'T: @Send> Receiver<T>@Send {}
 
-impl<T: @Send> WaitQueue<T> {
+impl<'T: @Send> WaitQueue<T> {
     pub fn new(capacity: i32) -> WaitQueue<T> {
         return WaitQueue<T>(
             queue = Vec<T>::new(),
@@ -44,12 +44,12 @@ impl<T: @Send> WaitQueue<T> {
     }
 }
 
-pub shape ChannelPair<T: @Send>(
+pub shape ChannelPair<'T: @Send>(
     tx: Sender<T>,
     rx: Receiver<T>
 )
 
-pub fn channel<T: @Send>() -> ChannelPair<T> {
+pub fn channel<'T: @Send>() -> ChannelPair<T> {
     auto ~inner = new AsyncChannel<T>(
         state = Mutex<WaitQueue<T> >::new(WaitQueue<T>::new(-1:i32)),
         cond_not_empty = CondVar<WaitQueue<T> >::new(),
@@ -62,7 +62,7 @@ pub fn channel<T: @Send>() -> ChannelPair<T> {
     )
 }
 
-pub fn sync_channel<T: @Send>(bound: i32) -> ChannelPair<T> {
+pub fn sync_channel<'T: @Send>(bound: i32) -> ChannelPair<T> {
     auto ~inner = new AsyncChannel<T>(
         state = Mutex<WaitQueue<T> >::new(WaitQueue<T>::new(bound)),
         cond_not_empty = CondVar<WaitQueue<T> >::new(),
@@ -75,7 +75,7 @@ pub fn sync_channel<T: @Send>(bound: i32) -> ChannelPair<T> {
     )
 }
 
-impl<T: @Send> Sender<T> {
+impl<'T: @Send> Sender<T> {
     pub fn clone(self#) -> Sender<T> {
         guard auto Ok(lguard#) = self.channel.state.lock() else {
             assert(false, "Mutex lock failed during Sender clone")
@@ -120,7 +120,7 @@ impl<T: @Send> Sender<T> {
     }
 }
 
-impl<T: @Send> Receiver<T> {
+impl<'T: @Send> Receiver<T> {
     pub fn recv(self#) -> Result<Option<T>, Error> {
         guard auto Ok(lguard#) = self.channel.state.lock() else {
             return Result<Option<T>, Error>::Err(Error::new(4:i32, "Mutex lock failed"))
@@ -143,7 +143,7 @@ impl<T: @Send> Receiver<T> {
 }
 
 // Drop implementations for sender/receiver cloning
-impl<T: @Send> Sender<T>@encap {
+impl<'T: @Send> Sender<T>@encap {
     fn drop(self#) {
         guard auto Ok(lguard#) = self.channel.state.lock() else {
             return
@@ -157,7 +157,7 @@ impl<T: @Send> Sender<T>@encap {
     }
 }
 
-impl<T: @Send> Receiver<T>@encap {
+impl<'T: @Send> Receiver<T>@encap {
     fn drop(self#) {
         guard auto Ok(lguard#) = self.channel.state.lock() else {
             return

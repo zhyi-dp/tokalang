@@ -176,8 +176,12 @@ std::unique_ptr<Expr> Parser::parseExpr(int minPrec, bool allowTrailingClosure) 
         }
 
         t = advance();
-        typeName += t.Text;
-        if (t.Text == "cede") {
+        std::string currentText = t.Text;
+        if (t.Kind == TokenType::Identifier && !currentText.empty() && currentText[0] == '\'') {
+            currentText = currentText.substr(1);
+        }
+        typeName += currentText;
+        if (currentText == "cede") {
           typeName += " ";
         }
         if (t.Kind == TokenType::LBracket || t.Kind == TokenType::LParen ||
@@ -372,6 +376,9 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
     std::string typeStr = "";
     if (check(TokenType::Identifier)) {
       typeStr = advance().Text;
+      if (!typeStr.empty() && typeStr[0] == '\'') {
+          typeStr = typeStr.substr(1);
+      }
       // [NEW] Handle Generics for New Type: Node<i32>
       if (check(TokenType::GenericLT)) {
         typeStr += advance().Text; // <
@@ -983,6 +990,9 @@ std::unique_ptr<Expr> Parser::parseAllocExpr() {
   Token typeTok =
       consume(TokenType::Identifier, "Expected type name after 'alloc'");
   std::string typeName = typeTok.Text;
+  if (!typeName.empty() && typeName[0] == '\'') {
+      typeName = typeName.substr(1);
+  }
 
   // [NEW] Handle Generics for Alloc Type: RcWrapper<T>
   if (check(TokenType::GenericLT)) {

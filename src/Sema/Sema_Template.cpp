@@ -257,6 +257,9 @@ void Sema::instantiateGenericImpl(
 
   // 2. Build Substitution Map
   std::map<std::string, std::string> Replacements;
+  for (size_t i = 0; i < Template->GenericParams.size(); ++i) { 
+    Replacements[Template->GenericParams[i].Name] = GenericArgs[i]->toString(); 
+  }
   for (size_t i = 0; i < Template->GenericParams.size(); ++i) {
     Replacements[Template->GenericParams[i].Name] = GenericArgs[i]->toString();
   }

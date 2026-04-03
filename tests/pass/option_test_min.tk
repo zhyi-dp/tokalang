@@ -1,0 +1,6 @@
+import core/option::Option
+
+fn main() -> i32 {
+    auto opt = Option<i32>::Some(42)
+    return opt.unwrap() - 42
+}

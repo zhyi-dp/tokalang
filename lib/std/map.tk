@@ -7,7 +7,7 @@ import core/primitives
 
 // HashMap using SOA (Structure of Arrays)
 // keys[i], vals[i], meta[i] correspond to the same slot.
-pub shape HashMap<K, V> (
+pub shape HashMap<'K, 'V> (
     keys#: Vec<K>,
     vals#: Vec<V>,
     meta#: Vec<u8>, // 0=Empty, 1=Occupied
@@ -15,7 +15,7 @@ pub shape HashMap<K, V> (
     cap: usize
 )
 
-impl<K, V> HashMap<K, V>@encap {
+impl<'K, 'V> HashMap<K, V>@encap {
     fn drop(self#) {
         unsafe {
             // 1. Drop elements
@@ -50,7 +50,7 @@ impl<K, V> HashMap<K, V>@encap {
     }
 }
 
-impl<K, V> HashMap<K, V> {
+impl<'K, 'V> HashMap<K, V> {
     pub fn new() -> HashMap<K, V> {
         unsafe {
             auto init_cap = 128
@@ -90,7 +90,7 @@ impl<K, V> HashMap<K, V> {
         }
     }
 
-    pub fn insert(self#, key: K, val: V) {
+    pub fn insert(self#, key: 'K, val: 'V) {
         auto capacity = self.cap
         // Optimization: capacity is power of 2, use mask
         auto idx# = (key.hash() as usize) band (capacity - 1)
@@ -109,12 +109,12 @@ impl<K, V> HashMap<K, V> {
                     m_ptr = (1 as u8) // Mark occupied (Write to Soul)
                     
                     // Write Key
-                    auto *k_ptr#: K = self.keys.unsafe_get(idx)
+                    auto *k_ptr#: 'K = self.keys.unsafe_get(idx)
                     k_ptr = key // Write key to Soul
                     
                     // Write Val
                     // Write Val
-                    auto *v_ptr#: V = self.vals.unsafe_get(idx)
+                    auto *v_ptr#: 'V = self.vals.unsafe_get(idx)
                     v_ptr = val // Write val to Soul
                     
                     should_inc_len = true
@@ -122,10 +122,10 @@ impl<K, V> HashMap<K, V> {
                 }
                 
                 // Occupied. Check Key match.
-                auto *k_ptr#: K = self.keys.unsafe_get(idx)
+                auto *k_ptr#: 'K = self.keys.unsafe_get(idx)
                 if k_ptr.eq(key) {
                     // Overwrite Val
-                    auto *v_ptr#: V = self.vals.unsafe_get(idx)
+                    auto *v_ptr#: 'V = self.vals.unsafe_get(idx)
                     v_ptr = val
                     break
                 }
@@ -140,7 +140,7 @@ impl<K, V> HashMap<K, V> {
         }
     }
     
-    pub fn get(self, key: K) -> Option<V> {
+    pub fn get(self, key: 'K) -> Option<'V> {
          auto capacity = self.cap
          auto idx# = (key.hash() as usize) band (capacity - 1)
          auto start_idx = idx
@@ -150,23 +150,23 @@ impl<K, V> HashMap<K, V> {
                  auto *m_ptr#: u8 = self.meta.unsafe_get(idx)
                  
                  if m_ptr == (0 as u8) {
-                     return Option<V>::None
+                     return Option<'V>::None
                  }
                  
                  // Occupied, check key
-                 auto *k_ptr#: K = self.keys.unsafe_get(idx)
+                 auto *k_ptr#: 'K = self.keys.unsafe_get(idx)
                  if k_ptr.eq(key) {
-                     auto *v_ptr#: V = self.vals.unsafe_get(idx)
-                     return Option<V>::Some(v_ptr)
+                     auto *v_ptr#: 'V = self.vals.unsafe_get(idx)
+                     return Option<'V>::Some(v_ptr)
                  }
              }
              
              idx = (idx + 1) band (capacity - 1)
              if idx == start_idx {
-                 return Option<V>::None
+                 return Option<'V>::None
              }
          }
-         return Option<V>::None
+         return Option<'V>::None
     }
 
 
@@ -183,14 +183,14 @@ impl<K, V> HashMap<K, V> {
     }
 }
 
-pub shape Entry<K, V> (
-    key: K,
-    val: V
+pub shape Entry<'K, 'V> (
+    key: 'K,
+    val: 'V
 )
 
 alias MapResult<K, V> = Option<Entry<K, V>>
 
-pub shape HashMapIterator<K, V> (
+pub shape HashMapIterator<'K, 'V> (
     *keys_ptr: [K],
     *vals_ptr: [V],
     *meta_ptr: [u8],
@@ -198,7 +198,7 @@ pub shape HashMapIterator<K, V> (
     pos#: usize
 )
 
-impl<K, V> HashMapIterator<K, V> {
+impl<'K, 'V> HashMapIterator<K, V> {
     pub fn next(self) -> MapResult<K, V> {
         unsafe {
             // Acquire pointers locally

@@ -168,7 +168,11 @@ std::string Parser::parseTypeString() {
       balance--;
 
     Token tok = advance();
-    type += tok.Text;
+    std::string text = tok.Text;
+    if (tok.Kind == TokenType::Identifier && !text.empty() && text[0] == '\'') {
+        text = text.substr(1);
+    }
+    type += text;
     if (tok.Text == "cede" || tok.Text == "dyn") {
       type += " ";
     }
