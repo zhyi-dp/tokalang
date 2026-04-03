@@ -3086,32 +3086,12 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
       // Try static call Type::Member -> Type_Member
       std::string mangledName = optName + "_" + varName;
       if (auto *f = m_Module->getFunction(mangledName)) {
-        std::vector<llvm::Value *> args;
-        for (size_t i = 0; i < call->Args.size(); ++i) {
-          PhysEntity argVal_ent = genExpr(call->Args[i].get()).load(m_Builder);
-          llvm::Value *argVal = argVal_ent.load(m_Builder);
-          if (i < f->getFunctionType()->getNumParams()) {
-            llvm::Type *paramTy = f->getFunctionType()->getParamType(i);
-            if (argVal && paramTy->isPointerTy() &&
-                argVal->getType()->isStructTy()) {
-              // Implicit By-Ref for Structs: Pass Address of Temp
-              llvm::AllocaInst *tmp = createEntryBlockAlloca(
-                  argVal->getType(), nullptr, "arg_tmp_byref");
-              m_Builder.CreateStore(argVal, tmp);
-              argVal = tmp;
-            }
-          }
-          args.push_back(argVal);
-        }
-        if (!args.empty() && !args.back())
-          return nullptr;
-
-        return m_Builder.CreateCall(
-            f, args, f->getReturnType()->isVoidTy() ? "" : "calltmp");
-      }
-
-      if (m_Shapes.count(optName) &&
-          m_Shapes[optName]->Kind == ShapeKind::Enum) {
+        calleeName = mangledName;
+        callee = f;
+        // Don't return here! Break to let the normal Call generation run,
+        // which includes the `isAsync` check and wrapper logic!
+      } else if (m_Shapes.count(optName) &&
+                 m_Shapes[optName]->Kind == ShapeKind::Enum) {
         const ShapeDecl *sh = m_Shapes[optName];
         int tag = -1;
         const ShapeMember *targetVar = nullptr;
@@ -3192,6 +3172,8 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
   const FunctionDecl *funcDecl = nullptr;
   if (m_Functions.count(call->Callee))
     funcDecl = m_Functions[call->Callee];
+  else if (m_Functions.count(calleeName))
+    funcDecl = m_Functions[calleeName];
 
   const ExternDecl *extDecl = nullptr;
   if (!funcDecl && m_Externs.count(calleeName))
@@ -3664,13 +3646,12 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
       }
       std::string tName = call->ResolvedType->toString();
       llvm::Type *handleTy = m_StructTypes[tName];
-      if (!handleTy) {
-          error(call, "Internal CodeGen Error: JoinHandle struct not found for async return.");
-          return nullptr;
-      }
-      llvm::Value *structVal = llvm::UndefValue::get(handleTy);
-      structVal = m_Builder.CreateInsertValue(structVal, ci, 0);
-      return PhysEntity(structVal, tName, handleTy, false);
+      
+      // Wrap the raw coroutine handle pointer into the generated TaskHandle struct
+      llvm::Value *sVal = llvm::UndefValue::get(handleTy);
+      sVal = m_Builder.CreateInsertValue(sVal, ci, 0, "task.wrap");
+      
+      return PhysEntity(sVal, tName, handleTy, false);
   }
 
   return ci;

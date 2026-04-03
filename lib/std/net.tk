@@ -7,7 +7,7 @@ import core/result::{Result}
 import core/option::{Option}
 import std/sys/os as sys 
 import std/io 
-import std/task::{get_reactor_fd}
+import std/task::{get_reactor_fd, sleep_async}
 
 extern fn __builtin_coro_current_handle() -> *void
 extern fn __builtin_coro_suspend()
@@ -64,7 +64,7 @@ impl TcpStream@encap {
         }
     }
     
-    pub fn clone(self#) -> TcpStream {
+    pub fn clone(self) -> TcpStream {
         // Move semantics preferred, returning dummy closed stream
         return TcpStream(fd = -1, closed = true)
     }
@@ -88,6 +88,44 @@ impl TcpStream {
             return Result<TcpStream, String>::Ok(TcpStream(fd=fd, closed=false))
         }
     }
+    
+    pub fn connect_async(addr: SocketAddrV4) -> async Result<TcpStream, String> {
+        unsafe {
+            auto fd = sys::net_socket_impl()
+            if fd < 0 {
+                return Result<TcpStream, String>::Err(String::from("Failed to create socket"))
+            }
+            
+            auto ip_num = addr.ip.to_u32()
+            auto res = sys::net_connect_impl(fd, ip_num, addr.port)
+            
+            if res == 0 {
+                // Connected instantly
+                sleep_async(0:i64).await
+                return Result<TcpStream, String>::Ok(TcpStream(fd=fd, closed=false))
+            }
+            
+            auto errno = sys::get_errno_impl()
+            if errno != 36 && errno != 115 {
+                sys::net_close_impl(fd)
+                sleep_async(0:i64).await
+                return Result<TcpStream, String>::Err(String::from("Connect failed immediately"))
+            }
+            
+            auto coro = __builtin_coro_current_handle() as Addr
+            sys::reactor_add_write_impl(get_reactor_fd(), fd, coro)
+            __builtin_coro_suspend()
+            
+            auto get_err = sys::net_getsockopt_error_impl(fd)
+            if get_err != 0 {
+                sys::net_close_impl(fd)
+                return Result<TcpStream, String>::Err(String::from("Connect failed after wait"))
+            }
+            
+            return Result<TcpStream, String>::Ok(TcpStream(fd=fd, closed=false))
+        }
+    }
+    
     
     pub fn read(self#, *buf: u8, len: usize) -> Result<usize, String> {
         unsafe {
@@ -165,7 +203,7 @@ impl TcpListener@encap {
         }
     }
     
-    pub fn clone(self#) -> TcpListener {
+    pub fn clone(self) -> TcpListener {
         return TcpListener(fd = -1, closed = true)
     }
 }
@@ -231,6 +269,7 @@ pub fn net_async_read(stream#: TcpStream, *buf: u8, len: usize) -> async Result<
             while !done {
                 auto n: i64 = sys::net_read_impl(stream.fd, *buf, len)
                 if n >= 0:i64 {
+                    sleep_async(0:i64).await
                     ret = Result<usize, String>::Ok(n as usize)
                     done = true
                 } else {
@@ -242,6 +281,7 @@ pub fn net_async_read(stream#: TcpStream, *buf: u8, len: usize) -> async Result<
                         sys::reactor_add_read_impl(get_reactor_fd(), stream.fd, coro)
                         __builtin_coro_suspend()
                     } else {
+                        sleep_async(0:i64).await
                         ret = Result<usize, String>::Err(String::from("Read error"))
                         done = true
                     }
@@ -264,6 +304,7 @@ pub fn net_async_accept(listener#: TcpListener) -> async Result<TcpStream, Strin
             while !done {
                 auto client_fd = sys::net_accept_impl(listener.fd)
                 if client_fd >= 0 {
+                    sleep_async(0:i64).await
                     ret = Result<TcpStream, String>::Ok(TcpStream(fd=client_fd, closed=false))
                     done = true
                 } else {
@@ -275,6 +316,7 @@ pub fn net_async_accept(listener#: TcpListener) -> async Result<TcpStream, Strin
                         sys::reactor_add_read_impl(get_reactor_fd(), listener.fd, coro)
                         __builtin_coro_suspend()
                     } else {
+                        sleep_async(0:i64).await
                         ret = Result<TcpStream, String>::Err(String::from("Accept failed"))
                         done = true
                     }
@@ -297,6 +339,7 @@ pub fn net_async_write(stream#: TcpStream, *buf: u8, len: usize) -> async Result
             while !done {
                 auto n: i64 = sys::net_write_impl(stream.fd, *buf, len)
                 if n >= 0:i64 {
+                    sleep_async(0:i64).await
                     ret = Result<usize, String>::Ok(n as usize)
                     done = true
                 } else {
@@ -308,6 +351,7 @@ pub fn net_async_write(stream#: TcpStream, *buf: u8, len: usize) -> async Result
                         sys::reactor_add_write_impl(get_reactor_fd(), stream.fd, coro)
                         __builtin_coro_suspend()
                     } else {
+                        sleep_async(0:i64).await
                         ret = Result<usize, String>::Err(String::from("Write error"))
                         done = true
                     }

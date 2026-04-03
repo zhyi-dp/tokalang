@@ -132,6 +132,7 @@ private:
   llvm::Type *m_CurrentCoroPromiseType = nullptr;
   llvm::Type *m_CurrentCoroRetTy = nullptr;
   llvm::BasicBlock *m_CurrentCoroSuspendRetBB = nullptr;
+  llvm::BasicBlock *m_CurrentCoroFinalSuspendBB = nullptr;
   void genCoroutineReturn(llvm::Value *retVal);
   // Although m_ValueElementTypes is redundant with m_Symbols for Variables, it
   // might be used elsewhere. But m_StructTypes, m_Shapes, etc. are absolutely
@@ -279,6 +280,7 @@ private:
     llvm::Type *CurrentCoroPromiseType;
     llvm::Type *CurrentCoroRetTy;
     llvm::BasicBlock *CurrentCoroSuspendRetBB;
+    llvm::BasicBlock *CurrentCoroFinalSuspendBB;
   };
 
   GenContext saveContext();

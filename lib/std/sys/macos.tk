@@ -202,12 +202,11 @@ pub fn __toka_panic_handler(msg: str) {
 // SOL_SOCKET = 0xffff (65535)
 // SO_REUSEADDR = 0x0004
 
-extern fn __error() -> *i32
-
 pub fn get_last_error() -> i32 {
     unsafe {
-        auto *ptr = __error()
-        return ptr
+        auto *addr# = libc___error()
+        if *addr as usize == 0 { return 0 }
+        return addr
     }
 }
 
@@ -227,51 +226,17 @@ pub fn net_setsockopt_reuse_impl(fd: i32) -> i32 {
     }
 }
 
-// Helper to fill sockaddr_in (IPv4)
-// dest must be a pointer to at least 16 bytes.
-// Toka: *addr_buf: char declares addr_buf as *char
-// Helper to fill sockaddr_in (IPv4)
-// dest must be a pointer to at least 16 bytes.
-// Toka: *addr_buf: char declares addr_buf as *char
-// Helper to fill sockaddr_in (IPv4)
-// dest must be a pointer to at least 16 bytes.
-// Toka: *addr_buf: char declares addr_buf as *char (Handle is *addr_buf, Value is addr_buf)
-// Helper to fill sockaddr_in (IPv4)
-// dest must be a pointer to at least 16 bytes.
-// Toka: *addr_buf: char declares addr_buf as *char (Handle is *addr_buf, Value is addr_buf)
 fn fill_sockaddr_in(*addr_buf: char, ip: u32, port: u16) -> bool {
-    // Capture handle safely outside unsafe block? No, access to handle is permitted.
-    // We use unsafe block for pointer arithmetic and raw writes.
     unsafe {
-        // addr_buf (no hat) would be the char value (read from memory).
-        // *addr_buf (with hat) is the pointer handle.
-        
-        // Copy the handle to a local variable for arithmetic
-        // Mark as mutable (#) so we can write to the memory it points to (rebind value)
         auto *base_ptr# = *addr_buf
-        
-        // Offset 0: len = 16
-        // Write to memory at base_ptr. 
-        // In Toka, 'base_ptr' (no hat) refers to the pointed value (memory).
-        // So assignment writes to memory.
         base_ptr = 16 as char
-        
-        // Offset 1: family = 2
-        // Arithmetic on handle (*base_ptr)
-        // Cast to usize, add 1, cast back to *char
         auto *p1# = (*base_ptr as usize + 1) as *char
         p1 = 2 as char
-        
-        // Offset 2: port (u16)
         auto nport: u16 = (port bshr 8) bor (port bshl 8) // htons for little endian
         auto *p_port# = (*base_ptr as usize + 2) as *u16
         p_port = nport
-        
-        // Offset 4: addr (u32)
         auto *p_addr# = (*base_ptr as usize + 4) as *u32
         p_addr = ip
-        
-        // Offset 8..16: Zero
         auto i# = 8
         while i < 16 {
             auto *p_z# = (*base_ptr as usize + i) as *char
@@ -282,12 +247,61 @@ fn fill_sockaddr_in(*addr_buf: char, ip: u32, port: u16) -> bool {
     }
 }
 
-// Redeclare syscalls to ensure correct pointer sizes (avoiding libc.tk potential issues)
 extern fn bind(fd: i32, *addr: void, len: u32) -> i32
 extern fn connect(fd: i32, *addr: void, len: u32) -> i32
 extern fn accept(fd: i32, *addr: void, *len: u32) -> i32
 extern fn listen(fd: i32, backlog: i32) -> i32
-extern fn setsockopt(fd: i32, level: i32, optname: i32, *optval: void, optlen: u32) -> i32
+extern fn getsockopt(fd: i32, level: i32, optname: i32, *optval: void, *optlen: u32) -> i32
+
+pub fn get_errno_impl() -> i32 {
+    unsafe {
+        auto *addr# = libc___error()
+        if *addr as usize == 0 { return 0 }
+        return addr
+    }
+}
+
+pub fn net_getsockopt_error_impl(fd: i32) -> i32 {
+    unsafe {
+        auto pval = libc_malloc(4) as Addr
+        auto pvlen = libc_malloc(4) as Addr
+        auto *val# = pval as *i32
+        auto *vlen# = pvlen as *u32
+        val = 0
+        vlen = 4:u32
+        auto res = getsockopt(fd, 0xffff, 0x1007, pval as *void, pvlen as *u32)
+        auto err = val
+        libc_free(pval as *void)
+        libc_free(pvlen as *void)
+        if res != 0 { return -1 }
+        return err
+    }
+}
+
+pub fn reactor_add_write_impl(reactor_fd: i32, fd: i32, coro_handle: Addr) -> bool {
+    unsafe {
+        auto *ev# = libc_malloc(32) as *char
+        if *ev as usize == 0 { return false }
+        
+        auto base = *ev as usize
+        auto *p_ident# = base as *u64
+        p_ident = fd as u64
+        auto *p_filter# = (base + 8:usize) as *i16
+        p_filter = -2:i16
+        auto *p_flags# = (base + 10:usize) as *u16
+        p_flags = 21:u16
+        auto *p_fflags# = (base + 12:usize) as *u32
+        p_fflags = 0:u32
+        auto *p_data# = (base + 16:usize) as *i64
+        p_data = 0
+        auto *p_udata# = (base + 24:usize) as *Addr
+        p_udata = coro_handle
+        
+        auto res = kevent(reactor_fd, *ev as *void, 1, 0:Addr as *void, 0, 0:Addr as *void)
+        libc_free(*ev as *void)
+        return res != -1
+    }
+}
 
 pub fn net_bind_impl(fd: i32, ip: u32, port: u16) -> i32 {
     unsafe {

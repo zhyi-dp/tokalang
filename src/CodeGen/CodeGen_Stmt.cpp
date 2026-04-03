@@ -528,31 +528,39 @@ void CodeGen::genCoroutineReturn(llvm::Value *retVal) {
         m_Builder.CreateBr(suspendFinalBB);
         
         m_Builder.SetInsertPoint(suspendFinalBB);
-    } else {
-        // Fallback or missing promise type cases
-        llvm::BasicBlock *suspendFinalBB = llvm::BasicBlock::Create(m_Context, "coro.suspend.final", m_Builder.GetInsertBlock()->getParent());
-        m_Builder.CreateBr(suspendFinalBB);
-        m_Builder.SetInsertPoint(suspendFinalBB);
+    } // Close if (m_CurrentCoroPromiseType)
+
+    if (!m_CurrentCoroFinalSuspendBB) {
+        // Save current insert point
+        llvm::BasicBlock *savedBB = m_Builder.GetInsertBlock();
+        
+        m_CurrentCoroFinalSuspendBB = llvm::BasicBlock::Create(m_Context, "coro.suspend.final", savedBB->getParent());
+        m_Builder.SetInsertPoint(m_CurrentCoroFinalSuspendBB);
+        
+        llvm::Function *suspendFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_suspend);
+        llvm::BasicBlock *cleanupBB = llvm::BasicBlock::Create(m_Context, "coro.cleanup", savedBB->getParent());
+        llvm::BasicBlock *trapBB = llvm::BasicBlock::Create(m_Context, "coro.trap", savedBB->getParent());
+        
+        llvm::Value *suspendRes = m_Builder.CreateCall(suspendFn, {llvm::ConstantTokenNone::get(m_Context), m_Builder.getInt1(true)});
+        
+        llvm::SwitchInst *sw = m_Builder.CreateSwitch(suspendRes, m_CurrentCoroSuspendRetBB, 2);
+        sw->addCase(m_Builder.getInt8(0), trapBB);
+        sw->addCase(m_Builder.getInt8(1), cleanupBB);
+        
+        m_Builder.SetInsertPoint(trapBB);
+        m_Builder.CreateUnreachable();
+        
+        m_Builder.SetInsertPoint(cleanupBB);
+        m_Builder.CreateUnreachable();
+        
+        // Restore insert point
+        m_Builder.SetInsertPoint(savedBB);
     }
     
-    llvm::Function *suspendFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_suspend);
-    llvm::Function *endFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_end);
+    m_Builder.CreateBr(m_CurrentCoroFinalSuspendBB);
     
-    llvm::BasicBlock *suspendBB = m_Builder.GetInsertBlock(); // Already at suspendFinalBB
-    llvm::BasicBlock *cleanupBB = llvm::BasicBlock::Create(m_Context, "coro.cleanup", m_Builder.GetInsertBlock()->getParent());
-    llvm::BasicBlock *trapBB = llvm::BasicBlock::Create(m_Context, "coro.trap", m_Builder.GetInsertBlock()->getParent());
-    
-    llvm::Value *suspendRes = m_Builder.CreateCall(suspendFn, {llvm::ConstantTokenNone::get(m_Context), m_Builder.getInt1(true)});
-    
-    llvm::SwitchInst *sw = m_Builder.CreateSwitch(suspendRes, m_CurrentCoroSuspendRetBB, 2);
-    sw->addCase(m_Builder.getInt8(0), trapBB);
-    sw->addCase(m_Builder.getInt8(1), cleanupBB);
-    
-    m_Builder.SetInsertPoint(trapBB);
-    m_Builder.CreateUnreachable();
-    
-    m_Builder.SetInsertPoint(cleanupBB);
-    m_Builder.CreateUnreachable();
+    // Create a dummy block so subsequent instructions don't complain
+    m_Builder.SetInsertPoint(llvm::BasicBlock::Create(m_Context, "coro.dead", m_Builder.GetInsertBlock()->getParent()));
 }
 
 } // namespace toka

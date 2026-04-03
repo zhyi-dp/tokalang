@@ -244,12 +244,14 @@ pub fn __toka_panic_handler(msg: str) {
 // SOL_SOCKET = 0xffff (65535)
 // SO_REUSEADDR = 0x0004
 
-extern fn __errno_location() -> *i32
+extern fn __errno_location() -> Addr
 
 pub fn get_last_error() -> i32 {
     unsafe {
-        auto *ptr = __errno_location()
-        return ptr
+        auto addr = __errno_location()
+        if addr == 0:Addr { return 0 }
+        auto *val# = addr as *i32
+        return val
     }
 }
 
@@ -317,6 +319,57 @@ extern fn connect(fd: i32, *addr: void, len: u32) -> i32
 extern fn accept(fd: i32, *addr: void, *len: u32) -> i32
 extern fn listen(fd: i32, backlog: i32) -> i32
 extern fn setsockopt(fd: i32, level: i32, optname: i32, *optval: void, optlen: u32) -> i32
+extern fn getsockopt(fd: i32, level: i32, optname: i32, *optval: void, *optlen: u32) -> i32
+extern fn __errno_location() -> Addr
+
+pub fn get_errno_impl() -> i32 {
+    unsafe {
+        auto addr = __errno_location()
+        if addr == 0:Addr { return 0 }
+        auto *val# = addr as *i32
+        return val
+    }
+}
+
+pub fn net_getsockopt_error_impl(fd: i32) -> i32 {
+    unsafe {
+        auto pval = libc_malloc(4) as Addr
+        auto pvlen = libc_malloc(4) as Addr
+        auto *val# = pval as *i32
+        auto *vlen# = pvlen as *u32
+        val = 0
+        vlen = 4:u32
+        auto res = getsockopt(fd, 1, 4, pval as *void, pvlen as *u32)
+        auto err = val
+        libc_free(pval as *void)
+        libc_free(pvlen as *void)
+        if res != 0 { return -1 }
+        return err
+    }
+}
+
+pub fn reactor_add_write_impl(reactor_fd: i32, fd: i32, coro_handle: Addr) -> bool {
+    unsafe {
+        auto *ev# = libc_malloc(12) as *char
+        if *ev as usize == 0 { return false }
+        
+        auto base = *ev as usize
+        auto *p_events# = base as *u32
+        // EPOLLOUT (4) | EPOLLONESHOT (1073741824) = 0x40000004
+        p_events = 1073741828:u32
+        
+        auto *p_data# = (base + 4:usize) as *Addr
+        p_data = coro_handle
+        
+        auto res = epoll_ctl(reactor_fd, 1, fd, *ev as *void)
+        if res != 0 {
+             res = epoll_ctl(reactor_fd, 3, fd, *ev as *void)
+        }
+        
+        libc_free(*ev as *void)
+        return res == 0
+    }
+}
 
 pub fn net_bind_impl(fd: i32, host: usize, port: i32) -> i32 {
     unsafe {

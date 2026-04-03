@@ -240,8 +240,8 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
       m_CurrentCoroPromise = nullptr;
       m_CurrentCoroId = nullptr;
       m_CurrentCoroPromiseType = nullptr;
-      m_CurrentCoroRetTy = nullptr;
       m_CurrentCoroSuspendRetBB = nullptr;
+      m_CurrentCoroFinalSuspendBB = nullptr;
   }
 
   size_t idx = 0;

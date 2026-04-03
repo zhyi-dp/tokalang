@@ -3558,7 +3558,18 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
           checkExpr(Arg.get());
         }
         auto retObj = toka::Type::fromString(MethodMap[ShapeName][VariantName]);
-        return resolveType(retObj);
+        auto resolvedRet = resolveType(retObj);
+        
+        // [FIX] Check if Static Method is async and wrap in TaskHandle
+        FunctionDecl *MetAST = nullptr;
+        if (MethodDecls.count(ShapeName) && MethodDecls[ShapeName].count(VariantName)) {
+            MetAST = MethodDecls[ShapeName][VariantName];
+        }
+        if (MetAST && MetAST->Effect == EffectKind::Async) {
+            std::string tName = "TaskHandle<" + resolvedRet->toString() + ">";
+            return toka::Type::fromString(tName);
+        }
+        return resolvedRet;
       } else {
         // [NEW] Lazy Impl Instantiation
         std::string BaseName = RawPrefix;
@@ -3584,7 +3595,18 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
               }
               auto retObj =
                   toka::Type::fromString(MethodMap[ShapeName][VariantName]);
-              return resolveType(retObj);
+              auto resolvedRet = resolveType(retObj);
+              
+              // [FIX] Check if Static Method is async and wrap in TaskHandle
+              FunctionDecl *MetAST = nullptr;
+              if (MethodDecls.count(ShapeName) && MethodDecls[ShapeName].count(VariantName)) {
+                  MetAST = MethodDecls[ShapeName][VariantName];
+              }
+              if (MetAST && MetAST->Effect == EffectKind::Async) {
+                  std::string tName = "TaskHandle<" + resolvedRet->toString() + ">";
+                  return toka::Type::fromString(tName);
+              }
+              return resolvedRet;
             }
           }
         }

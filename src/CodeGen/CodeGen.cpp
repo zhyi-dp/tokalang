@@ -305,6 +305,7 @@ CodeGen::GenContext CodeGen::saveContext() {
   ctx.CurrentCoroId = m_CurrentCoroId;
   ctx.CurrentCoroRetTy = m_CurrentCoroRetTy;
   ctx.CurrentCoroSuspendRetBB = m_CurrentCoroSuspendRetBB;
+  ctx.CurrentCoroFinalSuspendBB = m_CurrentCoroFinalSuspendBB;
   return ctx;
 }
 
@@ -319,6 +320,7 @@ void CodeGen::restoreContext(const GenContext &ctx) {
   m_CurrentCoroId = ctx.CurrentCoroId;
   m_CurrentCoroRetTy = ctx.CurrentCoroRetTy;
   m_CurrentCoroSuspendRetBB = ctx.CurrentCoroSuspendRetBB;
+  m_CurrentCoroFinalSuspendBB = ctx.CurrentCoroFinalSuspendBB;
   if (ctx.InsertBlock) {
     if (ctx.InsertPoint != ctx.InsertBlock->end())
       m_Builder.SetInsertPoint(ctx.InsertBlock, ctx.InsertPoint);
