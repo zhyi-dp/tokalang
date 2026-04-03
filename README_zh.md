@@ -96,12 +96,12 @@ auto ^#p2? = ...    // 可交换(指向可变)、可空、独占指针
     - [x] **泛型 / 模板 (Generics)** (类型与函数)
     - [x] **自动析构合成 (Automatic Drop Synthesis)** (递归 Deep Drop)
     - [x] **显式资源退让 (Explicit Resource Yielding: `cede`)**
-    - [ ] **并发 (Concurrency)**
+    - [x] **并发 (Concurrency)**
         - [x] 原生系统线程 (`std/thread`)
         - [x] 同步原语 (`Mutex`, `RwMutex`, `CondVar`)
-        - [ ] 通道通信 (MPSC Channels)
-        - [ ] `Task` 与 `async`/`await`
-    - [ ] **标准库 (Standard Library)**
+        - [x] 通道通信 (MPSC Channels)
+        - [x] `Task` 与 `async`/`await`
+    - [x] **标准库 (Standard Library)**
         - [x] 基础 I/O
         - [x] 内存管理
         - [x] 核心容器类型 (`String`, `Vec`, `Option`, `Result`)

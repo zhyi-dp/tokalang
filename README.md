@@ -96,12 +96,12 @@ We are actively building the compiler self-hosting capabilities.
     - [x] **Generics / Templates** (Type & Function)
     - [x] **Automatic Drop Synthesis** (Recursive Deep Drop)
     - [x] **Explicit Resource Yielding (`cede`)**
-    - [ ] **Concurrency**
+    - [x] **Concurrency**
         - [x] OS Threads (`std/thread`)
         - [x] Synchronization Primitives (`Mutex`, `RwMutex`, `CondVar`)
-        - [ ] Channels (MPSC)
-        - [ ] `Task` and `async`/`await`
-    - [ ] **Standard Library**
+        - [x] Channels (MPSC)
+        - [x] `Task` and `async`/`await`
+    - [x] **Standard Library**
         - [x] Basic I/O
         - [x] Memory Management
         - [x] Core Types (`String`, `Vec`, `Option`, `Result`)
