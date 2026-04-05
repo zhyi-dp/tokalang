@@ -95,22 +95,27 @@ std::string Sema::resolveType(const std::string &Type, bool force) {
       // Substitute!
       std::string result = info.Target;
       for (size_t i = 0; i < info.GenericParams.size(); ++i) {
-        std::string param = info.GenericParams[i].Name;
+        std::vector<std::string> paramsToReplace = { info.GenericParams[i].Name };
+        if (!info.GenericParams[i].Name.empty() && info.GenericParams[i].Name[0] == '\'') {
+          paramsToReplace.push_back(info.GenericParams[i].Name.substr(1));
+        }
         std::string val = args[i];
-        size_t pos = 0;
-        while ((pos = result.find(param, pos)) != std::string::npos) {
-          // Check boundaries
-          bool startOk =
-              (pos == 0) || !isalnum(result[pos - 1]) && result[pos - 1] != '_';
-          bool endOk = (pos + param.size() == result.size()) ||
-                       !isalnum(result[pos + param.size()]) &&
-                           result[pos + param.size()] != '_';
+        for (const std::string &param : paramsToReplace) {
+          size_t pos = 0;
+          while ((pos = result.find(param, pos)) != std::string::npos) {
+            // Check boundaries
+            bool startOk =
+                (pos == 0) || !isalnum(result[pos - 1]) && result[pos - 1] != '_';
+            bool endOk = (pos + param.size() == result.size()) ||
+                         !isalnum(result[pos + param.size()]) &&
+                             result[pos + param.size()] != '_';
 
-          if (startOk && endOk) {
-            result.replace(pos, param.size(), val);
-            pos += val.size();
-          } else {
-            pos += param.size();
+            if (startOk && endOk) {
+              result.replace(pos, param.size(), val);
+              pos += val.size();
+            } else {
+              pos += param.size();
+            }
           }
         }
       }
@@ -475,7 +480,9 @@ Sema::instantiateGenericShape(std::shared_ptr<ShapeType> GenericShape) {
   std::map<std::string, std::shared_ptr<toka::Type>> substMap;
 
   for (size_t i = 0; i < Template->GenericParams.size(); ++i) {
-    substMap[Template->GenericParams[i].Name] = GenericShape->GenericArgs[i];
+    std::string k = Template->GenericParams[i].Name;
+    substMap[k] = GenericShape->GenericArgs[i];
+    if (!k.empty() && k[0] == '\'') substMap[k.substr(1)] = GenericShape->GenericArgs[i];
   }
 
   for (auto &oldMember : Template->Members) {

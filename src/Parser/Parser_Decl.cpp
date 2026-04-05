@@ -450,6 +450,7 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
       arg.Type = argType;
       arg.HasPointer = hasPointer;
       arg.IsReference = isRef;
+      arg.IsMorphicExempt = (!arg.Type.empty() && arg.Type[0] == '\'');
       // arg.IsMutable = argName.HasWrite; // Deprecated
       // arg.IsNullable = argName.HasNull; // Deprecated
 
@@ -583,6 +584,7 @@ std::unique_ptr<ExternDecl> Parser::parseExternDecl() {
       arg.HasPointer = hasPointer;
       arg.IsValueMutable = argName.HasWrite;
       arg.IsValueNullable = argName.HasNull;
+      arg.IsMorphicExempt = (!arg.Type.empty() && arg.Type[0] == '\'');
       if (match(TokenType::Equal)) {
         arg.DefaultValue = parseExpr();
       }

@@ -1080,8 +1080,10 @@ llvm::Value *CodeGen::projectSoul(llvm::Value *handle, const TokaSymbol &sym) {
 
   // 2. Reference Mode: Reference is a pointer alias
   if (sym.mode == AddressingMode::Reference) {
-    return m_Builder.CreateLoad(m_Builder.getPtrTy(), current,
-                                "ref.alias_soul");
+    for (int i = 0; i < sym.indirectionLevel; ++i) {
+        current = m_Builder.CreateLoad(m_Builder.getPtrTy(), current, "ref.alias_soul");
+    }
+    return current;
   }
 
   // 3. Pointer Modes (Raw, Unique, Shared)

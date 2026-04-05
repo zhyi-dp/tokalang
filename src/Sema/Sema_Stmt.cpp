@@ -437,7 +437,7 @@ void Sema::checkStmt(Stmt *S) {
           }
         } else {
           // Strict: No sigil, no pointer, except for "str" (implicit *char)
-          if (!Inferred.empty() &&
+          if (!Var->IsMorphicExempt && !Inferred.empty() &&
               (Inferred[0] == '*' || Inferred[0] == '^' || Inferred[0] == '~' ||
                Inferred[0] == '&') &&
               Inferred.substr(0, 3) != "str") {

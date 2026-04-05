@@ -40,38 +40,51 @@ std::unique_ptr<Stmt> Parser::parseVariableDecl(bool isPub) {
   bool isRebindBlocked = false;
 
   std::string morphologyPrefix = "";
-
-  if (match(TokenType::Ampersand)) {
-    isRef = true;
-    morphologyPrefix = "&";
-    Token tok = previous();
-    isRebindable = tok.IsSwappablePtr;
-    isPtrNullable = isPtrNullable || tok.HasNull;
-    isRebindBlocked = tok.IsBlocked;
-    if (isPtrNullable) {
-      error(tok, "Borrowed pointers (&) cannot be nullable");
+  while (true) {
+    if (match(TokenType::Ampersand)) {
+      isRef = true;
+      morphologyPrefix += "&";
+      Token tok = previous();
+      isRebindable = tok.IsSwappablePtr;
+      isPtrNullable = isPtrNullable || tok.HasNull;
+      isRebindBlocked = tok.IsBlocked;
+      if (isPtrNullable) {
+        error(tok, "Borrowed pointers (&) cannot be nullable");
+      }
+    } else if (match(TokenType::And)) {
+      isRef = true;
+      morphologyPrefix += "&&";
+      Token tok = previous();
+      isRebindable = tok.IsSwappablePtr;
+      isPtrNullable = isPtrNullable || tok.HasNull;
+      isRebindBlocked = tok.IsBlocked;
+      if (isPtrNullable) {
+        error(tok, "Borrowed pointers (&) cannot be nullable");
+      }
+    } else if (match(TokenType::Caret)) {
+      isUnique = true;
+      morphologyPrefix += "^";
+      Token tok = previous();
+      isRebindable = tok.IsSwappablePtr;
+      isPtrNullable = isPtrNullable || tok.HasNull;
+      isRebindBlocked = tok.IsBlocked;
+    } else if (match(TokenType::Star)) {
+      hasPointer = true;
+      morphologyPrefix += "*";
+      Token tok = previous();
+      isRebindable = tok.IsSwappablePtr;
+      isPtrNullable = isPtrNullable || tok.HasNull;
+      isRebindBlocked = tok.IsBlocked;
+    } else if (match(TokenType::Tilde)) {
+      isShared = true;
+      morphologyPrefix += "~";
+      Token tok = previous();
+      isRebindable = tok.IsSwappablePtr;
+      isPtrNullable = isPtrNullable || tok.HasNull;
+      isRebindBlocked = tok.IsBlocked;
+    } else {
+      break;
     }
-  } else if (match(TokenType::Caret)) {
-    isUnique = true;
-    morphologyPrefix = "^";
-    Token tok = previous();
-    isRebindable = tok.IsSwappablePtr;
-    isPtrNullable = isPtrNullable || tok.HasNull;
-    isRebindBlocked = tok.IsBlocked;
-  } else if (match(TokenType::Star)) {
-    hasPointer = true;
-    morphologyPrefix = "*";
-    Token tok = previous();
-    isRebindable = tok.IsSwappablePtr;
-    isPtrNullable = isPtrNullable || tok.HasNull;
-    isRebindBlocked = tok.IsBlocked;
-  } else if (match(TokenType::Tilde)) {
-    isShared = true;
-    morphologyPrefix = "~";
-    Token tok = previous();
-    isRebindable = tok.IsSwappablePtr;
-    isPtrNullable = isPtrNullable || tok.HasNull;
-    isRebindBlocked = tok.IsBlocked;
   }
 
   // Check for positional destructuring: let Type(v1, v2) = ... or let (v1, v2)
@@ -109,7 +122,8 @@ std::unique_ptr<Stmt> Parser::parseVariableDecl(bool isPub) {
   Token name = consume(TokenType::Identifier, "Expected variable name");
   if (!name.Text.empty() && name.Text[0] == '\'') {
       isMorphicExempt = true;
-      name.Text = name.Text.substr(1);
+      // Do not strip the quote from the name to keep it consistent with
+      // function arguments and pattern bindings.
   }
   std::string fullVarName = morphologyPrefix + name.Text;
 

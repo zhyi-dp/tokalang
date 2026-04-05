@@ -228,10 +228,18 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
       match(TokenType::PlusPlus) || match(TokenType::MinusMinus) ||
       match(TokenType::Caret) || match(TokenType::Tilde) ||
       match(TokenType::Star) || match(TokenType::Ampersand) ||
-      match(TokenType::At) || match(TokenType::KwBnot)) {
+      match(TokenType::And) || match(TokenType::At) ||
+      match(TokenType::KwBnot)) {
     Token tok = previous();
     TokenType op = tok.Kind;
     auto sub = parsePrimary(allowTrailingClosure);
+    if (op == TokenType::And) {
+      auto inner = std::make_unique<UnaryExpr>(TokenType::Ampersand, std::move(sub));
+      inner->setLocation(tok, m_CurrentFile);
+      auto outer = std::make_unique<UnaryExpr>(TokenType::Ampersand, std::move(inner));
+      outer->setLocation(tok, m_CurrentFile);
+      return outer;
+    }
     auto node = std::make_unique<UnaryExpr>(op, std::move(sub));
     node->HasNull = tok.HasNull;
     node->IsRebindable = tok.IsSwappablePtr;
@@ -1125,7 +1133,25 @@ std::unique_ptr<Expr> Parser::parseForExpr() {
   bool isMut = match(TokenType::KwLet);
   if (!isMut)
     match(TokenType::KwAuto); // Allow optional auto
-  bool isRef = match(TokenType::Ampersand);
+  std::string morphologyPrefix = "";
+  bool isRef = false;
+  while (true) {
+    if (match(TokenType::Ampersand)) {
+      isRef = true;
+      morphologyPrefix += "&";
+    } else if (match(TokenType::And)) {
+      isRef = true;
+      morphologyPrefix += "&&";
+    } else if (match(TokenType::Caret)) {
+      morphologyPrefix += "^";
+    } else if (match(TokenType::Star)) {
+      morphologyPrefix += "*";
+    } else if (match(TokenType::Tilde)) {
+      morphologyPrefix += "~";
+    } else {
+      break;
+    }
+  }
   Token varName =
       consume(TokenType::Identifier, "Expected variable name in for");
   consume(TokenType::KwIn, "Expected 'in' in for loop");
@@ -1138,6 +1164,7 @@ std::unique_ptr<Expr> Parser::parseForExpr() {
   auto node = std::make_unique<ForExpr>(varName.Text, isRef, isMut,
                                         std::move(collection), std::move(body),
                                         std::move(elseBody));
+  node->MorphologyPrefix = morphologyPrefix;
   node->setLocation(tok, m_CurrentFile);
   return node;
 }

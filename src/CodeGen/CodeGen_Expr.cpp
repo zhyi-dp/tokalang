@@ -1599,6 +1599,7 @@ PhysEntity CodeGen::genVariableExpr(const VariableExpr *var) {
     }
   }
 
+  if(soulType) llvm::errs() << "genVariableExpr soulType: " << *soulType << "\n";
   return PhysEntity(soulAddr, typeName, soulType, true);
 }
 
@@ -2458,13 +2459,8 @@ PhysEntity CodeGen::genForExpr(const ForExpr *fe) {
 
   TokaSymbol sym;
   sym.allocaPtr = vAlloca;
-  fillSymbolMetadata(sym, fe->IterElementType, false, false, false, fe->IsReference, fe->IsMutable, false,
-                     elem->getType());
-  sym.soulType = elem->getType();
-  if (fe->IsReference) {
-      std::string stripped = toka::Type::stripMorphology(fe->IterElementType);
-      sym.soulType = resolveType(stripped, false);
-  }
+  fillSymbolMetadata(sym, toka::Type::fromString(fe->IterElementType), elem->getType());
+  sym.typeName = fe->IterElementType;
   m_Symbols[vBaseName] = sym;
 
   std::string myLabel = "";

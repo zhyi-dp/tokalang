@@ -725,13 +725,14 @@ void Sema::checkFunction(FunctionDecl *Fn) {
     Info.IsRebindable = Arg.IsRebindable;
     Info.IsMorphicExempt = Arg.IsMorphicExempt; // [NEW]
 
-    if (!Arg.Name.empty() && Arg.Name[0] == '\'') {
+    if (!Arg.Type.empty() && Arg.Type[0] == '\'') {
       Info.IsMorphicExempt = true;
     }
     CurrentScope->define(Arg.Name, Info);
 
-    if (Arg.Name == "'def_val") {
+    if (Arg.Name == "'def_val" || Arg.Name == "val") {
        std::cerr << "[DEBUG] checkFunction arg: " << Arg.Name << ", Arg.Type=" << Arg.Type << ", resolved Info=" << (Info.TypeObj ? Info.TypeObj->toString() : "NULL") << ", CurrentFnRet=" << CurrentFunctionReturnType << "\n";
+       std::cerr << "[DEBUG] " << Arg.Name << " resolved IsMorphicExempt = " << Info.IsMorphicExempt << "\n";
     }
   }
 

@@ -2335,46 +2335,59 @@ void CodeGen::fillSymbolMetadata(TokaSymbol &sym, std::shared_ptr<Type> typeObj,
   // logic. But TokaSymbol logic expects 'soulType' to be the underlying data
   // type.
 
-  // Handle Reference
-  if (typeObj->isReference()) {
-    sym.mode = AddressingMode::Reference;
-    sym.indirectionLevel = 1;
-    sym.morphology = Morphology::None; // Reference is an alias, not ownership
-    // Peel for Soul
-    auto ptr = std::static_pointer_cast<PointerType>(typeObj);
-    sym.soulType = getLLVMType(ptr->PointeeType);
-    current = ptr->PointeeType;
-  } else if (typeObj->typeKind == Type::UniquePtr) {
-    sym.mode = AddressingMode::Pointer;
-    sym.indirectionLevel = 1;
-    sym.morphology = Morphology::Unique;
-    auto ptr = std::static_pointer_cast<PointerType>(typeObj);
-    sym.soulType = getLLVMType(ptr->PointeeType);
-    current = ptr->PointeeType;
-  } else if (typeObj->typeKind == Type::SharedPtr) {
-    sym.mode = AddressingMode::Pointer;
-    sym.indirectionLevel = 1; // Effectively a pointer access to value
-    sym.morphology = Morphology::Shared;
-    auto ptr = std::static_pointer_cast<SharedPointerType>(typeObj);
-    sym.soulType = getLLVMType(ptr->PointeeType);
-    current = ptr->PointeeType;
-  } else if (typeObj->typeKind == Type::RawPtr) {
-    sym.mode = AddressingMode::Pointer;
-    sym.indirectionLevel = 1;
-    sym.morphology = Morphology::Raw;
-    auto ptr = std::static_pointer_cast<PointerType>(typeObj);
-    sym.soulType = getLLVMType(ptr->PointeeType);
-    current = ptr->PointeeType;
-  } else {
+  // Handle recursive peeling for indirection levels
+  bool firstLayer = true;
+  while (current && (current->isReference() || current->isPointer() || current->isSmartPointer())) {
+    if (current->isReference()) {
+      if (firstLayer) {
+        sym.mode = AddressingMode::Reference;
+        sym.morphology = Morphology::None;
+      }
+      sym.indirectionLevel++;
+      current = std::static_pointer_cast<PointerType>(current)->PointeeType;
+    } else if (current->typeKind == Type::UniquePtr) {
+      if (firstLayer) {
+        sym.mode = AddressingMode::Pointer;
+        sym.morphology = Morphology::Unique;
+      }
+      sym.indirectionLevel++;
+      current = std::static_pointer_cast<PointerType>(current)->PointeeType;
+    } else if (current->typeKind == Type::SharedPtr) {
+      if (firstLayer) {
+        sym.mode = AddressingMode::Pointer;
+        sym.morphology = Morphology::Shared;
+      }
+      sym.indirectionLevel++;
+      current = std::static_pointer_cast<SharedPointerType>(current)->PointeeType;
+    } else if (current->typeKind == Type::RawPtr) {
+      if (firstLayer) {
+        sym.mode = AddressingMode::Pointer;
+        sym.morphology = Morphology::Raw;
+      }
+      sym.indirectionLevel++;
+      current = std::static_pointer_cast<PointerType>(current)->PointeeType;
+    } else {
+      break;
+    }
+    firstLayer = false;
+  }
+
+  if (firstLayer) {
     // Direct Value
     sym.mode = AddressingMode::Direct;
     sym.morphology = Morphology::None;
-    sym.soulType = getLLVMType(typeObj);
-    // current remains typeObj
   }
+
+  sym.soulType = getLLVMType(current);
 
   if (!sym.soulType)
     sym.soulType = allocaElemTy;
+
+  if (typeObj) {
+    llvm::errs() << "fillSymbolMetadata [typeObj=" << typeObj->toString() 
+                 << "] -> indirectionLevel=" << sym.indirectionLevel 
+                 << " soulTypePtr=" << sym.soulType << "\\n";
+  }
 
   // Attributes
   sym.isMutable = typeObj->IsWritable;

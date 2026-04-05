@@ -58,10 +58,12 @@ substituteTypeString(const std::string &Input,
 // here.
 class GenericInstantiator {
   const std::map<std::string, std::string> &Replacements;
+  const std::set<std::string> &MorphicParams;
 
 public:
-  GenericInstantiator(const std::map<std::string, std::string> &map)
-      : Replacements(map) {}
+  GenericInstantiator(const std::map<std::string, std::string> &map,
+                      const std::set<std::string> &morphicParams)
+      : Replacements(map), MorphicParams(morphicParams) {}
 
   std::string sub(const std::string &s) {
     if (s.empty())
@@ -81,6 +83,9 @@ public:
   void visitFunction(FunctionDecl *Fn) {
     Fn->ReturnType = sub(Fn->ReturnType);
     for (auto &Arg : Fn->Args) {
+      if (MorphicParams.count(Arg.Type)) {
+        Arg.IsMorphicExempt = true;
+      }
       Arg.Type = sub(Arg.Type);
       // Reset ResolvedType to allow Sema to re-resolve it
       Arg.ResolvedType = nullptr;
@@ -257,15 +262,22 @@ void Sema::instantiateGenericImpl(
 
   // 2. Build Substitution Map
   std::map<std::string, std::string> Replacements;
-  for (size_t i = 0; i < Template->GenericParams.size(); ++i) { 
-    Replacements[Template->GenericParams[i].Name] = GenericArgs[i]->toString(); 
-  }
+  std::set<std::string> MorphicParams;
   for (size_t i = 0; i < Template->GenericParams.size(); ++i) {
-    Replacements[Template->GenericParams[i].Name] = GenericArgs[i]->toString();
+    std::string k = Template->GenericParams[i].Name;
+    std::string v = GenericArgs[i]->toString();
+    Replacements[k] = v;
+    if (Template->GenericParams[i].IsMorphic) {
+      MorphicParams.insert(k);
+      if (!k.empty() && k[0] == '\'') {
+        MorphicParams.insert(k.substr(1));
+      }
+    }
+    if (!k.empty() && k[0] == '\'') Replacements[k.substr(1)] = v;
   }
 
   // 3. Clone and Substitute
-  GenericInstantiator Instantiator(Replacements);
+  GenericInstantiator Instantiator(Replacements, MorphicParams);
 
   std::vector<std::unique_ptr<FunctionDecl>> NewMethods;
   for (auto &Method : Template->Methods) {

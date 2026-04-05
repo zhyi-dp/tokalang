@@ -1296,7 +1296,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
 
     if (isArray) {
         // Array emulation of next/next_ref
-        fullType = (fe->IsReference ? "&" : "") + elemType;
+        fullType = fe->MorphologyPrefix + elemType;
         if (fe->IsMutable) fullType += "#";
                        fe->IterElementType = fullType;
     } else {
@@ -1310,21 +1310,51 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
               auto iterObj = toka::Type::fromString(iterObjStr);
             auto iterSoul = iterObj->getSoulType()->toString();
             
-            std::string nextMethodName = fe->IsReference ? "next_ref" : "next";
-            if (!MethodMap.count(iterSoul) || !MethodMap[iterSoul].count(nextMethodName)) {
-                 error(fe, "Iterator for '" + soulType + "' does not support " + (fe->IsReference ? "borrow semantics (.next_ref())" : "value semantics (.next())"));
-                 fullType = "i32";
+            // 1. Peek at next() to see what the element type is
+            std::string E_type = "";
+            if (MethodMap.count(iterSoul) && MethodMap[iterSoul].count("next")) {
+                std::string nextRetStr = MethodMap[iterSoul]["next"];
+                if (nextRetStr.size() > 7 && nextRetStr.substr(0, 7) == "Option<") {
+                    E_type = nextRetStr.substr(7, nextRetStr.size() - 8);
+                }
+            }
+            if (E_type.empty()) {
+                error(fe, "Iterator protocol requires next to return Option<T>");
+                fullType = "i32";
             } else {
-                 std::string nextRetStr = MethodMap[iterSoul][nextMethodName];
-                 if (nextRetStr.size() > 7 && nextRetStr.substr(0, 7) == "Option<") {
-                     std::string payload = nextRetStr.substr(7, nextRetStr.size() - 8);
-                     fullType = payload;
-                     if (fe->IsMutable) fullType += "#";
-                       fe->IterElementType = fullType;
-                 } else {
-                     error(fe, "Iterator protocol requires " + nextMethodName + " to return Option<T>");
+                // 2. Compare user's morphology prefix with E's morphology to determine intent
+                size_t prefRef = 0;
+                for (char c : fe->MorphologyPrefix) { if (c == '&') prefRef++; else break; }
+                size_t eRef = 0;
+                for (char c : E_type) { if (c == '&') eRef++; else break; }
+                
+                bool expectsRef = false;
+                if (prefRef > eRef) {
+                    expectsRef = true;
+                } else if (!fe->MorphologyPrefix.empty()) {
+                     expectsRef = false;
+                } else {
+                     expectsRef = fe->IsReference; // fallback
+                }
+                
+                fe->IsReference = expectsRef;
+                std::string nextMethodName = expectsRef ? "next_ref" : "next";
+                
+                if (!MethodMap[iterSoul].count(nextMethodName)) {
+                     error(fe, "Iterator for '" + soulType + "' does not support " + (expectsRef ? "borrow semantics (.next_ref())" : "value semantics (.next())"));
                      fullType = "i32";
-                 }
+                } else {
+                     std::string nextRetStr = MethodMap[iterSoul][nextMethodName];
+                     if (nextRetStr.size() > 7 && nextRetStr.substr(0, 7) == "Option<") {
+                         std::string payload = nextRetStr.substr(7, nextRetStr.size() - 8);
+                         fullType = payload;
+                         if (fe->IsMutable) fullType += "#";
+                           fe->IterElementType = fullType;
+                     } else {
+                         error(fe, "Iterator protocol requires " + nextMethodName + " to return Option<T>");
+                         fullType = "i32";
+                     }
+                }
             }
         }
     }
@@ -2643,9 +2673,6 @@ std::shared_ptr<toka::Type> Sema::checkUnaryExpr(UnaryExpr *Unary) {
       // Decay Array to Pointer-to-Element
       auto arr = std::dynamic_pointer_cast<toka::ArrayType>(rhsType);
       inner = arr->ElementType;
-    } else if (rhsType->isPointer()) {
-      auto ptr = std::dynamic_pointer_cast<toka::PointerType>(rhsType);
-      inner = ptr->getPointeeType();
     }
     if (!inner)
       inner = rhsType;

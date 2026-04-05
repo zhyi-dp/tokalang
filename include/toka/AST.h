@@ -1071,6 +1071,7 @@ public:
 class ForExpr : public Expr {
 public:
   std::string VarName;
+  std::string MorphologyPrefix;
   bool IsReference = false;
   bool IsMutable = false;
   std::unique_ptr<Expr> Collection;
@@ -1560,6 +1561,7 @@ public:
     bool IsValueNullable = false;
     bool IsRebindBlocked = false;
     bool IsValueBlocked = false;
+    bool IsMorphicExempt = false;
     std::unique_ptr<Expr> DefaultValue;
 
     Arg clone() const {

@@ -102,7 +102,7 @@ impl<'T> Vec<'T> {
     }
 
     // Push element to end
-    pub fn push(self#, val: 'T) {
+    pub fn push(self#, 'val: T) {
         unsafe {
             if self.len == self.cap {
                 self#.grow()
@@ -110,7 +110,7 @@ impl<'T> Vec<'T> {
             
             // Pointer indexing handles
             // *self.buf provides the handle.
-            self.buf[self.len] = val
+            self.buf[self.len] = 'val
             self.len += 1
         }
     }
@@ -124,8 +124,8 @@ impl<'T> Vec<'T> {
             
             self.len -= 1
             // Copy out
-            auto val = self.buf[self.len]
-            return Option<'T>::Some(val)
+            auto 'val = self.buf[self.len]
+            return Option<'T>::Some('val)
         }
     }
     
@@ -135,8 +135,8 @@ impl<'T> Vec<'T> {
              if index >= self.len {
                  libc_exit(1)
              }
-             auto val = self.buf[index]
-             return val
+             auto 'val = self.buf[index]
+             return 'val
         }
     }
     
@@ -162,8 +162,8 @@ impl<'T> Vec<'T> {
              if index >= self.len {
                  return Option<'T>::None
              }
-             auto val = self.buf[index]
-             return Option<'T>::Some(val)
+             auto 'val = self.buf[index]
+             return Option<'T>::Some('val)
         }
     }
 
@@ -227,7 +227,7 @@ impl<'T> Vec<'T> {
     }
 
     // Resize vector (fill with value)
-    pub fn resize(self#, new_len: usize, val: 'T) {
+    pub fn resize(self#, new_len: usize, 'val: T) {
         unsafe {
             if new_len > self.cap {
                  while self.cap < new_len {
@@ -237,7 +237,7 @@ impl<'T> Vec<'T> {
             // Fill from old_len to new_len
             auto i# = self.len
             while i < new_len {
-                self.buf[i] = val
+                self.buf[i] = 'val
                 i += 1
             }
             self.len = new_len
@@ -245,10 +245,10 @@ impl<'T> Vec<'T> {
     }
 
     // Set value at index
-    pub fn set(self#, index: usize, val: 'T) {
+    pub fn set(self#, index: usize, 'val: T) {
         unsafe {
              if index < self.len {
-                 self.buf[index] = val
+                 self.buf[index] = 'val
              }
         }
     }
@@ -290,9 +290,8 @@ impl<'T> VecIterator<'T> {
                 return Option<'T>::None
             }
             
-            auto 'val = self.buf[self.pos]
             self.pos += 1
-            return Option<'T>::Some(val)
+            return Option<'T>::Some(self.buf[self.pos-1])
         }
     }
 
