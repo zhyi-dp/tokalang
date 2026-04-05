@@ -290,9 +290,20 @@ impl<'T> VecIterator<'T> {
                 return Option<'T>::None
             }
             
-            auto val = self.buf[self.pos]
+            auto 'val = self.buf[self.pos]
             self.pos += 1
             return Option<'T>::Some(val)
+        }
+    }
+
+    pub fn next_ref(self#) -> Option<&'T> {
+        unsafe {
+            if self.pos >= self.len {
+                return Option<&'T>::None
+            }
+            
+            self.pos += 1
+            return Option<&'T>::Some(&self.buf[self.pos - 1])
         }
     }
 }

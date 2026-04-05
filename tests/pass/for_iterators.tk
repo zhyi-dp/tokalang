@@ -1,0 +1,20 @@
+import std/vec::Vec
+import std/io::println
+
+fn main() -> i32 {
+    auto v# = Vec<i32>::with_capacity(10)
+    v#.push(10)
+    v#.push(20)
+    v#.push(30)
+
+    println("Iterating Vec:")
+    for auto x in v {
+        println("Item: {}", x)
+    }
+
+    for auto &x in v {//borrow 
+        println("Item: {}", x)
+    }
+    
+    return 0
+}

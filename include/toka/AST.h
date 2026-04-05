@@ -1076,6 +1076,7 @@ public:
   std::unique_ptr<Expr> Collection;
   std::unique_ptr<Stmt> Body;
   std::unique_ptr<Stmt> ElseBody;
+  std::string IterElementType;
 
   ForExpr(const std::string &varName, bool isRef, bool isMut,
           std::unique_ptr<Expr> coll, std::unique_ptr<Stmt> body,
@@ -1091,6 +1092,7 @@ public:
                                        cloneNode(ElseBody));
     n->Loc = Loc;
     n->ResolvedType = ResolvedType;
+      n->IterElementType = IterElementType;
     return n;
   }
 };

@@ -468,6 +468,9 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       isImplicitDeref = (actualName != ve->Name);
       Info = *InfoPtr;
       ve->IsMorphicExempt = Info.IsMorphicExempt; // [NEW]
+      if (ve->Name == "'def_val") {
+           std::cerr << "[DEBUG] 'def_val resolved IsMorphicExempt = " << ve->IsMorphicExempt << ", TypeObj = " << (Info.TypeObj ? Info.TypeObj->toString() : "NULL") << "\n";
+      }
     }
 
     if (!InfoPtr) {
@@ -731,7 +734,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     // [Constitution] Soul Collapse (The Hat-Off Transduction)
     // "Variable name without hat collapses to value (Soul)."
     bool shouldCollapse = true;
-    if (m_DisableSoulCollapse) {
+    if (m_DisableSoulCollapse || Info.IsMorphicExempt) {
       shouldCollapse = false;
     }
 
@@ -1267,17 +1270,67 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
   } else if (auto *fe = dynamic_cast<ForExpr *>(E)) {
     auto collTypeObj = checkExpr(fe->Collection.get());
     std::string collType = collTypeObj->toString();
-    std::string elemType = "i32"; // TODO: better inference
-    if (collType.size() > 2 && collType.substr(0, 2) == "[]")
-      elemType = collType.substr(2);
+    std::string elemType = "void"; // fallback
+    std::string soulType = collTypeObj->getSoulType()->toString();
+
+    bool isArray = false;
+    // 1. Array Fast Path Identification
+    if (collType.size() > 2 && collType.substr(0, 2) == "[]") {
+        isArray = true;
+        elemType = collType.substr(2);
+    } else if (!collType.empty() && collType.front() == '[') {
+        size_t semi = collType.find_last_of(';');
+        if (semi != std::string::npos) {
+            isArray = true;
+            elemType = collType.substr(1, semi - 1);
+        } else {
+            size_t endBracket = collType.find(']');
+            if (endBracket != std::string::npos) {
+                isArray = true;
+                elemType = collType.substr(endBracket + 1);
+            }
+        }
+    }
+
+    std::string fullType = "void";
+
+    if (isArray) {
+        // Array emulation of next/next_ref
+        fullType = (fe->IsReference ? "&" : "") + elemType;
+        if (fe->IsMutable) fullType += "#";
+                       fe->IterElementType = fullType;
+    } else {
+        // 2. Iterator Protocol Method Lookup
+        if (!MethodMap.count(soulType) || !MethodMap[soulType].count("iter")) {
+            error(fe->Collection.get(), "Type '" + soulType + "' does not implement iterator protocol (.iter())");
+            fullType = "i32";
+        } else {
+            std::string iterObjStr = MethodMap[soulType]["iter"];
+            iterObjStr = resolveType(iterObjStr, false);
+              auto iterObj = toka::Type::fromString(iterObjStr);
+            auto iterSoul = iterObj->getSoulType()->toString();
+            
+            std::string nextMethodName = fe->IsReference ? "next_ref" : "next";
+            if (!MethodMap.count(iterSoul) || !MethodMap[iterSoul].count(nextMethodName)) {
+                 error(fe, "Iterator for '" + soulType + "' does not support " + (fe->IsReference ? "borrow semantics (.next_ref())" : "value semantics (.next())"));
+                 fullType = "i32";
+            } else {
+                 std::string nextRetStr = MethodMap[iterSoul][nextMethodName];
+                 if (nextRetStr.size() > 7 && nextRetStr.substr(0, 7) == "Option<") {
+                     std::string payload = nextRetStr.substr(7, nextRetStr.size() - 8);
+                     fullType = payload;
+                     if (fe->IsMutable) fullType += "#";
+                       fe->IterElementType = fullType;
+                 } else {
+                     error(fe, "Iterator protocol requires " + nextMethodName + " to return Option<T>");
+                     fullType = "i32";
+                 }
+            }
+        }
+    }
 
     enterScope();
     SymbolInfo Info;
-    // Construct Full Type String for Type Object
-    std::string fullType = (fe->IsReference ? "&" : "") + elemType;
-    if (fe->IsMutable)
-      fullType += "#";
-
     Info.TypeObj = toka::Type::fromString(fullType);
     CurrentScope->define(fe->VarName, Info);
 
@@ -4540,6 +4593,10 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
     // explicit? In match arms, we trust the inferred type T. But wait,
     // T comes from resolveType(TargetType).
     Info.TypeObj = toka::Type::fromString(fullType);
+
+    if (!Pat->Name.empty() && Pat->Name[0] == '\'') {
+        Info.IsMorphicExempt = true;
+    }
 
     CurrentScope->define(Pat->Name, Info);
     break;

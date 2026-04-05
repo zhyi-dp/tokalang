@@ -356,6 +356,14 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
     sym.typeName =
         argDecl.Type; // [Fix] Set legacy type string for Dynamic Dispatch
 
+    // [HOTFIX] Exempt variables (like 'val) preserve their raw morphology!
+    if (!argName.empty() && argName[0] == '\'') {
+        sym.mode = AddressingMode::Direct;
+        sym.indirectionLevel = 0;
+        sym.morphology = Morphology::None;
+        sym.soulType = getLLVMType(typeObj);
+    }
+
     if (needsCapture) {
       sym.mode = AddressingMode::Pointer;
       // If captured, we add a level of indirection (ptr -> ptr*)

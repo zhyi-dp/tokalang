@@ -2152,6 +2152,7 @@ PhysEntity CodeGen::genWhileExpr(const WhileExpr *we) {
 
   m_Builder.CreateBr(condBB);
   m_Builder.SetInsertPoint(condBB);
+
   PhysEntity cond_ent = genExpr(we->Condition.get()).load(m_Builder);
   llvm::Value *cond = cond_ent.load(m_Builder);
   m_Builder.CreateCondBr(cond, loopBB, elseBB);
@@ -2169,7 +2170,7 @@ PhysEntity CodeGen::genWhileExpr(const WhileExpr *we) {
   if (m_Builder.GetInsertBlock() &&
       !m_Builder.GetInsertBlock()->getTerminator())
     m_Builder.CreateBr(condBB);
-
+  
   elseBB->insertInto(f);
   m_Builder.SetInsertPoint(elseBB);
   if (we->ElseBody) {
@@ -2226,11 +2227,7 @@ PhysEntity CodeGen::genForExpr(const ForExpr *fe) {
 
   llvm::Function *f = m_Builder.GetInsertBlock()->getParent();
 
-  // Only support Array/Slice iteration for now
-  if (!collVal->getType()->isPointerTy() && !collVal->getType()->isArrayTy()) {
-    error(fe, "Only arrays and pointers can be iterated in for loops");
-    return nullptr;
-  }
+  // array/pointer checks are deferred to iterator dispatch
 
   llvm::BasicBlock *condBB = llvm::BasicBlock::Create(m_Context, "for_cond", f);
   llvm::BasicBlock *loopBB = llvm::BasicBlock::Create(m_Context, "for_loop");
@@ -2249,42 +2246,121 @@ PhysEntity CodeGen::genForExpr(const ForExpr *fe) {
   m_Builder.CreateStore(
       llvm::ConstantInt::get(llvm::Type::getInt32Ty(m_Context), 0), idxAlloca);
 
+
+  bool isArray = false;
+  std::string collTypeNameCheck = collVal_ent.typeName;
+  if (collTypeNameCheck.size() > 0 && collTypeNameCheck[0] == '[') isArray = true;
+  if (collVal->getType()->isArrayTy()) isArray = true;
+
+  llvm::AllocaInst *iterAlloca = nullptr;
+  llvm::Value *iterVal = nullptr;
+  if (!isArray) {
+    std::string collObjTy = collVal_ent.typeName;
+    if (collObjTy.empty() && m_TypeToName.count(collVal->getType())) {
+        collObjTy = m_TypeToName[collVal->getType()];
+    }
+    std::string stripName = toka::Type::stripMorphology(collObjTy);
+    std::string iterMangled = "encap_" + stripName + "_iter";
+    llvm::Function *iterFn = m_Module->getFunction(iterMangled);
+    if (!iterFn) {
+        iterMangled = stripName + "_iter"; // Fallback without encap_ prefix
+        iterFn = m_Module->getFunction(iterMangled);
+    }
+    if (!iterFn) {
+        error(fe, "Iterator setup failed: function '" + iterMangled + "' not found in IR module (stripped name: " + stripName + ")");
+        return nullptr;
+    }
+    
+    if (collVal_ent.typeName[0] != '*' && collVal_ent.typeName[0] != '&' && collVal_ent.typeName[0] != '^' && collVal_ent.typeName[0] != '~') {
+       if (iterFn && iterFn->arg_size() > 0 && iterFn->getArg(0)->getType()->isPointerTy()) {
+           llvm::AllocaInst *tmp = createEntryBlockAlloca(collVal->getType());
+           m_Builder.CreateStore(collVal, tmp);
+           iterVal = m_Builder.CreateCall(iterFn, {tmp}, "iter_inst");
+       } else {
+           iterVal = m_Builder.CreateCall(iterFn, {collVal}, "iter_inst");
+       }
+    } else {
+       iterVal = m_Builder.CreateCall(iterFn, {collVal}, "iter_inst");
+    }
+
+    iterAlloca = createEntryBlockAlloca(iterVal->getType(), nullptr, "iter_state");
+    m_Builder.CreateStore(iterVal, iterAlloca);
+  }
+
+  // Define loop variable scope (moved here to allow optAlloca to bind correctly if needed, though alloca is block-level)
+  m_ScopeStack.push_back({});
+
+
   m_Builder.CreateBr(condBB);
   m_Builder.SetInsertPoint(condBB);
 
   llvm::Value *currIdx = m_Builder.CreateLoad(llvm::Type::getInt32Ty(m_Context),
                                               idxAlloca, "curr_idx");
-  llvm::Value *limit = nullptr;
 
-  // 1. Array Size Detection via Semantic Type
-  std::string typeStr = collVal_ent.typeName;
-  bool foundSize = false;
-  if (typeStr.size() > 1 && typeStr[0] == '[') {
-    size_t lastSemi = typeStr.find_last_of(';');
-    if (lastSemi != std::string::npos) {
-      std::string countStr =
-          typeStr.substr(lastSemi + 1, typeStr.size() - lastSemi - 2);
-      try {
-        uint64_t n = std::stoull(countStr);
-        limit = llvm::ConstantInt::get(llvm::Type::getInt32Ty(m_Context), n);
-        foundSize = true;
-      } catch (...) {
+  llvm::AllocaInst *optAlloca = nullptr; // For iterators
+
+  if (isArray) {
+      llvm::Value *limit = nullptr;
+      // 1. Array Size Detection via Semantic Type
+      std::string typeStr = collVal_ent.typeName;
+      bool foundSize = false;
+      if (typeStr.size() > 1 && typeStr[0] == '[') {
+        size_t lastSemi = typeStr.find_last_of(';');
+        if (lastSemi != std::string::npos) {
+          std::string countStr =
+              typeStr.substr(lastSemi + 1, typeStr.size() - lastSemi - 2);
+          try {
+            uint64_t n = std::stoull(countStr);
+            limit = llvm::ConstantInt::get(llvm::Type::getInt32Ty(m_Context), n);
+            foundSize = true;
+          } catch (...) {
+          }
+        }
       }
-    }
-  }
 
-  if (!foundSize) {
-    if (collVal->getType()->isArrayTy()) {
-      limit = llvm::ConstantInt::get(llvm::Type::getInt32Ty(m_Context),
-                                     collVal->getType()->getArrayNumElements());
+      if (!foundSize) {
+        if (collVal->getType()->isArrayTy()) {
+          limit = llvm::ConstantInt::get(llvm::Type::getInt32Ty(m_Context),
+                                         collVal->getType()->getArrayNumElements());
+        } else {
+          // Fallback to hardcoded 10 for pointers if unknown
+          limit = llvm::ConstantInt::get(llvm::Type::getInt32Ty(m_Context), 10);
+        }
+      }
+
+      llvm::Value *cond = m_Builder.CreateICmpULT(currIdx, limit, "forcond");
+      m_Builder.CreateCondBr(cond, loopBB, elseBB);
+  } else {
+    std::string iterTyName = "";
+    if (m_TypeToName.count(iterVal->getType())) iterTyName = m_TypeToName[iterVal->getType()];
+    std::string nextMethodName = fe->IsReference ? "next_ref" : "next";
+    std::string nextFnName = "encap_" + iterTyName + "_" + nextMethodName;
+    llvm::Function *nextFn = m_Module->getFunction(nextFnName);
+    if (!nextFn) {
+        nextFnName = iterTyName + "_" + nextMethodName; // Fallback
+        nextFn = m_Module->getFunction(nextFnName);
+    }
+    if (!nextFn) {
+        error(fe, "Iterator protocol failed: next function '" + nextFnName + "' not found in IR module (iterTyName: " + iterTyName + ")");
+        return nullptr;
+    }
+    
+    llvm::Value *optRes = nullptr;
+    if (nextFn && nextFn->arg_size() > 0 && nextFn->getArg(0)->getType()->isPointerTy()) {
+        optRes = m_Builder.CreateCall(nextFn, {iterAlloca}, "next_opt");
     } else {
-      // Fallback to hardcoded 10 for pointers if unknown
-      limit = llvm::ConstantInt::get(llvm::Type::getInt32Ty(m_Context), 10);
+        llvm::Value *loadedIter = m_Builder.CreateLoad(iterVal->getType(), iterAlloca);
+        optRes = m_Builder.CreateCall(nextFn, {loadedIter}, "next_opt");
     }
-  }
 
-  llvm::Value *cond = m_Builder.CreateICmpULT(currIdx, limit, "forcond");
-  m_Builder.CreateCondBr(cond, loopBB, elseBB);
+    optAlloca = createEntryBlockAlloca(optRes->getType(), nullptr, "opt_struct");
+    m_Builder.CreateStore(optRes, optAlloca);
+
+    llvm::Value *tagPtr = m_Builder.CreateStructGEP(optRes->getType(), optAlloca, 0);
+    llvm::Value *tagVal = m_Builder.CreateLoad(m_Builder.getInt8Ty(), tagPtr);
+    llvm::Value *isSome = m_Builder.CreateICmpEQ(tagVal, m_Builder.getInt8(1), "is_some");
+    m_Builder.CreateCondBr(isSome, loopBB, elseBB);
+  }
 
   loopBB->insertInto(f);
   m_Builder.SetInsertPoint(loopBB);
@@ -2321,59 +2397,71 @@ PhysEntity CodeGen::genForExpr(const ForExpr *fe) {
   } else {
     elemTy = llvm::Type::getInt32Ty(m_Context);
   }
+  std::string vName = fe->VarName;
 
-  // 3. Obtain Element Pointer
   llvm::Value *elemPtr = nullptr;
-  if (collVal->getType()->isPointerTy()) {
-    std::string collTypeName = collVal_ent.typeName;
-    if (collTypeName.size() > 0 && collTypeName[0] == '[') {
-      // Pointer to array literal or alloca'd array
-      llvm::Type *arrTy = resolveType(collTypeName, false);
+  llvm::Value *elem = nullptr;
+
+  if (isArray) {
+    if (collVal->getType()->isPointerTy()) {
+      std::string collTypeName = collVal_ent.typeName;
+      if (collTypeName.size() > 0 && collTypeName[0] == '[') {
+        // Pointer to array literal or alloca'd array
+        llvm::Type *arrTy = resolveType(collTypeName, false);
+        elemPtr = m_Builder.CreateGEP(
+            arrTy, collVal,
+            {llvm::ConstantInt::get(llvm::Type::getInt32Ty(m_Context), 0),
+             currIdx});
+      } else {
+        // Raw pointer iteration
+        elemPtr = m_Builder.CreateGEP(elemTy, collVal, {currIdx});
+      }
+    } else {
+      // Array R-Value (LLVM Array)
+      llvm::Value *allocaColl =
+          createEntryBlockAlloca(collVal->getType(), nullptr, "for_arr_tmp");
+      m_Builder.CreateStore(collVal, allocaColl);
       elemPtr = m_Builder.CreateGEP(
-          arrTy, collVal,
+          collVal->getType(), allocaColl,
           {llvm::ConstantInt::get(llvm::Type::getInt32Ty(m_Context), 0),
            currIdx});
-    } else {
-      // Raw pointer iteration
-      elemPtr = m_Builder.CreateGEP(elemTy, collVal, {currIdx});
     }
+
+    elem = m_Builder.CreateLoad(elemTy, elemPtr, vName);
+
   } else {
-    // Array R-Value (LLVM Array)
-    llvm::Value *allocaColl =
-        createEntryBlockAlloca(collVal->getType(), nullptr, "for_arr_tmp");
-    m_Builder.CreateStore(collVal, allocaColl);
-    elemPtr = m_Builder.CreateGEP(
-        collVal->getType(), allocaColl,
-        {llvm::ConstantInt::get(llvm::Type::getInt32Ty(m_Context), 0),
-         currIdx});
+    // Extract payload
+    llvm::Value *payloadGEP = m_Builder.CreateStructGEP(optAlloca->getAllocatedType(), optAlloca, 1);
+    elemTy = resolveType(fe->IterElementType, false);
+    llvm::Value *payloadValuePtr = m_Builder.CreateBitCast(payloadGEP, llvm::PointerType::get(elemTy, 0), "payload_cast");
+    elem = m_Builder.CreateLoad(elemTy, payloadValuePtr, vName);
+    elemPtr = payloadValuePtr;
   }
 
-  std::string vName = fe->VarName;
-  while (!vName.empty() &&
-         (vName[0] == '*' || vName[0] == '#' || vName[0] == '&' ||
-          vName[0] == '^' || vName[0] == '~' || vName[0] == '!'))
-    vName = vName.substr(1);
-  while (!vName.empty() &&
-         (vName.back() == '#' || vName.back() == '?' || vName.back() == '!'))
-    vName.pop_back();
 
-  // 4. Load and Store into Loop Variable
-  llvm::Value *elem = m_Builder.CreateLoad(elemTy, elemPtr, vName);
+  std::string vBaseName = vName;
+  while (!vBaseName.empty() &&
+         (vBaseName[0] == '*' || vBaseName[0] == '#' || vBaseName[0] == '&' ||
+          vBaseName[0] == '^' || vBaseName[0] == '~' || vBaseName[0] == '!'))
+    vBaseName = vBaseName.substr(1);
+  while (!vBaseName.empty() &&
+         (vBaseName.back() == '#' || vBaseName.back() == '?' || vBaseName.back() == '!'))
+    vBaseName.pop_back();
+
+  // 4. Extract into Loop Variable
   llvm::AllocaInst *vAlloca =
-      createEntryBlockAlloca(elem->getType(), nullptr, vName);
+      createEntryBlockAlloca(elem->getType(), nullptr, vBaseName);
   m_Builder.CreateStore(elem, vAlloca);
 
   // Register in legacy and new symbol tables
-  m_NamedValues[vName] = vAlloca;
-  // m_ValueTypes[vName] = elem->getType(); // LEGACY REMOVED
-  // m_ValueElementTypes[vName] = elemTy; // LEGACY REMOVED
+  m_NamedValues[vBaseName] = vAlloca;
 
   TokaSymbol sym;
   sym.allocaPtr = vAlloca;
   fillSymbolMetadata(sym, "", false, false, false, false, false, false,
                      elem->getType());
   sym.soulType = elem->getType();
-  m_Symbols[vName] = sym;
+  m_Symbols[vBaseName] = sym;
 
   std::string myLabel = "";
   if (!m_CFStack.empty() && m_CFStack.back().BreakTarget == nullptr)
@@ -2468,6 +2556,14 @@ void CodeGen::genPatternBinding(const MatchArm::Pattern *pat,
                        pat->IsValueMutable, false, targetType);
     sym.isRebindable = false;
     sym.isContinuous = targetType->isArrayTy();
+
+    // [HOTFIX] Exempt variables (like 'val) preserve their raw morphology!
+    if (!pName.empty() && pName[0] == '\'') {
+        sym.mode = AddressingMode::Direct;
+        sym.indirectionLevel = 0;
+        sym.morphology = Morphology::None;
+        sym.soulType = targetType;
+    }
 
     // [Fix] Set Morphology and Indirection explicitly for Pattern Bindings
     if (isUnique) {

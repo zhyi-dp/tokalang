@@ -300,7 +300,18 @@ void Sema::checkStmt(Stmt *S) {
           targetMorph = MorphKind::Ref;
       }
       MorphKind sourceMorph = getSyntacticMorphology(Ret->ReturnValue.get());
-      checkStrictMorphology(Ret, targetMorph, sourceMorph, "return value");
+      
+      bool exempt = false;
+      Expr *e = Ret->ReturnValue.get();
+      while (e) {
+          if (e->IsMorphicExempt) { exempt = true; break; }
+          if (auto *un = dynamic_cast<UnaryExpr *>(e)) e = un->RHS.get();
+          else break;
+      }
+      
+      if (!exempt) {
+          checkStrictMorphology(Ret, targetMorph, sourceMorph, "return value");
+      }
     }
   } else if (auto *Free = dynamic_cast<FreeStmt *>(S)) {
     Free->Expression = foldGenericConstant(std::move(Free->Expression));

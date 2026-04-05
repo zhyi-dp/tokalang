@@ -694,8 +694,11 @@ void Sema::checkFunction(FunctionDecl *Fn) {
     if (Arg.IsPointerNullable && fullType.find("nul") == std::string::npos)
       fullType = "nul " + fullType;
 
-    std::string baseType = toka::Type::stripMorphology(Arg.Type);
-    fullType += baseType;
+    // [Constitution Fix] Generic Substitution inserts full types like "&i32" into Arg.Type.
+    // If we strip morphology, we lose the pointer!
+    // Instead of stripping, we just append Arg.Type exactly as it is.
+    // If Parser sets Arg.IsReference=true, it correctly gets "&" + Arg.Type.
+    fullType += Arg.Type;
 
     // 3. Soul Attributes (Suffix Zone)
     if (Arg.IsValueNullable)
@@ -722,7 +725,14 @@ void Sema::checkFunction(FunctionDecl *Fn) {
     Info.IsRebindable = Arg.IsRebindable;
     Info.IsMorphicExempt = Arg.IsMorphicExempt; // [NEW]
 
+    if (!Arg.Name.empty() && Arg.Name[0] == '\'') {
+      Info.IsMorphicExempt = true;
+    }
     CurrentScope->define(Arg.Name, Info);
+
+    if (Arg.Name == "'def_val") {
+       std::cerr << "[DEBUG] checkFunction arg: " << Arg.Name << ", Arg.Type=" << Arg.Type << ", resolved Info=" << (Info.TypeObj ? Info.TypeObj->toString() : "NULL") << ", CurrentFnRet=" << CurrentFunctionReturnType << "\n";
+    }
   }
 
   if (Fn->Body) {
