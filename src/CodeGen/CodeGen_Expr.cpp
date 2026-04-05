@@ -2458,9 +2458,13 @@ PhysEntity CodeGen::genForExpr(const ForExpr *fe) {
 
   TokaSymbol sym;
   sym.allocaPtr = vAlloca;
-  fillSymbolMetadata(sym, "", false, false, false, false, false, false,
+  fillSymbolMetadata(sym, fe->IterElementType, false, false, false, fe->IsReference, fe->IsMutable, false,
                      elem->getType());
   sym.soulType = elem->getType();
+  if (fe->IsReference) {
+      std::string stripped = toka::Type::stripMorphology(fe->IterElementType);
+      sym.soulType = resolveType(stripped, false);
+  }
   m_Symbols[vBaseName] = sym;
 
   std::string myLabel = "";
