@@ -1,6 +1,7 @@
 {
     "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
-    "name": "Toka",
+    "name": "toka",
+    "aliases": ["Toka"],
     "scopeName": "source.toka",
     "patterns": [
         {
