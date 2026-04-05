@@ -1,74 +1,80 @@
 ---
 title: Attribute Token System
-description: Understanding the #, ?, and ! tokens in Toka.
+description: Deep dive into # and ? tokens in Toka.
 ---
 
-Toka introduces the **Attribute Token System**, a concise way to define the behavior of types and fields without the need for verbose keywords or complex modifiers.
+Toka introduces the **Attribute Token System**, an incredibly concise way to define the behavior of types and fields without verbose keywords or complex modifiers.
 
-## The Three Primary Tokens
+## The Two Basic Tokens
 
-In Toka, every type can be modified by one or more attribute tokens that define its storage and access properties. These can be used as **suffixes** for base types or **modifiers** for pointers.
+In Toka, every type can be decorated with attribute tokens that define its storage and access properties. These tokens act as **suffixes** to base types or variable names.
 
-### 1. Writable (`#`)
-The `#` token denotes that a value or field is **mutable**. In Toka, fields and variables are immutable by default. You must explicitly mark them with `#` to allow modification.
+### 1. Writability (`#`)
+The `#` token indicates that a value or field is **mutable**. In Toka, all fields and variables are immutable by default. You must explicitly mark them with `#` to allow modification.
 
 ```toka
 shape User (
-    #name: String,  // This field can be modified
+    name#: String,  // This field can be modified
     id: i32         // This field is immutable after initialization
 )
 
-fn main() {
-    auto #x = 10    // Mutable variable
-    x = 20          // OK
+pub fn main() -> i32 {
+    auto x# = 10    // Mutable variable
+    x = 20          // Works fine
     
     auto y = 10     // Immutable variable
-    // y = 20       // Error: Assignment to immutable variable
+    // y = 20       // Error: Cannot assign to immutable variable
+    return 0
 }
 ```
 
-### 2. Nullable (`?`)
-The `?` token indicates that a value can be **None** (equivalent to a null pointer or an optional type). This allows for explicit handling of missing values.
+### 2. Nullability (`?`)
+The `?` token indicates that a value can be **None** (equivalent to an optional type). This forces developers to explicitly handle the case where a value might be missing, preventing null pointer exceptions.
 
 ```toka
-fn find_user(id: i32) -> ?User {
+import std/io::println
+
+fn find_user(id: i32) -> User? {
     // ...
     return none
 }
 
-fn main() {
-    auto ?maybe_user = find_user(1)
+pub fn main() -> i32 {
+    auto maybe_user? = find_user(1)
     if maybe_user is User {
-        // Here, maybe_user is safely unwrapped
-        println("User found: {}", maybe_user.name)
+        // maybe_user is safely unwrapped here
+        println("Found user: {}", maybe_user.name)
     } or {
+        // Executed when maybe_user is none
         println("User not found")
     }
+    return 0
 }
 ```
 
-### 3. Writable & Nullable (`!`)
-The `!` token is a shorthand for expressing that a type is **both writable and nullable** (`#?`). This is particularly useful for fields that might start empty and be assigned later.
+### 3. Writable & Nullable
+To define a field that is both writable and nullable, simply combine the tokens: `#?` or `?#`.
 
 ```toka
 shape Session (
-    !current_user: User // Can be reassigned and can be set to none
+    current_user#?: User // Can be modified AND can be none
 )
 ```
 
-## Attribute Stacking
+## Attribute "Chemical Formula"
 
-Attributes can be stacked and applied to different levels of indirection.
+Attribute tokens are "stackable" and can be applied to different levels of nesting, much like a chemical formula:
 
 - `i32#`: A mutable integer.
-- `^User?`: A nullable unique pointer to an immutable User.
-- `^#User!`: A mutable unique pointer to a mutable and nullable User.
+- `^User?`: A nullable unique pointer to an immutable User (where `^` itself handles pointer nullability via `nul ^`).
+- `auto nul ^#node#: Node?`: A complex type where the pointer is nullable and rebindable, and the Node entity is both mutable and nullable.
 
-This "chemical formula" approach ensures that even complex nested types stay readable at a glance.
+This "formulaic" approach ensures that even complex nested types can be understood at a glance.
 
-## Technical Details
+## Compiler Implementation
 
-Attributes are stored as bitfields within the compiler's type representation (`IsWritable`, `IsNullable`). They are checked during semantic analysis to ensure:
+Internally, these attributes are stored as bitfields within the type system (`Type.cpp`). The semantic analysis phase performs strict checks to ensure:
 - No writes to immutable locations.
-- Mandatory null-checks before accessing nullable types.
-- Correct propagation through generic substitutions.
+- Mandatory null-checks (`is` or `guard`) before accessing nullable types.
+- Correct attribute inheritance and propagation during generic substitution.
+---

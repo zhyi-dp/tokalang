@@ -1,0 +1,66 @@
+---
+title: Shapes
+description: Product types and record structures in Toka.
+---
+
+**Shapes** are the primary way to define complex data structures (product types) in Toka. They are analogous to `struct` in C/Rust or `class` in Python/Java, but with a focus on value semantics and visual attribute tokens.
+
+## Defining a Shape
+
+A shape is defined using the `shape` keyword followed by a parenthesized list of fields.
+
+```toka
+shape Point (
+    x: i32,
+    y: i32
+)
+
+shape Rect (
+    top_left: Point,
+    bottom_right: Point,
+    color#: String // Mutable field
+)
+```
+
+## Initialization
+
+Toka uses named arguments for shape initialization, ensuring clarity especially for large structures.
+
+```toka
+auto r = Rect(
+    top_left = Point(x = 0, y = 0),
+    bottom_right = Point(x = 10, y = 10),
+    color = "Blue"
+)
+```
+
+## Inherent Implementations
+
+You can add methods directly to a shape using the `impl` keyword.
+
+```toka
+impl Rect {
+    pub fn area(self) -> i32 {
+        auto w = self.bottom_right.x - self.top_left.x
+        auto h = self.bottom_right.y - self.top_left.y
+        return w * h
+    }
+}
+```
+
+## Default Values
+
+Shapes can provide default values for their fields.
+
+```toka
+shape Config (
+    port: i32 = 8080,
+    host: String = "localhost"
+)
+
+auto c = Config() // port=8080, host="localhost"
+```
+
+## Memory Layout
+
+Toka's compiler ensures that shapes are laid out efficiently in memory. When a shape is passed by value, it is copied. When passed by reference (`&Point`) or pointer (`^Point`), only the address is handled.

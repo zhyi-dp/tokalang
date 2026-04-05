@@ -1,0 +1,67 @@
+---
+title: Shape (形状)
+description: Toka 语言中的积类型与记录结构。
+---
+
+**Shape** 是 Toka 中定义复杂数据结构（积类型）的主要方式。它们类似于 C/Rust 中的 `struct` 或 Python/Java 中的 `class`，但侧重于值语义和直观的属性令牌。
+
+## 定义 Shape
+
+使用 `shape` 关键字后跟括号括起来的字段列表来定义 Shape。
+
+```toka
+shape Point (
+    x: i32,
+    y: i32
+)
+
+shape Rect (
+    top_left: Point,
+    bottom_right: Point,
+    color#: String // 可变字段
+)
+```
+
+## 初始化
+
+Toka 使用命名参数进行 Shape 初始化，确保即便对于大型结构体也能保持清晰。
+
+```toka
+auto r = Rect(
+    top_left = Point(x = 0, y = 0),
+    bottom_right = Point(x = 10, y = 10),
+    color = "蓝色"
+)
+```
+
+## 固有实现 (Inherent Implementations)
+
+你可以使用 `impl` 关键字直接为 Shape 添加方法。
+
+```toka
+impl Rect {
+    pub fn area(self) -> i32 {
+        auto w = self.bottom_right.x - self.top_left.x
+        auto h = self.bottom_right.y - self.top_left.y
+        return w * h
+    }
+}
+```
+
+## 默认值
+
+Shape 可以为其字段提供默认值。
+
+```toka
+shape Config (
+    port: i32 = 8080,
+    host: String = "localhost"
+)
+
+auto c = Config() // port=8080, host="localhost"
+```
+
+## 内存布局
+
+Toka 编译器确保 Shape 在内存中被高效布局。当按值传递 Shape 时，它将被拷贝。当按引用 (`&Point`) 或指针 (`^Point`) 传递时，仅处理地址。
+---

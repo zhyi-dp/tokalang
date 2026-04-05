@@ -7,18 +7,19 @@ Toka provides native, high-performance support for asynchronous programming usin
 
 ## Core Syntax
 
-Asynchronous functions are defined using the `async` keyword and return a `Task<T>`.
+Asynchronous functions are defined using the `fn` keyword, with the `async` modifier applied to the return type.
 
 ```toka
-async fn fetch_data() -> String {
+fn fetch_data() -> async String {
     // simulated async operation
     return "Data fetched!"
 }
 
-fn main() {
+pub fn main() -> async i32 {
     auto t = fetch_data()
-    auto result = await t
+    auto result = t.await
     println(result)
+    return 0
 }
 ```
 
@@ -28,15 +29,30 @@ Toka's async runtime is built on an efficient **Reactor** model (using `epoll` o
 
 ### Non-blocking I/O
 
-The standard library provides asynchronous versions of common I/O operations:
+The standard library provides asynchronous versions of common I/O operations through the `std/task` and `std/net` modules.
 
 ```toka
-import std::net::TcpStream
+import std/net::TcpStream
+import std/task::sleep
 
-async fn handle_connection(stream: ^TcpStream) {
-    auto #buf = [0u8; 1024]
-    auto n = await stream.read(buf)
-    await stream.write(buf.slice(0, n))
+fn handle_connection(^stream: TcpStream) -> async void {
+    auto buf# = [0u8; 1024]
+    auto n = stream.read(buf).await
+    stream.write(buf.slice(0, n)).await
+}
+```
+
+## Starting and Spawning
+
+You can start a task immediately or spawn it into the background.
+
+```toka
+fn main() -> i32 {
+    fetch_data().start // Fire and forget
+    
+    // Blocking on the main event loop
+    block_on<i32>(fetch_data().to_i32())
+    return 0
 }
 ```
 
@@ -44,28 +60,5 @@ async fn handle_connection(stream: ^TcpStream) {
 
 Toka's borrow checker is **async-aware**. It ensures that references passed into or held across an `await` point remain valid.
 
-1. **Unique Ownership**: You can move a `^T` into an async closure or task, ensuring it's dropped only when the task completes.
+1. **Unique Ownership**: You can move a `^T` into an async task using `cede`, ensuring it's dropped only when the task completes.
 2. **Borrowed Data**: Borrows across `await` points are tracked to prevent use-after-free in asynchronous flows.
-
-## Concurrency Primitives
-
-Toka also provides traditional concurrency tools that work seamlessly with the async model:
-- `Mutex<T>`: For protecting shared state.
-- `MPSC Channels`: For message passing between tasks.
-- `Atomics`: For lock-free operations.
-
-```toka
-import sync::mpsc
-
-fn main() {
-    auto (tx, rx) = mpsc::channel<i32>()
-    
-    // Spawn an async task
-    spawn async {
-        tx.send(42)
-    }
-    
-    auto val = await rx.recv()
-    println("Received: {}", val)
-}
-```

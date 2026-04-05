@@ -1,0 +1,66 @@
+---
+title: 并发编程
+description: Toka 语言中的并行处理与同步原语。
+---
+
+Toka 提供了对并发和并行编程的内置支持，包括线程、原子操作和同步原语。
+
+## 多线程
+
+Toka 利用操作系统级别的线程进行并行处理。
+
+```toka
+import std/thread::spawn
+
+pub fn main() -> i32 {
+    auto t = spawn(fn() {
+        println("来自另一个线程的问候！")
+    })
+    t.join()
+    return 0
+}
+```
+
+## 原子操作 (Atomics)
+
+对于无锁同步，Toka 支持对基础类型进行原子操作。
+
+```toka
+import std/atomic
+
+pub fn main() -> i32 {
+    auto counter# = atomic::AtomicI32::make(0)
+    counter.fetch_add(1)
+    return 0
+}
+```
+
+## 互斥锁与同步 (Mutex & Sync)
+
+标准库提供了线程安全的同步原语。
+
+```toka
+import std/sync::{Mutex, Guard}
+
+shape SharedState (
+    count#: i32
+)
+
+pub fn main() -> i32 {
+    auto m# = Mutex::make(SharedState(count = 0))
+    {
+        auto guard# = m.lock()
+        guard.count += 1
+    } // 当 guard 离开作用域时，Mutex 会自动解锁
+    return 0
+}
+```
+
+## 内存安全与线程
+
+Toka 的类型系统通过 **@Send** 和 **@Sync** 这两个 Trait 标记来处理线程安全。
+- **@Send**: 表示该类型的所有权可以在线程间安全转移。
+- **@Sync**: 表示多个线程同时拥有该类型的共享访问权 (`&T`) 是安全的。
+
+独占指针 `^T` 自然支持 `@Send`，因为任一时刻只有一个线程能拥有它。
+---

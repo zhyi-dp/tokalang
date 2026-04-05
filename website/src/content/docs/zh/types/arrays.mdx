@@ -1,0 +1,67 @@
+---
+title: 元组与数组
+description: Toka 语言中的固定大小和动态集合。
+---
+
+Toka 提供了对集合的内置支持，从基础的固定大小数组和元组，到更灵活的切片和动态向量。
+
+## 元组 (Tuples)
+
+元组是固定大小、异质的值集合。它们使用圆括号定义。
+
+```toka
+auto t = (10, "Hello", 3.14)
+auto (val, msg, p) = t // 解构
+```
+
+## 数组 (Arrays)
+
+数组是固定大小、同质的值集合。它们使用方括号和大小定义。
+
+```toka
+auto arr = [1, 2, 3, 4, 5]
+auto grid# = [0i32; 64] // 使用后缀 # 表示可变，初始化 64 个零
+```
+
+## 切片 (Slices)
+
+切片 (`[T]`) 是对数组或其他集合的视图。它们不拥有数据的所有权，但提供了安全访问一个指针和对应长度的能力。
+
+```toka
+pub fn sum(&data: [i32]) -> i32 {
+    auto res# = 0
+    for x in data {
+        res# += x
+    }
+    return res
+}
+```
+
+## 特殊语法：for-or
+
+Toka 的 `for` 循环有一个独特的 `or` 子句，在集合为空时执行。
+
+```toka
+for x in data {
+    import std/io::println
+    println("项: {}", x)
+} or {
+    println("集合为空！")
+}
+```
+
+## 标准库：Vec
+
+虽然数组是固定大小的，但标准库通过 `std/vec` 提供了 `Vec<T>` 用于动态扩容。
+
+```toka
+import std/vec::Vec
+
+pub fn main() -> i32 {
+    auto v# = Vec<i32>::new()
+    v.push(10)
+    v.push(20)
+    return 0
+}
+```
+---

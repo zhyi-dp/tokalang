@@ -9,64 +9,69 @@ Toka's memory safety model is built into its **Pointer Morphology**. Instead of 
 
 Toka provides four primary pointer types, each with its own ownership and lifecycle semantics.
 
-### 1. Unique Pointer (`^T`)
-The `^` token denotes **exclusive ownership**. There can be only one unique pointer to a given piece of data. 
-- **RAII**: When a `^T` goes out of scope, the memory is automatically freed.
-- **Move Semantics**: Assigning a `^T` moves the ownership to the new target. The original pointer becomes invalid.
+### 1. Unique Pointer (`^`)
+The `^` token denotes **exclusive ownership**. There can be only one unique pointer to a given piece of data at any time.
+- **RAII**: When a `^` pointer goes out of scope, the memory is automatically freed.
+- **Move Semantics**: Ownership is moved by default. Use `cede` to explicitly transfer it.
 
 ```toka
-fn delete_user(u: ^User) {
+pub fn delete_user(^u: User) {
     // u will be dropped at the end of this function
 }
 
-fn main() {
+pub fn main() -> i32 {
     auto ^u = new User(name = "Alice")
-    delete_user(u) // Ownership moved to delete_user
-    // u cannot be used here
+    delete_user(cede u) // 'cede' transfers ownership to the function
+    // u is now invalid here
+    return 0
 }
 ```
 
-### 2. Shared Pointer (`~T`)
+### 2. Shared Pointer (`~`)
 The `~` token denotes **shared ownership** with reference counting.
-- **Automatic**: Reference counts are incremented on copy and decremented on drop.
-- **Safe**: Ensures the data remains alive as long as at least one `~T` exists.
+- **Automatic**: Reference counts are handled by the compiler.
+- **Safe**: Data remains alive as long as at least one `~` pointer exists.
 
 ```toka
 shape Node (
     data: i32,
-    next: ?~Node // Shared, nullable pointer
+    nul ~next: Node // Shared, nullable pointer
 )
 ```
 
-### 3. Borrow / Reference (`&T`)
-The `&` token is used for **borrowing**. It provides a temporary, non-owning view of data.
+### 3. Borrow / Reference (`&`)
+The `&` token is used for **borrowing**. It provides a temporary, non-owning view.
 - **Safety**: The borrow checker ensures that a borrow does not outlive its owner.
-- **Permissions**: By default, borrows are immutable. Use `&#T` for mutable borrows.
+- **Writability**: Use `&p#` for a mutable borrow (where the entity is mutable).
 
 ```toka
-fn print_name(u: &User) {
+pub fn print_name(&u: User) {
     println("User name: {}", u.name)
 }
 ```
 
-### 4. Raw Pointer (`*T`)
+### 4. Raw Pointer (`*`)
 The `*` token represents a **raw, C-style pointer**.
-- **Unsafe**: Raw pointers do not provide any safety guarantees.
-- **FFI**: Primarily used for interfacing with C libraries and low-level memory operations.
+- **Unsafe**: Used for FFI or low-level memory operations.
 
 ---
 
-## Combining Pointers and Attributes
+## Mutability and Rebinding
 
-Pointer tokens and attribute tokens can be combined to create precise type definitions.
+Toka distinguishes between the **Writability** of the pointed-to data and the **Rebindability** of the pointer itself.
 
-| Type | Meaning |
+| Code | Meaning |
 | :--- | :--- |
-| `^User` | Owned, immutable User. |
-| `^#User` | Owned, mutable User. |
-| `~?User` | Shared, nullable, immutable User. |
-| `&#User` | Mutable borrow of a User. |
+| `auto ^p` | Read-only unique pointer. |
+| `auto ^p#` | Unique pointer to a **mutable** entity. |
+| `auto &#p` | A **rebindable** reference. |
+| `auto nul ^#node#: Node?` | A nullable (`nul`), rebindable (`#` after ^) unique pointer to a mutable (`#` after node) and nullable (`?`) Node. |
 
-## The "Morphology" Approach
+## The "Hat" Principle
 
-By using symbols (`^`, `~`, `&`) instead of types, Toka makes the "physical" layout of memory explicit in the code. This reduces cognitive load when reading complex system code, as the ownership rules are visually distinct from the data types.
+In Toka, a bare variable name like `p` represents the **Soul** (the value). Accessing `p` automatically dereferences it. To operate on the **Handle** (the pointer address), you "put on a hat" using the sigils.
+
+- `p = value` (Modifies the data)
+- `^p = ^q` (Rebinds the unique pointer)
+
+This makes the distinction between value-operations and address-operations visually explicit.

@@ -3,31 +3,63 @@ title: Introduction
 description: What is Toka Lang?
 ---
 
-Toka is a high-performance system programming language designed for the next generation of cloud and systems engineering. It aims to provide the **safety of Rust** with the **simplicity of Python**.
+Toka is a modern systems programming language designed for **performance, safety, and conciseness**. It bridges the gap between high-level productivity and low-level control through its unique **Attribute Token System** and **Pointer Morphology**.
 
-## Core Philosophy
+## Key Philosophy
 
-Toka is built on the belief that system programming shouldn't be a burden. By baking memory safety and resource management directly into the grammar, Toka allows developers to focus on logic rather than pointer arithmetic.
+Toka is built on several "Iron Laws" that make the code predictable and visually distinct.
 
-### The Attribute Token System
-Instead of long keywords or complex trait bounds for basic memory properties, Toka uses a concise set of tokens:
-- `#` for Mutability
-- `?` for Nullability
-- `!` for both Mutability and Nullability
+### 1. The Hat Principle (Soul vs. Handle)
+Unlike C or Rust, Toka treats the variable name as the **Soul** (the value itself). Accessing a pointer variable `p` automatically gives you the data. To operate on the **Handle** (the pointer address), you "put on a hat" using symbols like `^`, `~`, `&`, or `*`.
 
-These tokens act like chemical formulas for your types, making the code readable and visually consistent.
+- `p = value` (Modifies the data pointed to by p)
+- `^p = ^q` (Rebinds the pointer p to a new address)
 
-### Syntactic RAII
-Toka introduces specific pointer sigils that define ownership:
-- `^T`: **Unique Pointer**. The scope that owns this pointer is responsible for dropping the resource.
-- `~T`: **Shared Pointer**. Reference-counted ownership for shared resources.
-- `&T`: **Borrow**. A safe, temporary view into data without taking ownership.
+### 2. Syntactic Attributes
+Instead of verbose keywords like `mutable`, `optional`, or `volatile`, Toka uses concise tokens:
+- `#` for **Mutability** (e.g., `auto x# = 10`)
+- `?` for **Nullability** (e.g., `auto x: i32? = none`)
+- `#?` for both (e.g., `auto x#? = 10`)
 
-## Why Toka?
+### 3. Explicit Ownership
+Toka's Pointer Morphology defines ownership at the type level:
+- `^T`: **Unique** ownership (RAII).
+- `~T`: **Shared** ownership (Reference Counting).
+- `&T`: **Borrowed** access.
 
-1. **Safety without Overhead**: No garbage collector, yet memory safe by default.
-2. **Modern Concurrency**: Native support for `async/await` and high-performance actors.
-3. **LLVM Backend**: Leverages the full power of LLVM 20 for state-of-the-art optimizations.
-4. **Philosophical Clarity**: The **Soul-Identity** duality clarifies the difference between modifying a value and reseating a reference.
+## A Quick Taste of Toka
 
-Ready to dive in? Check out the [Installation Guide](/installation/)!
+Here is a simple example showing shapes, traits, and the unique `for-or` loop.
+
+```toka
+import std/io::println
+
+// Define a shape (struct/adt)
+shape Rect (
+    width: i32,
+    height: i32
+)
+
+// Implement methods
+impl Rect {
+    pub fn area(self) -> i32 {
+        return self.width * self.height
+    }
+}
+
+pub fn main() -> i32 {
+    auto r = Rect(width = 10, height = 20)
+    println("Area: {}", r.area())
+    
+    auto list = [1, 2, 3]
+    for x in list {
+        println("Item: {}", x)
+    } or {
+        println("List is empty!")
+    }
+    
+    return 0
+}
+```
+
+Toka is currently under active development, targeting LLVM 20. It's built for developers who want the power of C++ with the safety of Rust and the beauty of a modern syntax.

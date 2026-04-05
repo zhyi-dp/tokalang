@@ -1,0 +1,64 @@
+---
+title: Generics & Traits
+description: Polymorphism and interface definition in Toka.
+---
+
+Toka provides a powerful generics system for code reuse and **Traits** for defining shared behavior across different types.
+
+## Generics
+
+Generics allow you to write functions and data structures that work with multiple types.
+
+```toka
+shape Buffer<T> (
+    data: [T; 1024]
+)
+
+pub fn identity<T>(val: T) -> T {
+    return val
+}
+```
+
+## Traits
+
+Traits (prefixed with `@` in many standard library contexts, but defined with the `trait` keyword) define a set of methods that a type must implement.
+
+```toka
+trait @Drawable {
+    pub fn draw(self)
+}
+
+shape Circle (radius: f32)
+
+// Correct Toka syntax for trait implementation: impl Type@Trait
+impl Circle@Drawable {
+    pub fn draw(self) {
+        // Implementation for Circle
+    }
+}
+```
+
+## Static vs Dynamic Dispatch
+
+Toka supports both static and dynamic dispatch.
+
+- **Static Dispatch**: The compiler generates specialized versions of a function for each type it's used with.
+- **Dynamic Dispatch**: Using the `dyn` keyword, Toka uses a vtable for runtime method selection.
+
+```toka
+pub fn draw_all(&items: [dyn @Drawable]) {
+    for item in items {
+        item.draw()
+    }
+}
+```
+
+## Constraints
+
+You can constrain generic types to ensure they implement certain traits. Multiple constraints are grouped within `@{...}`.
+
+```toka
+pub fn print_anything<T: @{Display, Debug}>(val: T) {
+    println("{}", val)
+}
+```

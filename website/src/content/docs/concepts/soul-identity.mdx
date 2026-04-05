@@ -1,0 +1,46 @@
+---
+title: Soul vs Handle
+description: The philosophical core of Toka's type system.
+---
+
+In Toka, every object has two distinct aspects: its **Soul** (Value) and its **Handle** (Pointer/Identity). Understanding the difference is key to mastering the language's memory model.
+
+## The Soul (The Value)
+The "Soul" represents the actual data or state of an object. When you perform operations on the soul, you are modifying the content.
+
+- **Access**: Bare variable name `p`.
+- **Attributes**: The `#` (Writable) and `?` (Nullable) tokens applied to the name/type affect the Soul.
+
+```toka
+auto x# = 10
+x = 20 // Modifying the Soul of x
+```
+
+## The Handle (The Pointer/Address)
+The "Handle" represents where the object lives in memory. When you perform operations on the handle, you are changing which object a pointer points to.
+
+- **Access**: Variable name with a "Hat" (Sigil) like `^p`, `~p`, `&p`, or `*p`.
+- **Sigils**: These define the ownership (Unique, Shared, or Borrowed).
+
+```toka
+auto ^p# = new i32(10)
+^p = ^q // Rebinding the Handle (p now points to the same location as q)
+```
+
+## The "Hat" Principle
+
+Many languages blur the line between reference assignment and value assignment. 
+
+In Toka, the distinction is visually explicit:
+1. `p = q`: **Soul Operation**. Copies or moves the data from `q` into `p`.
+2. `^p = ^q`: **Handle Operation**. Rebinds the pointer `p` to point to the address of `q`.
+
+By making this distinction explicit, Toka eliminates the "is this a shallow or deep copy?" ambiguity found in other systems languages.
+
+## Summary Table
+
+| Concept | Symbol | Focus | Modifiers |
+| :--- | :--- | :--- | :--- |
+| **Soul** | `p` | Data/Value | `p#` (Mutable), `p?` (Nullable) |
+| **Handle** | `^p`, `~p`, `&p` | Address/Owner | `nul ^p` (Nullable), `^p#` (Rebindable) |
+---

@@ -1,0 +1,65 @@
+---
+title: 泛型与 Trait
+description: Toka 语言中的多态与接口定义。
+---
+
+Toka 提供了一个强大的泛型系统来支持代码复用，以及通过 **Trait** 为不同类型定义共享行为。
+
+## 泛型 (Generics)
+
+泛型允许你编写可处理多种类型的函数和数据结构。
+
+```toka
+shape Buffer<T> (
+    data: [T; 1024]
+)
+
+pub fn identity<T>(val: T) -> T {
+    return val
+}
+```
+
+## Trait
+
+Trait（定义时使用 `trait @Name` 语法）定义了一个类型必须实现的一组方法。
+
+```toka
+trait @Drawable {
+    pub fn draw(self)
+}
+
+shape Circle (radius: f32)
+
+// Toka 特有的 Trait 实现语法：impl Type@Trait
+impl Circle@Drawable {
+    pub fn draw(self) {
+        // Circle 的绘制逻辑
+    }
+}
+```
+
+## 静态分发与动态分发
+
+Toka 同时支持静态分发和动态分发。
+
+- **静态分发**: 编译器会为函数使用的每个类型生成专门的版本。
+- **动态分发**: 使用 `dyn` 关键字，Toka 会通过虚函数表 (vtable) 进行运行时的函数选择。
+
+```toka
+pub fn draw_all(&items: [dyn @Drawable]) {
+    for item in items {
+        item.draw()
+    }
+}
+```
+
+## 约束 (Constraints)
+
+你可以约束泛型类型，确保它们实现了特定的 Trait。多个约束通过 `@{...}` 进行分组。
+
+```toka
+pub fn print_anything<T: @{Display, Debug}>(val: T) {
+    println("{}", val)
+}
+```
+---

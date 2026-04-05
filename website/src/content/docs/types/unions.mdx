@@ -1,0 +1,63 @@
+---
+title: Unions & Enums
+description: Sum types and pattern matching in Toka.
+---
+
+**Unions** and **Enums** are sum types that allow a value to be one of several different variants. In Toka, these are defined within a `shape` declaration using the `|` separator.
+
+## Defining a Sum Type
+
+A sum type is defined inside a `shape` with variants separated by `|`. Variants can optionally carry data.
+
+```toka
+shape Shape (
+    Circle(r: f64) |
+    Rect(w: f64, h: f64) |
+    Point
+)
+```
+
+## Creating Variant Values
+
+You can create a variant value using the `::` scope operator.
+
+```toka
+auto c = Shape::Circle(r = 5.0)
+auto p = Shape::Point()
+```
+
+## Pattern Matching
+
+The `match` expression is the most powerful way to handle sum types. You can use `auto Variant(data)` to destructure payloads.
+
+```toka
+pub fn area(s: Shape) -> f64 {
+    match s {
+        auto Circle(r) => {
+            return 3.14 * r * r
+        }
+        auto Rect(w, h) => {
+            return w * h
+        }
+        Point => {
+            return 0.0
+        }
+    }
+}
+```
+
+## Enums
+
+Enums are simply shapes where variants don't carry data. They are often used for state representation.
+
+```toka
+shape Status (
+    Active |
+    Inactive |
+    Pending
+)
+```
+
+## Memory Layout
+
+Toka implements sum types as tagged unions. They consist of a tag (to identify the current variant) and a payload large enough to hold the largest variant's data. This ensures memory efficiency and type safety.

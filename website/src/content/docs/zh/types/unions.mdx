@@ -1,0 +1,63 @@
+---
+title: Unions & Enums (联合与枚举)
+description: Toka 语言中的和类型与模式匹配。
+---
+
+**Unions** 和 **Enums** 是和类型（Sum Types），它们允许一个值成为多个不同变体中的一个。在 Toka 中，这些是通过在 `shape` 声明中使用 `|` 分隔符来定义的。
+
+## 定义一个和类型 (Sum Type)
+
+和类型可以在 `shape` 中定义，变体之间用 `|` 分隔。变体可以可选地携带数据。
+
+```toka
+shape Shape (
+    Circle(r: f64) |
+    Rect(w: f64, h: f64) |
+    Point
+)
+```
+
+## 创建变体值
+
+你可以使用 `::` 作用域操作符来创建变体值。
+
+```toka
+auto c = Shape::Circle(r = 5.0)
+auto p = Shape::Point()
+```
+
+## 模式匹配 (Pattern Matching)
+
+`match` 表达式是处理和类型最强大的方式。你可以使用 `auto Variant(data)` 来解构载荷。
+
+```toka
+pub fn area(s: Shape) -> f64 {
+    match s {
+        auto Circle(r) => {
+            return 3.14 * r * r
+        }
+        auto Rect(w, h) => {
+            return w * h
+        }
+        Point => {
+            return 0.0
+        }
+    }
+}
+```
+
+## 枚举 (Enums)
+
+枚举仅仅是不携带任何数据的 `shape` 变体。它们常用于状态表示。
+
+```toka
+shape Status (
+    Active |
+    Inactive |
+    Pending
+)
+```
+
+## 内存布局
+
+Toka 在内部将和类型实现为标签联合（Tagged Union）。它们由一个标签（用于识别当前变体）和一个足以容纳最大变体载荷数据的负载组成。这确保了内存效率和类型安全性。

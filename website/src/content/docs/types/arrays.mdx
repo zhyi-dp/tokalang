@@ -1,0 +1,67 @@
+---
+title: Tuples & Arrays
+description: Fixed-size and dynamic collections in Toka.
+---
+
+Toka provides built-in support for collections, ranging from basic fixed-size arrays and tuples to more flexible slices and dynamic vectors.
+
+## Tuples
+
+Tuples are fixed-size, heterogeneous collections of values. They are defined using parentheses.
+
+```toka
+auto t = (10, "Hello", 3.14)
+auto (val, msg, p) = t // Destructuring
+```
+
+## Arrays
+
+Arrays are fixed-size, homogeneous collections of values. They are defined using square brackets with a size.
+
+```toka
+auto arr = [1, 2, 3, 4, 5]
+auto grid# = [0i32; 64] // Initialized with 64 zeros, mutable using suffix #
+```
+
+## Slices
+
+Slices (`[T]`) are views into arrays or other collections. They don't own the data but provide safe access through a pointer and a length.
+
+```toka
+pub fn sum(&data: [i32]) -> i32 {
+    auto res# = 0
+    for x in data {
+        res += x
+    }
+    return res
+}
+```
+
+## Special Syntax: for-or
+
+Toka's `for` loop has a unique `or` clause that executes if the collection is empty.
+
+```toka
+for x in data {
+    import std/io::println
+    println("Value: {}", x)
+} or {
+    println("Collection is empty!")
+}
+```
+
+## Standard Library: Vec
+
+While arrays are fixed-size, the standard library provides `Vec<T>` for dynamic resizing.
+
+```toka
+import std/vec::Vec
+
+pub fn main() -> i32 {
+    auto v# = Vec<i32>::new()
+    v.push(10)
+    v.push(20)
+    return 0
+}
+```
+---

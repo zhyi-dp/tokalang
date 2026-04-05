@@ -1,71 +1,65 @@
 ---
 title: 异步编程
-description: Toka 语言中的高性能并发与 async/await。
+description: 通 Toka 的 async/await 实现高性能并发。
 ---
 
-Toka 通过零开销的 `async/await` 模型，为开发者提供原生且高性能的异步编程支持。
+Toka 通过零开销的 `async/await` 模型提供原生的、高性能的异步编程支持。
 
-## 基础语法
+## 核心语法
 
-异步函数通过 `async` 关键字定义，并返回一个 `Task<T>` 类型。
+异步函数使用 `fn` 关键字定义，并将 `async` 修饰符应用于返回类型。
 
 ```toka
-async fn fetch_data() -> String {
-    // 模拟一个异步操作
-    return "数据获取完成！"
+fn fetch_data() -> async String {
+    // 模拟异步操作
+    return "数据已获取！"
 }
 
-fn main() {
+pub fn main() -> i32 {
     auto t = fetch_data()
-    auto result = await t
+    auto result = t.await
     println(result)
+    return 0
 }
 ```
 
-## 反应堆模型 (Reactor Model)
+## Reactor 模型
 
-Toka 的异步运行时基于高效的 **Reactor** 模型构建（在 Linux 上使用 `epoll`，在 macOS 上使用 `kqueue`）。这使得数以千计的并发任务可以在单个线程上运行，而无需承担操作系统线程上下文切换的开销。
+Toka 的异步运行时建立在高效的 **Reactor** 模型之上（在 Linux 上使用 `epoll`，在 macOS 上使用 `kqueue`）。这允许数千个并发任务在单个线程上运行，而无需在 OS 线程之间进行上下文切换。
 
 ### 非阻塞 I/O
 
-Toka 标准库提供了常见 I/O 操作的异步版本：
+标准库通过 `std/task` 和 `std/net` 模块提供常用 I/O 操作的异步版本。
 
 ```toka
-import std::net::TcpStream
+import std/net::TcpStream
+import std/task::sleep
 
-async fn handle_connection(stream: ^TcpStream) {
-    auto #buf = [0u8; 1024]
-    auto n = await stream.read(buf)
-    await stream.write(buf.slice(0, n))
+fn handle_connection(^stream: TcpStream) -> async void {
+    auto buf# = [0u8; 1024]
+    auto n = stream.read(buf).await
+    stream.write(buf.slice(0, n)).await
 }
 ```
 
-## 异步环境下的内存安全
+## 启动与派生
 
-Toka 的借用检查器是 **感知异步 (Async-Aware)** 的。它确保传递给异步闭包或跨越 `await` 点的引用在整个生命周期内都是有效的。
-
-1. **唯一所有权 (Unique Ownership)**：你可以将 `^T` 移动到异步任务或闭包中，确保资源仅在任务完成时被释放。
-2. **借用数据**：编译器会全程跟踪跨越 `await` 暂停点的借用，防止异步流中出现“释放后使用 (Use-After-Free)”的错误。
-
-## 并发原语
-
-Toka 还提供了一系列与异步模型无缝协作的传统并发工具：
-- `Mutex<T>`：用于保护共享状态。
-- `MPSC Channels`：用于任务间的消息传递。
-- `Atomics`：用于实现无锁操作。
+你可以立即启动一个任务，或者将其派生到后台运行。
 
 ```toka
-import sync::mpsc
-
-fn main() {
-    auto (tx, rx) = mpsc::channel<i32>()
+fn main() -> i32 {
+    fetch_data().start // 即刻启动（Fire and forget）
     
-    // 派生一个异步任务
-    spawn async {
-        tx.send(42)
-    }
-    
-    auto val = await rx.recv()
-    println("收到值: {}", val)
+    // 在主事件循环上阻塞
+    block_on<i32>(fetch_data())
+    return 0
 }
 ```
+
+## 异步中的内存安全
+
+Toka 的借用检查器是 **异步感知的 (Async-aware)**。它确保在 `await` 点传递或持有的引用保持有效。
+
+1. **唯一所有权**: 你可以使用 `cede` 将 `^T` 移动到异步任务中，确保它仅在任务完成时才被注销。
+2. **借用数据**: 跨 `await` 点的借用会被追踪，以防止异步流中的使用后释放（use-after-free）问题。
+---

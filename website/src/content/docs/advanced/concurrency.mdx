@@ -1,0 +1,66 @@
+---
+title: Concurrency
+description: Parallel processing and synchronization in Toka.
+---
+
+Toka provides built-in support for concurrent and parallel programming, including threads, atomics, and synchronization primitives.
+
+## Multi-threading
+
+Toka leverages OS-level threads for parallel processing.
+
+```toka
+import std/thread::spawn
+
+pub fn main() -> i32 {
+    auto t = spawn(fn() {
+        println("Hello from another thread!")
+    })
+    t.join()
+    return 0
+}
+```
+
+## Atomics
+
+For lock-free synchronization, Toka supports atomic operations on primitive types.
+
+```toka
+import std/atomic
+
+pub fn main() -> i32 {
+    auto counter# = atomic::AtomicI32::make(0)
+    counter.fetch_add(1)
+    return 0
+}
+```
+
+## Mutex & Synchronization
+
+The standard library provides thread-safe synchronization primitives.
+
+```toka
+import std/sync::{Mutex, Guard}
+
+shape SharedState (
+    count#: i32
+)
+
+pub fn main() -> i32 {
+    auto m# = Mutex::make(SharedState(count = 0))
+    {
+        auto guard# = m.lock()
+        guard.count += 1
+    } // Mutex auto-unlocks when guard is dropped
+    return 0
+}
+```
+
+## Memory Safety & Threads
+
+Toka's type system handles thread safety through **@Send** and **@Sync** trait markers.
+- **@Send**: Indicates that ownership of a type can be safely transferred between threads.
+- **@Sync**: Indicates that it's safe for multiple threads to have shared access (`&T`) to a type.
+
+The unique pointer `^T` naturally supports `@Send`, as only one thread can own it at a time.
+---
