@@ -1,0 +1,33 @@
+---
+title: Introduction
+description: What is Toka Lang?
+---
+
+Toka is a high-performance system programming language designed for the next generation of cloud and systems engineering. It aims to provide the **safety of Rust** with the **simplicity of Python**.
+
+## Core Philosophy
+
+Toka is built on the belief that system programming shouldn't be a burden. By baking memory safety and resource management directly into the grammar, Toka allows developers to focus on logic rather than pointer arithmetic.
+
+### The Attribute Token System
+Instead of long keywords or complex trait bounds for basic memory properties, Toka uses a concise set of tokens:
+- `#` for Mutability
+- `?` for Nullability
+- `!` for both Mutability and Nullability
+
+These tokens act like chemical formulas for your types, making the code readable and visually consistent.
+
+### Syntactic RAII
+Toka introduces specific pointer sigils that define ownership:
+- `^T`: **Unique Pointer**. The scope that owns this pointer is responsible for dropping the resource.
+- `~T`: **Shared Pointer**. Reference-counted ownership for shared resources.
+- `&T`: **Borrow**. A safe, temporary view into data without taking ownership.
+
+## Why Toka?
+
+1. **Safety without Overhead**: No garbage collector, yet memory safe by default.
+2. **Modern Concurrency**: Native support for `async/await` and high-performance actors.
+3. **LLVM Backend**: Leverages the full power of LLVM 20 for state-of-the-art optimizations.
+4. **Philosophical Clarity**: The **Soul-Identity** duality clarifies the difference between modifying a value and reseating a reference.
+
+Ready to dive in? Check out the [Installation Guide](/installation/)!

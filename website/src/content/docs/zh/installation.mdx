@@ -1,0 +1,66 @@
+---
+title: 安装指南
+description: 如何安装 Toka 编译器及构建工具。
+---
+
+Toka 目前推荐从源码构建，以确保获取最新的编译器性能优化和 LLVM 深度集成支持。
+
+## 前置环境
+
+在安装 Toka 之前，请确保您的系统已安装以下依赖：
+
+- **LLVM 20**: Toka 编译器基于 LLVM 20 框架构建。
+- **Clang 20**: 用于将生成的 LLVM IR 链接为最终可执行文件。
+- **CMake**: 3.15 或更高版本。
+- **Zsh**: 在 macOS 上，推荐使用 Zsh 以获得最佳开发体验。
+
+## 构建编译器
+
+1. 克隆代码仓库：
+   ```bash
+   git clone https://github.com/zhyi-dp/tokalang.git
+   cd tokalang
+   ```
+
+2. 创建构建目录并运行 CMake：
+   ```bash
+   mkdir build && cd build
+   mkdir src
+   cmake ..
+   make
+   ```
+
+3. 编译后的编译器二进制文件 `tokac` 将位于 `build/` 目录下。
+
+## Toka 构建工具
+
+`toka` 工具负责项目管理和增量构建。有趣的是，它本身也是一个用 Toka 语言编写的应用程序！
+
+1. 从源码构建该工具：
+   ```bash
+   ./tokac tools/toka/src/main.tk > build/toka.ll
+   clang build/toka.ll -o build/toka -isysroot $(xcrun --show-sdk-path)
+   ```
+
+2. 将该工具加入您的 `PATH`:
+   ```bash
+   export PATH="$PATH:$(pwd)/build"
+   ```
+
+## 环境配置
+
+为了获得最佳体验，请将以下内容添加至您的 `.zshrc` 或 `.bashrc`:
+
+```bash
+# 指向编译器和构建工具的路径
+export PATH="$PATH:/path/to/tokalang/build"
+
+# 关键：指向 Toka 标准库的路径
+export TOKA_LIB_PATH="/path/to/tokalang/lib"
+
+# 用于链接的 Clang 编译器
+export TOKA_CLANG="/usr/local/bin/clang"
+```
+
+> [!IMPORTANT]
+> 请务必确保 `TOKA_CLANG` 指向的 Clang 版本与安装 `tokac` 所使用的 LLVM 版本（目前为 LLVM 20）完全一致。

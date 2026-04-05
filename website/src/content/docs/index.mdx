@@ -1,0 +1,36 @@
+---
+title: Toka Lang
+description: The Future of System Programming. Safety of Rust, Simplicity of Python. Built on the Attribute Token System.
+template: splash
+hero:
+  tagline: A high-performance system programming language designed for the next generation of cloud and systems engineering.
+  image:
+    file: ../../assets/logo.png
+  actions:
+    - text: Get Started
+      link: /introduction/
+      icon: right-arrow
+    - text: View on GitHub
+      link: https://github.com/zhyi-dp/tokalang
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## Key Innovations
+
+<CardGrid stagger>
+	<Card title="Syntactic RAII" icon="rocket">
+		Ownership is baked into the grammar. **^T** (Unique) and **~T** (Shared) pointers make resource management invisible and zero-cost.
+	</Card>
+	<Card title="Attribute Token System" icon="pencil">
+		Visual chemical formulas for types. Combine **#** (Mutable), **?** (Nullable), and **!** (Both) for precise control without keyword bloat.
+	</Card>
+	<Card title="Soul-Identity Duality" icon="document">
+		Philosophically split between **Soul** (Value) and **Identity** (Address). Eliminate ambiguity between reference assignment and content mutation.
+	</Card>
+	<Card title="Async Native" icon="setting">
+		Advanced optimizations for coroutines and non-blocking I/O, powered by LLVM 20.
+	</Card>
+</CardGrid>

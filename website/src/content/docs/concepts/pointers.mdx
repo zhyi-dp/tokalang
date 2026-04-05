@@ -1,0 +1,72 @@
+---
+title: Pointer Morphology
+description: Unique, Shared, Borrowed, and Raw pointers in Toka.
+---
+
+Toka's memory safety model is built into its **Pointer Morphology**. Instead of generic smart pointer types like `Box<T>` or `Rc<T>`, Toka uses specific sigils (symbols) to define the relationship between a pointer and the data it points to.
+
+## Pointer Types
+
+Toka provides four primary pointer types, each with its own ownership and lifecycle semantics.
+
+### 1. Unique Pointer (`^T`)
+The `^` token denotes **exclusive ownership**. There can be only one unique pointer to a given piece of data. 
+- **RAII**: When a `^T` goes out of scope, the memory is automatically freed.
+- **Move Semantics**: Assigning a `^T` moves the ownership to the new target. The original pointer becomes invalid.
+
+```toka
+fn delete_user(u: ^User) {
+    // u will be dropped at the end of this function
+}
+
+fn main() {
+    auto ^u = new User(name = "Alice")
+    delete_user(u) // Ownership moved to delete_user
+    // u cannot be used here
+}
+```
+
+### 2. Shared Pointer (`~T`)
+The `~` token denotes **shared ownership** with reference counting.
+- **Automatic**: Reference counts are incremented on copy and decremented on drop.
+- **Safe**: Ensures the data remains alive as long as at least one `~T` exists.
+
+```toka
+shape Node (
+    data: i32,
+    next: ?~Node // Shared, nullable pointer
+)
+```
+
+### 3. Borrow / Reference (`&T`)
+The `&` token is used for **borrowing**. It provides a temporary, non-owning view of data.
+- **Safety**: The borrow checker ensures that a borrow does not outlive its owner.
+- **Permissions**: By default, borrows are immutable. Use `&#T` for mutable borrows.
+
+```toka
+fn print_name(u: &User) {
+    println("User name: {}", u.name)
+}
+```
+
+### 4. Raw Pointer (`*T`)
+The `*` token represents a **raw, C-style pointer**.
+- **Unsafe**: Raw pointers do not provide any safety guarantees.
+- **FFI**: Primarily used for interfacing with C libraries and low-level memory operations.
+
+---
+
+## Combining Pointers and Attributes
+
+Pointer tokens and attribute tokens can be combined to create precise type definitions.
+
+| Type | Meaning |
+| :--- | :--- |
+| `^User` | Owned, immutable User. |
+| `^#User` | Owned, mutable User. |
+| `~?User` | Shared, nullable, immutable User. |
+| `&#User` | Mutable borrow of a User. |
+
+## The "Morphology" Approach
+
+By using symbols (`^`, `~`, `&`) instead of types, Toka makes the "physical" layout of memory explicit in the code. This reduces cognitive load when reading complex system code, as the ownership rules are visually distinct from the data types.

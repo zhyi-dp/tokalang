@@ -60,3 +60,9 @@ target/
 # debug information files
 *.dwo
 include/toka/Version.h
+
+# website artifacts
+website/node_modules/
+website/.astro/
+website/dist/
+website/npm-debug.log*

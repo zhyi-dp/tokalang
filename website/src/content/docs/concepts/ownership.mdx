@@ -1,0 +1,66 @@
+---
+title: Ownership & RAII
+description: How Toka manages memory without a GC or manual malloc/free.
+---
+
+Toka uses a combination of **Ownership** and **RAII (Resource Acquisition Is Initialization)** to ensure memory safety and zero-cost resource management.
+
+## The Single-Owner Principle
+
+For any heap-allocated resource (created via `new`), Toka enforces a strict single-owner rule if the `^` (Unique) token is used.
+
+1. **Owner Responsible**: The scope that holds a `^T` unique pointer is the "Owner".
+2. **Deterministic Destruction**: When the owner scope ends, the memory is immediately and deterministically freed.
+3. **Move by Default**: Passing a `^T` to a function or assigning it to another variable moves the ownership.
+
+```toka
+fn main() {
+    auto ^p = new i32(42) // p is the owner
+    {
+        auto ^q = p       // ownership moved to q. p is now invalid!
+        println("Value: {}", *q)
+    } // q goes out of scope -> memory is freed here!
+    
+    // println("Value: {}", *p) // Compile-time error: p has been moved
+}
+```
+
+## Automatic Drop Synthesis
+
+Toka's compiler automatically synthesizes `drop` calls for all owned types.
+- For **Shapes**, it recursively calls `drop` on all fields.
+- For **Collections** like `Vec<T>`, it drops all elements before freeing its own backing buffer.
+
+### The `@encap` Trait
+
+Resources that require custom cleanup logic (like file handles, sockets, or mutexes) implement the `@encap` trait. This informs the compiler exactly how to shut down the resource when it's no longer needed.
+
+```toka
+shape File (
+    #handle: i32
+)
+
+impl @encap for File {
+    fn drop(self) {
+        // Custom logic to close the OS handle
+        libc::close(self.handle)
+    }
+}
+```
+
+## RAII in Action
+
+Because RAII is integrated with the **Pointer Morphology**, you can mix and match ownership models safely:
+
+- **Local Ownership**: Use `^T` for stack-like management of heap data.
+- **Shared Data**: Use `~T` for shared reference counting (useful for graph-like structures).
+- **Temporary Access**: Use `&T` to pass data to functions without the overhead of moving ownership or incrementing reference counts.
+
+---
+
+## Safety Guarantees
+
+Toka's semantic analyzer (Sema) prevents common memory pitfalls:
+- **Use-After-Move**: Tracked at compile time.
+- **Dangling References**: Borrow checker ensures references don't outlive owners.
+- **Double-Free**: Impossible due to the single-owner rule.

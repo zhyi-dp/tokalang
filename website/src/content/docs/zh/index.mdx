@@ -1,0 +1,36 @@
+---
+title: Toka 语言
+description: 系统级编程的未来。Rust 的安全性，Python 的灵活性。基于属性令牌（Attribute Token）系统构建。
+template: splash
+hero:
+  tagline: 专为下一代云原生和系统工程设计的高性能系统编程语言。
+  image:
+    file: ../../../assets/logo.png
+  actions:
+    - text: 开始探索
+      link: /zh/introduction/
+      icon: right-arrow
+    - text: GitHub 仓库
+      link: https://github.com/zhyi-dp/tokalang
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## 核心创新
+
+<CardGrid stagger>
+	<Card title="语法级 RAII" icon="rocket">
+		所有权机制被植入语法层面。通过 **^T** (唯一所有权) 和 **~T** (共享所有权) 指针，让资源管理变得无感且零成本。
+	</Card>
+	<Card title="属性令牌系统" icon="pencil">
+		类型的“化学分子式”。组合使用 **#** (可写), **?** (可空), 和 **!** (两者皆有) 实现精确控制，告别臃肿的关键。
+	</Card>
+	<Card title="灵肉合一 (Soul-Identity)" icon="document">
+		在哲学上区分 **Soul** (值) 与 **Identity** (地址)。消除引用赋值与内容修改之间的歧义。
+	</Card>
+	<Card title="原生异步支持" icon="setting">
+		基于 LLVM 20 深度优化，针对协程和非阻塞 I/O 提供最顶级的性能表现。
+	</Card>
+</CardGrid>

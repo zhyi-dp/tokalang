@@ -1,0 +1,74 @@
+---
+title: Attribute Token System
+description: Understanding the #, ?, and ! tokens in Toka.
+---
+
+Toka introduces the **Attribute Token System**, a concise way to define the behavior of types and fields without the need for verbose keywords or complex modifiers.
+
+## The Three Primary Tokens
+
+In Toka, every type can be modified by one or more attribute tokens that define its storage and access properties. These can be used as **suffixes** for base types or **modifiers** for pointers.
+
+### 1. Writable (`#`)
+The `#` token denotes that a value or field is **mutable**. In Toka, fields and variables are immutable by default. You must explicitly mark them with `#` to allow modification.
+
+```toka
+shape User (
+    #name: String,  // This field can be modified
+    id: i32         // This field is immutable after initialization
+)
+
+fn main() {
+    auto #x = 10    // Mutable variable
+    x = 20          // OK
+    
+    auto y = 10     // Immutable variable
+    // y = 20       // Error: Assignment to immutable variable
+}
+```
+
+### 2. Nullable (`?`)
+The `?` token indicates that a value can be **None** (equivalent to a null pointer or an optional type). This allows for explicit handling of missing values.
+
+```toka
+fn find_user(id: i32) -> ?User {
+    // ...
+    return none
+}
+
+fn main() {
+    auto ?maybe_user = find_user(1)
+    if maybe_user is User {
+        // Here, maybe_user is safely unwrapped
+        println("User found: {}", maybe_user.name)
+    } or {
+        println("User not found")
+    }
+}
+```
+
+### 3. Writable & Nullable (`!`)
+The `!` token is a shorthand for expressing that a type is **both writable and nullable** (`#?`). This is particularly useful for fields that might start empty and be assigned later.
+
+```toka
+shape Session (
+    !current_user: User // Can be reassigned and can be set to none
+)
+```
+
+## Attribute Stacking
+
+Attributes can be stacked and applied to different levels of indirection.
+
+- `i32#`: A mutable integer.
+- `^User?`: A nullable unique pointer to an immutable User.
+- `^#User!`: A mutable unique pointer to a mutable and nullable User.
+
+This "chemical formula" approach ensures that even complex nested types stay readable at a glance.
+
+## Technical Details
+
+Attributes are stored as bitfields within the compiler's type representation (`IsWritable`, `IsNullable`). They are checked during semantic analysis to ensure:
+- No writes to immutable locations.
+- Mandatory null-checks before accessing nullable types.
+- Correct propagation through generic substitutions.
