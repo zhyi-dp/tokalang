@@ -13,7 +13,7 @@ Toka 利用操作系统级别的线程进行并行处理。
 import std/thread::spawn
 
 pub fn main() -> i32 {
-    auto t = spawn(fn() {
+    auto t = spawn({ =>
         println("来自另一个线程的问候！")
     })
     t.join()

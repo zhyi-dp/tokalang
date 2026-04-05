@@ -1,28 +1,6 @@
-:root {
-	--sl-color-accent-low: #1d1b33;
-	--sl-color-accent: #8247ff;
-	--sl-color-accent-high: #b894ff;
-	--sl-color-white: #ffffff;
-	--sl-color-gray-1: #eceef2;
-	--sl-color-gray-2: #c0c8d1;
-	--sl-color-gray-3: #8893a7;
-	--sl-color-gray-4: #545864;
-	--sl-color-gray-5: #353944;
-	--sl-color-gray-6: #1e2128;
-	--sl-color-black: #0a0b10;
-}
-
-/* Custom background for the landing page vibe */
-:root[data-theme='dark'] {
-	--sl-color-bg: #0a0b10;
-	--sl-color-bg-nav: #0a0b10;
-	--sl-color-bg-sidebar: #050609;
-}
-
-.hero-bg {
-	background: radial-gradient(circle at 50% 30%, rgba(130, 71, 255, 0.1) 0%, rgba(10, 11, 16, 0) 60%);
-}
+/* Custom CSS for Toka Lang documentation */
+/* Resetting to Starlight defaults for a cleaner, standard light/dark theme experience. */
 
 .starlight-logo {
-	filter: drop-shadow(0 0 10px rgba(0, 242, 255, 0.3));
+	/* filter: drop-shadow(0 0 10px rgba(82, 71, 255, 0.3)); */
 }

@@ -13,7 +13,7 @@ Toka leverages OS-level threads for parallel processing.
 import std/thread::spawn
 
 pub fn main() -> i32 {
-    auto t = spawn(fn() {
+    auto t = spawn({ =>
         println("Hello from another thread!")
     })
     t.join()
