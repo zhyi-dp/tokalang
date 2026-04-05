@@ -1,6 +1,9 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import fs from 'fs';
+
+const tokaLanguage = JSON.parse(fs.readFileSync(new URL('./src/toka.tmLanguage.json', import.meta.url), 'utf-8'));
 
 // https://astro.build/config
 export default defineConfig({
@@ -8,6 +11,9 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			title: 'Toka Lang',
+			expressiveCode: {
+				shiki: {langs: [tokaLanguage]}
+			},
 			logo: {
 				src: './src/assets/logo.png',
 			},
