@@ -1,4 +1,4 @@
-[English](README.md)
+[Website (tokalang.dev)](https://tokalang.dev) | [English](README.md)
 
 # Toka 编程语言
 

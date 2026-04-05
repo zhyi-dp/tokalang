@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toka Lang | The Future of System Programming</title>
+    <meta name="description" content="Toka is a safe, efficient, and expressive system programming language featuring a unique Attribute Token System.">
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="logo.png">
+</head>
+<body>
+
+    <nav>
+        <div class="container nav-content">
+            <div class="logo-area">
+                <img src="logo.png" alt="Toka Logo" class="logo-img">
+                TOKA
+            </div>
+            <div class="nav-links">
+                <a href="#features">Features</a>
+                <a href="#tokens">Token System</a>
+                <a href="#code">Code</a>
+                <a href="https://github.com/zhyi-dp/tokalang/tree/main/docs">Docs</a>
+                <a href="https://github.com/zhyi-dp/tokalang">Github</a>
+            </div>
+        </div>
+    </nav>
+
+    <header class="hero">
+        <div class="container hero-content">
+            <span class="badge" data-reveal>v0.1.0 Early Access</span>
+            <h1 data-reveal>Safety of Rust.<br>Simplicity of Python.</h1>
+            <p class="subtitle" data-reveal>Toka is a high-performance system programming language built on the <strong>Attribute Token System</strong>, designed for the next generation of cloud and systems engineering.</p>
+            <div class="cta-group" data-reveal>
+                <a href="https://github.com/zhyi-dp/tokalang" class="btn btn-primary">Start Building</a>
+                <a href="#features" class="btn btn-secondary">Learn More</a>
+            </div>
+        </div>
+    </header>
+
+    <section id="features" class="container">
+        <div style="text-align: center; margin-bottom: 4rem;">
+            <p class="badge">Innovation</p>
+            <h2 style="font-size: 2.5rem; font-family: var(--font-heading);">Key Innovations</h2>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card" data-reveal>
+                <div class="feature-icon">⚓</div>
+                <h3>Syntactic RAII</h3>
+                <p>Ownership is baked into the grammar. <strong>^T</strong> (Unique) and <strong>~T</strong> (Shared) pointers make resource management invisible and zero-cost.</p>
+            </div>
+            <div class="feature-card" data-reveal>
+                <div class="feature-icon">💎</div>
+                <h3>Soul-Identity Duality</h3>
+                <p>Philosophically split between <strong>Soul</strong> (Value) and <strong>Identity</strong> (Address). Eliminate ambiguity between reference assignment and content mutation.</p>
+            </div>
+            <div class="feature-card" data-reveal>
+                <div class="feature-icon">⚛️</div>
+                <h3>Orthogonal Attributes</h3>
+                <p>Visual chemical formulas for types. Combine <strong>#</strong> (Mutable), <strong>?</strong> (Nullable), and <strong>!</strong> (Both) for precise control without keyword bloat.</p>
+            </div>
+            <div class="feature-card" data-reveal>
+                <div class="feature-icon">🛡️</div>
+                <h3>@encap Security</h3>
+                <p>Explicit encapsulation. Control field visibility and resource lifecycles at the structural level with mandatory <strong>impl @encap</strong> blocks.</p>
+            </div>
+            <div class="feature-card" data-reveal>
+                <div class="feature-icon">🔄</div>
+                <h3>Contract-Based Flow</h3>
+                <p>Everything is an expression. Unique <strong>for-or</strong> syntax ensures loop results are guaranteed even on empty iterations.</p>
+            </div>
+            <div class="feature-card" data-reveal>
+                <div class="feature-icon">⚡</div>
+                <h3>LLVM Powered</h3>
+                <p>Native performance with LLVM 20. Advanced optimizations for coroutines, opaque pointers, and strict memory safety checks.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="tokens" style="background: var(--bg-darker);">
+        <div class="container">
+            <div style="text-align: center; margin-bottom: 4rem;">
+                <p class="badge">Reference</p>
+                <h2 style="font-size: 2.5rem; font-family: var(--font-heading);">Attribute Token System</h2>
+                <p style="color: var(--text-secondary); margin-top: 1rem;">The language of memory, visualized.</p>
+            </div>
+            <table class="token-table" data-reveal>
+                <thead>
+                    <tr>
+                        <th>Token</th>
+                        <th>Value Meaning (Soul)</th>
+                        <th>Identity Meaning (Address)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="token-cell">#</td>
+                        <td><strong>Writable</strong>: Mutable fields</td>
+                        <td><strong>Reseatable</strong>: Can point to new data</td>
+                    </tr>
+                    <tr>
+                        <td class="token-cell">?</td>
+                        <td><strong>Nullable</strong>: Value can be <em>none</em></td>
+                        <td><strong>Nullable</strong>: Address can be <em>nullptr</em></td>
+                    </tr>
+                    <tr>
+                        <td class="token-cell">!</td>
+                        <td><strong>Writable & Nullable</strong></td>
+                        <td><strong>Reseatable & Nullable</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="token-cell">^</td>
+                        <td>-</td>
+                        <td><strong>Unique Owner</strong> (RAII)</td>
+                    </tr>
+                    <tr>
+                        <td class="token-cell">~</td>
+                        <td>-</td>
+                        <td><strong>Shared Owner</strong> (RC)</td>
+                    </tr>
+                    <tr>
+                        <td class="token-cell">&</td>
+                        <td><strong>Borrow</strong>: Temporary view</td>
+                        <td><strong>Reference</strong>: Stable view</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section id="code" class="container">
+        <div style="text-align: center; margin-bottom: 4rem;">
+            <p class="badge">Syntax</p>
+            <h2 style="font-size: 2.5rem; font-family: var(--font-heading);">Write with Elegance</h2>
+        </div>
+        <div class="code-window" data-reveal>
+            <div class="code-header">
+                <div class="dot dot-red"></div>
+                <div class="dot dot-yellow"></div>
+                <div class="dot dot-green"></div>
+                <span style="margin-left: 1rem; font-size: 0.8rem; color: var(--text-muted);">main.tk</span>
+            </div>
+            <pre class="code-content">
+<span class="tk-keyword">shape</span> <span class="tk-type">Rect</span> (w: <span class="tk-type">i32</span>, h: <span class="tk-type">i32</span>)
+
+<span class="tk-keyword">impl</span> <span class="tk-type">Rect@Shape</span> {
+    <span class="tk-keyword">fn</span> <span class="tk-func">area</span>(<span class="tk-keyword">self</span>) -> <span class="tk-type">i32</span> {
+        <span class="tk-keyword">return</span> <span class="tk-keyword">self</span>.w * <span class="tk-keyword">self</span>.h
+    }
+}
+
+<span class="tk-keyword">fn</span> <span class="tk-func">main</span>() {
+    <span class="tk-keyword">auto</span> <span class="tk-token">^</span>r = <span class="tk-keyword">new</span> <span class="tk-type">Rect</span>(w = <span class="tk-string">10</span>, h = <span class="tk-string">20</span>) <span class="tk-comment">// Unique Pointer</span>
+    
+    <span class="tk-keyword">auto</span> a = r.area()
+    <span class="tk-func">println</span>(<span class="tk-string">"The area is {}"</span>, a)
+}
+            </pre>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container footer-content">
+            <div class="logo-area" style="font-size: 1.25rem;">
+                <img src="logo.png" alt="Toka Logo" class="logo-img" style="width: 24px; height: 24px;">
+                TOKA
+            </div>
+            <p class="footer-muted">Created with passion for the systems of tomorrow.</p>
+            <p class="footer-muted">Built with Gemini &bull; Powered by LLVM</p>
+            <div style="margin-top: 1rem;">
+                <a href="https://github.com/zhyi-dp/tokalang" style="color: var(--text-muted); text-decoration: none; margin: 0 1rem;">GitHub</a>
+                <a href="https://github.com/zhyi-dp/tokalang/tree/main/docs" style="color: var(--text-muted); text-decoration: none; margin: 0 1rem;">Documentation</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
