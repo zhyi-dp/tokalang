@@ -1,77 +1,76 @@
 ---
 title: Pointer Morphology
-description: Unique, Shared, Borrowed, and Raw pointers in Toka.
+description: Unique, shared, and borrowed pointers in Toka.
 ---
 
-Toka's memory safety model is built into its **Pointer Morphology**. Instead of generic smart pointer types like `Box<T>` or `Rc<T>`, Toka uses specific sigils (symbols) to define the relationship between a pointer and the data it points to.
+Toka's **Pointer Morphology** defines the nature of an object's identity and ownership through concise sigils attached to the variable or field name.
 
-## Pointer Types
+## Pointer Types (Sigils)
 
-Toka provides four primary pointer types, each with its own ownership and lifecycle semantics.
+Toka uses three primary sigils:
 
 ### 1. Unique Pointer (`^`)
-The `^` token denotes **exclusive ownership**. There can be only one unique pointer to a given piece of data at any time.
-- **RAII**: When a `^` pointer goes out of scope, the memory is automatically freed.
-- **Move Semantics**: Ownership is moved by default. Use `cede` to explicitly transfer it.
+Represents exclusive ownership. When a `^T` goes out of scope, the memory is automatically freed (RAII).
 
 ```toka
-pub fn delete_user(^u: User) {
-    // u will be dropped at the end of this function
-}
-
-pub fn main() -> i32 {
-    auto ^u = new User(name = "Alice")
-    delete_user(cede u) // 'cede' transfers ownership to the function
-    // u is now invalid here
-    return 0
-}
+auto ^p = new i32(10)
 ```
 
 ### 2. Shared Pointer (`~`)
-The `~` token denotes **shared ownership** with reference counting.
-- **Automatic**: Reference counts are handled by the compiler.
-- **Safe**: Data remains alive as long as at least one `~` pointer exists.
+Represents shared ownership using thread-safe reference counting.
 
 ```toka
-shape Node (
-    data: i32,
-    nul ~next: Node // Shared, nullable pointer
-)
+auto ~p = new i32(20)
+auto ~q = ~p // Reference count increases
 ```
 
-### 3. Borrow / Reference (`&`)
-The `&` token is used for **borrowing**. It provides a temporary, non-owning view.
-- **Safety**: The borrow checker ensures that a borrow does not outlive its owner.
-- **Writability**: Use `&p#` for a mutable borrow (where the entity is mutable).
+### 3. Borrowed Pointer (`&`)
+Represents non-owning access to data owned by someone else.
 
 ```toka
-pub fn print_name(&u: User) {
-    println("User name: {}", u.name)
-}
+auto x = 10
+auto &p = &x
 ```
 
-### 4. Raw Pointer (`*`)
-The `*` token represents a **raw, C-style pointer**.
-- **Unsafe**: Used for FFI or low-level memory operations.
+## Handle Attributes
 
+Pointers themselves (the Handles) can yield additional control through prefixes.
+
+### Pointer Nullability (`nul`)
+The `nul` prefix allows a pointer to be `nullptr`.
+
+```toka
+auto nul ^p: User = nullptr
+```
+
+### Handle Rebindability (`#`)
+Adding `#` after the sigil allows the pointer variable to be reassigned.
+
+```toka
+auto ^#p = new i32(1)
+^p = ^q // OK: Handle is rebindable
+```
+
+## The "Chemical Formula" Stacking
+
+You can stack these dimensions on any pointer.
+
+```toka
+auto nul ^#node#: Node? = nullptr
+```
+
+- `nul`: Pointer is nullable.
+- `^#`: Pointer is unique and the handle is rebindable.
+- `node#`: The pointed-to data (Soul) is mutable.
+- `Node?`: The entity itself can be `none`.
+
+## Automatic Dereferencing
+
+Toka follows the **Hat Principle**: if you access the variable name `p` directly, you are accessing the **Soul** (the data). The compiler automatically dereferences the pointer for you.
+
+```toka
+auto ^p = new User(name = "Alice")
+println(p.name) // Automatically dereferences p to access name
+p.name = "Bob" // Automatically dereferences p to mutate name (if User is mutable)
+```
 ---
-
-## Mutability and Rebinding
-
-Toka distinguishes between the **Writability** of the pointed-to data and the **Rebindability** of the pointer itself.
-
-| Code | Meaning |
-| :--- | :--- |
-| `auto ^p` | Read-only unique pointer. |
-| `auto ^p#` | Unique pointer to a **mutable** entity. |
-| `auto &#p` | A **rebindable** reference. |
-| `auto nul ^#node#: Node?` | A nullable (`nul`), rebindable (`#` after ^) unique pointer to a mutable (`#` after node) and nullable (`?`) Node. |
-
-## The "Hat" Principle
-
-In Toka, a bare variable name like `p` represents the **Soul** (the value). Accessing `p` automatically dereferences it. To operate on the **Handle** (the pointer address), you "put on a hat" using the sigils.
-
-- `p = value` (Modifies the data)
-- `^p = ^q` (Rebinds the unique pointer)
-
-This makes the distinction between value-operations and address-operations visually explicit.

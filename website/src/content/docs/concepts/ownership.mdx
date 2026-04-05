@@ -1,80 +1,81 @@
 ---
-title: Resource Safety & Ownership
-description: Ownership, RAII, and manual memory management in Toka.
+title: Ownership & RAII
+description: Resource management and memory safety in Toka.
 ---
 
-Toka ensures resource safety through a combination of strict ownership rules and the **RAII (Resource Acquisition Is Initialization)** pattern.
+Toka's memory safety is built on a clear **Ownership** model, enforced by the compiler through Pointer Morphology and the Borrow Checker.
 
-## Ownership Rules
+## Unique Ownership (`^`)
 
-Ownership in Toka is defined by **exclusive unique pointers (`^`)**.
-
-1. **Unique Owner**: Each resource (memory, file handle, socket) has exactly one unique owner at any given time.
-2. **Move by Default**: Assigning an owned pointer moves the ownership, making the original handle invalid.
-3. **Explicit Transfer**: Use the `cede` keyword to explicitly transfer ownership, especially when passing data into closures or multi-threaded tasks.
+A Unique Pointer (`^T`) is the sole owner of a resource. When it goes out of scope, the resource is automatically cleaned up (RAII).
 
 ```toka
 fn take_ownership(^u: User) {
-    // u will be dropped here
-}
+    println("Owning user: {}", u.name)
+} // u is dropped here
 
 pub fn main() -> i32 {
-    auto ^u = new User(name = "Bob")
-    take_ownership(cede u) // Explicit move
-    // u cannot be used here
+    auto ^user = new User(name = "Alice")
+    take_ownership(user) // ownership transferred
+    // user is no longer accessible here
     return 0
 }
 ```
 
-## RAII and the @encap Trait
+## Shared Ownership (`~`)
 
-Toka uses the `impl Type@encap` block to define how resources should be cleaned up. This is equivalent to a "destructor" or "drop" function.
+Shared Pointers (`~p`) use reference counting. The resource is freed only after the last reference is dropped.
 
 ```toka
-shape FileHandle (
-    fd: i32
+shape Node (
+    value: i32,
+    ~next: Node?
+)
+```
+
+## Borrowing (`&`)
+
+Borrowing (`&p`) allows you to access data without taking ownership. Borrows can be immutable (`&p`) or mutable (`&p#`).
+
+```toka
+fn print_user(&u: User) {
+    println(u.name)
+}
+
+pub fn main() -> i32 {
+    auto ^user = new User(name = "Bob")
+    print_user(user) // Immutable borrow
+    return 0
+}
+```
+
+## Explicit Transfer (`cede`)
+
+You can explicitly transfer ownership of a Soul using the `cede` keyword.
+
+```toka
+fn process_data(^v: Vec<i32>) { ... }
+
+pub fn main() -> i32 {
+    auto ^v = [1, 2, 3]
+    process_data(cede v) // v is ceded
+    return 0
+}
+```
+
+## The @encap Trait
+
+For types that manage external resources (like file handles or sockets), implementing the `@encap` trait allows for custom cleanup logic.
+
+```toka
+shape File (
+    handle: i32
 )
 
-impl FileHandle@encap {
-    // The compiler automatically synthesizes a drop mechanism
-    // that calls this logic when a FileHandle goes out of scope.
+impl File@encap {
     pub fn drop(self) {
-        if self.fd > 0 {
-            libc_close(self.fd)
-            println("File handle closed.")
-        }
+        // Custom close logic
     }
 }
 ```
-
-## Borrowing (References)
-
-To use data without taking ownership, use **borrowing (`&`)**.
-
-1. **Safety**: Borrows must never outlive their owners.
-2. **Immutability by Default**: A borrow `&T` is read-only.
-3. **Mutable Borrow**: Use `&T#` to allow modifying the pointed-to entity.
-
-```toka
-pub fn process_data(&u: User) {
-    // Read-only access
-}
-
-pub fn update_user(&u#: User) {
-    // Mutable access to the user soul
-    u.name = "New Name"
-}
-```
-
-## Moving and Return Values
-
-When a function returns an owned object, it is automatically moved to the caller. No expensive copy or explicit drop occurs.
-
-```toka
-fn create_user() -> ^User {
-    return new User(name = "Charlie") // Ownership moved to caller
-}
-```
-
-This model provides the safety of garbage-collected languages with the predictable performance of manual memory management.
 ---

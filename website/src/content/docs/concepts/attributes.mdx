@@ -1,80 +1,70 @@
 ---
-title: Attribute Token System
-description: Deep dive into # and ? tokens in Toka.
+title: Attribute Tokens
+description: Discrete tokens for mutability and nullability in Toka.
 ---
 
-Toka introduces the **Attribute Token System**, an incredibly concise way to define the behavior of types and fields without verbose keywords or complex modifiers.
+Toka replaces verbose keywords like `mutable` or `optional` with a system of concise attribute tokens. These tokens are discrete and can be combined to define the exact behavior of souls and handles.
 
-## The Two Basic Tokens
+## Discrete Dimensions
 
-In Toka, every type can be decorated with attribute tokens that define its storage and access properties. These tokens act as **suffixes** to base types or variable names.
-
-### 1. Writability (`#`)
-The `#` token indicates that a value or field is **mutable**. In Toka, all fields and variables are immutable by default. You must explicitly mark them with `#` to allow modification.
+### 1. Soul Mutability (`#` suffix)
+The `#` token applied as a suffix to a variable or field name indicates that the **Soul** (the data itself) is mutable.
 
 ```toka
-shape User (
-    name#: String,  // This field can be modified
-    id: i32         // This field is immutable after initialization
-)
+auto x# = 10
+x = 20 // OK
+```
 
-pub fn main() -> i32 {
-    auto x# = 10    // Mutable variable
-    x = 20          // Works fine
-    
-    auto y = 10     // Immutable variable
-    // y = 20       // Error: Cannot assign to immutable variable
-    return 0
+### 2. Entity Nullability (`?` suffix)
+The `?` token applied as a suffix to a **Type** indicates that the entity can be `none`.
+
+```toka
+auto x: i32? = none
+if x == none {
+    println("No value")
 }
 ```
 
-### 2. Nullability (`?`)
-The `?` token indicates that a value can be **None** (equivalent to an optional type). This forces developers to explicitly handle the case where a value might be missing, preventing null pointer exceptions.
+### 3. Pointer Nullability (`nul` prefix)
+The `nul` keyword applied as a prefix to a pointer name indicates that the **Handle** (the pointer itself) can be `nullptr`.
 
 ```toka
-import std/io::println
-
-fn find_user(id: i32) -> User? {
-    // ...
-    return none
-}
-
-pub fn main() -> i32 {
-    auto maybe_user? = find_user(1)
-    if maybe_user is User {
-        // maybe_user is safely unwrapped here
-        println("Found user: {}", maybe_user.name)
-    } or {
-        // Executed when maybe_user is none
-        println("User not found")
-    }
-    return 0
+auto nul ^p: User = nullptr
+if ^p == nullptr {
+    println("No pointer")
 }
 ```
 
-### 3. Writable & Nullable
-To define a field that is both writable and nullable, simply combine the tokens: `#?` or `?#`.
+### 4. Handle Rebindability (`^#`, `~#`)
+The `#` token applied after a pointer sigil indicates that the **Handle** itself is mutable (can be reassigned to a different address).
 
 ```toka
-shape Session (
-    current_user#?: User // Can be modified AND can be none
-)
+auto ^#p = new i32(10)
+^p = ^q // OK: Rebinding the handle
 ```
 
-## Attribute "Chemical Formula"
+## The "Chemical Formula" Approach
 
-Attribute tokens are "stackable" and can be applied to different levels of nesting, much like a chemical formula:
+Attributes can be stacked like a chemical formula to define complex behaviors. 
 
-- `i32#`: A mutable integer.
-- `^User?`: A nullable unique pointer to an immutable User (where `^` itself handles pointer nullability via `nul ^`).
-- `auto nul ^#node#: Node?`: A complex type where the pointer is nullable and rebindable, and the Node entity is both mutable and nullable.
+### Example: A Rebindable Nullable Pointer to a Mutable Nullable Entity
 
-This "formulaic" approach ensures that even complex nested types can be understood at a glance.
+```toka
+auto nul ^#node#: Node? = nullptr
+```
 
-## Compiler Implementation
+Breakdown:
+1. `nul`: The pointer can be `nullptr`.
+2. `^#`: The pointer is unique and can be rebound (`^node = ^other`).
+3. `node#`: The data pointed to is mutable (`node.value = 10`).
+4. `Node?`: The entity itself can be `none`.
 
-Internally, these attributes are stored as bitfields within the type system (`Type.cpp`). The semantic analysis phase performs strict checks to ensure:
-- No writes to immutable locations.
-- Mandatory null-checks (`is` or `guard`) before accessing nullable types.
-- Correct attribute inheritance and propagation during generic substitution.
+## Summary Table
+
+| Token | Position | Dimension | Effect |
+| :--- | :--- | :--- | :--- |
+| **`#`** | Suffix to Name | Soul Mutability | Allows modifying the data |
+| **`?`** | Suffix to Type | Entity Nullability | Allows the value to be `none` |
+| **`nul`** | Prefix to Name | Pointer Nullability | Allows the pointer to be `nullptr` |
+| **`^#`** | Prefix to Name | Handle Mutability | Allows rebinding the pointer |
 ---

@@ -9,7 +9,7 @@ In Toka, every object has two distinct aspects: its **Soul** (Value) and its **H
 The "Soul" represents the actual data or state of an object. When you perform operations on the soul, you are modifying the content.
 
 - **Access**: Bare variable name `p`.
-- **Attributes**: The `#` (Writable) and `?` (Nullable) tokens applied to the name/type affect the Soul.
+- **Attributes**: The `#` (Soul mutability) and `?` (Type nullability) tokens applied as suffixes.
 
 ```toka
 auto x# = 10
@@ -23,7 +23,7 @@ The "Handle" represents where the object lives in memory. When you perform opera
 - **Sigils**: These define the ownership (Unique, Shared, or Borrowed).
 
 ```toka
-auto ^p# = new i32(10)
+auto ^#p = new i32(10)
 ^p = ^q // Rebinding the Handle (p now points to the same location as q)
 ```
 
@@ -41,6 +41,6 @@ By making this distinction explicit, Toka eliminates the "is this a shallow or d
 
 | Concept | Symbol | Focus | Modifiers |
 | :--- | :--- | :--- | :--- |
-| **Soul** | `p` | Data/Value | `p#` (Mutable), `p?` (Nullable) |
-| **Handle** | `^p`, `~p`, `&p` | Address/Owner | `nul ^p` (Nullable), `^p#` (Rebindable) |
+| **Soul** | `p` | Data/Value | `p#` (Mutable), `Type?` (Nullable) |
+| **Handle** | `^p`, `~p`, `&p` | Address/Owner | `nul ^p` (Nullable), `^#p` (Rebindable) |
 ---

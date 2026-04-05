@@ -9,27 +9,29 @@ Toka is a modern systems programming language designed for **performance, safety
 
 Toka is built on several "Iron Laws" that make the code predictable and visually distinct.
 
-### 1. The Hat Principle (Soul vs. Handle)
+### 1. The Hat Principle (灵与肉)
 Unlike C or Rust, Toka treats the variable name as the **Soul** (the value itself). Accessing a pointer variable `p` automatically gives you the data. To operate on the **Handle** (the pointer address), you "put on a hat" using symbols like `^`, `~`, `&`, or `*`.
 
-- `p = value` (Modifies the data pointed to by p)
-- `^p = ^q` (Rebinds the pointer p to a new address)
+- `p = value` (Modifies the data pointed to by p - Soul operation)
+- `^p = ^q` (Rebinds the pointer p to a new address - Handle operation)
 
 ### 2. Syntactic Attributes
-Instead of verbose keywords like `mutable`, `optional`, or `volatile`, Toka uses concise tokens:
-- `#` for **Mutability** (e.g., `auto x# = 10`)
-- `?` for **Nullability** (e.g., `auto x: i32? = none`)
-- `#?` for both (e.g., `auto x#? = 10`)
+Toka uses concise tokens to define mutability and nullability. These are discrete dimensions:
+
+- `#` (Suffix to name): **Soul Mutability** (e.g., `auto x# = 10`)
+- `?` (Suffix to type): **Entity Nullability** (e.g., `auto x: i32? = none`)
+- `nul` (Prefix to name): **Pointer Nullability** (e.g., `auto nul ^p: User = nullptr`)
+- `^#`, `~#` (Prefix to name): **Handle Mutability/Rebindability** (e.g., `auto ^#p = new i32(10)`)
 
 ### 3. Explicit Ownership
-Toka's Pointer Morphology defines ownership at the type level:
+Toka's Pointer Morphology defines ownership and lifetime:
 - `^T`: **Unique** ownership (RAII).
 - `~T`: **Shared** ownership (Reference Counting).
 - `&T`: **Borrowed** access.
 
 ## A Quick Taste of Toka
 
-Here is a simple example showing shapes, traits, and the unique `for-or` loop.
+Toka uses named arguments for initialization and a unique `for-or` loop.
 
 ```toka
 import std/io::println
@@ -48,9 +50,11 @@ impl Rect {
 }
 
 pub fn main() -> i32 {
+    // Initializing a shape
     auto r = Rect(width = 10, height = 20)
     println("Area: {}", r.area())
     
+    // Arrays and for-or
     auto list = [1, 2, 3]
     for x in list {
         println("Item: {}", x)
@@ -62,4 +66,5 @@ pub fn main() -> i32 {
 }
 ```
 
-Toka is currently under active development, targeting LLVM 20. It's built for developers who want the power of C++ with the safety of Rust and the beauty of a modern syntax.
+Toka is built for developers who want the power of C++ with the safety of Rust and the beauty of a modern syntax.
+---
