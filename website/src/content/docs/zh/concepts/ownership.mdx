@@ -60,9 +60,6 @@ pub fn main() -> i32 {
     auto ^v = [1, 2, 3]
     process_data(cede v) // v 已被 cede (让渡)
     return 0
-}
-```
-
 ## @encap Trait
 
 对于管理外部资源（如文件句柄或套接字）的类型，实现 `@encap` trait 可以自定义清理逻辑。

@@ -73,4 +73,18 @@ auto ^p = new User(name = "Alice")
 println(p.name) // Automatically dereferences p to access name
 p.name = "Bob" // Automatically dereferences p to mutate name (if User is mutable)
 ```
+
+## Lifetime Effect Routing (`effects:`)
+
+Instead of relying on sprawling generic lifetime parameters (`<'a>`), Toka utilizes the `effects:` block alongside **named return values** to establish explicit pointer borrowing and ownership maps (directed edges).
+
+```toka
+fn compose(a: i32, b: i32) -> &res: Pair
+effects:
+    &res <- a | b
+{
+    // The lifetime of res is automatically constrained to the intersection of a and b
+}
+```
+Through the `<-` syntax sigil, the compiler can precisely trace the origin and lifetime constraints of borrowed pointers across complex boundary conditions.
 ---

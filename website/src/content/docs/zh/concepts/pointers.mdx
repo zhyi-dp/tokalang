@@ -73,4 +73,18 @@ auto ^p = new User(name = "Alice")
 println(p.name) // 自动解引用以访问 name
 p.name = "Bob" // 自动解引用以修改 name (如果 User 的 Soul 是可变的)
 ```
+
+## 生命周期效应路由 (`effects:`)
+
+Toka 并没有依靠复杂的泛型生命周期参数 (`<'a>`)，而是利用 `effects:` 域和**命名返回值**建立显式的指针借用与所有权映射（有向连线）。
+
+```toka
+fn compose(a: i32, b: i32) -> &res: Pair
+effects:
+    &res <- a | b
+{
+    // res 的生命周期会自动被约束在 a 和 b 的交集内
+}
+```
+通过 `<-` 语法树签，编译器能精准掌控组合结构中的借用指针在穿越边界时的生命周期依赖与溯源。
 ---
