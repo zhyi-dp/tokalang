@@ -3,6 +3,7 @@ import core/traits::{@Hash, @PartialEq, @encap}
 import core/option::{Option}
 import std/vec::{Vec}
 import core/primitives
+import core/libc::{libc_printf, libc_fflush}
 
 
 // HashMap using SOA (Structure of Arrays)
@@ -91,6 +92,10 @@ impl<'K, 'V> HashMap<'K, 'V> {
     }
 
     pub fn insert(self#, key: 'K, val: 'V) {
+        if self.len * 4 >= self.cap * 3 {
+             self#.resize(self.cap * 2)
+        }
+        
         auto capacity = self.cap
         // Optimization: capacity is power of 2, use mask
         auto idx# = (key.hash() as usize) band (capacity - 1)
@@ -140,6 +145,69 @@ impl<'K, 'V> HashMap<'K, 'V> {
         }
     }
     
+    pub fn resize(self#, new_cap: usize) {
+        unsafe {
+            auto new_k# = Vec<'K>::with_capacity(new_cap)
+            auto new_v# = Vec<'V>::with_capacity(new_cap)
+            auto new_m# = Vec<u8>::with_capacity(new_cap) // Empty buffer
+            
+            // Populate meta with 0 up to new_cap
+            auto j# = 0:usize
+            while j < new_cap {
+                new_m#.push(0)
+                j += 1
+            }
+            
+            // Re-hash and move elements
+            auto i# = 0:usize
+            auto moved_count# = 0
+            while i < self.cap {
+                auto *m_ptr#: u8 = self.meta.unsafe_get(i)
+                if m_ptr == (1 as u8) {
+                     moved_count += 1
+                     auto *old_k_ptr#: 'K = self.keys.unsafe_get(i)
+                     auto *old_v_ptr#: 'V = self.vals.unsafe_get(i)
+                     auto key = old_k_ptr // Move semantics
+                     auto val = old_v_ptr
+                     
+                     auto idx# = (key.hash() as usize) band (new_cap - 1)
+                     auto start_idx = idx
+                     
+                     while true {
+                         auto *nm_ptr#: u8 = new_m.unsafe_get(idx)
+                         if nm_ptr == (0 as u8) {
+                             nm_ptr = (1 as u8)
+                             auto *nk_ptr#: 'K = new_k.unsafe_get(idx)
+                             nk_ptr = key
+                             auto *nv_ptr#: 'V = new_v.unsafe_get(idx)
+                             nv_ptr = val
+                             break
+                         }
+                         idx = (idx + 1) band (new_cap - 1)
+                     }
+                }
+                i += 1
+            }
+            
+            // 在被覆写前手动释放旧缓冲，防止泄露
+            if self.keys.*buf != nullptr {
+                unsafe free [self.keys.cap] self.keys.*#buf
+            }
+            if self.vals.*buf != nullptr {
+                unsafe free [self.vals.cap] self.vals.*#buf
+            }
+            if self.meta.*buf != nullptr {
+                unsafe free [self.meta.cap] self.meta.*#buf
+            }
+            
+            // 使用 cede 显式完成所有权大转移，阻止 new_k 等发生析构毁坏新内存
+            self.keys = cede new_k
+            self.vals = cede new_v
+            self.meta = cede new_m
+            self.cap  = new_cap
+        }
+    }
+    
     pub fn get(self, key: 'K) -> Option<'V> {
          auto capacity = self.cap
          auto idx# = (key.hash() as usize) band (capacity - 1)
@@ -173,9 +241,9 @@ impl<'K, 'V> HashMap<'K, 'V> {
     pub fn iter(self) -> HashMapIterator<'K, 'V> {
         unsafe {
              return HashMapIterator<'K, 'V>(
-                 keys_ptr = self.keys.unsafe_get(0) as *['K],
-                 vals_ptr = self.vals.unsafe_get(0) as *['V],
-                 meta_ptr = self.meta.unsafe_get(0) as *[u8],
+                 *keys_ptr = self.keys.unsafe_get(0) as *['K],
+                 *vals_ptr = self.vals.unsafe_get(0) as *['V],
+                 *meta_ptr = self.meta.unsafe_get(0) as *[u8],
                  cap  = self.cap,
                  pos  = 0
              )

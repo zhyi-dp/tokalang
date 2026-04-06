@@ -1,0 +1,67 @@
+import std/io::println
+import std/map::{HashMap, MapResult}
+import core/option::{Option}
+import core/libc::{libc_printf, libc_fflush}
+
+fn main() -> i32 {
+    auto map# = HashMap<i32, i32>::new()
+    println("Inserting 2000 elements to trigger multiple resizes...")
+    
+    // Insert 0 to 1999
+    auto i# = 0:i32
+    while i < 2000 {
+        map#.insert(i, i * 10)
+        i += 1
+    }
+    
+    println("Verify all elements are still accessible...")
+    auto j# = 0:i32
+    auto err_count# = 0
+    while j < 2000 {
+        auto val = map.get(j)
+        match val {
+            auto Option<i32>::Some(v) => {
+                if v != j * 10 {
+                    libc_printf("Value mismatch at %d! Expected %d, got %d\n", j, j * 10, v)
+                    libc_fflush(0 as *void)
+                    err_count += 1
+                }
+            }
+            auto Option<i32>::None => {
+                libc_printf("Missing key: %d!\n", j)
+                libc_fflush(0 as *void)
+                err_count += 1
+            }
+        }
+        j += 1
+    }
+    
+    if err_count > 0 {
+        libc_printf("Total errors: %d\n", err_count)
+        libc_fflush(0 as *void)
+        return 101
+    }
+    
+    println("Verify iterator works accurately across resized map...")
+    auto iter# = map.iter()
+    auto count# = 0
+    while true {
+        auto res = iter#.next()
+        match res {
+            auto MapResult<i32,i32>::Some(entry) => {
+                count += 1
+            }
+            auto MapResult<i32,i32>::None => {
+                break
+            }
+        }
+    }
+    
+    if count != 2000 {
+        println("Iterator count mismatch!")
+        return 103
+    }
+
+    println("HashMap Autore-sizing Test Passed.")
+    return 0
+}
