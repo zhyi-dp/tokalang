@@ -124,10 +124,17 @@ pub fn __toka_spawn_blocking(*task: void) {
         
         // 尝试从就绪队列消费协程
         if g_task_queue.len() > 0:usize {
-            auto popped = g_task_queue#.pop()
+            auto tl = g_task_queue.len()
+            auto popped = g_task_queue.get(0)
+            auto k# = 1:usize
+            while k < tl {
+                g_task_queue#.set(k - 1, g_task_queue.get(k))
+                k += 1
+            }
+            g_task_queue#.pop()
             unlock_queue()
             
-            auto addr = popped.unwrap().addr
+            auto addr = popped.addr
             // println("[Loop] Resuming task from queue!")
             __toka_coro_resume(addr as *void)
             // println("[Loop] Task yielded back!")
@@ -142,9 +149,16 @@ pub fn __toka_spawn_blocking(*task: void) {
         // Calculate next timeout based on `g_timer_queue`
         auto timeout_ms# = 100 // default max delay
         lock_queue()
-        if g_timer_queue.len() > 0:usize {
-            auto t = g_timer_queue.get(0)
-            auto wait_time# = t.expire_at - current_time_ms()
+        auto timer_len = g_timer_queue.len()
+        if timer_len > 0:usize {
+            auto min_expire# = g_timer_queue.get(0).expire_at
+            auto i# = 1:usize
+            while i < timer_len {
+                auto exp = g_timer_queue.get(i).expire_at
+                if exp < min_expire { min_expire = exp }
+                i += 1
+            }
+            auto wait_time# = min_expire - current_time_ms()
             if wait_time < 0:i64 { wait_time = 0:i64 }
             if wait_time < timeout_ms as i64 {
                 timeout_ms = wait_time as i32
