@@ -1,54 +1,50 @@
 import std/io::{println}
-import std/task::{sleep_async, block_on, __toka_spawn_blocking}
+import std/task::{sleep_async, block_on, __toka_spawn_blocking, current_time_ms}
 import core/libc::{libc_exit, libc_fflush, libc_printf}
 
+fn log_ms(*msg: char) {
+    auto ms = current_time_ms()
+    libc_printf("[%lld] %s\n", ms, *msg)
+    libc_fflush(0 as *void)
+}
+
 fn worker_a() -> async i32 {
-    println("[Worker A] OK!")
-    libc_fflush(0 as *void)
+    log_ms("[Worker A] OK!" as *char)
     sleep_async(50).await
-    println("[Worker A] FINISHED!")
-    libc_fflush(0 as *void)
+    log_ms("[Worker A] FINISHED!" as *char)
     return 0
 }
 
 fn worker_b() -> async i32 {
-    println("[Worker B] OK!")
-    libc_fflush(0 as *void)
+    log_ms("[Worker B] OK!" as *char)
     sleep_async(10).await
-    println("[Worker B] FINISHED!")
-    libc_fflush(0 as *void)
+    log_ms("[Worker B] FINISHED!" as *char)
     return 0
 }
 
 fn entry_point() -> async i32 {
-    println("[ENTRY] init")
-    libc_fflush(0 as *void)
+    log_ms("[ENTRY] init" as *char)
     auto ta = worker_a().start
     auto tb = worker_b().start
     
     ta.await
-    println("[ENTRY] a.await done")
-    libc_fflush(0 as *void)
+    log_ms("[ENTRY] a.await done" as *char)
     
     tb.await
-    println("[ENTRY] b.await done")
-    libc_fflush(0 as *void)
+    log_ms("[ENTRY] b.await done" as *char)
     
     auto sl = sleep_async(300).start
     sl.await
-    println("[ENTRY] sleep done")
-    libc_fflush(0 as *void)
+    log_ms("[ENTRY] sleep done" as *char)
     return 0
 }
 
 pub fn main() -> i32 {
-    println("[MAIN] 1. call block_on")
-    libc_fflush(0 as *void)
+    log_ms("[MAIN] 1. call block_on" as *char)
     // block on completion
     auto handle = entry_point().start
     
     block_on<i32>(handle#)
-    println("[MAIN] 2. block_on returned!")
-    libc_fflush(0 as *void)
+    log_ms("[MAIN] 2. block_on returned!" as *char)
     return 0
 }
