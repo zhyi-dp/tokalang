@@ -1,0 +1,41 @@
+fn life_old(a: i32, b: i32) -> &i32 <- a | b {
+    if a > b {
+        return &a
+    }
+    return &b
+}
+
+fn life_new(a: i32, b: i32) -> &i32
+effects:
+    return <- a | b
+{
+    if a > b {
+        return &a
+    }
+    return &b
+}
+
+fn life_new2(a: i32, b: i32) -> &res: i32
+effects:
+    &res <- a | b
+{
+    if a > b {
+        return &a
+    }
+    return &b
+}
+
+fn main() -> i32 {
+    auto x = 10
+    auto y = 20
+    
+    auto &res1 = life_old(x, y)
+    auto &res2 = life_new(x, y)
+    auto &res3 = life_new2(x, y)
+    
+    if (res1 != 20) return 1
+    if (res2 != 20) return 2
+    if (res3 != 20) return 3
+    
+    return 0
+}

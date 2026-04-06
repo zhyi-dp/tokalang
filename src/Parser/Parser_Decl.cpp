@@ -478,13 +478,36 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
 
   // Return Type
   std::string retType = "void"; // default
+  std::string retName = "";
   EffectKind effect = EffectKind::None;
   if (match(TokenType::Arrow)) {
     if (match(TokenType::KwAsync)) effect = EffectKind::Async;
     else if (match(TokenType::KwWait)) effect = EffectKind::Wait;
 
     if (!check(TokenType::Dependency) && !check(TokenType::LBrace)) {
-      retType = parseTypeString();
+      int look = 0;
+      if (peekAt(look).Kind == TokenType::KwNul) look++;
+      if (peekAt(look).Kind == TokenType::Ampersand || peekAt(look).Kind == TokenType::Star || 
+          peekAt(look).Kind == TokenType::Caret || peekAt(look).Kind == TokenType::Tilde) look++;
+      if (peekAt(look).Kind == TokenType::TokenWrite) look++;
+      
+      if (peekAt(look).Kind == TokenType::Identifier && peekAt(look+1).Kind == TokenType::Colon) {
+        bool isPtrNullable = match(TokenType::KwNul);
+        std::string prefix = "";
+        if (isPtrNullable) prefix += "nul ";
+        if (match(TokenType::Ampersand)) prefix += "&";
+        else if (match(TokenType::Star)) prefix += "*";
+        else if (match(TokenType::Caret)) prefix += "^";
+        else if (match(TokenType::Tilde)) prefix += "~";
+        if (match(TokenType::TokenWrite)) prefix += "#";
+
+        Token nameTok = consume(TokenType::Identifier, "Expected return name");
+        retName = nameTok.Text;
+        consume(TokenType::Colon, "Expected ':'");
+        retType = prefix + parseTypeString();
+      } else {
+        retType = parseTypeString();
+      }
     }
   }
   std::vector<std::string> lifeDeps;
@@ -538,6 +561,51 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
         return nullptr;
       }
     } while (match(TokenType::Pipe) || match(TokenType::Comma));
+  }
+
+  if (check(TokenType::Identifier) && peek().Text == "effects" && checkAt(1, TokenType::Colon)) {
+    advance(); // get 'effects'
+    advance(); // get ':'
+    while (!check(TokenType::LBrace) && !check(TokenType::EndOfFile)) {
+      bool isReturnAlias = false;
+      if (match(TokenType::KwReturn)) {
+        isReturnAlias = true;
+      } else if (!retName.empty()) {
+        int l = 0;
+        if (peekAt(l).Kind == TokenType::KwNul) l++;
+        if (peekAt(l).Kind == TokenType::Ampersand || peekAt(l).Kind == TokenType::Star || 
+            peekAt(l).Kind == TokenType::Caret || peekAt(l).Kind == TokenType::Tilde) l++;
+        if (peekAt(l).Kind == TokenType::TokenWrite) l++;
+
+        if (peekAt(l).Kind == TokenType::Identifier && peekAt(l).Text == retName && peekAt(l+1).Kind == TokenType::Dependency) {
+          for (int i=0; i<=l; i++) advance(); // consume sigil and name
+          isReturnAlias = true;
+        }
+      }
+
+      if (isReturnAlias) {
+        consume(TokenType::Dependency, "Expected '<-' after LHS in effects block");
+        do {
+          match(TokenType::Ampersand); // Optional & prefix
+          if (check(TokenType::Identifier) || check(TokenType::KwSelf) ||
+              check(TokenType::KwUpperSelf)) {
+            std::string dep = advance().Text;
+            bool exists = false;
+            for (const auto &d : lifeDeps)
+              if (d == dep)
+                exists = true;
+            if (!exists)
+              lifeDeps.push_back(dep);
+          } else {
+            error(peek(), "Expected dependency identifier");
+            return nullptr;
+          }
+        } while (match(TokenType::Pipe) || match(TokenType::Comma));
+      } else {
+        error(peek(), "Only 'return <- ...' or named return LHS is currently supported in effects block");
+        return nullptr;
+      }
+    }
   }
 
   std::unique_ptr<BlockStmt> body = nullptr;
