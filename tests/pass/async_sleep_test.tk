@@ -1,10 +1,19 @@
 import std/io::{println}
 import std/task::{sleep_async, block_on, __toka_spawn_blocking, current_time_ms}
 import core/libc::{libc_exit, libc_fflush, libc_printf}
+import std/time::{Time, DateTime}
 
 fn log_ms(*msg: char) {
     auto ms = current_time_ms()
-    libc_printf("[%lld] %s\n", ms, *msg)
+    auto sec = ms / 1000:i64
+    auto msec = ms % 1000:i64
+    auto t = Time(seconds=sec)
+    auto dt = t.to_datetime()
+    
+    libc_printf("[%04d-%02d-%02d %02d:%02d:%02d.%03lld] %s\n" as *char, 
+        dt.year(), dt.month(), dt.day(), 
+        dt.hour(), dt.minute(), dt.second(), 
+        msec, *msg)
     libc_fflush(0 as *void)
 }
 
