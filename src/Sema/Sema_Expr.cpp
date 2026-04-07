@@ -930,8 +930,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
         }
       }
     } else if (!m_InUnsafeContext && targetType->isSmartPointer() && !srcType->isSmartPointer() &&
-               srcType->toString() != "nullptr" &&
-               srcType->toString() != "*?void") {
+               srcType->toString() != "nullptr") {
       error(Cast, DiagID::ERR_SMART_PTR_FROM_STACK, Cast->TargetType[0]);
     } else if (!m_InUnsafeContext && targetIsRaw &&
                (srcType->isUniquePtr() || srcType->isSharedPtr())) {
@@ -956,8 +955,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       }
     } else if (targetIsRaw) {
       bool srcIsStr = (srcType->toString() == "str");
-      bool srcIsNull =
-          (srcType->toString() == "nullptr" || srcType->toString() == "*?void");
+      bool srcIsNull = (srcType->toString() == "nullptr");
       std::cerr << "[TRACE] targetIsRaw: srcType=" << srcType->toString() << " tgt=" << Cast->TargetType << "\n";
       if (!(srcIsAddr || srcIsRaw || srcIsNumeric || srcIsStr || srcIsNull || srcType->isUniquePtr() || srcType->isSharedPtr())) {
         error(Cast, DiagID::ERR_CAST_MISMATCH, srcType->toString(),

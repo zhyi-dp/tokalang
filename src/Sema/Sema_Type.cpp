@@ -925,11 +925,10 @@ bool Sema::isTypeCompatible(std::shared_ptr<toka::Type> Target,
   }
 
   // 6. Universal Null Compatibility
-  // nullptr (internally *?void) is compatible with any pointer or smart
-  // pointer
+  // nullptr is compatible with any pointer or smart pointer
   auto sStr = S->toString();
   auto tStr = T->toString();
-  if (sStr == "*?void" || sStr == "nullptr") {
+  if (sStr == "nullptr") {
     if (T->isPointer() || T->isSmartPointer() || T->isReference()) {
       if (T->IsNullable)
         return true;
@@ -938,7 +937,7 @@ bool Sema::isTypeCompatible(std::shared_ptr<toka::Type> Target,
         return true;
     }
   }
-  if (tStr == "*?void" || tStr == "nullptr") {
+  if (tStr == "nullptr") {
     if (S->isPointer() || S->isSmartPointer() || S->isReference())
       return true;
   }

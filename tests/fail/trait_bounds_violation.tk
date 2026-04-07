@@ -1,14 +1,15 @@
 trait Send {}
 
 shape Data (
-    value: i32
+    value: i32,
+    *ptr: i32?
 )
 
-fn process<T: @Send>(val: ^T) {
+fn process<T: @Send>(^val: T) {
 }
 
 pub fn main() -> i32 {
-    auto ^d = new Data(value = 42)
-    process<Data>(d) // Should fail: Data does not implement Send
+    auto ^d = new Data(value = 42, *ptr = nullptr)
+    process<Data>(^d) // EXPECT: error[E0606]:
     return 0
 }

@@ -616,7 +616,7 @@ std::string Type::stripMorphology(const std::string &name) {
   while (start < s.size()) {
     char c = s[start];
     if (c == '*' || c == '^' || c == '~' || c == '&' || c == '#' || c == '?' ||
-        c == '!' || c == '$') {
+        c == '$') {
       start++;
     } else {
       break;
@@ -624,10 +624,10 @@ std::string Type::stripMorphology(const std::string &name) {
   }
   s = s.substr(start);
 
-  // 2. Strip Suffixes (#, ?, !)
+  // 2. Strip Suffixes (#, ?, $)
   while (!s.empty()) {
     char c = s.back();
-    if (c == '#' || c == '?' || c == '!' || c == '$') {
+    if (c == '#' || c == '?' || c == '$') {
       s.pop_back();
     } else {
       break;
@@ -649,7 +649,7 @@ std::string Type::stripPrefixes(const std::string &name) {
   while (start < s.size()) {
     char c = s[start];
     if (c == '*' || c == '^' || c == '~' || c == '&' || c == '#' || c == '?' ||
-        c == '!' || c == '$') {
+        c == '$') {
       start++;
     } else {
       break;
@@ -705,9 +705,6 @@ std::shared_ptr<Type> Type::fromString(const std::string &rawType) {
       s.pop_back();
     } else if (back == '?') {
       isNullable = true;
-      s.pop_back();
-    } else if (back == '!') {
-      isWritable = isNullable = true;
       s.pop_back();
     } else if (back == '$') {
       isBlocked = true;
