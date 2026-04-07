@@ -108,7 +108,7 @@ pub fn main() -> i32 {
         return 1
     }
 
-    println("Final Mutex data: {}", ~m.data.val)
+    println("Final Mutex data: {}", m.data.val)
 
     println("Stress test PASS! Reference counter didn't corrupt :)")
     return 0

@@ -4,6 +4,10 @@
   "description": "Syntax highlighting and language support for Toka",
   "version": "0.1.0",
   "publisher": "zhyi",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zhyi-dp/tokalang.git"
+  },
   "engines": {
     "vscode": "^1.80.0"
   },

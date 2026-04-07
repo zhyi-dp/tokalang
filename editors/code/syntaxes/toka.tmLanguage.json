@@ -1,6 +1,9 @@
 {
     "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
-    "name": "Toka",
+    "name": "toka",
+    "aliases": [
+        "Toka"
+    ],
     "scopeName": "source.toka",
     "patterns": [
         {
@@ -8,6 +11,9 @@
         },
         {
             "include": "#strings"
+        },
+        {
+            "include": "#attributes"
         },
         {
             "include": "#keywords"
@@ -142,6 +148,10 @@
                 }
             ]
         },
+        "attributes": {
+            "name": "entity.name.function.decorator.toka",
+            "match": "@[a-zA-Z_][a-zA-Z0-9_]*\\b"
+        },
         "keywords": {
             "patterns": [
                 {
@@ -165,6 +175,10 @@
                     "match": "\\b(async|await|suspend|cancel|start|wait|blocking|block_on)\\b"
                 },
                 {
+                    "name": "keyword.control.effect.toka",
+                    "match": "\\beffects\\b"
+                },
+                {
                     "name": "storage.type.toka",
                     "match": "\\b(fn|shape|trait|impl|type|alias|extern|crate)\\b"
                 },
@@ -177,7 +191,7 @@
                     "match": "\\b(new|delete|del|alloc|free)\\b"
                 },
                 {
-                    "name": "keyword.other.toka",
+                    "name": "keyword.operator.bitwise.toka",
                     "match": "\\b(band|bor|bxor|bnot|bshl|bshr)\\b"
                 },
                 {
@@ -185,7 +199,7 @@
                     "match": "\\b(as|is|where|default|or)\\b"
                 },
                 {
-                    "name": "keyword.other.import.toka",
+                    "name": "keyword.control.import.toka",
                     "match": "\\bimport\\b"
                 },
                 {
@@ -203,6 +217,10 @@
                 {
                     "name": "support.type.primitive.toka",
                     "match": "\\b(i8|u8|i16|u16|i32|u32|i64|u64|f32|f64|bool|void|char|byte|str|nul|Task|Channel|Fn)\\b"
+                },
+                {
+                    "name": "support.type.core.toka",
+                    "match": "\\b(Option|Result|Vec|String|HashMap|Map|Set|Box|Rc|Arc|Cell|RefCell|Mutex|RwLock)\\b"
                 },
                 {
                     "name": "entity.name.type.toka",
@@ -229,10 +247,6 @@
                     "match": "#"
                 },
                 {
-                    "name": "storage.modifier.mutability.nullable.writable.toka",
-                    "match": "!"
-                },
-                {
                     "name": "storage.modifier.nullable.toka",
                     "match": "\\?"
                 },
@@ -257,7 +271,7 @@
                     "match": "&&|\\|\\|"
                 },
                 {
-                    "name": "keyword.operator.morphology.toka",
+                    "name": "storage.modifier.reference.toka",
                     "match": "[\\^~*&]"
                 },
                 {

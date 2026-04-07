@@ -2456,6 +2456,18 @@ std::shared_ptr<toka::Type> Sema::checkUnaryExpr(UnaryExpr *Unary) {
     }
   }
 
+  // [FIX] Enforce Hat-on-Member rule (Chain Restrict)
+  // `~m.a` translates to Unary(~, MemberExpr(m, a)). This is strictly banned.
+  if (Unary->Op == TokenType::Caret || Unary->Op == TokenType::Tilde) {
+
+    if (dynamic_cast<MemberExpr *>(Unary->RHS.get())) {
+      error(Unary, "Morphology symbols (^, *, ~) cannot prefix a member access expression. "
+                   "To get the pointer handle of a member, the sigil must be placed "
+                   "directly before the member name (e.g., use 'm.~a' instead of '~m.a')");
+      return toka::Type::fromString("unknown");
+    }
+  }
+
   // [Ch 5] Single Hat Principle: Intermediate paths MUST NOT have
   // morphology sigils
   if (m_InIntermediatePath) {

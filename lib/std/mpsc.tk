@@ -112,11 +112,11 @@ impl<'T: @Send> Sender<'T> {
 
     pub fn clone(self) -> Sender<'T> {
         guard auto Ok(lguard#) = self.channel.state.lock() else {
-            return Sender<'T>(~channel = ~self.channel)
+            return Sender<'T>(~channel = self.~channel)
         }
         auto *q# = lguard.get_ref()
         q.senders = q.senders + 1
-        return Sender<'T>(~channel = ~self.channel)
+        return Sender<'T>(~channel = self.~channel)
     }
 }
 
