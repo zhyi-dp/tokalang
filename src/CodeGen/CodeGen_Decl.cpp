@@ -1492,15 +1492,16 @@ void CodeGen::genShape(const ShapeDecl *sh) {
         llvm::StructType *st =
             llvm::StructType::get(m_Context, fieldTypes, true);
         variantSize = DL.getTypeAllocSize(st).getFixedValue();
-      } else if (!variant.Type.empty()) {
+      } else if (!variant.Type.empty() && variant.Type != "void") {
         llvm::Type *t = nullptr;
         if (variant.ResolvedType) {
           t = getLLVMType(variant.ResolvedType);
         } else {
           t = resolveType(variant.Type, false);
         }
-        if (t)
+        if (t && !t->isVoidTy()) {
           variantSize = DL.getTypeAllocSize(t).getFixedValue();
+        }
       }
       maxPayloadSize = std::max(maxPayloadSize, variantSize);
     }
@@ -1526,11 +1527,8 @@ void toka::CodeGen::genImpl(const toka::ImplDecl *decl, bool declOnly) {
 
   // [NEW] Skip Impls for template shapes (they won't have LLVM types)
   if (!resolveType(decl->TypeName, false)) {
-    llvm::errs() << "DEBUG: genImpl Skipping " << decl->TypeName
-                 << " (Type not resolved)\n";
     return;
   }
-  llvm::errs() << "DEBUG: genImpl Generating " << decl->TypeName << "\n";
 
   m_CurrentSelfType = decl->TypeName;
   std::set<std::string> implementedMethods;

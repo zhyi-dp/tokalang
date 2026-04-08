@@ -16,6 +16,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <map>
 
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/Type.h>
@@ -114,6 +115,12 @@ public:
   bool isShape() const { return typeKind == Shape; }
   virtual std::string getSoulName() const { return toString(); }
 
+  // [NEW] Substitute generic parameters
+  virtual std::shared_ptr<Type> substitute(const std::map<std::string, std::shared_ptr<Type>> &substMap) const {
+    return const_cast<Type *>(this)->shared_from_this();
+  }
+
+
   // [NEW] Get the "Soul" Type (underlying non-pointer type)
   virtual std::shared_ptr<Type> getSoulType() const {
     return const_cast<Type *>(this)->shared_from_this();
@@ -165,6 +172,7 @@ public:
 
 class PointerType : public Type {
 public:
+  std::shared_ptr<Type> substitute(const std::map<std::string, std::shared_ptr<Type>> &substMap) const override;
   std::shared_ptr<Type> PointeeType;
 
   PointerType(Kind k, std::shared_ptr<Type> pointee)
@@ -235,6 +243,7 @@ public:
 
 class ArrayType : public Type {
 public:
+  std::shared_ptr<Type> substitute(const std::map<std::string, std::shared_ptr<Type>> &substMap) const override;
   std::shared_ptr<Type> ElementType;
   uint64_t Size;
   std::string SymbolicSize; // [NEW] For const generics like N_
@@ -256,6 +265,7 @@ public:
 
 class SliceType : public Type {
 public:
+  std::shared_ptr<Type> substitute(const std::map<std::string, std::shared_ptr<Type>> &substMap) const override;
   std::shared_ptr<Type> ElementType;
 
   SliceType(std::shared_ptr<Type> elem)
@@ -274,13 +284,16 @@ public:
 
 class ShapeType : public Type {
 public:
+  std::shared_ptr<Type> substitute(const std::map<std::string, std::shared_ptr<Type>> &substMap) const override;
   std::string Name;
   std::vector<std::shared_ptr<Type>> GenericArgs; // [NEW] Generic Arguments
+  std::string VariantSuffix; // For ::VariantName
   ShapeDecl *Decl = nullptr;
   bool IsSync = false; // [NEW] Track atomic reference status based on definition
   ShapeType(const std::string &name,
-            std::vector<std::shared_ptr<Type>> args = {})
-      : Type(Shape), Name(name), GenericArgs(std::move(args)) {}
+            std::vector<std::shared_ptr<Type>> args = {},
+            const std::string &variantSuffix = "")
+      : Type(Shape), Name(name), GenericArgs(std::move(args)), VariantSuffix(variantSuffix) {}
   void resolve(ShapeDecl *decl);
   bool isResolved() const { return Decl != nullptr; }
   std::string toString() const override;
@@ -295,6 +308,7 @@ public:
 
 class TupleType : public Type {
 public:
+  std::shared_ptr<Type> substitute(const std::map<std::string, std::shared_ptr<Type>> &substMap) const override;
   std::vector<std::shared_ptr<Type>> Elements;
 
   TupleType(std::vector<std::shared_ptr<Type>> elems)
@@ -310,6 +324,7 @@ public:
 
 class FunctionType : public Type {
 public:
+  std::shared_ptr<Type> substitute(const std::map<std::string, std::shared_ptr<Type>> &substMap) const override;
   std::vector<std::shared_ptr<Type>> ParamTypes;
   std::shared_ptr<Type> ReturnType;
   bool IsVariadic = false;
@@ -330,6 +345,7 @@ public:
 
 class DynFnType : public Type {
 public:
+  std::shared_ptr<Type> substitute(const std::map<std::string, std::shared_ptr<Type>> &substMap) const override;
   std::vector<std::shared_ptr<Type>> ParamTypes;
   std::shared_ptr<Type> ReturnType;
 

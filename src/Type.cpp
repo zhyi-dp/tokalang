@@ -376,6 +376,7 @@ std::string ShapeType::toString() const {
     }
     s += ">";
   }
+  s += VariantSuffix;
   if (IsWritable && IsNullable) {
     s += "?#";
   } else {
@@ -597,6 +598,74 @@ bool DynFnType::isSync(class Sema *S) const { return true; }
 std::shared_ptr<Type> UnresolvedType::withAttributes(bool w, bool n,
                                                      bool b) const {
   return cloneWithAttrs(this, w, n, b);
+}
+
+// --- Substitution Implementations ---
+
+std::shared_ptr<Type> PointerType::substitute(const std::map<std::string, std::shared_ptr<Type>> &substMap) const {
+  auto pt = std::dynamic_pointer_cast<PointerType>(withAttributes(IsWritable, IsNullable, IsBlocked));
+  if (PointeeType) pt->PointeeType = PointeeType->substitute(substMap);
+  return pt;
+}
+
+std::shared_ptr<Type> ArrayType::substitute(const std::map<std::string, std::shared_ptr<Type>> &substMap) const {
+  auto at = std::dynamic_pointer_cast<ArrayType>(withAttributes(IsWritable, IsNullable, IsBlocked));
+  if (ElementType) at->ElementType = ElementType->substitute(substMap);
+  if (!SymbolicSize.empty() && substMap.count(SymbolicSize)) {
+    at->SymbolicSize = substMap.at(SymbolicSize)->toString();
+  }
+  return at;
+}
+
+std::shared_ptr<Type> SliceType::substitute(const std::map<std::string, std::shared_ptr<Type>> &substMap) const {
+  auto st = std::dynamic_pointer_cast<SliceType>(withAttributes(IsWritable, IsNullable, IsBlocked));
+  if (ElementType) st->ElementType = ElementType->substitute(substMap);
+  return st;
+}
+
+std::shared_ptr<Type> ShapeType::substitute(const std::map<std::string, std::shared_ptr<Type>> &substMap) const {
+  if (substMap.count(Name)) {
+    // Substitute base. Does not usually have VariantSuffix but we can append it if needed, or just return.
+    auto substituted = substMap.at(Name)->withAttributes(IsWritable, IsNullable, IsBlocked);
+    if (!VariantSuffix.empty()) {
+      if (auto st = std::dynamic_pointer_cast<ShapeType>(substituted)) {
+        st->VariantSuffix += VariantSuffix;
+      }
+    }
+    return substituted;
+  }
+  auto st = std::dynamic_pointer_cast<ShapeType>(withAttributes(IsWritable, IsNullable, IsBlocked));
+  st->VariantSuffix = VariantSuffix;
+  for (auto &arg : st->GenericArgs) {
+    if (arg) arg = arg->substitute(substMap);
+  }
+  return st;
+}
+
+std::shared_ptr<Type> TupleType::substitute(const std::map<std::string, std::shared_ptr<Type>> &substMap) const {
+  auto tt = std::dynamic_pointer_cast<TupleType>(withAttributes(IsWritable, IsNullable, IsBlocked));
+  for (auto &el : tt->Elements) {
+    if (el) el = el->substitute(substMap);
+  }
+  return tt;
+}
+
+std::shared_ptr<Type> FunctionType::substitute(const std::map<std::string, std::shared_ptr<Type>> &substMap) const {
+  auto ft = std::dynamic_pointer_cast<FunctionType>(withAttributes(IsWritable, IsNullable, IsBlocked));
+  for (auto &param : ft->ParamTypes) {
+    if (param) param = param->substitute(substMap);
+  }
+  if (ft->ReturnType) ft->ReturnType = ft->ReturnType->substitute(substMap);
+  return ft;
+}
+
+std::shared_ptr<Type> DynFnType::substitute(const std::map<std::string, std::shared_ptr<Type>> &substMap) const {
+  auto dt = std::dynamic_pointer_cast<DynFnType>(withAttributes(IsWritable, IsNullable, IsBlocked));
+  for (auto &param : dt->ParamTypes) {
+    if (param) param = param->substitute(substMap);
+  }
+  if (dt->ReturnType) dt->ReturnType = dt->ReturnType->substitute(substMap);
+  return dt;
 }
 
 // --- Static Factory (The Parser) ---
@@ -989,11 +1058,13 @@ std::shared_ptr<Type> Type::fromString(const std::string &rawType) {
   size_t gt = s.rfind('>');
   std::vector<std::shared_ptr<Type>> genericArgs;
   std::string baseName = s;
+  std::string variantSuffix = "";
 
   if (lt != std::string::npos && gt != std::string::npos && gt > lt) {
     baseName = s.substr(0, lt);
     std::string argsStr = s.substr(lt + 1, gt - lt - 1);
-
+    variantSuffix = trim(s.substr(gt + 1));
+    
     // Split args logic (handle nested generics)
     int balance = 0;
     size_t start = 0;
@@ -1017,9 +1088,16 @@ std::shared_ptr<Type> Type::fromString(const std::string &rawType) {
     if (start < argsStr.size()) {
       genericArgs.push_back(Type::fromString(argsStr.substr(start)));
     }
+  } else {
+    // e.g. T::Some, we also need to extract VariantSuffix if there are no brackets
+    size_t colcol = s.find("::");
+    if (colcol != std::string::npos) {
+      baseName = s.substr(0, colcol);
+      variantSuffix = trim(s.substr(colcol));
+    }
   }
 
-  auto shape = std::make_shared<ShapeType>(baseName, genericArgs);
+  auto shape = std::make_shared<ShapeType>(baseName, genericArgs, variantSuffix);
   shape->IsWritable = isWritable;
   shape->IsNullable = isNullable;
   shape->IsBlocked = isBlocked;

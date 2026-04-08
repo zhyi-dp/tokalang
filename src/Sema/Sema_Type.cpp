@@ -488,33 +488,7 @@ Sema::instantiateGenericShape(std::shared_ptr<ShapeType> GenericShape) {
   for (auto &oldMember : Template->Members) {
     ShapeMember newM = oldMember;
 
-    // (Canceled)
-    // [FIX] Nested Generic Substitution Workaround (Phase 1.5)
-    // If type string contains generic param, replace it.
-    // E.g. "Node<T>" -> "Node<i32>"
-    // Very naive, but needed for `^next: Node<T>`
-    std::string memberTypeStr = newM.Type;
-    // For each param, replace in string
-    for (auto const &[K, V] : substMap) {
-      size_t pos = 0;
-      while ((pos = memberTypeStr.find(K, pos)) != std::string::npos) {
-        // Check word boundaries (include underscore)
-        auto isWordChar = [](char c) { return std::isalnum(c) || c == '_'; };
-        bool startOk = (pos == 0) || !isWordChar(memberTypeStr[pos - 1]);
-        bool endOk = (pos + K.size() == memberTypeStr.size()) ||
-                     !isWordChar(memberTypeStr[pos + K.size()]);
-
-        if (startOk && endOk) {
-          std::string valStr = V->toString();
-          memberTypeStr.replace(pos, K.size(), valStr);
-          pos += valStr.size();
-        } else {
-          pos += K.size();
-        }
-      }
-    }
-    newM.Type = memberTypeStr;
-
+    newM.Type = oldMember.Type; // Wait, actually resolveMember parses `m.Type` and we substitute there! We don't need any pre-computation here.
     newMembers.push_back(std::move(newM));
   }
 
@@ -550,22 +524,16 @@ Sema::instantiateGenericShape(std::shared_ptr<ShapeType> GenericShape) {
       if (!hasMorphology) {
         fullTypeStr = prefix + m.Type;
       }
-      // [NEW] If it's an array with a symbolic size that's one of our generic
-      // params, replace it before resolution.
+      
+      // [NEW] Structural Substitution
       auto memberTypeObj = toka::Type::fromString(fullTypeStr);
-      if (auto arr =
-              std::dynamic_pointer_cast<toka::ArrayType>(memberTypeObj)) {
-        if (!arr->SymbolicSize.empty() && substMap.count(arr->SymbolicSize)) {
-          std::string valStr = substMap.at(arr->SymbolicSize)->toString();
-          size_t semi = fullTypeStr.find(';');
-          size_t close = fullTypeStr.find(']', semi);
-          if (semi != std::string::npos && close != std::string::npos) {
-            std::string newVal = fullTypeStr.substr(0, semi + 1) + " " +
-                                 valStr + fullTypeStr.substr(close);
-            fullTypeStr = newVal;
-          }
-        }
-      }
+      auto subObj = memberTypeObj->substitute(substMap);
+      std::string newStr = subObj->toString();
+      llvm::errs() << "DEBUG: [Shape] sub [" << fullTypeStr << "] -> [" << newStr << "]\n";
+      fullTypeStr = newStr;
+      
+      // Update m.Type to ensure downstream logic (e.g. CodeGen) perceives the substituted template type
+      m.Type = fullTypeStr;
 
       std::string resolvedName = resolveType(fullTypeStr);
       m.ResolvedType = toka::Type::fromString(resolvedName);
@@ -573,31 +541,6 @@ Sema::instantiateGenericShape(std::shared_ptr<ShapeType> GenericShape) {
 
     // [NEW] Handle Nested Substitution for SubMembers (Variants)
     for (auto &sub : member.SubMembers) {
-      if (substMap.count(sub.Type)) {
-        sub.ResolvedType = substMap[sub.Type];
-        sub.Type = sub.ResolvedType->toString();
-      } else {
-        std::string subTypeStr = sub.Type;
-        for (auto const &[K, V] : substMap) {
-          size_t pos = 0;
-          while ((pos = subTypeStr.find(K, pos)) != std::string::npos) {
-            auto isWordChar = [](char c) {
-              return std::isalnum(c) || c == '_';
-            };
-            bool startOk = (pos == 0) || !isWordChar(subTypeStr[pos - 1]);
-            bool endOk = (pos + K.size() == subTypeStr.size()) ||
-                         !isWordChar(subTypeStr[pos + K.size()]);
-            if (startOk && endOk) {
-              std::string valStr = V->toString();
-              subTypeStr.replace(pos, K.size(), valStr);
-              pos += valStr.size();
-            } else {
-              pos += K.size();
-            }
-          }
-        }
-        sub.Type = subTypeStr;
-      }
       resolveMember(sub);
     }
 

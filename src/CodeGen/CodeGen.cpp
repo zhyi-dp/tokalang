@@ -247,21 +247,18 @@ void CodeGen::resolveSignatures(const Module &ast) {
 }
 
 void CodeGen::generate(const Module &ast) {
-  std::cerr << "[DEBUG] CodeGen::generate starting for module.\n";
   m_AST = &ast;
 
   // Generate Globals (Emission)
   for (const auto &glob : ast.Globals) {
     genGlobal(glob.get());
-    if (hasErrors())
-      return;
+    if (hasErrors()) return;
   }
 
   // [Fix] Generate Impl bodies BEFORE function bodies so drop() exists
   for (const auto &impl : ast.Impls) {
     genImpl(impl.get(), false);
-    if (hasErrors())
-      return;
+    if (hasErrors()) return;
   }
 
   // Generate Functions (Body Phase)
