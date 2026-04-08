@@ -1371,7 +1371,7 @@ PhysEntity CodeGen::genCastExpr(const CastExpr *cast) {
       }
       // [CRITICAL] bitcast address, preserving L-Value. DO NOT LOAD.
       llvm::Value *newAddr =
-          m_Builder.CreateBitCast(addr, destTy->getPointerTo());
+          m_Builder.CreateBitCast(addr, llvm::PointerType::get(destTy, 0));
       return PhysEntity(newAddr, cast->TargetType, destTy, true);
     }
   }
@@ -1640,7 +1640,7 @@ PhysEntity CodeGen::genLiteralExpr(const Expr *expr) {
     return llvm::ConstantPointerNull::get(m_Builder.getPtrTy());
   }
   if (auto *str = dynamic_cast<const StringExpr *>(expr)) {
-    return m_Builder.CreateGlobalStringPtr(str->Value);
+    return m_Builder.CreateGlobalString(str->Value);
   }
   if (auto *chr = dynamic_cast<const CharLiteralExpr *>(expr)) {
     return llvm::ConstantInt::get(llvm::Type::getInt8Ty(m_Context), chr->Value);
@@ -1695,8 +1695,8 @@ llvm::Value *CodeGen::genNullCheck(llvm::Value *val, const ASTNode *node,
   }
 
   std::vector<llvm::Value *> args;
-  args.push_back(m_Builder.CreateGlobalStringPtr(msg, "panic_msg"));
-  args.push_back(m_Builder.CreateGlobalStringPtr(fileName, "panic_file"));
+  args.push_back(m_Builder.CreateGlobalString(msg, "panic_msg"));
+  args.push_back(m_Builder.CreateGlobalString(fileName, "panic_file"));
   args.push_back(m_Builder.getInt32(line));
 
   m_Builder.CreateCall(panicFunc, args);
@@ -1704,7 +1704,7 @@ llvm::Value *CodeGen::genNullCheck(llvm::Value *val, const ASTNode *node,
   // Ensure execution terminates even if __toka_panic somehow returns (it
   // shouldn't)
   llvm::Function *trap =
-      llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::trap);
+      llvm::Intrinsic::getOrInsertDeclaration(m_Module.get(), llvm::Intrinsic::trap);
   m_Builder.CreateCall(trap);
   m_Builder.CreateUnreachable();
 
@@ -2692,10 +2692,10 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
           error(call, "await can only be used inside an async function");
           return {};
       }
-      llvm::Function *saveFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_save);
+      llvm::Function *saveFn = llvm::Intrinsic::getOrInsertDeclaration(m_Module.get(), llvm::Intrinsic::coro_save);
       llvm::Value *saveToken = m_Builder.CreateCall(saveFn, {m_CurrentCoroHandle});
       
-      llvm::Function *suspendFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_suspend);
+      llvm::Function *suspendFn = llvm::Intrinsic::getOrInsertDeclaration(m_Module.get(), llvm::Intrinsic::coro_suspend);
       llvm::Value *suspendRes = m_Builder.CreateCall(suspendFn, {saveToken, m_Builder.getInt1(false)});
       
       llvm::BasicBlock *resumeBB = llvm::BasicBlock::Create(m_Context, "await.resume", m_Builder.GetInsertBlock()->getParent());
@@ -2706,7 +2706,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
       sw->addCase(m_Builder.getInt8(1), cleanupBB);
       
       m_Builder.SetInsertPoint(cleanupBB);
-      llvm::Function *freeIdFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_free);
+      llvm::Function *freeIdFn = llvm::Intrinsic::getOrInsertDeclaration(m_Module.get(), llvm::Intrinsic::coro_free);
       llvm::Value *memToFree = m_Builder.CreateCall(freeIdFn, {m_CurrentCoroId, m_CurrentCoroHandle});
       llvm::Function *freeFn = m_Module->getFunction("free");
       m_Builder.CreateCall(freeFn, memToFree);
@@ -2718,7 +2718,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
   if (call->Callee == "__builtin_coro_resume") {
       PhysEntity handleEnt = genExpr(call->Args[0].get());
       llvm::Value *handleVal = handleEnt.load(m_Builder);
-      llvm::Function *resumeFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_resume);
+      llvm::Function *resumeFn = llvm::Intrinsic::getOrInsertDeclaration(m_Module.get(), llvm::Intrinsic::coro_resume);
       m_Builder.CreateCall(resumeFn, {handleVal});
       return PhysEntity(llvm::Constant::getNullValue(m_Builder.getInt32Ty()), "void", m_Builder.getVoidTy(), false);
   }
@@ -2726,7 +2726,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
   if (call->Callee == "__builtin_coro_done") {
       PhysEntity handleEnt = genExpr(call->Args[0].get());
       llvm::Value *handleVal = handleEnt.load(m_Builder);
-      llvm::Function *doneFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_done);
+      llvm::Function *doneFn = llvm::Intrinsic::getOrInsertDeclaration(m_Module.get(), llvm::Intrinsic::coro_done);
       llvm::Value *res = m_Builder.CreateCall(doneFn, {handleVal});
       return PhysEntity(res, "bool", m_Builder.getInt1Ty(), false);
   }
@@ -2734,7 +2734,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
   if (call->Callee == "__builtin_coro_destroy") {
       PhysEntity handleEnt = genExpr(call->Args[0].get());
       llvm::Value *handleVal = handleEnt.load(m_Builder);
-      llvm::Function *destroyFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_destroy);
+      llvm::Function *destroyFn = llvm::Intrinsic::getOrInsertDeclaration(m_Module.get(), llvm::Intrinsic::coro_destroy);
       m_Builder.CreateCall(destroyFn, {handleVal});
       return PhysEntity(llvm::Constant::getNullValue(m_Builder.getInt32Ty()), "void", m_Builder.getVoidTy(), false);
   }
@@ -2753,10 +2753,10 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
           return {};
       }
 
-      llvm::Function *saveFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_save);
+      llvm::Function *saveFn = llvm::Intrinsic::getOrInsertDeclaration(m_Module.get(), llvm::Intrinsic::coro_save);
       llvm::Value *saveToken = m_Builder.CreateCall(saveFn, {m_CurrentCoroHandle});
       
-      llvm::Function *suspendFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_suspend);
+      llvm::Function *suspendFn = llvm::Intrinsic::getOrInsertDeclaration(m_Module.get(), llvm::Intrinsic::coro_suspend);
       llvm::Value *suspendRes = m_Builder.CreateCall(suspendFn, {saveToken, m_Builder.getInt1(false)});
       
       llvm::BasicBlock *resumeBB = llvm::BasicBlock::Create(m_Context, "suspend.resume", m_Builder.GetInsertBlock()->getParent());
@@ -2767,7 +2767,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
       sw->addCase(m_Builder.getInt8(1), cleanupBB);
       
       m_Builder.SetInsertPoint(cleanupBB);
-      llvm::Function *freeIdFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_free);
+      llvm::Function *freeIdFn = llvm::Intrinsic::getOrInsertDeclaration(m_Module.get(), llvm::Intrinsic::coro_free);
       llvm::Value *memToFree = m_Builder.CreateCall(freeIdFn, {m_CurrentCoroId, m_CurrentCoroHandle});
       llvm::Function *freeFn = m_Module->getFunction("free");
       if (!freeFn) {
@@ -2950,8 +2950,8 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
       std::string text = fmt.substr(lastPos, pos - lastPos);
       if (!text.empty()) {
         std::vector<llvm::Value *> safeArgs;
-        safeArgs.push_back(m_Builder.CreateGlobalStringPtr("%s"));
-        safeArgs.push_back(m_Builder.CreateGlobalStringPtr(text));
+        safeArgs.push_back(m_Builder.CreateGlobalString("%s"));
+        safeArgs.push_back(m_Builder.CreateGlobalString(text));
         m_Builder.CreateCall(printfFunc, safeArgs);
       }
 
@@ -2971,8 +2971,8 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
           std::string semanticType = val_ent.typeName;
 
           if (ty->isIntegerTy(1)) { // bool
-            llvm::Value *trueStr = m_Builder.CreateGlobalStringPtr("true");
-            llvm::Value *falseStr = m_Builder.CreateGlobalStringPtr("false");
+            llvm::Value *trueStr = m_Builder.CreateGlobalString("true");
+            llvm::Value *falseStr = m_Builder.CreateGlobalString("false");
             pVal = m_Builder.CreateSelect(val, trueStr, falseStr);
             spec = "%s";
           } else if (ty->isIntegerTy(8) || semanticType == "char" ||
@@ -3059,7 +3059,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
 
           if (!spec.empty()) {
             std::vector<llvm::Value *> pArgs;
-            pArgs.push_back(m_Builder.CreateGlobalStringPtr(spec));
+            pArgs.push_back(m_Builder.CreateGlobalString(spec));
             pArgs.push_back(pVal);
             m_Builder.CreateCall(printfFunc, pArgs);
           }
@@ -3073,8 +3073,8 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
     std::string tail = fmt.substr(lastPos);
     tail += "\n"; // Auto newline
     std::vector<llvm::Value *> tailArgs;
-    tailArgs.push_back(m_Builder.CreateGlobalStringPtr("%s"));
-    tailArgs.push_back(m_Builder.CreateGlobalStringPtr(tail));
+    tailArgs.push_back(m_Builder.CreateGlobalString("%s"));
+    tailArgs.push_back(m_Builder.CreateGlobalString(tail));
     m_Builder.CreateCall(printfFunc, tailArgs);
 
     return llvm::ConstantInt::get(m_Builder.getInt32Ty(), 0);
@@ -4694,7 +4694,7 @@ PhysEntity CodeGen::genAwaitExpr(const AwaitExpr *awaitExpr) {
         targetCoroHandle = m_Builder.CreateExtractValue(handleVal, 0, "await.coro_handle");
     }
     
-    llvm::Function *promiseFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_promise);
+    llvm::Function *promiseFn = llvm::Intrinsic::getOrInsertDeclaration(m_Module.get(), llvm::Intrinsic::coro_promise);
     llvm::Value *alignment = m_Builder.getInt32(8);
     llvm::Value *fromPromise = m_Builder.getInt1(false);
     llvm::Value *targetPromisePtrRaw = m_Builder.CreateCall(promiseFn, {targetCoroHandle, alignment, fromPromise}, "target.promise.raw");
@@ -4724,8 +4724,8 @@ PhysEntity CodeGen::genAwaitExpr(const AwaitExpr *awaitExpr) {
     llvm::Value *targetAwaiterPtr = m_Builder.CreateStructGEP(targetPromiseType, targetPromisePtrRaw, 1, "target.awaiter.ptr");
     m_Builder.CreateStore(m_CurrentCoroHandle, targetAwaiterPtr);
     
-    llvm::Function *saveFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_save);
-    llvm::Function *suspFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_suspend);
+    llvm::Function *saveFn = llvm::Intrinsic::getOrInsertDeclaration(m_Module.get(), llvm::Intrinsic::coro_save);
+    llvm::Function *suspFn = llvm::Intrinsic::getOrInsertDeclaration(m_Module.get(), llvm::Intrinsic::coro_suspend);
     
     llvm::Value *saveToken = m_Builder.CreateCall(saveFn, {m_CurrentCoroHandle});
     llvm::Value *suspendRes = m_Builder.CreateCall(suspFn, {saveToken, m_Builder.getInt1(false)});
@@ -4763,7 +4763,7 @@ PhysEntity CodeGen::genWaitExpr(const WaitExpr *waitExpr) {
         targetCoroHandle = m_Builder.CreateExtractValue(handleVal, 0, "wait.coro_handle");
     }
     
-    llvm::Function *promiseFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_promise);
+    llvm::Function *promiseFn = llvm::Intrinsic::getOrInsertDeclaration(m_Module.get(), llvm::Intrinsic::coro_promise);
     llvm::Value *alignment = m_Builder.getInt32(8);
     llvm::Value *fromPromise = m_Builder.getInt1(false);
     llvm::Value *targetPromisePtrRaw = m_Builder.CreateCall(promiseFn, {targetCoroHandle, alignment, fromPromise}, "target.promise.raw");

@@ -1640,7 +1640,7 @@ PhysEntity toka::CodeGen::genMethodCall(const toka::MethodCallExpr *expr) {
 
       m_Builder.SetInsertPoint(panicBB);
       // [TODO] Call __toka_panic properly. For now, trap or abort.
-      llvm::Function *trap = llvm::Intrinsic::getDeclaration(
+      llvm::Function *trap = llvm::Intrinsic::getOrInsertDeclaration(
           m_Module.get(), llvm::Intrinsic::trap);
       m_Builder.CreateCall(trap);
       m_Builder.CreateUnreachable();

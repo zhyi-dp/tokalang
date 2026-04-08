@@ -105,7 +105,7 @@ PhysEntity CodeGen::genExpr(const Expr *expr) {
           error(e, "await can only be used inside an async function");
           return {};
       }
-      llvm::Function *suspendFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_suspend);
+      llvm::Function *suspendFn = llvm::Intrinsic::getOrInsertDeclaration(m_Module.get(), llvm::Intrinsic::coro_suspend);
       llvm::Value *suspendRes = m_Builder.CreateCall(suspendFn, {llvm::ConstantTokenNone::get(m_Context), m_Builder.getInt1(false)});
       
       llvm::BasicBlock *suspendBB = llvm::BasicBlock::Create(m_Context, "await.suspend", m_Builder.GetInsertBlock()->getParent());
@@ -120,7 +120,7 @@ PhysEntity CodeGen::genExpr(const Expr *expr) {
       m_Builder.CreateRet(m_CurrentCoroHandle);
       
       m_Builder.SetInsertPoint(cleanupBB);
-      llvm::Function *freeIdFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_free);
+      llvm::Function *freeIdFn = llvm::Intrinsic::getOrInsertDeclaration(m_Module.get(), llvm::Intrinsic::coro_free);
       llvm::Value *memToFree = m_Builder.CreateCall(freeIdFn, {m_CurrentCoroId, m_CurrentCoroHandle});
       llvm::Function *freeFn = m_Module->getFunction("free");
       m_Builder.CreateCall(freeFn, memToFree);

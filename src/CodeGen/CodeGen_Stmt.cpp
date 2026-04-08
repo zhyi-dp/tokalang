@@ -523,7 +523,7 @@ void CodeGen::genCoroutineReturn(llvm::Value *retVal) {
         m_Builder.CreateCondBr(isNotNull, resumeBB, suspendFinalBB);
         
         m_Builder.SetInsertPoint(resumeBB);
-        llvm::Function *resumeFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_resume);
+        llvm::Function *resumeFn = llvm::Intrinsic::getOrInsertDeclaration(m_Module.get(), llvm::Intrinsic::coro_resume);
         m_Builder.CreateCall(resumeFn, {awaiter});
         m_Builder.CreateBr(suspendFinalBB);
         
@@ -537,7 +537,7 @@ void CodeGen::genCoroutineReturn(llvm::Value *retVal) {
         m_CurrentCoroFinalSuspendBB = llvm::BasicBlock::Create(m_Context, "coro.suspend.final", savedBB->getParent());
         m_Builder.SetInsertPoint(m_CurrentCoroFinalSuspendBB);
         
-        llvm::Function *suspendFn = llvm::Intrinsic::getDeclaration(m_Module.get(), llvm::Intrinsic::coro_suspend);
+        llvm::Function *suspendFn = llvm::Intrinsic::getOrInsertDeclaration(m_Module.get(), llvm::Intrinsic::coro_suspend);
         llvm::BasicBlock *cleanupBB = llvm::BasicBlock::Create(m_Context, "coro.cleanup", savedBB->getParent());
         llvm::BasicBlock *trapBB = llvm::BasicBlock::Create(m_Context, "coro.trap", savedBB->getParent());
         
