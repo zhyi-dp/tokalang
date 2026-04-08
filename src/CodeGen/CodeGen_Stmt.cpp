@@ -24,7 +24,7 @@ namespace toka {
 llvm::Value *CodeGen::genReturnStmt(const ReturnStmt *ret) {
   llvm::Value *retVal = nullptr;
   if (ret->ReturnValue) {
-    std::cerr << "DEBUG CodeGen: ReturnStmt has ReturnValue of type " << typeid(*ret->ReturnValue).name() << "\n";
+    std::cerr << "DEBUG CodeGen: ReturnStmt has ReturnValue\n";
     retVal = genExpr(ret->ReturnValue.get()).load(m_Builder);
     if (!retVal) {
       std::cerr << "DEBUG CodeGen: ReturnStmt evaluation yielded nullptr!\n";

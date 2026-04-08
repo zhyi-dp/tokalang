@@ -2369,7 +2369,7 @@ std::shared_ptr<toka::Type> Sema::checkMemberExpr(MemberExpr *Memb) {
           if (requestedPrefix == "??") {
             // Identity Assertion (Ch 6.1)
             if (!fieldType->isPointer() && !fieldType->isSmartPointer()) {
-              error(Memb, "Identity assertion '??' can only be applied to "
+              error(Memb, "Identity assertion '??" "' can only be applied to "
                           "pointers, got '" +
                               fieldType->toString() + "'");
             }
