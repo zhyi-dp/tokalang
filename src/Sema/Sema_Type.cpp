@@ -785,7 +785,7 @@ bool Sema::isTypeCompatible(std::shared_ptr<toka::Type> Target,
     auto sourcePtr = std::dynamic_pointer_cast<toka::PointerType>(Source);
 
     // Rule 1: Morphologies MUST match exactly in Toka 1.3
-    if (targetPtr->toString()[0] == sourcePtr->toString()[0]) {
+    if (targetPtr->typeKind == sourcePtr->typeKind) {
       // Rule 2: Pointee Types must be compatible
       if (isTypeCompatible(targetPtr->getPointeeType(),
                            sourcePtr->getPointeeType())) {

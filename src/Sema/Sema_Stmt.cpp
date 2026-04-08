@@ -746,8 +746,8 @@ void Sema::checkStmt(Stmt *S) {
     auto declType = toka::Type::fromString(Destruct->TypeName);
 
     // Basic check: declType should match initType
-    if (!Destruct->TypeName.empty() && initType->toString() != "unknown" &&
-        initType->toString() != "tuple" &&
+    if (!Destruct->TypeName.empty() && !initType->isUnknown() &&
+        !initType->isTuple() &&
         !isTypeCompatible(declType, initType)) {
       DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_TYPE_MISMATCH,
                                initType->toString(), declType->toString());

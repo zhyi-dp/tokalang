@@ -928,7 +928,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
         }
       }
     } else if (!m_InUnsafeContext && targetType->isSmartPointer() && !srcType->isSmartPointer() &&
-               srcType->toString() != "null") {
+               !srcType->isNullType()) {
       error(Cast, DiagID::ERR_SMART_PTR_FROM_STACK, Cast->TargetType[0]);
     } else if (!m_InUnsafeContext && targetIsRaw &&
                (srcType->isUniquePtr() || srcType->isSharedPtr())) {
@@ -1164,7 +1164,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
         isSoulNullable = true;
       }
 
-      if (!isPtrNullable && !isSoulNullable && condType->toString() != "void") {
+      if (!isPtrNullable && !isSoulNullable && !condType->isVoid()) {
         error(guard->Condition.get(), "guard condition must be a nullable type");
       }
 
