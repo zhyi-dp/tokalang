@@ -216,23 +216,28 @@ int main(int argc, char **argv) {
   fprintf(stderr, "CodeGen instantiated.\n");
   fflush(stderr);
 
+  std::unique_ptr<toka::Module> genericModule = sema.extractGenericRegistry();
+  
   fprintf(stderr, "Pass 1: Discovery (Registration)...\n");
   fflush(stderr);
   for (const auto &ast : astModules) {
     codegen.discover(*ast);
   }
+  if (genericModule) codegen.discover(*genericModule);
 
   fprintf(stderr, "Pass 2: Resolution (Signatures)...\n");
   fflush(stderr);
   for (const auto &ast : astModules) {
     codegen.resolveSignatures(*ast);
   }
+  if (genericModule) codegen.resolveSignatures(*genericModule);
 
   fprintf(stderr, "Pass 3: Generation (Emission)...\n");
   fflush(stderr);
   for (const auto &ast : astModules) {
     codegen.generate(*ast);
   }
+  if (genericModule) codegen.generate(*genericModule);
   
   codegen.finalizeGlobals();
 

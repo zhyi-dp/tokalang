@@ -5377,8 +5377,8 @@ std::shared_ptr<toka::Type> toka::Sema::checkClosureExpr(ClosureExpr *Clo) {
   implMethods.push_back(std::move(invokeFunc));
   auto implDecl = std::make_unique<ImplDecl>(UniqueName, std::move(implMethods));
 
-  if (CurrentModule) {
-      CurrentModule->Impls.push_back(std::move(implDecl));
+  if (GenericInstancesModule) {
+      GenericInstancesModule->Impls.push_back(std::move(implDecl));
   }
 
   return toka::Type::fromString(UniqueName);

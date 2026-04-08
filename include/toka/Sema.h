@@ -166,11 +166,17 @@ public:
 
 class Sema {
 public:
-  Sema() = default;
+  Sema() {
+    GenericInstancesModule = std::make_unique<toka::Module>();
+  }
 
   /// \brief Run semantic analysis on the module.
   /// \return true if success, false if errors found.
   bool checkModule(Module &M);
+  
+  std::unique_ptr<toka::Module> extractGenericRegistry() {
+    return std::move(GenericInstancesModule);
+  }
 
   bool hasErrors() const { return HasError; }
 
@@ -261,6 +267,7 @@ private:
   std::string getModuleName(Module *M);
 
   Module *CurrentModule = nullptr;
+  std::unique_ptr<toka::Module> GenericInstancesModule; // [NEW] Central Registry for Generic AST Nodes
   bool m_InUnsafeContext = false;
   bool m_InLHS = false;
   bool m_IsUnsetInitCall = false;     // [NEW] Track .unset() intrinsic

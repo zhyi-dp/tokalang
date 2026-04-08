@@ -314,7 +314,7 @@ void Sema::instantiateGenericImpl(
   ImplDecl *RawPtr = NewImpl.get();
 
   // We must add to M.Impls to own it.
-  CurrentModule->Impls.push_back(std::move(NewImpl));
+  GenericInstancesModule->Impls.push_back(std::move(NewImpl));
 
   // Now Register it!
   registerImpl(RawPtr);

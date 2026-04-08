@@ -467,7 +467,7 @@ Sema::instantiateGenericShape(std::shared_ptr<ShapeType> GenericShape) {
   ShapeMap[mangledName] = storedDecl;
 
   // Add to CurrentModule to ensure CodeGen visibility
-  CurrentModule->Shapes.push_back(std::move(NewDecl));
+  GenericInstancesModule->Shapes.push_back(std::move(NewDecl));
 
   auto NewShapeTy = std::make_shared<toka::ShapeType>(mangledName);
   NewShapeTy->Decl = storedDecl;

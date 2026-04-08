@@ -1403,6 +1403,9 @@ void CodeGen::genShape(const ShapeDecl *sh) {
   if (!sh->GenericParams.empty())
     return;
 
+  if (m_StructTypes.count(sh->Name))
+    return;
+
   llvm::StructType *st = llvm::StructType::create(m_Context, sh->Name);
   m_Shapes[sh->Name] = sh;
   m_StructTypes[sh->Name] = st;

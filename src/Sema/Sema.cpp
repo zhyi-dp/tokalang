@@ -1470,8 +1470,8 @@ FunctionDecl *Sema::instantiateGenericFunction(
 
   // 3. Register in Module
   if (CurrentModule) {
-    CurrentModule->Functions.push_back(std::move(InstancePtr));
-    Instance = CurrentModule->Functions.back().get();
+    GenericInstancesModule->Functions.push_back(std::move(InstancePtr));
+    Instance = GenericInstancesModule->Functions.back().get();
 
     std::string fileName =
         DiagnosticEngine::SrcMgr->getFullSourceLoc(CurrentModule->Loc).FileName;
