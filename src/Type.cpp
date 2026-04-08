@@ -704,25 +704,17 @@ std::string Type::stripMorphology(const std::string &name) {
   }
   return s;
 }
+
+
 std::string Type::stripPrefixes(const std::string &name) {
   std::string s = name;
-  if (s.empty())
-    return "";
-
-  // 0. Strip "nul " prefix
-  if (s.rfind("nul ", 0) == 0) {
-    s = s.substr(4);
-  }
-
+  if (s.empty()) return "";
+  if (s.rfind("nul ", 0) == 0) s = s.substr(4);
   size_t start = 0;
   while (start < s.size()) {
     char c = s[start];
-    if (c == '*' || c == '^' || c == '~' || c == '&' || c == '#' || c == '?' ||
-        c == '$') {
-      start++;
-    } else {
-      break;
-    }
+    if (c == '*' || c == '^' || c == '~' || c == '&' || c == '#' || c == '?' || c == '$') start++;
+    else break;
   }
   return s.substr(start);
 }
