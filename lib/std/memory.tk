@@ -32,9 +32,9 @@ pub fn __toka_alloc(size: usize) -> *void {
 
 pub fn __toka_free(*#ptr: void) {
     unsafe {
-        if *ptr != nullptr {
+        if *ptr != null {
             libc_free(*ptr)
-            *ptr = nullptr
+            *ptr = null
         }
     }
 }
@@ -53,7 +53,7 @@ pub fn __toka_memcpy(*dest#: void, *src: void, len: usize) {
 
 pub fn __toka_time() -> i64 {
     unsafe {
-        return libc_time(nullptr)
+        return libc_time(null)
     }
 }
 
@@ -72,7 +72,7 @@ pub fn __toka_panic(message: str, file_name: str, line: i32) {
     libc_printf(" runtime error: Panic with \"%s\"", message)    
     libc_printf(" ***\n\n")
     unsafe {
-        libc_fflush(nullptr)
+        libc_fflush(null)
         libc_abort()
     }
 }

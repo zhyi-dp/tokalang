@@ -167,7 +167,7 @@ pub fn getenv_impl(name: String) -> String {
         // libc_getenv returns *char (Borrowed)
         auto *val = libc_getenv(name.c_str())
         
-        if *val == nullptr {
+        if *val == null {
             return String::from("")
         }
         

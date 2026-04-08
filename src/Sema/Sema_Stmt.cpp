@@ -398,7 +398,7 @@ void Sema::checkStmt(Stmt *S) {
         Var->TypeName = "unknown";
       } else {
         std::string Inferred = InitType;
-        if (Inferred == "nullptr") {
+        if (Inferred == "null") {
           DiagnosticEngine::report(getLoc(Var), DiagID::ERR_INFER_NULLPTR);
           HasError = true;
           Var->TypeName = "unknown";

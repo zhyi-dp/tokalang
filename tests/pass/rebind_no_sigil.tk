@@ -5,14 +5,14 @@
 
 pub fn __toka_free(nul *#ptr: i32) {
     unsafe {
-        if *ptr != nullptr {
-            *ptr = nullptr
+        if *ptr != null {
+            *ptr = null
         }
     }
 }
 
 pub fn main() -> i32 {
-    auto nul *#p: i32 = nullptr
+    auto nul *#p: i32 = null
     __toka_free(*#p)
     return 0
 }

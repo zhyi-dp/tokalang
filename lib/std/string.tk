@@ -39,9 +39,9 @@ impl String@encap {
 
     fn drop(self#) {
         unsafe {
-            if self.*buf != nullptr {
+            if self.*buf != null {
                 // libc_free(self.*buf as *void)
-                self.*buf = nullptr 
+                self.*buf = null 
                 self.len = 0
                 self.cap = 0
             }
@@ -251,7 +251,7 @@ impl String {
             if needed >= self.cap {
                 auto new_cap = (self.cap * 2) + (slen as i32) + 1
                 auto *tmp = libc_realloc(self.*buf as *void, new_cap as usize) as *[char]
-                if *tmp == nullptr { return 0 }
+                if *tmp == null { return 0 }
                 self.*buf = *tmp
                 self.cap = new_cap
             }
@@ -271,7 +271,7 @@ impl String {
             if needed >= self.cap {
                 auto new_cap = (self.cap * 2) + 2
                 auto *tmp = libc_realloc(self.*buf as *void, new_cap as usize) as *[char]
-                if *tmp == nullptr { return 0 }
+                if *tmp == null { return 0 }
                 self.*buf = *tmp
                 self.cap = new_cap
             }
@@ -303,7 +303,7 @@ impl String {
     pub fn clear(self#) {
         unsafe {
             self.len = 0
-            if self.*buf != nullptr {
+            if self.*buf != null {
                 self.buf[0] = 0 as char
             }
         }
@@ -311,7 +311,7 @@ impl String {
 
     pub fn unsafe_forget(self#) {
         unsafe {
-            self.*buf = nullptr
+            self.*buf = null
             self.len = 0
             self.cap = 0
         }

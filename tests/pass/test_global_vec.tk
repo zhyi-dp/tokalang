@@ -2,7 +2,7 @@ import std/vec::{Vec}
 import std/io::{println}
 import core/libc::{libc_printf, libc_fflush}
 
-auto g_dummy_vec# = Vec<i32>(*buf=nullptr, len=0:usize, cap=0:usize)
+auto g_dummy_vec# = Vec<i32>(*buf=null, len=0:usize, cap=0:usize)
 
 pub fn modify_vec() {
     g_dummy_vec#.push(10)

@@ -28,9 +28,9 @@ pub fn rc_new<T>(val: T) -> *RcBox<T> {
             data=val 
         )
 
-        if *ptr == nullptr {
+        if *ptr == null {
             // OOM 处理
-            return nullptr
+            return null
         }    
         
         // 返回指针地址
@@ -44,7 +44,7 @@ pub fn rc_new<T>(val: T) -> *RcBox<T> {
 // 2. ptr 是解引用后的结构体 (访问字段用)
 pub fn rc_inc<T>(*ptr: RcBox<T>) {
     unsafe {
-        if *ptr == nullptr { return }
+        if *ptr == null { return }
         
         // ✅ 正确写法: fetch_add(&ptr.strong, 1) -> 这是传址
         // 我们需要 strong 字段的内存地址
@@ -55,7 +55,7 @@ pub fn rc_inc<T>(*ptr: RcBox<T>) {
 // [减] rc_dec<T>
 pub fn rc_dec<T>(*ptr: RcBox<T>) {
     unsafe {
-        if *ptr == nullptr { return }
+        if *ptr == null { return }
 
         // ✅ 传址：获取 strong 字段 price 的地址传给 atomic
         auto old_count = fetch_sub(ptr.*strong#, 1, Ordering::Relaxed)

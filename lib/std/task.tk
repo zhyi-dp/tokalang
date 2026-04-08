@@ -19,7 +19,7 @@ pub fn current_time_ms() -> i64 {
     unsafe {
         // 使用单元素堆分配获取合法的底层指针以传递给 C 接口
         auto *tv_ptr# = unsafe alloc [1]timeval
-        libc_gettimeofday(*tv_ptr as *void, nullptr)
+        libc_gettimeofday(*tv_ptr as *void, null)
         auto sec = tv_ptr[0].tv_sec
         auto usec = tv_ptr[0].tv_usec
         unsafe free [1] *#tv_ptr
@@ -37,8 +37,8 @@ shape TimerEntry(
 // ==========================================
 // 全局就绪任务队列 (基于底层内联 pthread_mutex + Vec)
 // ==========================================
-auto g_task_queue# = Vec<TaskPtr>(*buf=nullptr, len=0:usize, cap=0:usize)
-auto g_timer_queue# = Vec<TimerEntry>(*buf=nullptr, len=0:usize, cap=0:usize)
+auto g_task_queue# = Vec<TaskPtr>(*buf=null, len=0:usize, cap=0:usize)
+auto g_timer_queue# = Vec<TimerEntry>(*buf=null, len=0:usize, cap=0:usize)
 auto g_mutex_ptr#: Addr = 0:Addr
 auto g_mutex_init#: bool = false
 auto g_reactor_fd#: i32 = -1
@@ -67,7 +67,7 @@ fn unlock_queue() {
 
 // 这是编译器展开 spawn(expr) 时链接到的底层调动点
 pub fn __toka_spawn(*task: void) {
-    if *task != nullptr {
+    if *task != null {
         // tokac 具有 suspend_never 初始执行特性，意味着它会同步运行到第一个 await
         // 在这里，task 如果存活，那么它必然已被挂载在某处（比如 Timer Queue 或者其他 Promise 的 awaiter）
         // 强行推入 g_task_queue 会导致意外的立刻双重恢复引发崩溃
@@ -75,7 +75,7 @@ pub fn __toka_spawn(*task: void) {
 }
 
 pub fn __toka_register_timer(*task: void, ms: i32) {
-    if *task != nullptr {
+    if *task != null {
         auto expire_time = current_time_ms() + (ms as i64)
         lock_queue()
         g_timer_queue#.push(TimerEntry(addr=*task as Addr, expire_at=expire_time))
@@ -85,7 +85,7 @@ pub fn __toka_register_timer(*task: void, ms: i32) {
 
 // 供阻塞环境使用的 spawn 循环
 pub fn __toka_spawn_blocking(*task: void) {
-    if *task == nullptr { return }
+    if *task == null { return }
     __toka_spawn(*task)
     
     // 开始阻塞自旋直到 task 进入 done 状态，并且挂起队列全部排空

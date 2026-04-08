@@ -27,11 +27,11 @@ fn main() -> i32 {
 
         // Test malloc/free
         auto *ptr = libc_malloc(10:u64)
-        if *ptr == nullptr { return 5 }
+        if *ptr == null { return 5 }
         libc_free(*ptr)
 
         // Test time (just check it returns something > 0)
-        auto t = libc_time(nullptr)
+        auto t = libc_time(null)
         println("time: {}", t)
         if t <= 0:i64 { return 6 }
     }

@@ -9,7 +9,7 @@ fn process<T: @Send>(^val: T) {
 }
 
 pub fn main() -> i32 {
-    auto ^d = new Data(value = 42, *ptr = nullptr)
+    auto ^d = new Data(value = 42, *ptr = null)
     process<Data>(^d) // EXPECT: error[E0606]:
     return 0
 }

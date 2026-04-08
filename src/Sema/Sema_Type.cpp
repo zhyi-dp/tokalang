@@ -871,16 +871,16 @@ bool Sema::isTypeCompatible(std::shared_ptr<toka::Type> Target,
   // nullptr is compatible with any pointer or smart pointer
   auto sStr = S->toString();
   auto tStr = T->toString();
-  if (sStr == "nullptr") {
+  if (sStr == "null") {
     if (T->isPointer() || T->isSmartPointer() || T->isReference()) {
       if (T->IsNullable)
         return true;
-      // [Relaxation] Allow nullptr to all raw pointers (*T, *[T]) implicitly
+      // [Relaxation] Allow null to all raw pointers (*T, *[T]) implicitly
       if (T->isRawPointer())
         return true;
     }
   }
-  if (tStr == "nullptr") {
+  if (tStr == "null") {
     if (S->isPointer() || S->isSmartPointer() || S->isReference())
       return true;
   }

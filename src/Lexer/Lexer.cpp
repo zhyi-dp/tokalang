@@ -80,7 +80,7 @@ static std::unordered_map<std::string, TokenType> Keywords = {
     {"true", TokenType::KwTrue},
     {"false", TokenType::KwFalse},
     {"none", TokenType::KwNone},
-    {"nullptr", TokenType::KwNull},
+    {"null", TokenType::KwNull},
     {"defer", TokenType::KwDefer},
     {"main", TokenType::KwMain},
     {"extern", TokenType::KwExtern},

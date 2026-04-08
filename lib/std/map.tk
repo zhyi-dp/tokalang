@@ -190,13 +190,13 @@ impl<'K, 'V> HashMap<'K, 'V> {
             }
             
             // 在被覆写前手动释放旧缓冲，防止泄露
-            if self.keys.*buf != nullptr {
+            if self.keys.*buf != null {
                 unsafe free [self.keys.cap] self.keys.*#buf
             }
-            if self.vals.*buf != nullptr {
+            if self.vals.*buf != null {
                 unsafe free [self.vals.cap] self.vals.*#buf
             }
-            if self.meta.*buf != nullptr {
+            if self.meta.*buf != null {
                 unsafe free [self.meta.cap] self.meta.*#buf
             }
             

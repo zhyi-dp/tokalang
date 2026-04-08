@@ -25,30 +25,30 @@ impl Data@encap {
 
 fn check_unique_ptr(nul ^ptr: Data) {
     guard ^ptr {
-        println("Unique pointer is not nullptr confirmed, ptr.val={}", ptr.val)
-        assert(ptr.val == 10, "Unique pointer is not nullptr confirmed")
+        println("Unique pointer is not null confirmed, ptr.val={}", ptr.val)
+        assert(ptr.val == 10, "Unique pointer is not null confirmed")
     } else {
-        println("Unique pointer is nullptr confirmed")
-        assert(false, "Unique pointer is nullptr confirmed")
+        println("Unique pointer is null confirmed")
+        assert(false, "Unique pointer is null confirmed")
     }
 }
 
 fn check_shared_ptr(nul ~ptr: Data) {
     guard ~ptr {
-        println("Shared pointer is not nullptr confirmed, ptr.val={}", ptr.val)
-        assert(ptr.val == 20, "Shared pointer is not nullptr confirmed")
+        println("Shared pointer is not null confirmed, ptr.val={}", ptr.val)
+        assert(ptr.val == 20, "Shared pointer is not null confirmed")
     } else {
-        println("Shared pointer is nullptr confirmed")
-        assert(false, "Shared  pointer is nullptr confirmed")
+        println("Shared pointer is null confirmed")
+        assert(false, "Shared  pointer is null confirmed")
     }
 }
 
 fn check_raw_ptr(nul *ptr: [Data]) {
     guard *ptr {
-        println("Raw pointer is not nullptr confirmed")
+        println("Raw pointer is not null confirmed")
     } else {
-        println("Raw pointer is nullptr confirmed")
-        assert(false, "Raw  pointer is nullptr confirmed")
+        println("Raw pointer is null confirmed")
+        assert(false, "Raw  pointer is null confirmed")
     }
 }
 
@@ -88,11 +88,11 @@ fn main() -> i32 {
     auto nul ^p = new Data(val = 10)
     check_unique_ptr(^p)
     guard ^p {
-        println("Unique pointer is not nullptr confirmed, ptr.val={}", p.val)
-        assert(p.val == 10, "Unique pointer is not nullptr confirmed")
+        println("Unique pointer is not null confirmed, ptr.val={}", p.val)
+        assert(p.val == 10, "Unique pointer is not null confirmed")
     } else {
-        println("Unique pointer is nullptr confirmed")
-        assert(false, "Unique  pointer is nullptr confirmed")
+        println("Unique pointer is null confirmed")
+        assert(false, "Unique  pointer is null confirmed")
     }
     auto nul ^pp = ^p
     check_unique_ptr(^pp)

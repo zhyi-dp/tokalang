@@ -42,9 +42,9 @@ impl<'T: @Sync> Vec<'T> @Sync {}
 impl<'T> Vec<'T>@encap {
     fn drop(self#) {
         unsafe {
-            if self.*buf != nullptr {
+            if self.*buf != null {
                 unsafe free [self.cap]self.*#buf
-                self.*buf = nullptr // Explicit nullify
+                self.*buf = null // Explicit nullify
             }
         }
     }
@@ -56,7 +56,7 @@ impl<'T> Vec<'T>@encap {
         unsafe {
             if self.cap == 0 {
                 // Avoid calling new() to prevent circular instantiation loop in compiler
-                return Vec<'T>(*buf=nullptr, len=0, cap=0)
+                return Vec<'T>(*buf=null, len=0, cap=0)
             }
             // alloc array
             auto *new_buf# = unsafe alloc [self.cap] 'T
@@ -86,14 +86,14 @@ impl<'T> Vec<'T> {
     // Create empty vector (Static Method)
     pub fn new() -> Vec<'T> {
         // Implicit conversation works for assignment/init of pointer variable
-        return Vec<'T>(*buf=nullptr, len=0, cap=0)
+        return Vec<'T>(*buf=null, len=0, cap=0)
     }
 
     // Create vector with capacity (Static Method)
     pub fn with_capacity(capacity: usize) -> Vec<'T> {
         unsafe {
             if capacity == 0 {
-                return Vec<'T>(*buf=nullptr, len=0, cap=0)
+                return Vec<'T>(*buf=null, len=0, cap=0)
             }
             // alloc array syntax
             auto *new_buf# = unsafe alloc [capacity] 'T
@@ -150,7 +150,7 @@ impl<'T> Vec<'T> {
     pub fn get_ref(self, index: usize) -> *'T {
         unsafe {
              if index >= self.len {
-                 return nullptr
+                 return null
              }
              return *self.buf[index]
         }
@@ -169,13 +169,13 @@ impl<'T> Vec<'T> {
 
     pub fn unsafe_get(self, index: usize) -> *'T {
         unsafe {
-            if self.*buf != nullptr {
+            if self.*buf != null {
                 // 这一步显式转换： *?'T -> *['T]
                 // 既然已经判空，这就是安全的 unsafe 操作
                 auto *ptr = self.*buf as *['T]
                 return *ptr[index]
             }
-            return nullptr
+            return null
         }
     }
 
@@ -183,7 +183,7 @@ impl<'T> Vec<'T> {
         unsafe {
             // Nullify buffer to prevent drop from freeing it
             // This is used when ownership is manually transferred
-            self.*buf = nullptr
+            self.*buf = null
             self.cap = 0
             self.len = 0
         }
@@ -215,7 +215,7 @@ impl<'T> Vec<'T> {
                 }
                 
                 // Free old buffer
-                if self.*buf != nullptr {
+                if self.*buf != null {
                     unsafe free [self.cap]self.*#buf
                 }
                 

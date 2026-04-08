@@ -33,23 +33,23 @@ fn main() -> i32 {
         // Nullable Pointer
         auto nul ^p2 = new Data(v=99)
 
-        // New syntax: 'is' operator for nullptr check. 
+        // New syntax: 'is' operator for null check. 
         guard ^p2 {
-            println("Nullable pointer is not nullptr (is check)\n")
+            println("Nullable pointer is not null (is check)\n")
             println("p2->v: {}", p2.v)
         }
     }
     {
         // Nullable Pointer
-        auto nul ^p3:Data = nullptr
+        auto nul ^p3:Data = null
 
-        // New syntax: 'is' operator for nullptr check. 
+        // New syntax: 'is' operator for null check. 
         guard ^p3 {
-            println("Nullable pointer is not nullptr (is check)\n")
+            println("Nullable pointer is not null (is check)\n")
         }
         else
         {
-            println("Nullable pointer is nullptr (is check)\n")
+            println("Nullable pointer is null (is check)\n")
         }
     }
     return 0

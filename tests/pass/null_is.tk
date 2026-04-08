@@ -25,17 +25,17 @@ fn main() -> i32 {
         println("Success: p.v = {}", p.v)
         assert(p.v == 42, "p.v value mismatch")
     } else {
-        println("Failure: p is nullptr\n")
-        assert(false, "p is nullptr (Logic should not reach here)")
+        println("Failure: p is null\n")
+        assert(false, "p is null (Logic should not reach here)")
     }
 
-    auto nul ^q:Data = nullptr
+    auto nul ^q:Data = null
     guard ^q {
-        println("Error: q should be nullptr\n")
-        assert(false, "q is not nullptr (Logic should not reach here)")
+        println("Error: q should be null\n")
+        assert(false, "q is not null (Logic should not reach here)")
     } else {
-        println("Success: q confirmed nullptr\n")
-        assert(true, "q confirmed nullptr logic executed")
+        println("Success: q confirmed null\n")
+        assert(true, "q confirmed null logic executed")
     }
 
     return 0

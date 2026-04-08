@@ -18,18 +18,18 @@ impl Node@encap {
 
 pub fn main() -> i32 {
     {
-        auto node111 = Node(val=111, ^next=nullptr)
-        auto ^node222 = new Node(val=222, ^next=nullptr) 
-        auto ~node333 = new Node(val=333, ^next=nullptr) 
+        auto node111 = Node(val=111, ^next=null)
+        auto ^node222 = new Node(val=222, ^next=null) 
+        auto ~node333 = new Node(val=333, ^next=null) 
 
-        auto *node444 = unsafe alloc Node(val=444, ^next=nullptr) 
+        auto *node444 = unsafe alloc Node(val=444, ^next=null) 
         unsafe free *node444
 
         auto ^node2 = ^node222
     }
     // User's logic + Print checks
     {
-        auto ^#head = new Node(val=0, ^next=nullptr)  
+        auto ^#head = new Node(val=0, ^next=null)  
         println("head: {}", head.val)
         assert(head.val == 0, "check head.val")
         // Push 1

@@ -207,21 +207,21 @@ impl File {
 pub fn stdin() -> File {
     unsafe {
         auto *p = libc_fdopen(0, "r" as *char)
-        return File(*handle = *p, opened = (*p != nullptr), owned = false)
+        return File(*handle = *p, opened = (*p != null), owned = false)
     }
 }
 
 pub fn stdout() -> File {
     unsafe {
         auto *p = libc_fdopen(1, "w" as *char)
-        return File(*handle = *p, opened = (*p != nullptr), owned = false)
+        return File(*handle = *p, opened = (*p != null), owned = false)
     }
 }
 
 pub fn stderr() -> File {
     unsafe {
         auto *p = libc_fdopen(2, "w" as *char)
-        return File(*handle = *p, opened = (*p != nullptr), owned = false)
+        return File(*handle = *p, opened = (*p != null), owned = false)
     }
 }
 
@@ -235,7 +235,7 @@ pub fn print(s: String) {
 pub fn exists(path: String) -> bool {
     unsafe {
         auto *p = libc_fopen(path.c_str(), "r" as *char)
-        if *p != nullptr {
+        if *p != null {
             libc_fclose(*p)
             return true
         }

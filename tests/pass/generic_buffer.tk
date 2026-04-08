@@ -41,7 +41,7 @@ fn main() -> i32 {
         // 这里需要编译器能识别 [0; 5] 匹配 [i32; 5]
         buf = Buffer<i32, 5>(data=[0,1,2,3,4], len=5), 
         
-        ^next = nullptr
+        ^next = null
     )
     for auto i in [0,1,2,3,4] {
         println("head.buf.data[{}] = {}", i, head.buf.data[i])

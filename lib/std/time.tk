@@ -53,7 +53,7 @@ impl DateTime@encap {
 
 pub fn now() -> Time {
     unsafe {
-        return Time(seconds = libc_time(nullptr))
+        return Time(seconds = libc_time(null))
     }
 }
 
@@ -64,8 +64,8 @@ impl Time {
             auto s# = self.seconds
             auto *tm_ptr = libc_localtime(*s)
             
-            if *tm_ptr == nullptr {
-                return DateTime(sec = 0, min = 0, hour = 0, mday = 0, mon = 0, year = 0, wday = 0, yday = 0, isdst = 0, unused_padding = 0, gmtoff = 0:i64, *zone = nullptr)
+            if *tm_ptr == null {
+                return DateTime(sec = 0, min = 0, hour = 0, mday = 0, mon = 0, year = 0, wday = 0, yday = 0, isdst = 0, unused_padding = 0, gmtoff = 0:i64, *zone = null)
             }
 
             // On macOS, struct tm fields are mostly i32.
@@ -85,7 +85,7 @@ impl Time {
                 isdst = fields[8],
                 unused_padding = 0,
                 gmtoff = 0:i64, // Skip complex fields for stability
-                *zone = nullptr
+                *zone = null
             )
         }
     }

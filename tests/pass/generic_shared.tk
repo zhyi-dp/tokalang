@@ -75,7 +75,7 @@ impl<T> SharedPtr<T> {
         self.*wrapper = rhs.*wrapper
 
         // [帽子规则]: 原始指针必须显式解包 (*ptr) 才能访问成员
-        if self.*wrapper != nullptr {
+        if self.*wrapper != null {
             self.wrapper.ref_count#.fetch_add()
         }
     }
@@ -83,7 +83,7 @@ impl<T> SharedPtr<T> {
     // 3. 析构函数：帽子规则严谨版
     pub fn xdrop(self#) {
         println("enter .xdrop, shared_ptr:{} wrapper:{}", *self as OAddr, self.*wrapper as OAddr)
-        if self.*wrapper == nullptr {   
+        if self.*wrapper == null {   
             return
         }
 
@@ -103,8 +103,8 @@ impl<T> SharedPtr<T> {
                 // 2. 再释放控制块
                 unsafe free self.*wrapper
                 
-                // 置空 (在 unsafe 块内允许非空 raw 指针接收 nullptr)
-                self.*wrapper = nullptr
+                // 置空 (在 unsafe 块内允许非空 raw 指针接收 null)
+                self.*wrapper = null
             }
         }
         else

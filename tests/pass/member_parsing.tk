@@ -18,7 +18,7 @@ impl Node@encap {
     }
     pub fn clone(self) -> Node {
         // Dummy clone
-        return Node(val=0, ^point=nullptr, pp=none)
+        return Node(val=0, ^point=null, pp=none)
     }
 }
 
@@ -39,8 +39,8 @@ fn main() -> i32 {
         assert(n_ok.pp??.y == 111, "Success access failed")
     }
     //* Path 2: Panic path    
-    auto n_null = Node(val=1, ^point=nullptr, pp=none)
-    println("This should panic next...pointer is nullptr")
+    auto n_null = Node(val=1, ^point=null, pp=none)
+    println("This should panic next...pointer is null")
     auto v2 = n_null.??point.x // EXPECT_PANIC
 
     println("This should panic next...soul is none")
