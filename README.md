@@ -38,7 +38,7 @@ By default, `shape` members are transparent. Toka uses `@encap` for fine-grained
 | Token | Meaning (Value/Content) | Meaning (Identity/Address) |
 | :--- | :--- | :--- |
 | `#` | **Writable**: Can modify fields | **Swappable**: Can point elsewhere |
-| `?` | **Nullable**: Value is `none` | **Nullable**: Identity is `nullptr` |
+| `?` | **Nullable**: Value is `none` | **Nullable**: Identity is `null` |
 | `!` | **Writable & Nullable** | **Swappable & Nullable** |
 | `^` | - | **Unique Pointer** (Ownership) |
 | `~` | - | **Shared Pointer** (Ref Counted) |
@@ -173,7 +173,7 @@ fn main() {
 }
 
 fn null_safety() {
-    auto p^? = nullptr // Identity is Nullable (variable-side `?`)
+    auto p^? = null // Identity is Nullable (variable-side `?`)
     
     // 1. Safe Narrowing via 'is'
     if p is {

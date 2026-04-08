@@ -26,11 +26,11 @@ if x == none {
 ```
 
 ### 3. Pointer Nullability (`nul` prefix)
-The `nul` keyword applied as a prefix to a pointer name indicates that the **Handle** (the pointer itself) can be `nullptr`.
+The `nul` keyword applied as a prefix to a pointer name indicates that the **Handle** (the pointer itself) can be `null`.
 
 ```toka
-auto nul ^p: User = nullptr
-if ^p == nullptr {
+auto nul ^p: User = null
+if ^p == null {
     println("No pointer")
 }
 ```
@@ -50,11 +50,11 @@ Attributes can be stacked like a chemical formula to define complex behaviors.
 ### Example: A Rebindable Nullable Pointer to a Mutable Nullable Entity
 
 ```toka
-auto nul ^#node#: Node? = nullptr
+auto nul ^#node#: Node? = null
 ```
 
 Breakdown:
-1. `nul`: The pointer can be `nullptr`.
+1. `nul`: The pointer can be `null`.
 2. `^#`: The pointer is unique and can be rebound (`^node = ^other`).
 3. `node#`: The data pointed to is mutable (`node.value = 10`).
 4. `Node?`: The entity itself can be `none`.
@@ -65,6 +65,6 @@ Breakdown:
 | :--- | :--- | :--- | :--- |
 | **`#`** | Suffix to Name | Soul Mutability | Allows modifying the data |
 | **`?`** | Suffix to Type | Entity Nullability | Allows the value to be `none` |
-| **`nul`** | Prefix to Name | Pointer Nullability | Allows the pointer to be `nullptr` |
+| **`nul`** | Prefix to Name | Pointer Nullability | Allows the pointer to be `null` |
 | **`^#`** | Prefix to Name | Handle Mutability | Allows rebinding the pointer |
 ---

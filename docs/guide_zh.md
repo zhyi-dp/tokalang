@@ -120,8 +120,8 @@ Toka 引入了“形态学”操作符来处理对象标识、所有权和空值
 | 操作符 | 含义 | 示例 |
 | :--- | :--- | :--- |
 | `#` | **可变**: 用于类型或变量，允许修改。 | `auto &x# = &y#` |
-| `?` | **可空**: 值为 `none`。 | `auto x? = none` <br> `auto p^? = nullptr` |
-| `!` | **可写且可空**: 既可修改，又可为 `none`/`nullptr`。 | `auto x! = none` |
+| `?` | **可空**: 值为 `none`。 | `auto x? = none` <br> `auto p^? = null` |
+| `!` | **可写且可空**: 既可修改，又可为 `none`/`null`。 | `auto x! = none` |
 | `^` | **所有权/移动**: 表示拥有所有权的指针或移动操作。 | `auto ^r2 = ^r1` |
 | `~` | **共享指针**: 引用计数的共享所有权。 | `auto ~s2 = ~s1` |
 | `&` | **借用/引用**: 对值或 Soul 的临时视图 (非所有权)。 | `auto &y = &x` |
@@ -148,7 +148,7 @@ if p is {
 - **值断言**: `val??` 检查可选值是否存在。
 
 ```toka
-auto must^ = p^??      // 若 p 为 nullptr 则 Panic
+auto must^ = p^??      // 若 p 为 null 则 Panic
 auto val = opt??       // 若 opt 为 none 则 Panic
 ```
 

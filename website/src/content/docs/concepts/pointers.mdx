@@ -37,10 +37,10 @@ auto &p = &x
 Pointers themselves (the Handles) can yield additional control through prefixes.
 
 ### Pointer Nullability (`nul`)
-The `nul` prefix allows a pointer to be `nullptr`.
+The `nul` prefix allows a pointer to be `null`.
 
 ```toka
-auto nul ^p: User = nullptr
+auto nul ^p: User = null
 ```
 
 ### Handle Rebindability (`#`)
@@ -56,7 +56,7 @@ auto ^#p = new i32(1)
 You can stack these dimensions on any pointer.
 
 ```toka
-auto nul ^#node#: Node? = nullptr
+auto nul ^#node#: Node? = null
 ```
 
 - `nul`: Pointer is nullable.

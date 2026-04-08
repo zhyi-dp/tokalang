@@ -45,7 +45,7 @@ Compiler parser should treat these as reserved.
 **Type & Logic**
 - `as` (Cast), `is` (Type check), `in` (Membership/Iteration)
 - `self`, `Self`
-- `true`, `false`, `none`, `nullptr`
+- `true`, `false`, `none`, `null`
 - `defer`: Lazy initialization.
 - `main`: Entry point.
 
@@ -55,7 +55,7 @@ Compiler parser should treat these as reserved.
 - `{}`: Blocks, Scopes.
 - `^`: Pointer prefix (e.g., `^Person`).
 - `#`: **Write Token** (Writable Content / Swappable Address).
-- `?`: **Null Token** (Nullable: `none` for objects, `nullptr` for pointers).
+- `?`: **Null Token** (Nullable: `none` for objects, `null` for pointers).
 - `!`: **Write + Null Token** (Writable/Swappable + Nullable).
 - `$`: **None Token** (Immutable & Non-null), usually omitted.
 - **Literal Defaults**: 
@@ -495,7 +495,7 @@ Sema must verify that:
     - **Method ABI (Pass-By-Reference)**: 
         - For all `shape` (struct) methods, the `self` parameter MUST be passed as a pointer (`ptr`) in LLVM IR, regardless of whether it is mutable (`#`) or immutable.
         - This prevents structure-by-value copies and ensures ABI compatibility between `callee` and `caller`.
-    - **Dead Code & Terminator Safety**: Before emitting any instruction, CodeGen MUST check if the current block is terminated: `if (m_Builder.GetInsertBlock()->getTerminator()) return nullptr`. This is critical for `break/continue/return` logic.
+    - **Dead Code & Terminator Safety**: Before emitting any instruction, CodeGen MUST check if the current block is terminated: `if (m_Builder.GetInsertBlock()->getTerminator()) return null`. This is critical for `break/continue/return` logic.
     - **Soul Extraction Requirement (Member Access)**: `MemberExpr` generation MUST call `getEntityAddr` first. If `isImplicitPtr` is true (capture), it loads the soul pointer; otherwise it uses the identity. This is the **Silver Bullet** for preventing corrupted reads.
     - **Nesting Consistency**: Recursive destructuring (e.g. `auto Point(x, y) = p`) must apply the Soul Protocol at each level to ensure deep fields are extracted correctly.
     - **LLVM 17+ Opaque Pointers**: Since LLVM 17 uses `ptr` everywhere, CodeGen MUST pass types explicitly to `CreateLoad`, `CreateStructGEP`, etc. (e.g., `m_Builder.CreateLoad(expectedType, addr)`). Do NOT rely on `getPointerElementType()`.

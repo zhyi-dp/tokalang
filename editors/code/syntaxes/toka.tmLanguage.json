@@ -204,7 +204,7 @@
                 },
                 {
                     "name": "constant.language.toka",
-                    "match": "\\b(true|false|none|nullptr)\\b"
+                    "match": "\\b(true|false|none|null)\\b"
                 },
                 {
                     "name": "variable.language.special.toka",

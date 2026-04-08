@@ -37,10 +37,10 @@ auto &p = &x
 指针本身（Handle）可以通过前缀获得额外的控制。
 
 ### 指针本身可空 (`nul`)
-`nul` 前缀允许一个指针的值为 `nullptr`。
+`nul` 前缀允许一个指针的值为 `null`。
 
 ```toka
-auto nul ^p: User = nullptr
+auto nul ^p: User = null
 ```
 
 ### Handle 可重绑定性 (`#`)
@@ -56,10 +56,10 @@ auto ^#p = new i32(1)
 你可以在任何指针上叠加这些维度。
 
 ```toka
-auto nul ^#node#: Node? = nullptr
+auto nul ^#node#: Node? = null
 ```
 
-- `nul`: 指针本身可以为 `nullptr`。
+- `nul`: 指针本身可以为 `null`。
 - `^#`: 这是一个独占指针，且指针变量本身可以被重写 (`^node = ^other`)。
 - `node#`: 指向的数据（Soul）是可变的。
 - `Node?`: 实体本身可以为 `none`。

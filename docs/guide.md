@@ -139,8 +139,8 @@ Toka introduces "Morphology" operators to handle object identity, ownership, and
 | Operator | Meaning | Example |
 | :--- | :--- | :--- |
 | `#` | **Mutable**: Used in types or variables to allow modification. | `auto &x# = &y#` |
-| `?` | **Nullable**: Value is nullable. | `auto x? = none` <br> `auto nul ^p = nullptr` |
-| `!` | **Writable & Nullable**: Can be modified AND be `none`/`nullptr`. | `auto x! = none` |
+| `?` | **Nullable**: Value is nullable. | `auto x? = none` <br> `auto nul ^p = null` |
+| `!` | **Writable & Nullable**: Can be modified AND be `none`/`null`. | `auto x! = none` |
 | `^` | **Ownership/Move**: Indicates an owning pointer or a move operation. | `auto ^r2 = ^r1` |
 | `~` | **Shared Pointer**: Reference counted shared ownership. | `auto ~s2 = ~s1` |
 | `&` | **Borrow/Reference**: A temporary view into a value/soul. | `auto &y = &x` |
@@ -167,7 +167,7 @@ Use `??` to assert that a value is not null. It panics at runtime if the value i
 - **Value Assertion**: `val??` checks if the optional value exists.
 
 ```toka
-auto ^must = ??p       // Panics if p is nullptr
+auto ^must = ??p       // Panics if p is null
 auto val = opt??       // Panics if opt is none
 ```
 
