@@ -27,25 +27,19 @@ namespace toka {
 static std::string
 substituteTypeString(const std::string &Input,
                      const std::map<std::string, std::string> &Map) {
-  std::string Output = Input;
-  for (auto const &[K, V] : Map) {
-    size_t pos = 0;
-    while ((pos = Output.find(K, pos)) != std::string::npos) {
-      // Check boundaries: must not be preceded or followed by alphanumeric
-      // chars EXCEPT '_' which IS allowed as a boundary for mangled names.
-      bool startOk =
-          (pos == 0) || !std::isalnum((unsigned char)Output[pos - 1]);
-      bool endOk = (pos + K.size() == Output.size()) ||
-                   !std::isalnum((unsigned char)Output[pos + K.size()]);
-
-      if (startOk && endOk) {
-        Output.replace(pos, K.size(), V);
-        pos += V.size();
-      } else {
-        pos += K.size();
-      }
-    }
+  if (Input.empty()) return "";
+  
+  auto typeObj = toka::Type::fromString(Input);
+  if (!typeObj) return Input;
+  
+  std::map<std::string, std::shared_ptr<toka::Type>> ObjMap;
+  for (const auto &[K, V] : Map) {
+    ObjMap[K] = toka::Type::fromString(V);
   }
+  
+  auto subObj = typeObj->substitute(ObjMap);
+  std::string Output = subObj->toString();
+
   if (Input != Output) {
     llvm::errs() << "DEBUG: sub [" << Input << "] -> [" << Output << "]\n";
   }

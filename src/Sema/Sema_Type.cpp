@@ -427,21 +427,7 @@ Sema::instantiateGenericShape(std::shared_ptr<ShapeType> GenericShape) {
   // We need a robust mangler. For Proof of Concept:
   std::string mangledName = templateName + "_M";
   for (auto &Arg : GenericShape->GenericArgs) {
-    std::string argStr = Arg->toString();
-    // Sanitize literal values for mangled name (e.g. "10" is fine, but maybe
-    // others are not)
-    for (char &c : argStr) {
-      if (c == '^') c = 'U';
-      else if (c == '*') c = 'R';
-      else if (c == '~') c = 'S';
-      else if (c == '&') c = 'B';
-      else if (c == '?') c = 'O';
-      else if (c == '#') c = 'M';
-      else if (c == '!') c = 'K';
-      else if (!std::isalnum(c) && c != '_')
-        c = '_';
-    }
-    mangledName += "_" + argStr;
+    mangledName += "_" + Arg->getMangledName();
   }
 
   // 3. Check Cache

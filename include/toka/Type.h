@@ -17,7 +17,7 @@
 #include <string>
 #include <vector>
 #include <map>
-
+#include <cctype>
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/Type.h>
 
@@ -114,6 +114,22 @@ public:
 
   bool isShape() const { return typeKind == Shape; }
   virtual std::string getSoulName() const { return toString(); }
+
+  virtual std::string getMangledName() const {
+    std::string argStr = toString();
+    for (char &c : argStr) {
+      if (c == '^') c = 'U';
+      else if (c == '*') c = 'R';
+      else if (c == '~') c = 'S';
+      else if (c == '&') c = 'B';
+      else if (c == '?') c = 'O';
+      else if (c == '#') c = 'M';
+      else if (c == '!') c = 'K';
+      else if (!std::isalnum(c) && c != '_')
+        c = '_';
+    }
+    return argStr;
+  }
 
   virtual bool isStringType() const { return false; }
   virtual bool isAddrType() const { return false; }
