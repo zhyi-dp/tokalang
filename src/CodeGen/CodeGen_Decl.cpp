@@ -1981,6 +1981,14 @@ llvm::Type *CodeGen::resolveType(const std::string &baseType, bool hasPointer) {
     return resolveType(m_CurrentSelfType, hasPointer);
   }
 
+  // Intercept primitive pointer types before aliases
+  // (Standard library might have legacy `type Addr = u64` aliases)
+  if (baseType == "Addr" || baseType == "OAddr" || baseType == "null") {
+    type = llvm::PointerType::getUnqual(m_Context);
+    if (hasPointer) type = llvm::PointerType::getUnqual(type);
+    return type;
+  }
+
   // Check aliases first
   if (m_TypeAliases.count(baseType)) {
     // std::cerr << "DEBUG: resolveType: Found Alias: " << baseType << " -> "
@@ -2132,7 +2140,7 @@ llvm::Type *CodeGen::resolveType(const std::string &baseType, bool hasPointer) {
   else if (baseType == "i32" || baseType == "u32" || baseType == "int")
     type = llvm::Type::getInt32Ty(m_Context);
   else if (baseType == "i64" || baseType == "u64" || baseType == "long" ||
-           baseType == "usize")
+           baseType == "usize" || baseType == "isize")
     type = llvm::Type::getInt64Ty(m_Context);
   else if (baseType == "f32" || baseType == "float")
     type = llvm::Type::getFloatTy(m_Context);
@@ -2184,7 +2192,7 @@ llvm::Type *CodeGen::getLLVMType(std::shared_ptr<Type> type) {
     if (prim->Name == "i32" || prim->Name == "u32" || prim->Name == "int")
       return llvm::Type::getInt32Ty(m_Context);
     if (prim->Name == "i64" || prim->Name == "u64" || prim->Name == "long" ||
-        prim->Name == "usize")
+        prim->Name == "usize" || prim->Name == "isize")
       return llvm::Type::getInt64Ty(m_Context);
     if (prim->Name == "i8" || prim->Name == "u8" || prim->Name == "byte" ||
         prim->Name == "char")
@@ -2201,6 +2209,8 @@ llvm::Type *CodeGen::getLLVMType(std::shared_ptr<Type> type) {
       return llvm::Type::getVoidTy(m_Context);
     if (prim->Name == "str")
       return llvm::PointerType::getUnqual(llvm::Type::getInt8Ty(m_Context));
+    if (prim->Name == "Addr" || prim->Name == "OAddr" || prim->Name == "null")
+      return llvm::PointerType::getUnqual(m_Context);
   }
 
   // Handle Void

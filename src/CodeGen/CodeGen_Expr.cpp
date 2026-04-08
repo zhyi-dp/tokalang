@@ -827,7 +827,10 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
     // represent one.
     bool semaIsValue = !expr->ResolvedType->isPointer() &&
                        !expr->ResolvedType->isReference() &&
-                       !expr->ResolvedType->isSmartPointer();
+                       !expr->ResolvedType->isSmartPointer() &&
+                       !expr->ResolvedType->isNullType() &&
+                       !expr->ResolvedType->isAddrType() &&
+                       !expr->ResolvedType->isOAddrType();
 
     if (semaIsValue) {
       if (isTargetStruct && currentTy->getStructNumElements() == 2) {
@@ -953,9 +956,11 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
     if (lhs->getType()->isPointerTy()) {
       llvm::Type *elemTy = llvm::Type::getInt8Ty(m_Context);
 
-      // Ensure RHS is 64-bit for GEP
-      if (rhs->getType()->isIntegerTy() &&
-          rhs->getType()->getIntegerBitWidth() < 64) {
+      // Ensure RHS is 64-bit integer for GEP
+      if (rhs->getType()->isPointerTy()) {
+        rhs = m_Builder.CreatePtrToInt(rhs, llvm::Type::getInt64Ty(m_Context), "idx_ptr2int");
+      } else if (rhs->getType()->isIntegerTy() &&
+                 rhs->getType()->getIntegerBitWidth() < 64) {
         rhs = m_Builder.CreateSExt(rhs, llvm::Type::getInt64Ty(m_Context),
                                    "idx_ext");
       }
@@ -967,9 +972,20 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
   }
   if (bin->Op == "-") {
     if (lhs->getType()->isPointerTy()) {
-      llvm::Type *elemTy = llvm::Type::getInt8Ty(m_Context);
-      llvm::Value *negR = m_Builder.CreateNeg(rhs);
-      return m_Builder.CreateGEP(elemTy, lhs, {negR}, "ptrsub");
+      if (rhs->getType()->isPointerTy()) {
+        llvm::Value *lhsInt = m_Builder.CreatePtrToInt(lhs, llvm::Type::getInt64Ty(m_Context));
+        llvm::Value *rhsInt = m_Builder.CreatePtrToInt(rhs, llvm::Type::getInt64Ty(m_Context));
+        llvm::Value *diff = m_Builder.CreateSub(lhsInt, rhsInt, "ptrdiff");
+        // Maintain the same type as lhs (which is a pointer, fulfilling Addr expectations)
+        return m_Builder.CreateIntToPtr(diff, lhs->getType(), "ptrdiff_ptr");
+      } else {
+        llvm::Type *elemTy = llvm::Type::getInt8Ty(m_Context);
+        if (rhs->getType()->isIntegerTy() && rhs->getType()->getIntegerBitWidth() < 64) {
+          rhs = m_Builder.CreateSExt(rhs, llvm::Type::getInt64Ty(m_Context), "idx_ext");
+        }
+        llvm::Value *negR = m_Builder.CreateNeg(rhs, "neg_idx");
+        return m_Builder.CreateGEP(elemTy, lhs, {negR}, "ptrsub");
+      }
     }
     return m_Builder.CreateSub(lhs, rhs, "subtmp");
   }

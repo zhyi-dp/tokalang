@@ -115,6 +115,11 @@ public:
   bool isShape() const { return typeKind == Shape; }
   virtual std::string getSoulName() const { return toString(); }
 
+  virtual bool isStringType() const { return false; }
+  virtual bool isAddrType() const { return false; }
+  virtual bool isOAddrType() const { return false; }
+  virtual bool isNullType() const { return false; }
+
   // [NEW] Substitute generic parameters
   virtual std::shared_ptr<Type> substitute(const std::map<std::string, std::shared_ptr<Type>> &substMap) const {
     return const_cast<Type *>(this)->shared_from_this();
@@ -166,6 +171,10 @@ public:
   bool isFloatingPoint() const override {
     return Name == "f32" || Name == "f64";
   }
+  bool isStringType() const override { return Name == "str"; }
+  bool isAddrType() const override { return Name == "Addr"; }
+  bool isOAddrType() const override { return Name == "OAddr"; }
+  bool isNullType() const override { return Name == "null"; }
 };
 
 // --- Pointer Types ---

@@ -564,7 +564,7 @@ Sema::instantiateGenericShape(std::shared_ptr<ShapeType> GenericShape) {
       bool invalid = false;
       std::string reason = "";
 
-      if (underlying->isBoolean() || underlying->toString() == "bool") {
+      if (underlying->isBoolean()) {
         invalid = true;
         reason = "bool";
       } else if (auto st =
@@ -868,10 +868,8 @@ bool Sema::isTypeCompatible(std::shared_ptr<toka::Type> Target,
   }
 
   // 6. Universal Null Compatibility
-  // nullptr is compatible with any pointer or smart pointer
-  auto sStr = S->toString();
-  auto tStr = T->toString();
-  if (sStr == "null") {
+  // null is compatible with any pointer or smart pointer
+  if (S->isNullType()) {
     if (T->isPointer() || T->isSmartPointer() || T->isReference()) {
       if (T->IsNullable)
         return true;
@@ -880,13 +878,13 @@ bool Sema::isTypeCompatible(std::shared_ptr<toka::Type> Target,
         return true;
     }
   }
-  if (tStr == "null") {
+  if (T->isNullType()) {
     if (S->isPointer() || S->isSmartPointer() || S->isReference())
       return true;
   }
 
   // [Chapter 6 Extension] Nullable Soul Compatibility (none -> T?)
-  if (sStr == "void" && Target->IsNullable && !Target->isPointer() &&
+  if (S->isVoid() && Target->IsNullable && !Target->isPointer() &&
       !Target->isSmartPointer() && !Target->isReference()) {
     return true;
   }
@@ -951,17 +949,15 @@ Sema::getDeepestUnderlyingType(std::shared_ptr<toka::Type> type) {
 uint64_t Sema::getTypeSize(std::shared_ptr<toka::Type> t) {
   if (!t)
     return 0;
-  if (t->isBoolean() || t->toString() == "u8" || t->toString() == "i8")
+  if (t->isBoolean())
     return 1;
-  if (t->toString() == "u16" || t->toString() == "i16")
-    return 2;
-  if (t->toString() == "u32" || t->toString() == "i32" ||
-      t->toString() == "f32" || t->toString() == "char")
-    return 4;
-  if (t->toString() == "u64" || t->toString() == "i64" ||
-      t->toString() == "f64" || t->toString() == "usize" ||
-      t->toString() == "isize")
-    return 8;
+    
+  if (auto prim = std::dynamic_pointer_cast<toka::PrimitiveType>(t)) {
+    if (prim->Name == "u8" || prim->Name == "i8") return 1;
+    if (prim->Name == "u16" || prim->Name == "i16") return 2;
+    if (prim->Name == "u32" || prim->Name == "i32" || prim->Name == "f32" || prim->Name == "char") return 4;
+    if (prim->Name == "u64" || prim->Name == "i64" || prim->Name == "f64" || prim->Name == "usize" || prim->Name == "isize") return 8;
+  }
   if (t->isPointer() || t->isReference())
     return 8; // 64-bit assumption
   if (t->isArray()) {

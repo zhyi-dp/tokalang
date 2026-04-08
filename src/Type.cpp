@@ -990,7 +990,8 @@ std::shared_ptr<Type> Type::fromString(const std::string &rawType) {
     return std::make_shared<VoidType>();
   if (s == "i32" || s == "i64" || s == "u32" || s == "u64" || s == "f32" ||
       s == "f64" || s == "bool" || s == "char" || s == "str" || s == "i8" ||
-      s == "u8" || s == "i16" || s == "u16" || s == "usize") {
+      s == "u8" || s == "i16" || s == "u16" || s == "usize" || s == "isize" ||
+      s == "null" || s == "Addr" || s == "OAddr") {
     auto prim = std::make_shared<PrimitiveType>(s);
     prim->IsWritable = isWritable;
     prim->IsNullable = isNullable;

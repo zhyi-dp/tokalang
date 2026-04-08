@@ -803,16 +803,14 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
         targetType->isInteger() || targetType->isFloatingPoint();
 
     // Rule: Pointer Morphologies or Addr
-    bool srcIsAddr = (srcType->toString() == "Addr" ||
-                      resolveType("Addr") == srcType->toString());
+    bool srcIsAddr = srcType->isAddrType();
     bool targetIsAddr =
         (Cast->TargetType == "Addr" || resolveType("Addr") == Cast->TargetType);
 
     bool srcIsRaw = srcType->isRawPointer();
     bool targetIsRaw = targetType->isRawPointer();
 
-    bool srcIsOAddr = (srcType->toString() == "OAddr" ||
-                       resolveType("OAddr") == srcType->toString());
+    bool srcIsOAddr = srcType->isOAddrType();
     bool targetIsOAddr = (Cast->TargetType == "OAddr" ||
                           resolveType("OAddr") == Cast->TargetType);
 
@@ -954,9 +952,8 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
               Cast->TargetType);
       }
     } else if (targetIsRaw) {
-      bool srcIsStr = (srcType->toString() == "str");
-      bool srcIsNull = (srcType->toString() == "null");
-      std::cerr << "[TRACE] targetIsRaw: srcType=" << srcType->toString() << " tgt=" << Cast->TargetType << "\n";
+      bool srcIsStr = srcType->isStringType();
+      bool srcIsNull = srcType->isNullType();
       if (!(srcIsAddr || srcIsRaw || srcIsNumeric || srcIsStr || srcIsNull || srcType->isUniquePtr() || srcType->isSharedPtr())) {
         error(Cast, DiagID::ERR_CAST_MISMATCH, srcType->toString(),
               Cast->TargetType);
@@ -2495,7 +2492,7 @@ std::shared_ptr<toka::Type> Sema::checkUnaryExpr(UnaryExpr *Unary) {
   m_DisableSoulCollapse = savedDisable;
 
   // Assuming checkExpr returns object now.
-  if (!rhsType || rhsType->toString() == "unknown")
+  if (!rhsType || rhsType->isUnknown())
     return toka::Type::fromString("unknown");
 
   std::string rhsInfo = rhsType->toString();
@@ -3521,7 +3518,7 @@ std::shared_ptr<toka::Type> Sema::checkIndexExpr(ArrayIndexExpr *Idx) {
     m_DisableSoulCollapse = old;
   }
 
-  if (!baseType || baseType->toString() == "unknown")
+  if (!baseType || baseType->isUnknown())
     return toka::Type::fromString("unknown");
 
   std::shared_ptr<toka::Type> resultType = nullptr;
