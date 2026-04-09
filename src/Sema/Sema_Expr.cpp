@@ -1049,7 +1049,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       isReceiver = m_ControlFlowStack.back().IsReceiver;
     }
 
-    m_ControlFlowStack.push_back({"", "void", false, isReceiver});
+    m_ControlFlowStack.push_back({"", "void", nullptr, false, isReceiver});
 
     // Save Mask State for Intersection Rule
     std::map<std::string, uint64_t> masksBefore;
@@ -1076,10 +1076,12 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     }
 
     std::string thenType = m_ControlFlowStack.back().ExpectedType;
+    auto thenTypeObj = m_ControlFlowStack.back().ExpectedTypeObj;
     bool thenReturns = allPathsJump(ie->Then.get());
     m_ControlFlowStack.pop_back();
 
     std::string elseType = "void";
+    std::shared_ptr<toka::Type> elseTypeObj;
     bool elseReturns = false;
     if (ie->Else) {
       // Restore Before Else
@@ -1087,9 +1089,10 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
         CurrentScope->Symbols[pair.first].InitMask = pair.second;
       }
 
-      m_ControlFlowStack.push_back({"", "void", false, isReceiver});
+      m_ControlFlowStack.push_back({"", "void", nullptr, false, isReceiver});
       checkStmt(ie->Else.get());
       elseType = m_ControlFlowStack.back().ExpectedType;
+      elseTypeObj = m_ControlFlowStack.back().ExpectedTypeObj;
       elseReturns = allPathsJump(ie->Else.get());
       m_ControlFlowStack.pop_back();
 
@@ -1132,7 +1135,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     }
 
     if (thenType != "void" && elseType != "void" &&
-        !isTypeCompatible(thenType, elseType)) {
+        !isTypeCompatible(thenTypeObj, elseTypeObj)) {
       error(ie, DiagID::ERR_BRANCH_TYPE_MISMATCH, "If", thenType, elseType);
     }
     return toka::Type::fromString((thenType != "void") ? thenType : elseType);
@@ -1204,18 +1207,21 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       m_ControlFlowStack.back().IsReceiver = isReceiver;
       tookOver = true;
     } else {
-      m_ControlFlowStack.push_back({"", "void", true, isReceiver});
+      m_ControlFlowStack.push_back({"", "void", nullptr, true, isReceiver});
     }
     checkStmt(we->Body.get());
     std::string bodyType = m_ControlFlowStack.back().ExpectedType;
+    auto bodyTypeObj = m_ControlFlowStack.back().ExpectedTypeObj;
     if (!tookOver)
       m_ControlFlowStack.pop_back();
 
     std::string elseType = "void";
+    std::shared_ptr<toka::Type> elseTypeObj;
     if (we->ElseBody) {
-      m_ControlFlowStack.push_back({"", "void", false, isReceiver});
+      m_ControlFlowStack.push_back({"", "void", nullptr, false, isReceiver});
       checkStmt(we->ElseBody.get());
       elseType = m_ControlFlowStack.back().ExpectedType;
+      elseTypeObj = m_ControlFlowStack.back().ExpectedTypeObj;
       m_ControlFlowStack.pop_back();
     }
 
@@ -1233,7 +1239,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       error(we, DiagID::ERR_YIELD_OR_REQUIRED, "while");
     }
     if (bodyType != "void" && elseType != "void" &&
-        !isTypeCompatible(bodyType, elseType)) {
+        !isTypeCompatible(bodyTypeObj, elseTypeObj)) {
       error(we, DiagID::ERR_BRANCH_TYPE_MISMATCH, "While loop", bodyType,
             elseType);
     }
@@ -1251,7 +1257,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       m_ControlFlowStack.back().IsReceiver = isReceiver;
       tookOver = true;
     } else {
-      m_ControlFlowStack.push_back({"", "void", true, isReceiver});
+      m_ControlFlowStack.push_back({"", "void", nullptr, true, isReceiver});
     }
     checkStmt(le->Body.get());
     std::string res = m_ControlFlowStack.back().ExpectedType;
@@ -1371,18 +1377,21 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       m_ControlFlowStack.back().IsReceiver = isReceiver; // Sync receiver status
       tookOver = true;
     } else {
-      m_ControlFlowStack.push_back({"", "void", true, isReceiver});
+      m_ControlFlowStack.push_back({"", "void", nullptr, true, isReceiver});
     }
     checkStmt(fe->Body.get());
     std::string bodyType = m_ControlFlowStack.back().ExpectedType;
+    auto bodyTypeObj = m_ControlFlowStack.back().ExpectedTypeObj;
     if (!tookOver)
       m_ControlFlowStack.pop_back();
 
     std::string elseType = "void";
+    std::shared_ptr<toka::Type> elseTypeObj;
     if (fe->ElseBody) {
-      m_ControlFlowStack.push_back({"", "void", false, isReceiver});
+      m_ControlFlowStack.push_back({"", "void", nullptr, false, isReceiver});
       checkStmt(fe->ElseBody.get());
       elseType = m_ControlFlowStack.back().ExpectedType;
+      elseTypeObj = m_ControlFlowStack.back().ExpectedTypeObj;
       m_ControlFlowStack.pop_back();
     }
     exitScope();
@@ -1401,7 +1410,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       error(fe, DiagID::ERR_YIELD_OR_REQUIRED, "for");
     }
     if (bodyType != "void" && elseType != "void" &&
-        !isTypeCompatible(bodyType, elseType)) {
+        !isTypeCompatible(bodyTypeObj, elseTypeObj)) {
       error(fe, DiagID::ERR_BRANCH_TYPE_MISMATCH, "For loop", bodyType,
             elseType);
     }
@@ -1424,10 +1433,11 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     bool isPrefixLoop = dynamic_cast<LoopExpr *>(pe->Value.get());
 
     std::string valType = "void";
+    std::shared_ptr<toka::Type> valTypeObj;
     if (isPrefixMatch || isPrefixIf || isPrefixFor || isPrefixWhile ||
         isPrefixLoop) {
-      m_ControlFlowStack.push_back({"", "void", false, true});
-      auto valTypeObj = checkExpr(pe->Value.get());
+      m_ControlFlowStack.push_back({"", "void", nullptr, false, true});
+      valTypeObj = checkExpr(pe->Value.get());
       valType = valTypeObj->toString();
       m_ControlFlowStack.pop_back();
 
@@ -1435,7 +1445,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
         error(pe, "Prefix 'pass' expects a value-yielding expression");
       }
     } else {
-      auto valTypeObj = checkExpr(pe->Value.get());
+      valTypeObj = checkExpr(pe->Value.get());
       valType = valTypeObj->toString();
     }
 
@@ -1461,7 +1471,8 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
           foundReceiver = true;
           if (it->ExpectedType == "void") {
             it->ExpectedType = valType;
-          } else if (!isTypeCompatible(it->ExpectedType, valType)) {
+            it->ExpectedTypeObj = valTypeObj;
+          } else if (!isTypeCompatible(it->ExpectedTypeObj, valTypeObj)) {
             error(pe, DiagID::ERR_TYPE_MISMATCH, valType, it->ExpectedType);
           }
           break;
@@ -1479,8 +1490,9 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
                                       : "void");
   } else if (auto *be = dynamic_cast<BreakExpr *>(E)) {
     std::string valType = "void";
+    std::shared_ptr<toka::Type> valTypeObj;
     if (be->Value) {
-      auto valTypeObj = checkExpr(be->Value.get());
+      valTypeObj = checkExpr(be->Value.get());
       valType = valTypeObj->toString();
 
       // Escape Blockade: Check for Dirty Reference
@@ -1519,7 +1531,8 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       if (valType != "void") {
         if (target->ExpectedType == "void") {
           target->ExpectedType = valType;
-        } else if (!isTypeCompatible(target->ExpectedType, valType)) {
+          target->ExpectedTypeObj = valTypeObj;
+        } else if (!isTypeCompatible(target->ExpectedTypeObj, valTypeObj)) {
           error(be, DiagID::ERR_TYPE_MISMATCH, valType, target->ExpectedType);
         }
       }
@@ -1931,6 +1944,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     auto targetTypeObj = checkExpr(me->Target.get());
     std::string targetType = targetTypeObj->toString();
     std::string resultType = "void";
+    std::shared_ptr<toka::Type> resultTypeObj;
 
     bool isReceiver = false;
     if (!m_ControlFlowStack.empty()) {
@@ -1947,9 +1961,10 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
                 "match guard", "bool", arm->Guard->ResolvedType->toString());
         }
       }
-      m_ControlFlowStack.push_back({"", "void", false, isReceiver});
+      m_ControlFlowStack.push_back({"", "void", nullptr, false, isReceiver});
       checkStmt(arm->Body.get());
       std::string armType = m_ControlFlowStack.back().ExpectedType;
+      auto armTypeObj = m_ControlFlowStack.back().ExpectedTypeObj;
       m_ControlFlowStack.pop_back();
 
       if (isReceiver && armType == "void" && !allPathsJump(arm->Body.get())) {
@@ -1958,7 +1973,8 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
 
       if (resultType == "void") {
         resultType = armType;
-      } else if (armType != "void" && !isTypeCompatible(resultType, armType)) {
+        resultTypeObj = armTypeObj;
+      } else if (armType != "void" && !isTypeCompatible(resultTypeObj, armTypeObj)) {
         error(me, DiagID::ERR_BRANCH_TYPE_MISMATCH, "match", resultType, armType);
       }
       
@@ -2747,7 +2763,7 @@ std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
           lhsName = RV->Name;
       }
     }
-    m_ControlFlowStack.push_back({lhsName, "void", false, false});
+    m_ControlFlowStack.push_back({lhsName, "void", nullptr, false, false});
   }
 
   if (!isAssign)
@@ -3884,7 +3900,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
                 std::string expectedBase = Type::stripMorphology(invokeFn->Args[i + 1].Type);
                 std::string actualBase = argTy->getSoulName();
                 if (expectedBase != actualBase && expectedBase != "unknown" && actualBase != "unknown") {
-                    if (!isTypeCompatible(actualBase, expectedBase)) {
+                    if (!isTypeCompatible(toka::Type::fromString(resolveType(actualBase)), toka::Type::fromString(resolveType(expectedBase)))) {
                         DiagnosticEngine::report(getLoc(Call->Args[i].get()), DiagID::ERR_TYPE_MISMATCH,
                                                  "Argument " + std::to_string(i + 1), expectedBase, actualBase);
                         HasError = true;

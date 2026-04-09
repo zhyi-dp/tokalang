@@ -165,11 +165,13 @@ void Sema::checkStmt(Stmt *S) {
     exitScope();
   } else if (auto *Ret = dynamic_cast<ReturnStmt *>(S)) {
     std::string ExprType = "void";
+    std::shared_ptr<toka::Type> ExprTypeObj = toka::Type::fromString("void");
     if (Ret->ReturnValue) {
       Ret->ReturnValue = foldGenericConstant(std::move(Ret->ReturnValue));
       m_ControlFlowStack.push_back(
-          {"", CurrentFunctionReturnType, false, true});
+          {"", CurrentFunctionReturnType, nullptr, false, true});
       auto RetTypeObj = checkExpr(Ret->ReturnValue.get());
+      ExprTypeObj = RetTypeObj;
       ExprType = RetTypeObj->toString();
       m_ControlFlowStack.pop_back();
 
@@ -274,13 +276,20 @@ void Sema::checkStmt(Stmt *S) {
     }
     clearStmtBorrows();
 
-    if (!isTypeCompatible(CurrentFunctionReturnType, ExprType)) {
+    std::shared_ptr<toka::Type> expectedRetObj = nullptr;
+    if (CurrentFunction && CurrentFunction->ResolvedReturnType && CurrentFunctionReturnType == CurrentFunction->ReturnType) {
+        expectedRetObj = CurrentFunction->ResolvedReturnType;
+    } else {
+        expectedRetObj = resolveType(toka::Type::fromString(CurrentFunctionReturnType));
+    }
+
+    if (!isTypeCompatible(expectedRetObj, ExprTypeObj)) {
       DiagnosticEngine::report(getLoc(Ret), DiagID::ERR_TYPE_MISMATCH, ExprType,
                                CurrentFunctionReturnType);
       HasError = true;
     } else {
       // Strict Morphology Check for Return
-      if (CurrentFunction && CurrentFunction->ResolvedReturnType && CurrentFunction->ResolvedReturnType->IsCede) {
+      if (expectedRetObj && expectedRetObj->IsCede) {
         if (Ret->ReturnValue && !dynamic_cast<CedeExpr*>(Ret->ReturnValue.get())) {
           DiagnosticEngine::report(getLoc(Ret), DiagID::ERR_EXPECTED_CEDE_RETURN, CurrentFunctionReturnType);
           HasError = true;
@@ -335,7 +344,7 @@ void Sema::checkStmt(Stmt *S) {
     m_InUnsafeContext = oldUnsafe;
   } else if (auto *ExprS = dynamic_cast<ExprStmt *>(S)) {
     // Standalone expressions are NOT receivers
-    m_ControlFlowStack.push_back({"", "void", false, false});
+    m_ControlFlowStack.push_back({"", "void", nullptr, false, false});
     ExprS->Expression = foldGenericConstant(std::move(ExprS->Expression));
     checkExpr(ExprS->Expression.get());
     m_ControlFlowStack.pop_back();
@@ -359,7 +368,7 @@ void Sema::checkStmt(Stmt *S) {
       }
       if (Var->IsReference)
         m_AllowUnsetUsage = true;
-      m_ControlFlowStack.push_back({Var->Name, "void", false, true});
+      m_ControlFlowStack.push_back({Var->Name, "void", nullptr, false, true});
       if (!Var->TypeName.empty() && Var->TypeName != "auto") {
         auto declTargetTy = resolveType(toka::Type::fromString(Var->TypeName), false);
         if (declTargetTy && (declTargetTy->typeKind == toka::Type::Function || declTargetTy->typeKind == toka::Type::DynFn)) {
@@ -478,7 +487,7 @@ void Sema::checkStmt(Stmt *S) {
         DeclFullTy += "#";
       }
 
-      if (!InitType.empty() && !isTypeCompatible(DeclFullTy, InitType)) {
+      if (!InitType.empty() && !isTypeCompatible(toka::Type::fromString(resolveType(DeclFullTy)), InitTypeObj)) {
         // [NEW] Implicit Box Support
 
         std::string boxedType = (Var->IsShared ? "~" : (Var->IsUnique ? "^" : ""));
@@ -488,7 +497,7 @@ void Sema::checkStmt(Stmt *S) {
            if (Var->IsPointerNullable) testTy = "nul " + testTy;
            
 
-           if (isTypeCompatible(DeclFullTy, testTy)) {
+           if (isTypeCompatible(toka::Type::fromString(resolveType(DeclFullTy)), toka::Type::fromString(resolveType(testTy)))) {
 
               auto boxExpr = std::make_unique<ImplicitBoxExpr>(std::move(Var->Init), Var->IsShared, Var->IsUnique);
               boxExpr->ResolvedType = toka::Type::fromString(resolveType(DeclFullTy));
@@ -861,7 +870,7 @@ void Sema::checkStmt(Stmt *S) {
     if (!m_ControlFlowStack.empty()) {
       isReceiver = m_ControlFlowStack.back().IsReceiver;
     }
-    m_ControlFlowStack.push_back({"", "void", false, isReceiver});
+    m_ControlFlowStack.push_back({"", "void", nullptr, false, isReceiver});
     checkStmt(GuardBind->ElseBody.get());
     m_ControlFlowStack.pop_back();
 

@@ -289,6 +289,7 @@ private:
   struct ControlFlowInfo {
     std::string Label;
     std::string ExpectedType;
+    std::shared_ptr<toka::Type> ExpectedTypeObj;
     bool IsLoop;
     bool IsReceiver =
         false; // Whether this context expects a 'pass' or 'break' value
@@ -367,7 +368,6 @@ private:
   // Helpers
   uint64_t getTypeSize(std::shared_ptr<toka::Type> Type);
   bool checkVisibility(ASTNode *Node, ShapeDecl *SD);
-  bool isTypeCompatible(const std::string &Target, const std::string &Source);
   bool isTypeCompatible(std::shared_ptr<toka::Type> Target,
                         std::shared_ptr<toka::Type> Source);
 

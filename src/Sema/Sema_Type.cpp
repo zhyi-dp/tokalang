@@ -611,6 +611,9 @@ bool Sema::isTypeCompatible(std::shared_ptr<toka::Type> Target,
   if (!Target || !Source)
     return false;
 
+  if (Target->isUnknown() || Source->isUnknown())
+    return true;
+
   // [CORE] Strong Type Wall: Strict Name Identity (Shapes only)
   bool isTShape =
       Target->isShape() || (Target->isPointer() && Target->getPointeeType() &&
@@ -898,16 +901,7 @@ bool Sema::isTypeCompatible(std::shared_ptr<toka::Type> Target,
   return S->isCompatibleWith(*T);
 }
 
-bool Sema::isTypeCompatible(const std::string &Target,
-                            const std::string &Source) {
-  if (Target == Source || Target == "unknown" || Source == "unknown" ||
-      Source == "Unresolved(unknown)")
-    return true;
 
-  auto tObj = toka::Type::fromString(resolveType(Target));
-  auto sObj = toka::Type::fromString(resolveType(Source));
-  return isTypeCompatible(tObj, sObj);
-}
 
 std::shared_ptr<toka::Type>
 Sema::getDeepestUnderlyingType(std::shared_ptr<toka::Type> type) {
