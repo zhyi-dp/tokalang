@@ -80,6 +80,8 @@ DIAG(ERR_IMMUTABLE_MOD,      Error, "E0443", "Cannot modify immutable entity '{}
 DIAG(ERR_SHAPE_NO_DROP,      Error, "E0444", "Shape '{}' manages resources but does not implement 'drop'")
 DIAG(ERR_SHAPE_NO_CLONE,     Error, "E0458", "Shape '{}' manages resources (raw pointers) but does not implement 'clone'")
 DIAG(ERR_UNSAFE_RAW_PTR,     Error, "E0445", "Shape '{}' manages raw pointers but does not implement 'drop'")
+DIAG(ERR_REDUNDANT_PARAM_BORROW, Error, "E0451", "Redundant parameter borrow morphology. Toka implicitly captures arguments by reference, so the '&' morphology is unnecessary unless rebinding.")
+DIAG(ERR_RETURN_REBIND_DISCARDED, Error, "E0446", "Return value binding '{}' expects a result but void was returned")
 DIAG(ERR_UNSAFE_RESOURCE,    Error, "E0446", "Shape '{}' contains managed resources but does not implement 'drop'")
 DIAG(ERR_NULL_ACCESS,        Error, "E0447", "Accessing member of nullable type '{}' requires explicit 'is' check")
 DIAG(ERR_MORPHOLOGY_MISMATCH, Error, "E0448", "Pointer morphology mismatch: expected explicit '{}' (from LHS/Target), found '{}' (from RHS/Source)")

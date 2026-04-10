@@ -36,7 +36,7 @@ fn addtox(point#: Point, v: i32) {
     point.x += v
 }
 
-fn addtox_useref(&point#: Point, v: i32) {
+fn addtox_useref(point#: Point, v: i32) {
     point.x += v
 }
 
@@ -56,7 +56,7 @@ fn main() -> i32 {
     addtox(p#, 10)
     println("[{}]p.x is {} (after addtox, should be 51 because of In-place Capture)", logi++, p.x)
     
-    addtox_useref(&p#, 10)
+    addtox_useref(p#, 10)
     println("[{}]p.x is {} (after addtox_useref, should be 61)", logi++, p.x)
 
     auto b# = true

@@ -640,6 +640,12 @@ void Sema::checkFunction(FunctionDecl *Fn) {
                                Arg.Name);
       HasError = true;
     }
+
+    if (Arg.IsReference && !Arg.IsRebindable && Arg.Name != "self") {
+      DiagnosticEngine::report(getLoc(Fn), DiagID::ERR_REDUNDANT_PARAM_BORROW);
+      HasError = true;
+    }
+
     SymbolInfo Info;
     std::string fullType = "";
     // 1. Morphology Sigil (Constitutional 1.3 - Leading)

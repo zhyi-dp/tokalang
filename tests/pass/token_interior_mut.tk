@@ -6,8 +6,8 @@ shape CounterInfo(
     name: str
 )
 
-fn process_info(&info: CounterInfo) {
-    // 即使 info 是只读借用 (&)，我们也允许直接对 #: 修饰的字段进行覆写
+fn process_info(info: CounterInfo) {
+    // 即使 info 是借用进来的，我们也允许直接对 #: 修饰的字段进行覆写
     info.accesses = info.accesses + 1
     
     // 核心铁律：绝对禁止向 #: 字段派生任何借用令牌
@@ -16,13 +16,13 @@ fn process_info(&info: CounterInfo) {
     // auto &acc_mut# = info.&accesses  // [Compile Error Expected]
     
     // 常规字段的借用不受影响
-    auto &name_ref = info.name
+    auto &name_ref = info.&name
 }
 
 fn main() -> i32 {
     auto c = CounterInfo(accesses=0, name="metrics")
-    process_info(&c)
-    process_info(&c)
+    process_info(c)
+    process_info(c)
     
     if (c.accesses == 2) {
         return 0

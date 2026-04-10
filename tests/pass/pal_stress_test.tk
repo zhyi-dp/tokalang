@@ -14,12 +14,12 @@ shape Scene(
     ^root: Node
 )
 
-fn process_node(&n: Node, val: i32) {
+fn process_node(n: Node, val: i32) {
     // dummy function to consume a borrow and a value simultaneously
     println("processing node val {}, provided {}", n.val, val)
 }
 
-fn mutate_val(&n#: Node) {
+fn mutate_val(n#: Node) {
     n.val = 100
 }
 
@@ -32,7 +32,7 @@ fn main() -> i32 {
     
     // 1. Transient Borrow check
     // Evaluates Transient for parameters seamlessly.
-    process_node(scene.&root, scene.root.val)
+    process_node(scene.root, scene.root.val)
     
     // Following transient phase (end of Statement), locks are destroyed! We can mutate or re-borrow.
     scene.root.val = 2
