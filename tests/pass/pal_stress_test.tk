@@ -24,6 +24,25 @@ fn mutate_val(n#: Node) {
     n.val = 100
 }
 
+// Function with inline lifetime tying
+fn select_engine(n1: Node, n2: Node) -> &Engine <- n1 | n2 {
+    if n1.val > n2.val {
+        return &(n1.left)
+    }
+    return &(n2.right)
+}
+
+// Function with effects block tying
+fn select_engine_effects(n1: Node, n2: Node) -> &res: Engine
+effects:
+    &res <- n1 | n2
+{
+    if n1.right.val > n2.left.val {
+        return &(n1.right)
+    }
+    return &(n2.left)
+}
+
 fn main() -> i32 {
     auto ~leftEngine = new Engine(val = 10)
     auto ~rightEngine = new Engine(val = 20)
@@ -79,6 +98,18 @@ fn main() -> i32 {
         immut_ref.reads = immut_ref.reads + 1
         println("Reads successfully updated via immutable ref: {}", immut_ref.reads)
         assert(immut_ref.reads == 1, "Interior mutability failed")
+    }
+
+    // 5. Cross-Function Borrow Effects Testing
+    {
+        auto &heavy = select_engine(scene.root, scene.root)
+        
+        auto &heavy2 = select_engine_effects(scene.root, scene.root)
+        
+        // Both scene.root handles are securely locked as Immutable!
+        // Writing to them via an active external tie would be rejected by PAL.
+        // Uncommenting the below would be E0443 (Cannot modify immutable entity):
+        // scene.root.val = 999 
     }
 
     println("PAL check completed brilliantly")
