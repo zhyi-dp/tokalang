@@ -14,7 +14,7 @@ pub fn main() -> i32 {
     // Consumer
     auto consumer: fn() -> cede i32 = { =>
         println("Consumer locking mutex...")
-        guard auto Ok(lock) = m#.lock() else { return cede 1 }
+        auto lock = m#.lock().unwrap()
         
         auto *s_ptr# = lock.get_ref()
         loop {
@@ -36,7 +36,7 @@ pub fn main() -> i32 {
     
     println("Producer locking mutex...")
     {
-        guard auto Ok(lock_prod) = m#.lock() else { return 1 }
+        auto lock_prod = m#.lock().unwrap()
         
         auto *s_prod# = lock_prod.get_ref()
         s_prod.val = 42

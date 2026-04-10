@@ -10,26 +10,10 @@ fn main() -> i32 {
     pair.tx#.send(cede msg_to_send)
     auto res_opt = pair.rx#.recv()
     
-    match res_opt {
-        auto Result<Option<i32>, Error>::Ok(msg_opt) => {
-            match msg_opt {
-                auto Option<i32>::Some(msg) => {
-                    println("Received: {}", msg)
-                    assert(msg == 42, "msg must be 42")
-                }
-                _ => {
-                    println("Channel closed")
-                }
-            }
-        }
-        auto Result<Option<i32>, Error>::Err(e) => {
-            println("Error receiving: {}", e.message.c_str())
-            return 1
-        }
-        _ => {
-            return 2
-        }
-    }
+    auto msg_opt = res_opt.unwrap()
+    auto msg = msg_opt.unwrap()
+    println("Received: {}", msg)
+    assert(msg == 42, "msg must be 42")
     
     return 0
 }

@@ -75,7 +75,7 @@ fn main() -> i32 {
                         remove_file(dirname.clone())
                     }
                 }
-                auto Result<Metadata, String>::Err(e) => {
+                auto Result<Metadata, String>::Err(&e) => {
                      println("Metadata failed: {}", e)
                 }
             }
@@ -85,11 +85,11 @@ fn main() -> i32 {
         {
             auto f_res = File::open(filename.clone(), String::from("w"))
             match f_res {
-                auto Result<File, String>::Ok(f#) => {
+                auto Result<File, String>::Ok(&f#) => {
                     f.write(String::from("Hello Metadata"))
                     f#.close()
                 }
-                auto Result<File, String>::Err(e) => {
+                auto Result<File, String>::Err(&e) => {
                     println("Failed to write file: {}", e)
                     return 1
                 }
@@ -116,7 +116,7 @@ fn main() -> i32 {
                     }
                     println("File size: {}", m.len() as i32)
                 }
-                auto Result<Metadata, String>::Err(e) => {
+                auto Result<Metadata, String>::Err(&e) => {
                     println("Metadata failed for file: {}", e)
                     return 5
                 }
@@ -150,7 +150,7 @@ fn main() -> i32 {
                         return 7
                     }
                 }
-                auto Result<Metadata, String>::Err(e) => {
+                auto Result<Metadata, String>::Err(&e) => {
                     println("Metadata failed for dir: {}", e)
                     return 8
                 }

@@ -77,19 +77,23 @@ pub fn sync_channel<'T: @Send>(bound: i32) -> ChannelPair<'T> {
 
 impl<'T: @Send> Sender<'T> {
     pub fn clone(self#) -> Sender<'T> {
-        guard auto Ok(lguard#) = self.channel.state.lock() else {
+        auto lguard_res = self.channel.state.lock()
+        if lguard_res.is_err() {
             assert(false, "Mutex lock failed during Sender clone")
             return Sender<'T>(~channel = self.~channel)
         }
+        auto lguard# = lguard_res.unwrap()
         auto *q# = lguard.get_ref()
         q.senders = q.senders + 1
         return Sender<'T>(~channel = self.~channel)
     }
     
     pub fn send(self#, val: cede 'T) -> Result<(), Error> {
-        guard auto Ok(lguard) = self.channel.state.lock() else {
+        auto lguard_res = self.channel.state.lock()
+        if lguard_res.is_err() {
             return Result<(), Error>::Err(Error::new(2:i32, "Mutex lock failed"))
         }
+        auto lguard = lguard_res.unwrap()
         
         auto *q# = lguard.get_ref()
         if q.closed {
@@ -111,9 +115,11 @@ impl<'T: @Send> Sender<'T> {
     }
 
     pub fn clone(self) -> Sender<'T> {
-        guard auto Ok(lguard#) = self.channel.state.lock() else {
+        auto lguard_res = self.channel.state.lock()
+        if lguard_res.is_err() {
             return Sender<'T>(~channel = self.~channel)
         }
+        auto lguard# = lguard_res.unwrap()
         auto *q# = lguard.get_ref()
         q.senders = q.senders + 1
         return Sender<'T>(~channel = self.~channel)
@@ -122,9 +128,11 @@ impl<'T: @Send> Sender<'T> {
 
 impl<'T: @Send> Receiver<'T> {
     pub fn recv(self#) -> Result<Option<'T>, Error> {
-        guard auto Ok(lguard#) = self.channel.state.lock() else {
+        auto lguard_res = self.channel.state.lock()
+        if lguard_res.is_err() {
             return Result<Option<'T>, Error>::Err(Error::new(4:i32, "Mutex lock failed"))
         }
+        auto lguard# = lguard_res.unwrap()
 
         auto *q# = lguard.get_ref()
         while q.queue.len() == 0 {
@@ -145,9 +153,11 @@ impl<'T: @Send> Receiver<'T> {
 // Drop implementations for sender/receiver cloning
 impl<'T: @Send> Sender<'T>@encap {
     fn drop(self#) {
-        guard auto Ok(lguard#) = self.channel.state.lock() else {
+        auto lguard_res = self.channel.state.lock()
+        if lguard_res.is_err() {
             return
         }
+        auto lguard# = lguard_res.unwrap()
         auto *q# = lguard.get_ref()
         q.senders = q.senders - 1
         if q.senders == 0 {
@@ -159,9 +169,11 @@ impl<'T: @Send> Sender<'T>@encap {
 
 impl<'T: @Send> Receiver<'T>@encap {
     fn drop(self#) {
-        guard auto Ok(lguard#) = self.channel.state.lock() else {
+        auto lguard_res = self.channel.state.lock()
+        if lguard_res.is_err() {
             return
         }
+        auto lguard# = lguard_res.unwrap()
         auto *q# = lguard.get_ref()
         q.receivers = q.receivers - 1
         if q.receivers == 0 {

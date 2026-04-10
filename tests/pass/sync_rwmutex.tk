@@ -8,15 +8,9 @@ fn main() -> i32 {
 
     println("Testing RwMutex read_lock...")
     {
-        guard auto Ok(rl1) = rw#.read_lock() else {
-            println("rw.read_lock 1 failed")
-            return 1
-        }
+        auto rl1 = rw#.read_lock().unwrap()
         
-        guard auto Ok(rl2) = rw#.read_lock() else {
-            println("rw.read_lock 2 failed (should allow concurrent readers)")
-            return 1
-        }
+        auto rl2 = rw#.read_lock().unwrap()
         
         auto *p1 = rl1.get_ref()
         auto *p2 = rl2.get_ref()
@@ -31,10 +25,7 @@ fn main() -> i32 {
     
     println("Testing RwMutex write_lock...")
     {
-        guard auto Ok(wl) = rw#.write_lock() else {
-            println("rw.write_lock failed")
-            return 1
-        }
+        auto wl = rw#.write_lock().unwrap()
         
         auto *wp# = wl.get_ref()
         wp = 100
@@ -43,10 +34,7 @@ fn main() -> i32 {
 
     println("Verifying write_lock mutation via read_lock...")
     {
-        guard auto Ok(rl) = rw#.read_lock() else {
-            println("rw.read_lock failed")
-            return 1
-        }
+        auto rl = rw#.read_lock().unwrap()
         auto *p = rl.get_ref()
         println("Final value: {}", p)
         if p != 100 {

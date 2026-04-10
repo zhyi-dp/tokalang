@@ -4754,6 +4754,17 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
 
     if (Info.TypeObj) {
         Info.TypeObj = Info.TypeObj->withAttributes(Pat->IsValueMutable, false);
+        
+        // [Safety Gate] Prevent implicit destructure copying of Resources
+        if (!Pat->IsReference && !Info.IsMorphicExempt) {
+            std::string soulName = Info.TypeObj->getSoulName();
+            if (!soulName.empty() && ShapeMap.count(soulName)) {
+                if (!ShapeMap[soulName]->MangledDestructorName.empty()) {
+                    DiagnosticEngine::report(getLoc(Pat), DiagID::ERR_ILLEGAL_RESOURCE_COPY, soulName, Pat->Name);
+                    HasError = true;
+                }
+            }
+        }
     }
 
     CurrentScope->define(Pat->Name, Info);

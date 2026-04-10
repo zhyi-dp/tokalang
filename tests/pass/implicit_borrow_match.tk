@@ -43,10 +43,10 @@ pub fn check_result(res: Result<String, String>) -> i32 {
         // `auto Ok(msg)` is strictly forbidden (shallow copy of a resource).
         // Developers MUST explicitly wear the reference hat `&` to indicate:
         // "This is a read-only view; ownership is not transferred."
-        auto Ok(msg) => {
+        auto Ok(&msg) => {
             println("Match read success: {}", msg.c_str())
         }
-        auto Err(e) => {
+        auto Err(&e) => {
             println("Match error occurred: {}", e.c_str())
         }
     }
@@ -77,6 +77,20 @@ pub fn check_mut_result(res#: Result<String, String>) -> i32 {
         }
         auto Err(&e#) => {
             e = String::from("modified Err msg")
+            println("Match error occurred: {}", e.c_str())
+        }
+    }
+
+    match res {
+        // [Explicit Borrow Semantics Verification]
+        // Because String carries an allocated resource (Drop), directly writing 
+        // `auto Ok(msg)` is strictly forbidden (shallow copy of a resource).
+        // Developers MUST explicitly wear the reference hat `&` to indicate:
+        // "This is a read-only view; ownership is not transferred."
+        auto Ok(&msg) => {
+            println("Match read success: {}", msg.c_str())
+        }
+        auto Err(&e) => {
             println("Match error occurred: {}", e.c_str())
         }
     }

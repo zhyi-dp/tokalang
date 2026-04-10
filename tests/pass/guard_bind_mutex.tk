@@ -8,10 +8,7 @@ fn main() -> i32 {
     
     // First lock
     {
-        guard auto Ok(g) = m#.lock() else {
-            println("m.lock failed")
-            return 1
-        }
+        auto g = m#.lock().unwrap()
         auto *p# = g.get_ref()
         p = 10
         println("val: {}", p)
@@ -19,9 +16,7 @@ fn main() -> i32 {
     
     // Test mutability directly
     {
-        guard auto Ok(g) = m#.lock() else {
-            return 1
-        }
+        auto g = m#.lock().unwrap()
         auto *p2 = g.get_ref()
         println("final val: {}", p2)
     }

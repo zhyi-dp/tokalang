@@ -30,21 +30,10 @@ pub fn main() -> i32 {
     
     while count < 2 {
         auto res_opt = pair.rx#.recv()
-        match res_opt {
-            auto Result<Option<i32>, Error>::Ok(opt) => {
-                match opt {
-                    auto Option<i32>::Some(val) => {
-                        sum = sum + val
-                        count = count + 1
-                    }
-                    _ => {
-                        println("Channel unexpectedly closed prematurely!")
-                        return 1
-                    }
-                }
-            }
-            _ => { return 2 }
-        }
+        auto opt = res_opt.unwrap()
+        auto val = opt.unwrap()
+        sum = sum + val
+        count = count + 1
     }
     
     println("Total received sum from 2 threads: {}", sum)

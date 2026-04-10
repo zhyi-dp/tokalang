@@ -106,6 +106,7 @@ DIAG(ERR_VARIANT_NO_PAYLOAD, Error, "E0550", "Enum variant '{}' does not accept 
 DIAG(ERR_VARIANT_ARG_MISMATCH, Error, "E0551", "Enum variant '{}' expects {} fields, but got {}")
 DIAG(ERR_UNKNOWN_SHAPE_IN_PAT, Error, "E0552", "Unknown type '{}' in pattern matching")
 DIAG(ERR_MATCH_NOT_EXHAUSTIVE, Error, "E0553", "Match is not exhaustive. Missing: {}")
+DIAG(ERR_ILLEGAL_RESOURCE_COPY, Error, "E0554", "Naked destructuring of resource '{}' is strictly forbidden to prevent silent copies and double-frees. You must use an explicit borrow '&' (e.g., '&{}')")
 
 // --- Generics (Upcoming) ---
 DIAG(ERR_GENERIC_COUNT_MISMATCH, Error, "E0601", "Type '{}' expects {} generic arguments, but got {}")

@@ -1,0 +1,15 @@
+import core/result::Result
+import std/string::String
+
+pub fn main() -> i32 {
+    auto string_res# = Result<String, String>::Ok(String::from("Test"))
+    
+    match string_res# {
+        auto Ok(msg) => { // SHOULD FAIL HERE!
+            msg.c_str()
+        }
+        auto Err(e) => {} // SHOULD FAIL HERE!
+    }
+
+    return 0
+}

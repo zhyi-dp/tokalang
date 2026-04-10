@@ -1723,7 +1723,7 @@ llvm::Value *CodeGen::genNullCheck(llvm::Value *val, const ASTNode *node,
 }
 
 PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
-  PhysEntity targetVal_ent = genExpr(expr->Target.get()).load(m_Builder);
+  PhysEntity targetVal_ent = genExpr(expr->Target.get());
   llvm::Value *targetVal = targetVal_ent.load(m_Builder);
   llvm::Type *targetType = targetVal->getType();
 
@@ -1747,10 +1747,14 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
         createEntryBlockAlloca(resultType, nullptr, "match_result_addr");
   }
 
-  // Store target to temp alloca for addressing
-  llvm::Value *targetAddr =
-      createEntryBlockAlloca(targetType, nullptr, "match_target_addr");
-  m_Builder.CreateStore(targetVal, targetAddr);
+  // Use the physical address if it already exists, otherwise create a temporary staging block
+  llvm::Value *targetAddr = nullptr;
+  if (targetVal_ent.isAddress) {
+      targetAddr = targetVal_ent.value;
+  } else {
+      targetAddr = createEntryBlockAlloca(targetType, nullptr, "match_target_addr");
+      m_Builder.CreateStore(targetVal, targetAddr);
+  }
 
   llvm::Function *func = m_Builder.GetInsertBlock()->getParent();
   llvm::BasicBlock *mergeBB =
