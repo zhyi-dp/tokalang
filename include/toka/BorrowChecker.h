@@ -28,6 +28,11 @@ enum class PathState {
   BorrowedMut      // Mutable/Exclusive borrow (&#)
 };
 
+/// Toka's PAL (Path-Anchored Ledger) System
+/// 
+/// PAL is the official identifier for Toka's Borrow Checker mechanism. 
+/// It enforces memory safety and resource aliasing rules at compile time 
+/// uniformly utilizing an AST path-string based transient-lexical ledger stack.
 class BorrowChecker {
 public:
   bool IsEnabled = true;
