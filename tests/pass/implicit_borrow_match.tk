@@ -43,10 +43,10 @@ pub fn check_result(res: Result<String, String>) -> i32 {
         // `auto Ok(msg)` is strictly forbidden (shallow copy of a resource).
         // Developers MUST explicitly wear the reference hat `&` to indicate:
         // "This is a read-only view; ownership is not transferred."
-        auto Ok(&msg) => {
+        auto Ok(msg) => {
             println("Match read success: {}", msg.c_str())
         }
-        auto Err(&e) => {
+        auto Err(e) => {
             println("Match error occurred: {}", e.c_str())
         }
     }
@@ -62,14 +62,44 @@ pub fn check_result(res: Result<String, String>) -> i32 {
     return 0
 }
 
+// 2. Resource-backed type destructuring test (Explicit Borrow semantics)
+pub fn check_mut_result(res#: Result<String, String>) -> i32 {
+    
+    match res {
+        // [Explicit Borrow Semantics Verification]
+        // Because String carries an allocated resource (Drop), directly writing 
+        // `auto Ok(msg)` is strictly forbidden (shallow copy of a resource).
+        // Developers MUST explicitly wear the reference hat `&` to indicate:
+        // "This is a read-only view; ownership is not transferred."
+        auto Ok(&msg#) => {
+            msg = String::from("modified Ok msg")
+            println("Match read success: {}", msg.c_str())
+        }
+        auto Err(&e#) => {
+            e = String::from("modified Err msg")
+            println("Match error occurred: {}", e.c_str())
+        }
+    }
+
+    return 0
+}
+
 pub fn main() -> i32 {
     check_pure_data()
 
-    // string_res legitimately 'owns' this heap memory and the Result's lifecycle.
-    auto string_res = Result<String, String>::Ok(String::from("Toka Destructure Safety"))
+    {
+        // string_res legitimately 'owns' this heap memory and the Result's lifecycle.
+        auto string_res = Result<String, String>::Ok(String::from("Toka Destructure Safety"))
+
+        // Invoke the destructuring exhibition
+        check_result(string_res)
+    }
+
+    auto string_res# = Result<String, String>::Ok(String::from("Toka Destructure Safety"))
 
     // Invoke the destructuring exhibition
-    check_result(string_res)
+    check_mut_result(string_res#)
+
 
     // At the end of the main function, since string_res is the true owner,
     // its Drop will be uniquely and correctly executed.

@@ -4692,6 +4692,9 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
     return;
 
   std::string T = resolveType(TargetType);
+  while (!T.empty() && (T.back() == '#' || T.back() == '?' || T.back() == '!')) {
+      T.pop_back();
+  }
 
   switch (Pat->PatternKind) {
   case MatchArm::Pattern::Literal:
@@ -4747,6 +4750,10 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
 
     if (!Pat->Name.empty() && Pat->Name[0] == '\'') {
         Info.IsMorphicExempt = true;
+    }
+
+    if (Info.TypeObj) {
+        Info.TypeObj = Info.TypeObj->withAttributes(Pat->IsValueMutable, false);
     }
 
     CurrentScope->define(Pat->Name, Info);
