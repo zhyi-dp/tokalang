@@ -10,14 +10,14 @@ Toka's memory safety is built on a clear **Ownership** model, enforced by the co
 A Unique Pointer (`^T`) is the sole owner of a resource. When it goes out of scope, the resource is automatically cleaned up (RAII).
 
 ```toka
-fn take_ownership(^u: User) {
+fn take_ownership(cede ^u: User) {
     println("Owning user: {}", u.name)
 } // u is dropped here
 
 pub fn main() -> i32 {
     auto ^user = new User(name = "Alice")
-    take_ownership(user) // ownership transferred
-    // user is no longer accessible here
+    take_ownership(cede ^user) // ownership transferred with cede
+    // ^user is no longer accessible here
     return 0
 }
 ```
@@ -44,7 +44,7 @@ fn print_user(&u: User) {
 
 pub fn main() -> i32 {
     auto ^user = new User(name = "Bob")
-    print_user(user) // Immutable borrow
+    print_user(&user) // Immutable borrow (implicit capture)
     return 0
 }
 ```
@@ -54,11 +54,11 @@ pub fn main() -> i32 {
 You can explicitly transfer ownership of a Soul using the `cede` keyword.
 
 ```toka
-fn process_data(^v: Vec<i32>) { ... }
+fn process_data(cede ^v: [i32]) { ... }
 
 pub fn main() -> i32 {
     auto ^v = [1, 2, 3]
-    process_data(cede v) // v is ceded
+    process_data(cede ^v) // ^v is ceded
     return 0
 }
 ```

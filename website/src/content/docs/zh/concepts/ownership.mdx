@@ -10,14 +10,14 @@ Toka 的内存安全性建立在清晰的 **所有权 (Ownership)** 模型之上
 独占指针 (`^T`) 是资源的唯一持有者。当它离开作用域时，资源将被自动清理 (RAII)。
 
 ```toka
-fn take_ownership(^u: User) {
+fn take_ownership(cede ^u: User) {
     println("拥有用户: {}", u.name)
 } // u 在此处被释放 (dropped)
 
 pub fn main() -> i32 {
     auto ^user = new User(name = "Alice")
-    take_ownership(user) // 所有权转移
-    // user 在此之后不再可访问
+    take_ownership(cede ^user) // 显式使用 cede 转移所有权
+    // ^user 在此之后不再可访问
     return 0
 }
 ```
@@ -44,7 +44,7 @@ fn print_user(&u: User) {
 
 pub fn main() -> i32 {
     auto ^user = new User(name = "Bob")
-    print_user(user) // 不可变借用 (Immutable borrow)
+    print_user(&user) // 不可变借用 (隐式捕获传递)
     return 0
 }
 ```
@@ -54,12 +54,15 @@ pub fn main() -> i32 {
 你可以使用 `cede` 关键字显式地转移一个 Soul (灵魂) 的所有权。
 
 ```toka
-fn process_data(^v: Vec<i32>) { ... }
+fn process_data(cede ^v: [i32]) { ... }
 
 pub fn main() -> i32 {
     auto ^v = [1, 2, 3]
-    process_data(cede v) // v 已被 cede (让渡)
+    process_data(cede ^v) // ^v 已被 cede (让渡所有权)
     return 0
+}
+```
+
 ## @encap Trait
 
 对于管理外部资源（如文件句柄或套接字）的类型，实现 `@encap` trait 可以自定义清理逻辑。

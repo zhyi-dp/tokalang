@@ -16,19 +16,24 @@ auto (val, msg, p) = t // Destructuring
 
 ## Arrays
 
-Arrays are fixed-size, homogeneous collections of values. They are defined using square brackets with a size.
+Arrays are homogeneous collections of values. Fixed-size static arrays can be created directly using square brackets.
 
 ```toka
-auto arr = [1, 2, 3, 4, 5]
-auto grid# = [0i32; 64] // Initialized with 64 zeros, mutable using suffix #
+auto arr = [1, 2, 3, 4, 5] // Fixed-size 5 elements
 ```
 
-## Slices
+## First-Class Dynamic Arrays (Slices)
 
-Slices (`[T]`) are views into arrays or other collections. They don't own the data but provide safe access through a pointer and a length.
+In Toka, `[T]` represents a First-Class Dynamic Array underlying sequence. Depending on pointer morphology, it represents different memory structures as a **Fat Pointer** (containing both pointer and runtime length):
+
+- `^[T]` (Unique Array): A dynamically allocated array that strictly owns data, and drops sequentially using runtime bonds.
+- `&[T]` (Reference Slice): A borrowed view into a sequence. 
+- `~[T]` (Shared Array): A reference-counted dynamic array slice block.
 
 ```toka
-pub fn sum(&data: [i32]) -> i32 {
+auto ^slice# = new [4]i32(0) // Allocate a 4-element dynamic array
+
+pub fn sum(&data: [i32]) -> i32 { // Pass safely without ownership
     auto res# = 0
     for x in data {
         res += x
