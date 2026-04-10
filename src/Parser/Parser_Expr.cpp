@@ -248,6 +248,15 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
     node->IsRebindBlocked = tok.IsBlocked;
     node->IsValueBlocked = tok.IsBlocked;
     node->setLocation(tok, m_CurrentFile);
+    
+    // [NEW] Enforce Hat Principle for references on member chains
+    if (op == TokenType::Ampersand) {
+      if (dynamic_cast<MemberExpr*>(node->RHS.get()) && !node->RHS->HasParens) {
+        error(tok, "Use of unary '&' on an access chain without parentheses is visually ambiguous. Either wrap in parentheses '&(a.b)' or use hat-terminal morphology 'a.&b'.");
+        return nullptr;
+      }
+    }
+    
     return node;
   }
 
@@ -649,6 +658,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
         expr = std::move(node);
       } else {
         expr = std::move(elements[0]);
+        expr->HasParens = true; // [NEW] Track that it was explicitly paren-wrapped
       }
     }
   } else if (match(TokenType::Identifier) || match(TokenType::KwUpperSelf)) {

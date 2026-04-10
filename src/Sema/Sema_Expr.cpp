@@ -41,6 +41,9 @@ static std::string getStringifyPath(Expr *E) {
   if (auto *ue = dynamic_cast<UnaryExpr *>(E)) {
     return getStringifyPath(ue->RHS.get());
   }
+  if (auto *ae = dynamic_cast<AddressOfExpr *>(E)) {
+    return getStringifyPath(ae->Expression.get());
+  }
   return "";
 }
 
@@ -522,10 +525,12 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       borrower = m_ControlFlowStack.back().Label;
 
     std::string conflictPath = "";
-    if (m_InLHS) {
-       conflictPath = BorrowCheckerState.verifyMutation(actualName);
-    } else {
-       conflictPath = BorrowCheckerState.verifyAccess(actualName);
+    if (!m_InIntermediatePath) {
+      if (m_InLHS) {
+         conflictPath = BorrowCheckerState.verifyMutation(actualName);
+      } else {
+         conflictPath = BorrowCheckerState.verifyAccess(actualName);
+      }
     }
     
     // Usage-time Authorization: A previously defined reference 
@@ -896,7 +901,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
                 "') cannot be degraded to raw pointer ('" + Cast->TargetType +
                 "'). Violation of Allocation Sourcing.");
     } else if (targetIsAddr) {
-      if (!(srcIsAddr || srcIsRaw || srcIsNumeric || srcType->isUniquePtr() || srcType->isSharedPtr())) {
+      if (!(srcIsAddr || srcIsRaw || srcIsNumeric || srcType->isUniquePtr() || srcType->isSharedPtr() || srcType->isReference())) {
         error(Cast, DiagID::ERR_CAST_MISMATCH, srcType->toString(),
               Cast->TargetType);
       }
@@ -913,12 +918,12 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     } else if (targetIsRaw) {
       bool srcIsStr = srcType->isStringType();
       bool srcIsNull = srcType->isNullType();
-      if (!(srcIsAddr || srcIsRaw || srcIsNumeric || srcIsStr || srcIsNull || srcType->isUniquePtr() || srcType->isSharedPtr())) {
+      if (!(srcIsAddr || srcIsRaw || srcIsNumeric || srcIsStr || srcIsNull || srcType->isUniquePtr() || srcType->isSharedPtr() || srcType->isReference())) {
         error(Cast, DiagID::ERR_CAST_MISMATCH, srcType->toString(),
               Cast->TargetType);
       }
     } else if (srcIsRaw) {
-      if (!(targetIsAddr || targetIsRaw || targetIsNumeric || (m_InUnsafeContext && targetType->isSmartPointer()))) {
+      if (!(targetIsAddr || targetIsRaw || targetIsNumeric || (m_InUnsafeContext && targetType->isSmartPointer()) || targetType->isReference())) {
         error(Cast, DiagID::ERR_CAST_MISMATCH, srcType->toString(),
               Cast->TargetType);
       }
@@ -2056,15 +2061,8 @@ std::shared_ptr<toka::Type> Sema::checkMemberExpr(MemberExpr *Memb) {
       std::string actualObjName = objVar->Name;
       if (CurrentScope->findVariableWithDeref(objVar->Name, Info, actualObjName)) {
         // [Rule] Borrowing check for Member Access
-        std::string objPath = getStringifyPath(Memb->Object.get());
-        if (!objPath.empty()) {
-           std::string conflictPath = "";
-           if (m_InLHS) {
-              conflictPath = BorrowCheckerState.verifyMutation(objPath);
-           } else {
-              conflictPath = BorrowCheckerState.verifyAccess(objPath);
-           }
-           
+        if (!m_InIntermediatePath && !path.empty()) {
+           std::string conflictPath = BorrowCheckerState.verifyAccess(path);
            if (!conflictPath.empty()) {
                DiagnosticEngine::report(getLoc(Memb), DiagID::ERR_BORROW_MUT, conflictPath);
                HasError = true;
@@ -2343,15 +2341,23 @@ std::shared_ptr<toka::Type> Sema::checkMemberExpr(MemberExpr *Memb) {
                 matches = true;
 
               if (!matches) {
-                // Shield/Wrap the type with the requested morphology
-                if (sigil == '&')
-                  result = std::make_shared<ReferenceType>(fieldType);
-                else if (sigil == '^')
-                  result = std::make_shared<UniquePointerType>(fieldType);
-                else if (sigil == '~')
-                  result = std::make_shared<SharedPointerType>(fieldType);
-                else if (sigil == '*')
-                  result = std::make_shared<RawPointerType>(fieldType);
+                // [Constitution 1.3] Smart Pointer Soul Borrowing
+                // If the user requests '&' but the field is a unique/shared pointer,
+                // and they didn't write '&^' or '&~', they want a reference to the SOUL.
+                if (sigil == '&' && requestedPrefix == "&" && 
+                    (fieldType->isUniquePtr() || fieldType->isSharedPtr())) {
+                     result = std::make_shared<ReferenceType>(fieldType->getSoulType());
+                } else {
+                  // Shield/Wrap the type with the requested morphology
+                  if (sigil == '&')
+                    result = std::make_shared<ReferenceType>(fieldType);
+                  else if (sigil == '^')
+                    result = std::make_shared<UniquePointerType>(fieldType);
+                  else if (sigil == '~')
+                    result = std::make_shared<SharedPointerType>(fieldType);
+                  else if (sigil == '*')
+                    result = std::make_shared<RawPointerType>(fieldType);
+                }
               }
             }
           }
@@ -2648,11 +2654,64 @@ std::shared_ptr<toka::Type> Sema::checkUnaryExpr(UnaryExpr *Unary) {
     if (!inner)
       inner = rhsType;
   }
+  if (Unary->Op == TokenType::Ampersand) {
+    auto refType = std::make_shared<toka::ReferenceType>(inner);
+    refType->IsNullable = Unary->HasNull;
+    refType->IsWritable = Unary->IsRebindable;
+    
+    bool isExclusive = Unary->IsRebindable;
+    if (inner->IsWritable && !(inner->isSharedPtr() || inner->isRawPointer() || inner->isReference())) {
+      isExclusive = true;
+    }
+
+    if (!m_InLHS) {
+      std::string pathToBorrow = getStringifyPath(Unary->RHS.get());
+      if (!pathToBorrow.empty()) {
+         if (!BorrowCheckerState.recordBorrow(pathToBorrow, isExclusive)) {
+             error(Unary, DiagID::ERR_BORROW_MUT, pathToBorrow);
+         }
+         m_LastBorrowSource = pathToBorrow;
+      }
+    }
+    return refType;
+  }
+
+  if (Unary->Op == TokenType::Caret) {
+    if (!m_InLHS) {
+      std::string pathToBorrow = getStringifyPath(Unary->RHS.get());
+      if (!pathToBorrow.empty()) {
+         std::string conflictPath = BorrowCheckerState.verifyMutation(pathToBorrow);
+         if (!conflictPath.empty()) {
+             error(Unary, DiagID::ERR_MOVE_BORROWED, conflictPath);
+         }
+      }
+    }
+    auto res = std::make_shared<toka::UniquePointerType>(inner);
+    res->IsWritable = Unary->IsRebindable || (m_IsAssignmentTarget && inner->IsWritable);
+    res->IsNullable = Unary->HasNull;
+    return res;
+  }
+
+  if (Unary->Op == TokenType::Tilde) {
+    if (!m_InLHS) {
+      std::string pathToBorrow = getStringifyPath(Unary->RHS.get());
+      if (!pathToBorrow.empty()) {
+         std::string conflictPath = BorrowCheckerState.verifyAccess(pathToBorrow);
+         if (!conflictPath.empty()) {
+             error(Unary, DiagID::ERR_BORROW_MUT, conflictPath);
+         }
+      }
+    }
+    auto res = std::make_shared<toka::SharedPointerType>(inner);
+    res->IsWritable = Unary->IsRebindable || (m_IsAssignmentTarget && inner->IsWritable);
+    res->IsNullable = Unary->HasNull;
+    return res;
+  }
+
   if (Unary->Op == TokenType::Star) {
     auto rawPtr = std::make_shared<toka::RawPointerType>(inner);
     rawPtr->IsNullable = Unary->HasNull;
-    rawPtr->IsWritable =
-        Unary->IsRebindable || (m_IsAssignmentTarget && rhsType->IsWritable);
+    rawPtr->IsWritable = Unary->IsRebindable || (m_IsAssignmentTarget && inner->IsWritable);
     return rawPtr;
   }
 

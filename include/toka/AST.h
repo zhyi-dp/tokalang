@@ -74,6 +74,7 @@ class Expr : public ASTNode {
 public:
   std::shared_ptr<Type> ResolvedType;
   bool IsMorphicExempt = false; // [NEW] Track morphic exemption at expression level
+  bool HasParens = false; // [NEW] Track explicit parentheses
 };
 class Stmt : public ASTNode {};
 

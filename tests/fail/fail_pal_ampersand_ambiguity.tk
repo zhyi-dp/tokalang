@@ -1,0 +1,20 @@
+shape Node(
+    val: i32
+)
+
+shape Scene(
+    ^root: Node
+)
+
+fn main() -> i32 {
+    auto ^r = new Node(val = 1)
+    auto scene# = Scene(^root = ^r)
+
+    // Using unary `&` before a member access chain without paren is banned!
+    // EXPECT: error[E0105]:
+    auto &my_root = &scene.root.val
+
+    return 0
+}
+
+// EXPECT: error[E0105]:

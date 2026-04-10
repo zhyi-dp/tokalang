@@ -1,0 +1,33 @@
+// tests/fail/fail_pal_path_prefix.tk
+
+shape Engine(
+    val: i32
+)
+
+shape Node(
+    val: i32,
+    ~left: Engine
+)
+
+shape Scene(
+    ^root: Node
+)
+
+fn main() -> i32 {
+    auto ~leftEngine = new Engine(val = 10)
+    auto ^rootNode = new Node(val = 1, ~left = ~leftEngine)
+    auto scene# = Scene(^root = ^rootNode)
+    auto &my_left = &(scene.root.left)
+    
+    // Changing scene.root violates path prefix because scene.root contains scene.root.left
+    // Replacing the root entirely would destroy or displace the memory my_left points to.
+    auto newRoot = Node(val=2, ~left=~leftEngine)
+
+    // Mutation targets `scene.root` which is a prefix of `scene.root.left` currently locked by `my_left`. 
+    // EXPECT: error[E0442]: Cannot mutably borrow immutable entity 'scene.root'
+    scene.root = newRoot 
+
+    return my_left.val
+}
+
+// EXPECT: error[E0442]:

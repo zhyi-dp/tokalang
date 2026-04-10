@@ -1,0 +1,73 @@
+import std/io::println
+
+shape Engine(
+    val: i32
+)
+
+shape Node(
+    val: i32,
+    ~left: Engine,
+    ~right: Engine
+)
+
+shape Scene(
+    ^root: Node
+)
+
+fn process_node(&n: Node, val: i32) {
+    // dummy function to consume a borrow and a value simultaneously
+    println("processing node val {}, provided {}", n.val, val)
+}
+
+fn mutate_val(&n#: Node) {
+    n.val = 100
+}
+
+fn main() -> i32 {
+    auto ~leftEngine = new Engine(val = 10)
+    auto ~rightEngine = new Engine(val = 20)
+    
+    auto ^rootNode = new Node(val = 1, ~left = ~leftEngine, ~right = ~rightEngine)
+    auto scene# = Scene(^root = ^rootNode)
+    
+    // 1. Transient Borrow check
+    // Evaluates Transient for parameters seamlessly.
+    process_node(scene.&root, scene.root.val)
+    
+    // Following transient phase (end of Statement), locks are destroyed! We can mutate or re-borrow.
+    scene.root.val = 2
+    
+    // 2. Lexical Scope locking
+    {
+        auto &my_root = scene.&root
+        println("Locked root in inner scope, val={}", my_root.val)
+        // If we mutated here, PAL would reject via E0442
+    }
+    
+    // Out of scope, lexical ledger popped. Lock is gone.
+    scene.root.val = 3
+    
+    // 3. Setup disjoint paths
+    auto ~newLeft = new Engine(val = 100)
+    auto ~newRight = new Engine(val = 200)
+    
+    scene.root.~left = ~newLeft
+    scene.root.~right = ~newRight
+    
+    // Mutability on disjoint paths
+    {
+        // Mutably lock ONLY the left side
+        auto &left_ref = &(scene.root.left)
+        
+        // Disjoint mutation on right side AND scalar shouldn't be blocked!
+        scene.root.right.val = 30
+        scene.root.val = 4
+        
+        println("left_ref val: {}", left_ref.val)
+        println("right manipulated: {}", scene.root.right.val)
+        assert(scene.root.right.val == 30, "disjoint mutation check")
+    }
+
+    println("PAL check completed brilliantly")
+    return 0
+}
