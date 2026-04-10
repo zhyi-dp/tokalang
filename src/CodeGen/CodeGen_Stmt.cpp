@@ -323,25 +323,39 @@ void CodeGen::cleanupScopes(size_t targetDepth) {
                   llvm::Value *lenAddr = m_Builder.CreateStructGEP(cbTy, refPtr, 1, "sh_len_addr");
                   llvm::Value *lenVal = m_Builder.CreateLoad(llvm::Type::getInt64Ty(m_Context), lenAddr, "sh_len");
                   
-                  llvm::BasicBlock *loopBB = llvm::BasicBlock::Create(m_Context, "drop_loop", f);
-                  llvm::BasicBlock *afterBB = llvm::BasicBlock::Create(m_Context, "drop_after", f);
-                  m_Builder.CreateBr(loopBB);
-                  m_Builder.SetInsertPoint(loopBB);
+                  std::string elemTypeName = cleanName;
+                  auto pointee = m_Symbols[it->Name].soulTypeObj->getPointeeType();
+                  elemTypeName = pointee->toString();
+                  while (!elemTypeName.empty() && elemTypeName.back() == '#') {
+                      elemTypeName.pop_back();
+                  }
+                  if (!elemTypeName.empty() && elemTypeName.front() == '[' && elemTypeName.back() == ']') {
+                      elemTypeName = elemTypeName.substr(1, elemTypeName.length() - 2);
+                  }
                   
-                  llvm::PHINode *iVar = m_Builder.CreatePHI(llvm::Type::getInt64Ty(m_Context), 2, "i");
-                  iVar->addIncoming(llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), 0), dropBB);
+                  bool bypassDrop = (elemTypeName.find("Uninit<") == 0);
                   
-                  llvm::Type *elemTy = resolveType(cleanName, false);
-                  if (!elemTy) elemTy = llvm::Type::getInt8Ty(m_Context);
-                  llvm::Value *elemPtr = m_Builder.CreateInBoundsGEP(elemTy, data, iVar);
-                  
-                  emitDropCascade(elemPtr, cleanName);
-                  
-                  llvm::Value *nextI = m_Builder.CreateAdd(iVar, llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), 1));
-                  llvm::Value *cond = m_Builder.CreateICmpULT(nextI, lenVal);
-                  iVar->addIncoming(nextI, loopBB);
-                  m_Builder.CreateCondBr(cond, loopBB, afterBB);
-                  m_Builder.SetInsertPoint(afterBB);
+                  if (!bypassDrop) {
+                      llvm::BasicBlock *loopBB = llvm::BasicBlock::Create(m_Context, "drop_loop", f);
+                      llvm::BasicBlock *afterBB = llvm::BasicBlock::Create(m_Context, "drop_after", f);
+                      m_Builder.CreateBr(loopBB);
+                      m_Builder.SetInsertPoint(loopBB);
+                      
+                      llvm::PHINode *iVar = m_Builder.CreatePHI(llvm::Type::getInt64Ty(m_Context), 2, "i");
+                      iVar->addIncoming(llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), 0), dropBB);
+                      
+                      llvm::Type *elemTy = resolveType(elemTypeName, false);
+                      if (!elemTy) elemTy = llvm::Type::getInt8Ty(m_Context);
+                      llvm::Value *elemPtr = m_Builder.CreateInBoundsGEP(elemTy, data, iVar);
+                      
+                      emitDropCascade(elemPtr, elemTypeName);
+                      
+                      llvm::Value *nextI = m_Builder.CreateAdd(iVar, llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), 1));
+                      llvm::Value *cond = m_Builder.CreateICmpULT(nextI, lenVal);
+                      iVar->addIncoming(nextI, loopBB);
+                      m_Builder.CreateCondBr(cond, loopBB, afterBB);
+                      m_Builder.SetInsertPoint(afterBB);
+                  }
               } else {
                   emitDropCascade(data, cleanName);
               }
@@ -388,28 +402,49 @@ void CodeGen::cleanupScopes(size_t targetDepth) {
           if (it->HasDrop) {
             std::string cleanName = it->SoulName;
             
-            if (cleanName.find("Uninit<") == 0) {
+              if (cleanName.find("Uninit<") == 0) {
                  // Bypass 
             } else if (isFat) {
-                llvm::BasicBlock *loopBB = llvm::BasicBlock::Create(m_Context, "drop_loop", f);
-                llvm::BasicBlock *afterBB = llvm::BasicBlock::Create(m_Context, "drop_after", f);
-                m_Builder.CreateBr(loopBB);
-                m_Builder.SetInsertPoint(loopBB);
+                std::string elemTypeName = cleanName;
+                if (m_Symbols.count(it->Name)) {
+                    auto pointee = m_Symbols[it->Name].soulTypeObj->getPointeeType();
+                    if (pointee && pointee->isSlice()) {
+                        elemTypeName = pointee->toString();
+                        // Strip mutability markers before stripping brackets
+                        while (!elemTypeName.empty() && elemTypeName.back() == '#') {
+                            elemTypeName.pop_back();
+                        }
+                        if (!elemTypeName.empty() && elemTypeName.front() == '[' && elemTypeName.back() == ']') {
+                            elemTypeName = elemTypeName.substr(1, elemTypeName.length() - 2);
+                        }
+                    }
+                }
                 
-                llvm::PHINode *iVar = m_Builder.CreatePHI(llvm::Type::getInt64Ty(m_Context), 2, "i");
-                iVar->addIncoming(llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), 0), valBB);
+                std::cerr << "[DEBUG] Fat slice drop extracted elemTypeName: '" << elemTypeName << "'\n";
                 
-                llvm::Type *elemTy = resolveType(cleanName, false);
-                if (!elemTy) elemTy = llvm::Type::getInt8Ty(m_Context);
-                llvm::Value *elemPtr = m_Builder.CreateInBoundsGEP(elemTy, dataPtr, iVar);
+                bool bypassDrop = (elemTypeName.find("Uninit<") == 0);
                 
-                emitDropCascade(elemPtr, cleanName);
-                
-                llvm::Value *nextI = m_Builder.CreateAdd(iVar, llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), 1));
-                llvm::Value *cond = m_Builder.CreateICmpULT(nextI, lenVal);
-                iVar->addIncoming(nextI, loopBB);
-                m_Builder.CreateCondBr(cond, loopBB, afterBB);
-                m_Builder.SetInsertPoint(afterBB);
+                if (!bypassDrop) {
+                    llvm::BasicBlock *loopBB = llvm::BasicBlock::Create(m_Context, "drop_loop", f);
+                    llvm::BasicBlock *afterBB = llvm::BasicBlock::Create(m_Context, "drop_after", f);
+                    m_Builder.CreateBr(loopBB);
+                    m_Builder.SetInsertPoint(loopBB);
+                    
+                    llvm::PHINode *iVar = m_Builder.CreatePHI(llvm::Type::getInt64Ty(m_Context), 2, "i");
+                    iVar->addIncoming(llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), 0), valBB);
+                    
+                    llvm::Type *elemTy = resolveType(elemTypeName, false);
+                    if (!elemTy) elemTy = llvm::Type::getInt8Ty(m_Context);
+                    llvm::Value *elemPtr = m_Builder.CreateInBoundsGEP(elemTy, dataPtr, iVar);
+                    
+                    emitDropCascade(elemPtr, elemTypeName);
+                    
+                    llvm::Value *nextI = m_Builder.CreateAdd(iVar, llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), 1));
+                    llvm::Value *cond = m_Builder.CreateICmpULT(nextI, lenVal);
+                    iVar->addIncoming(nextI, loopBB);
+                    m_Builder.CreateCondBr(cond, loopBB, afterBB);
+                    m_Builder.SetInsertPoint(afterBB);
+                }
             } else {
                 emitDropCascade(dataPtr, cleanName);
             }

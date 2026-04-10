@@ -4180,7 +4180,7 @@ PhysEntity CodeGen::genNewExpr(const NewExpr *newExpr) {
   // But we need to handle initialization.
   llvm::Value *heapPtr = voidPtr;
 
-  if (newExpr->Initializer) {
+  if (newExpr->Initializer && (!newExpr->ResolvedType || newExpr->ResolvedType->toString().find("Uninit<") == std::string::npos)) {
     llvm::Value *initVal = genExpr(newExpr->Initializer.get()).load(m_Builder);
     if (initVal) {
       if (initVal->getType() != type) {
@@ -4643,9 +4643,9 @@ PhysEntity CodeGen::genImplicitBoxExpr(const ImplicitBoxExpr *expr) {
 
   llvm::Value *initVal = nullptr;
   if (arrInit) {
-     if (arrInit->Initializer) initVal = genExpr(arrInit->Initializer.get()).load(m_Builder);
+     if (arrInit->Initializer && (!expr->ResolvedType || expr->ResolvedType->toString().find("Uninit<") == std::string::npos)) initVal = genExpr(arrInit->Initializer.get()).load(m_Builder);
   } else {
-     if (expr->Initializer) initVal = genExpr(expr->Initializer.get()).load(m_Builder);
+     if (expr->Initializer && (!expr->ResolvedType || expr->ResolvedType->toString().find("Uninit<") == std::string::npos)) initVal = genExpr(expr->Initializer.get()).load(m_Builder);
   }
 
   if (initVal) {

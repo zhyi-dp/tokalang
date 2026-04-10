@@ -1,28 +1,53 @@
 // Copyright (c) 2026 YiZhonghua<zhyi@dpai.com>. All rights reserved.
 import std/io::println
 import core/libc::*
+import core/traits::{@encap}
 
 shape Data(val: i32)
 
-fn check_slice(^p: [Data]) {
-    unsafe {
-        println("val0: {}, val1: {}", p[0].val, p[1].val)
-        assert(p[0].val == 42, "0")
-        assert(p[1].val == 42, "1")
+// Auto-drop hook tracking via encap trait
+impl Data@encap {
+    fn drop(self#) {
+        println("Dropping Data with val: {}", self.val)
     }
 }
 
+// Function signature takes the fat pointer ^[Data] (contains { ptr, length })
+fn mutate_and_verify(^p#: [Data], expected_val: i32) {
+    // Because slices carry bounds check and uniqueness dynamically, `p[idx]` does not need unsafe!
+    println("Verifying values...")
+    assert(p[0].val == expected_val, "Element 0 failed")
+    assert(p[1].val == expected_val, "Element 1 failed")
+    
+    p[2].val = 99
+    
+    // Bounds checking works at runtime implicitly (p[100] would trigger LLVM trap!)
+}
+
+fn test_unique_slice_drop() {
+    println("--- Allocating [4]Data ---")
+    auto ^slice# = new [4]Data(val = 42)
+    
+    // Pass the fat pointer cleanly
+    mutate_and_verify(^slice, 42)
+    
+    assert(slice[2].val == 99, "Mutation across function bounds failed")
+    assert(slice[3].val == 42, "Untouched bounds manipulated")
+    
+    println("--- Sequence should drop 4 elements after this scope ---")
+}
+
+fn test_uninit_bypass() {
+    println("--- Allocating [3]Uninit<Data> (Should yield no drops!) ---")
+    // Note: slice_uninit goes out of bounds, but drop loop must recognize it is Uninit and bypass the process!
+    auto ^slice_uninit = new [3]Uninit<Data>()
+    println("--- End of uninit scope ---")
+}
+
 fn main() -> i32 {
-    // Basic allocation of slice uniqueness
-    auto ^p# = new [4]Data(val = 42)
+    test_unique_slice_drop()
+    println("")
+    test_uninit_bypass()
     
-    // Test direct slice mutation and reads
-    unsafe {
-        p[2].val = 99
-        assert(p[2].val == 99, "mutate array")
-    }
-    
-    // Slice bounds loop init check
-    check_slice(^p)
     return 0
 }

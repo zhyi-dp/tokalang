@@ -1132,6 +1132,11 @@ llvm::Value *CodeGen::genVariableDecl(const VariableDecl *var) {
           if (!SD->MangledDestructorName.empty()) {
             dropFunc = SD->MangledDestructorName;
           }
+        } else if (!base.empty() && base.front() == '[' && base.back() == ']') {
+          std::string elemBase = base.substr(1, base.length() - 2);
+          if (m_Shapes.count(elemBase)) {
+             hasDrop = true;
+          }
         }
       }
     }

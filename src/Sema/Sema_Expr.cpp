@@ -1604,8 +1604,12 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       checkExpr(New->ArraySize.get());
     }
     if (New->Initializer) {
-      auto InitTypeObj = checkExpr(New->Initializer.get(),
-                                   toka::Type::fromString(resolvedName));
+      if (resolvedName.find("Uninit<") == 0) {
+        // [Safety Pillar 3] Uninit allocation bypasses constructor evaluation
+      } else {
+        auto InitTypeObj = checkExpr(New->Initializer.get(),
+                                     toka::Type::fromString(resolvedName));
+      }
       // Re-propagate the mask from initializer to NewExpr
       // (This will be picked up by checkExpr wrapper and passed to
       // VariableDecl)
@@ -3549,7 +3553,18 @@ std::shared_ptr<toka::Type> Sema::checkIndexExpr(ArrayIndexExpr *Idx) {
     // 2. Unhatted Base (p[i] or self.buf[i]) -> Soul Access (Deref) -> Returns
     // Value
 
-    if (!m_InUnsafeContext) {
+    auto ptrMorph = baseType->getMorphology();
+    auto pointee = baseType->getPointeeType();
+    bool isSafeSlice = false;
+    if (pointee) {
+        if (std::dynamic_pointer_cast<toka::SliceType>(resolveType(pointee, true))) {
+             if (ptrMorph == toka::Type::Morphology::Unique || ptrMorph == toka::Type::Morphology::Shared) {
+                 isSafeSlice = true;
+             }
+        }
+    }
+
+    if (!m_InUnsafeContext && !isSafeSlice) {
       error(Idx, "raw pointer indexing requires unsafe context");
     }
 
