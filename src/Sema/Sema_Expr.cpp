@@ -2285,7 +2285,7 @@ std::shared_ptr<toka::Type> Sema::checkMemberExpr(MemberExpr *Memb) {
           return fieldType->getSoulType()->withAttributes(
               finalSoulWritable, isNarrowed ? false : fieldType->IsNullable);
         } else {
-          // Hatted Access (Identity Access)
+          // Hatted Access (Identity Access) Or disabled soul collapse (e.g. valid terminal assignment base)
           // Use fieldType directly as the base (preserving its
           // morphologies)
           std::shared_ptr<toka::Type> result = fieldType;
@@ -2482,7 +2482,9 @@ std::shared_ptr<toka::Type> Sema::checkUnaryExpr(UnaryExpr *Unary) {
   bool savedDisable = m_DisableSoulCollapse;
   if (Unary->Op == TokenType::Star || Unary->Op == TokenType::Caret ||
       Unary->Op == TokenType::Tilde || Unary->Op == TokenType::Ampersand) {
-    m_DisableSoulCollapse = true;
+    if (dynamic_cast<VariableExpr *>(Unary->RHS.get())) {
+      m_DisableSoulCollapse = true;
+    }
   }
   auto rhsType = checkExpr(Unary->RHS.get());
   m_DisableSoulCollapse = savedDisable;

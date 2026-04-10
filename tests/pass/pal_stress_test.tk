@@ -56,23 +56,18 @@ fn main() -> i32 {
     
     // Following transient phase (end of Statement), locks are destroyed! We can mutate or re-borrow.
     scene.root.val = 2
+    assert(scene.root.val == 2, "root val mutation check")
     
     // 2. Lexical Scope locking
     {
         auto &my_root = scene.&root
         println("Locked root in inner scope, val={}", my_root.val)
+        assert(my_root.val == 2, "my_root tracks heap value securely")
         // If we mutated here, PAL would reject via E0442
     }
     
     // Out of scope, lexical ledger popped. Lock is gone.
     scene.root.val = 3
-    
-    // 3. Setup disjoint paths
-    auto ~newLeft = new Engine(val = 100)
-    auto ~newRight = new Engine(val = 200)
-    
-    scene.root.~left = ~newLeft
-    scene.root.~right = ~newRight
     
     // Mutability on disjoint paths
     {
@@ -85,7 +80,12 @@ fn main() -> i32 {
         
         println("left_ref val: {}", left_ref.val)
         println("right manipulated: {}", scene.root.right.val)
-        assert(scene.root.right.val == 30, "disjoint mutation check")
+        
+        assert(scene.root.right.val == 30, "right path mutation success")
+        assert(scene.root.val == 4, "scalar path mutation success")
+        
+        // Ensure that our earlier left mutation survived
+        assert(left_ref.val == 10, "Left reference should maintain valid state")
     }
 
     // 4. Interior mutability on immutable active lock
@@ -103,13 +103,36 @@ fn main() -> i32 {
     // 5. Cross-Function Borrow Effects Testing
     {
         auto &heavy = select_engine(scene.root, scene.root)
-        
         auto &heavy2 = select_engine_effects(scene.root, scene.root)
+        
+        assert(heavy.val == 30, "cross-function borrow 1 return verification")
+        assert(heavy2.val == 30, "cross-function borrow 2 return verification")
         
         // Both scene.root handles are securely locked as Immutable!
         // Writing to them via an active external tie would be rejected by PAL.
         // Uncommenting the below would be E0443 (Cannot modify immutable entity):
         // scene.root.val = 999 
+    }
+
+    // 6. Disjoint References (Mutable vs Immutable)
+    {
+        // Mutably lock the left side
+        auto &mut_left# = scene.root.&left
+        
+        // Immutably lock the right side
+        auto &immut_right = scene.root.&right
+        
+        // Mutate through the mutable reference
+        mut_left.val = 777
+        
+        // Read through the immutable reference
+        println("Disjoint Reference check: Immut right is {}, Mut left is {}", immut_right.val, mut_left.val)
+        
+        assert(immut_right.val == 30, "Immutable right value mismatch")
+        assert(mut_left.val == 777, "Mutable disjoint test")
+        
+        println("heap check: scene.root.left.val = {}", scene.root.left.val)
+        assert(scene.root.left.val == 777, "Mutable reference definitively modified the actual heap data")
     }
 
     println("PAL check completed brilliantly")
