@@ -190,16 +190,32 @@ void Sema::checkStmt(Stmt *S) {
       // [NEW] Unified Lifetime Check logic
       std::set<std::string> returnedDeps;
 
+      // Helper to extract path
+      std::function<std::string(Expr *)> getPath = [&](Expr *E) -> std::string {
+          if (!E) return "";
+          if (auto *ve = dynamic_cast<VariableExpr *>(E)) return ve->Name;
+          if (auto *me = dynamic_cast<MemberExpr *>(E)) return getPath(me->Object.get()) + "." + toka::Type::stripMorphology(me->Member);
+          if (auto *ue = dynamic_cast<UnaryExpr *>(E)) return getPath(ue->RHS.get());
+          if (auto *ae = dynamic_cast<AddressOfExpr *>(E)) return getPath(ae->Expression.get());
+          return "";
+      };
+
       // Helper to collect dependencies from the returned expression
       std::function<void(Expr *)> collectDeps = [&](Expr *E) {
         if (!E)
           return;
 
-        // Case 1: Taking address `&var`
+        // Case 1: Taking address `&var` or `&var.field`
         if (auto *Addr = dynamic_cast<UnaryExpr *>(E)) {
           if (Addr->Op == TokenType::Ampersand) {
-            if (auto *Var = dynamic_cast<VariableExpr *>(Addr->RHS.get())) {
-              returnedDeps.insert(Var->Name);
+            std::string path = getPath(Addr->RHS.get());
+            if (!path.empty()) {
+                if (dynamic_cast<VariableExpr*>(Addr->RHS.get()) && Addr->RHS->ResolvedType && !Addr->RHS->ResolvedType->isReference() && !Addr->RHS->ResolvedType->isPointer() && !Addr->RHS->ResolvedType->isSharedPtr() && !Addr->RHS->ResolvedType->isUniquePtr()) {
+                    DiagnosticEngine::report(getLoc(E), DiagID::ERR_ESCAPE_LOCAL, path);
+                    HasError = true;
+                } else {
+                    returnedDeps.insert(path);
+                }
             }
           } else if (auto *Paren = dynamic_cast<TupleExpr *>(E)) {
             // Parentheses around expression
@@ -228,6 +244,57 @@ void Sema::checkStmt(Stmt *S) {
             collectDeps(Elem.get());
           }
         }
+        // Case 4: CallExpr
+        else if (auto *Call = dynamic_cast<CallExpr *>(E)) {
+            for (auto &Arg : Call->Args) {
+                collectDeps(Arg.get());
+            }
+        }
+        // Case 5: InitStructExpr / AnonymousRecordExpr
+        else if (auto *Init = dynamic_cast<InitStructExpr *>(E)) {
+            for (auto &Mem : Init->Members) {
+                collectDeps(Mem.second.get());
+            }
+        } else if (auto *Anon = dynamic_cast<AnonymousRecordExpr *>(E)) {
+            for (auto &Field : Anon->Fields) {
+                collectDeps(Field.second.get());
+            }
+        }
+        // Case 6: Fallback for BinaryExpr named arg init if kept as CallExpr
+        else if (auto *Bin = dynamic_cast<BinaryExpr *>(E)) {
+            if (Bin->Op == "=") {
+                collectDeps(Bin->RHS.get());
+            }
+        }
+        // Case 7: MemberExpr (e.g., e.&val)
+        else if (auto *Memb = dynamic_cast<MemberExpr *>(E)) {
+            bool isRef = false;
+            bool isAddressOf = Memb->Member.find('&') != std::string::npos;
+            if (isAddressOf || Memb->Member.find('^') != std::string::npos || Memb->Member.find('~') != std::string::npos) {
+                isRef = true;
+            }
+            if (isRef) {
+                std::string path = getPath(Memb);
+                if (!path.empty()) {
+                    if (isAddressOf && Memb->Object && Memb->Object->ResolvedType) {
+                        // Quick heuristic: If taking the address of a field, and we aren't just peeling an existing ref,
+                        // we'd need to ensure it's not a local. For strictness, if it's e.&val taking address of a value,
+                        // it should be restricted unless we parse it explicitly as a safe property. 
+                        // But since E0455 is specifically for this, we flag it.
+                        // Actually, since Memb->ResolvedType is the resulting pointer, we want the field type.
+                        // For now we trust the morphology distinction or flag it if it's not extracting an explicit ref pointer.
+                        if (Memb->Member.find('~') == std::string::npos && Memb->Member.find('^') == std::string::npos) {
+                           DiagnosticEngine::report(getLoc(E), DiagID::ERR_ESCAPE_LOCAL, path);
+                           HasError = true;
+                        } else {
+                           returnedDeps.insert(path);
+                        }
+                    } else {
+                        returnedDeps.insert(path);
+                    }
+                }
+            }
+        }
       };
 
       collectDeps(Ret->ReturnValue.get());
@@ -235,41 +302,48 @@ void Sema::checkStmt(Stmt *S) {
       // Validate dependencies against declared LifeDependencies
       if (CurrentFunction) {
         for (const auto &dep : returnedDeps) {
-          // Is it in the allowed list?
+          // 1. Is it a parameter that can outlive the function?
+          bool isParam = false;
+          std::string baseDep = dep;
+          size_t dotPos = baseDep.find('.');
+          if (dotPos != std::string::npos) baseDep = baseDep.substr(0, dotPos);
+
+          for (const auto &Arg : CurrentFunction->Args) {
+            if (Arg.Name == baseDep) {
+                isParam = true;
+                break;
+            }
+          }
+
+          if (!isParam) {
+            DiagnosticEngine::report(getLoc(Ret), DiagID::ERR_ESCAPE_LOCAL, dep);
+            HasError = true;
+            continue;
+          }
+
+          // 2. Is it allowed via effects?
           bool allowed = false;
           for (const auto &allowedDep : CurrentFunction->LifeDependencies) {
-            if (dep == allowedDep) {
+            if (dep == allowedDep || (dep.size() > allowedDep.size() && dep.substr(0, allowedDep.size() + 1) == allowedDep + ".")) {
               allowed = true;
               break;
             }
           }
+          if (!allowed) {
+            for (const auto &pair : CurrentFunction->MemberDependencies) {
+               for (const auto &allowedDep : pair.second) {
+                 if (dep == allowedDep || (dep.size() > allowedDep.size() && dep.substr(0, allowedDep.size() + 1) == allowedDep + ".")) {
+                   allowed = true;
+                   break;
+                 }
+               }
+               if (allowed) break;
+            }
+          }
 
           if (!allowed) {
-            // Check if it's a parameter
-            bool isParam = false;
-            for (const auto &Arg : CurrentFunction->Args) {
-              if (Arg.Name == dep) {
-                isParam = true;
-                break;
-              }
-            }
-
-            if (isParam) {
-              DiagnosticEngine::report(
-                  getLoc(Ret), DiagID::ERR_LIFETIME_UNION_REQUIRED, dep, dep);
-              HasError = true;
-            } else {
-              // It's a local or global.
-              // If local, error (Cannot escape local).
-              // We can check if it's declared in the top-level scope of
-              // function? Not easily. We assume if it's not a parameter, and we
-              // are returning it, it's a local. (What about Globals/Consts?
-              // They are usually values or pointers, not references declared on
-              // stack) A global `auto &x = ...` is rare.
-              DiagnosticEngine::report(getLoc(Ret), DiagID::ERR_ESCAPE_LOCAL,
-                                       dep);
-              HasError = true;
-            }
+            DiagnosticEngine::report(getLoc(Ret), DiagID::ERR_LIFETIME_UNION_REQUIRED, dep, dep);
+            HasError = true;
           }
         }
       }
@@ -640,6 +714,11 @@ void Sema::checkStmt(Stmt *S) {
       }
       m_LastLifeDependencies.clear();
     }
+    
+    if (!m_LastFieldDependencies.empty()) {
+      Info.FieldDependencySet = m_LastFieldDependencies;
+      m_LastFieldDependencies.clear();
+    }
 
     m_LastBorrowSource = ""; // Clear for next var
 
@@ -783,14 +862,26 @@ void Sema::checkStmt(Stmt *S) {
         if (Destruct->Variables[i].IsReference) {
           Info.TypeObj = std::make_shared<toka::ReferenceType>(soulType);
           Info.BorrowedFrom = m_LastBorrowSource;
-          // Register in ActiveBorrows
-          bool isMutFromExpr = false;
-          Info.BorrowedFrom = m_LastBorrowSource;
+          // Distribute specific field dependencies to destructured references
+          std::string fieldKey = std::to_string(i);
+          if (m_LastFieldDependencies.count(fieldKey)) {
+             for (const auto &dep : m_LastFieldDependencies[fieldKey]) {
+                 Info.LifeDependencySet.insert(dep);
+                 Info.BorrowedFrom = dep; // Simplified to just track the primary borrow source since token tracks only 1
+             }
+          }
+          if (m_LastFieldDependencies.count(Destruct->Variables[i].Name)) { // Handle if mapped by name somehow
+             for (const auto &dep : m_LastFieldDependencies[Destruct->Variables[i].Name]) {
+                 Info.LifeDependencySet.insert(dep);
+                 Info.BorrowedFrom = dep;
+             }
+          }
         } else {
           Info.TypeObj = soulType;
         }
         CurrentScope->define(Destruct->Variables[i].Name, Info);
       }
+      m_LastFieldDependencies.clear();
     } else if (!soulName.empty() && TypeAliasMap.count(soulName)) {
       for (const auto &Var : Destruct->Variables) {
         SymbolInfo Info;

@@ -1445,6 +1445,7 @@ public:
   EffectKind Effect = EffectKind::None;
   std::shared_ptr<toka::Type> ResolvedReturnType;
   std::vector<std::string> LifeDependencies; // [NEW] e.g., <- x|y
+  std::map<std::string, std::vector<std::string>> MemberDependencies; // [NEW] e.g. res.&left <- a
   std::unique_ptr<BlockStmt> Body;
 
   bool IsVariadic = false;
@@ -1480,6 +1481,7 @@ public:
     auto n = std::make_unique<FunctionDecl>(IsPub, Name, std::move(clonedArgs),
                                             std::move(clonedBody), ReturnType,
                                             GenericParams, LifeDependencies, Effect);
+    n->MemberDependencies = MemberDependencies;
     n->IsVariadic = IsVariadic;
     n->Loc = Loc;
     n->ResolvedReturnType = ResolvedReturnType;

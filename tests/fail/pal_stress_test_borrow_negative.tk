@@ -19,6 +19,12 @@ shape RefMemner(
     &v: i32
 )
 
+fn bind_engine_val(e: Engine) -> refm: RefMemner
+effects:
+    refm.&v <- e.val
+{
+    return RefMemner(&v = e.&val)
+}
 
 fn process_node(n: Node, val: i32) {
     // dummy function to consume a borrow and a value simultaneously
@@ -49,8 +55,18 @@ effects:
 }
 
 // Function splitting distinct borrows via Tuples
+fn split_engines(e1: Engine, e2: Engine) -> (&Engine <- e1, &Engine <- e2) {
+    return (&e1, &e2)
+}
 
 // Function splitting distinct borrows via Tuples using explicit structural effects
+fn split_engines_effects(e1#: Engine, e2: Engine) -> res: (&Engine#, &Engine)
+effects:
+    res.0 <- e1
+    res.1 <- e2
+{
+    return (&e1, &e2)
+}
 
 // Struct capturing lifetime dependencies
 shape EngineView <- target (
@@ -149,8 +165,36 @@ fn main() -> i32 {
         assert(scene.root.left.val == 777, "Mutable reference definitively modified the actual heap data")
     }
 
+    // 7. Tuple Split Borrow and Struct Lifetime Bound
+    {
+        auto tuple_refs = split_engines(scene.root.left, scene.root.right)
+        assert(tuple_refs.0.val == 777, "left split val")
+        assert(tuple_refs.1.val == 30, "right split val")
+        
+        auto view# = EngineView(&target = tuple_refs.0)
+        assert(view.target.val == 777, "struct bound val via EngineView")
+    }
 
+    // 8. Tuple Split Borrow using specific explicit effects syntax
+    {
+        auto tuple_refs2# = split_engines_effects(scene.root.left, scene.root.right)
+        assert(tuple_refs2.0.val == 777, "left split val effects")
+        assert(tuple_refs2.1.val == 30, "right split val effects")
+        // Check that disjoint references work properly
+        tuple_refs2.0.val = 888
+        assert(tuple_refs2.0.val == 888, "left disjoint mut effects")
+        assert(tuple_refs2.1.val == 30, "right immutable effects")
+    }
 
+    // 9. Struct Member Binding via effects syntax
+    {
+        auto refm = bind_engine_val(scene.root.left)
+        assert(refm.v == 888, "bind_engine_val extracts interior reference properly")
+        
+        // Ensure changes are visible (since it's an immutable reference)
+        scene.root.left.val = 999
+        assert(refm.v == 999, "bind_engine_val continues reflecting heap updates")
+    }
 
     println("PAL check completed brilliantly")
     return 0

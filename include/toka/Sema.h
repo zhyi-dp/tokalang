@@ -44,6 +44,7 @@ struct SymbolInfo {
   std::string BorrowedFrom =
       ""; // If this is a reference, name of the source variable
   std::set<std::string> LifeDependencySet; // [NEW] Shadow Dependency Set
+  std::map<std::string, std::set<std::string>> FieldDependencySet; // [NEW] Member-specific deps
 
   void *ReferencedModule = nullptr; // Pointer to ModuleScope (opaque here)
 
@@ -238,6 +239,7 @@ private:
   std::string m_LastBorrowSource;
   std::set<std::string>
       m_LastLifeDependencies; // [NEW] Track shape dependencies
+  std::map<std::string, std::set<std::string>> m_LastFieldDependencies; // [NEW] Track field specific dependencies
   std::shared_ptr<toka::Type> m_ExpectedType;
   std::set<std::string> m_AccessedVariables; // [CLOSURE] Track accessed variables
   BorrowChecker BorrowCheckerState; // [NEW] Path-Anchored Borrow Checker

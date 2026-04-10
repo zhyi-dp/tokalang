@@ -563,12 +563,24 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
     } while (match(TokenType::Pipe) || match(TokenType::Comma));
   }
 
+  std::map<std::string, std::vector<std::string>> memberDeps;
+
   if (check(TokenType::Identifier) && peek().Text == "effects" && checkAt(1, TokenType::Colon)) {
     advance(); // get 'effects'
     advance(); // get ':'
     while (!check(TokenType::LBrace) && !check(TokenType::EndOfFile)) {
       bool isReturnAlias = false;
+      std::string targetMember = "";
       if (match(TokenType::KwReturn)) {
+        if (check(TokenType::Dot)) {
+          advance();
+          if (check(TokenType::Ampersand) || check(TokenType::Caret) || check(TokenType::Star) || check(TokenType::Tilde)) advance();
+          if (check(TokenType::TokenWrite)) advance();
+          if (check(TokenType::Identifier) || check(TokenType::Integer)) {
+              if (check(TokenType::Identifier)) targetMember = advance().Text;
+              else targetMember = advance().Text;
+          }
+        }
         isReturnAlias = true;
       } else if (!retName.empty()) {
         int l = 0;
@@ -577,9 +589,24 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
             peekAt(l).Kind == TokenType::Caret || peekAt(l).Kind == TokenType::Tilde) l++;
         if (peekAt(l).Kind == TokenType::TokenWrite) l++;
 
-        if (peekAt(l).Kind == TokenType::Identifier && peekAt(l).Text == retName && peekAt(l+1).Kind == TokenType::Dependency) {
-          for (int i=0; i<=l; i++) advance(); // consume sigil and name
-          isReturnAlias = true;
+        if (peekAt(l).Kind == TokenType::Identifier && peekAt(l).Text == retName) {
+          int p = l + 1;
+          std::string testMember;
+          if (peekAt(p).Kind == TokenType::Dot) {
+            p++;
+            if (peekAt(p).Kind == TokenType::Ampersand || peekAt(p).Kind == TokenType::Star || 
+                peekAt(p).Kind == TokenType::Caret || peekAt(p).Kind == TokenType::Tilde) p++;
+            if (peekAt(p).Kind == TokenType::TokenWrite) p++;
+            if (peekAt(p).Kind == TokenType::Identifier || peekAt(p).Kind == TokenType::Integer) {
+              testMember = peekAt(p).Text;
+              p++;
+            }
+          }
+          if (peekAt(p).Kind == TokenType::Dependency) {
+            for (int i=0; i<p; i++) advance(); // consume everything up to Dependency token
+            targetMember = testMember;
+            isReturnAlias = true;
+          }
         }
       }
 
@@ -590,12 +617,29 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
           if (check(TokenType::Identifier) || check(TokenType::KwSelf) ||
               check(TokenType::KwUpperSelf)) {
             std::string dep = advance().Text;
-            bool exists = false;
-            for (const auto &d : lifeDeps)
-              if (d == dep)
-                exists = true;
-            if (!exists)
-              lifeDeps.push_back(dep);
+            while (match(TokenType::Dot)) {
+                if (check(TokenType::Identifier) || check(TokenType::Integer)) {
+                    dep += "." + advance().Text;
+                } else {
+                    error(peek(), "Expected identifier or integer after '.' in dependency path");
+                    return nullptr;
+                }
+            }
+            if (targetMember.empty()) {
+              bool exists = false;
+              for (const auto &d : lifeDeps)
+                if (d == dep)
+                  exists = true;
+              if (!exists)
+                lifeDeps.push_back(dep);
+            } else {
+              bool exists = false;
+              for (const auto &d : memberDeps[targetMember])
+                if (d == dep)
+                  exists = true;
+              if (!exists)
+                memberDeps[targetMember].push_back(dep);
+            }
           } else {
             error(peek(), "Expected dependency identifier");
             return nullptr;
@@ -618,6 +662,7 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
       isPub, name.Text, std::move(args), std::move(body), retType,
       genericParams, std::move(lifeDeps), effect);
   decl->IsVariadic = isVariadic;
+  decl->MemberDependencies = std::move(memberDeps);
   decl->setLocation(name, m_CurrentFile);
   return decl;
 }

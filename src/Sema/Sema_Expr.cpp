@@ -330,28 +330,51 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       scan = post->LHS.get();
     }
 
-    if (auto *Var = dynamic_cast<VariableExpr *>(scan)) {
-      SymbolInfo *Info = nullptr;
-      if (CurrentScope->findSymbol(Var->Name, Info)) {
+    std::string pathToBorrow = getStringifyPath(scan);
+    if (!pathToBorrow.empty()) {
         bool wantMutable = innerObj->IsWritable;
 
-        // Borrow Check Logic
-        if (wantMutable) {
-          if (!Info->IsMutable()) {
-            error(Addr, DiagID::ERR_BORROW_IMMUT, Var->Name);
-          }
+        std::string baseVar = pathToBorrow;
+        size_t dotPos = baseVar.find('.');
+        if (dotPos != std::string::npos) {
+            baseVar = baseVar.substr(0, dotPos);
         }
-        std::string pathToBorrow = getStringifyPath(Addr->Expression.get());
-        if (!pathToBorrow.empty()) {
-           if (!m_InLHS) {
-              if (!BorrowCheckerState.recordBorrow(pathToBorrow, wantMutable)) {
-                  error(Addr, DiagID::ERR_BORROW_MUT, pathToBorrow);
-              }
-           }
-           m_LastBorrowSource = pathToBorrow;
-           m_LastLifeDependencies.insert(pathToBorrow);
+
+        SymbolInfo *Info = nullptr;
+        if (CurrentScope->findSymbol(baseVar, Info)) {
+            if (wantMutable && pathToBorrow == baseVar) {
+                if (!Info->IsMutable()) {
+                    error(Addr, DiagID::ERR_BORROW_IMMUT, baseVar);
+                }
+            }
+            if (!m_InLHS) {
+                if (!BorrowCheckerState.recordBorrow(pathToBorrow, wantMutable)) {
+                    error(Addr, DiagID::ERR_BORROW_MUT, pathToBorrow);
+                }
+            }
+
+            m_LastBorrowSource = pathToBorrow;
+
+            // Member-Level Dependency Extraction
+            if (pathToBorrow != baseVar && !Info->FieldDependencySet.empty()) {
+                std::string fieldName = pathToBorrow.substr(dotPos + 1);
+                size_t nextDot = fieldName.find('.');
+                if (nextDot != std::string::npos) fieldName = fieldName.substr(0, nextDot);
+                
+                if (Info->FieldDependencySet.count(fieldName)) {
+                    for (const auto &dep : Info->FieldDependencySet[fieldName]) {
+                        m_LastLifeDependencies.insert(dep);
+                    }
+                    if (!m_LastLifeDependencies.empty()) {
+                        m_LastBorrowSource = *m_LastLifeDependencies.begin();
+                    }
+                } else {
+                    m_LastLifeDependencies.insert(pathToBorrow);
+                }
+            } else {
+                m_LastLifeDependencies.insert(pathToBorrow);
+            }
         }
-      }
     }
 
     auto refType = std::make_shared<toka::ReferenceType>(innerObj);
@@ -4632,6 +4655,32 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
       std::string tName = "TaskHandle<" + ReturnType->toString() + ">";
       std::cerr << "[DEBUG] Wrapping return type to " << tName << "\n";
       return toka::Type::fromString(tName);
+  }
+
+  // Inject Caller-Side Effect Dependencies
+  if (Fn) {
+      auto mapParamToArg = [&](const std::string &paramName) -> std::string {
+         for (size_t i = 0; i < Fn->Args.size(); ++i) {
+            if (Fn->Args[i].Name == paramName) {
+               if (i < Call->Args.size()) {
+                   if (auto *ve = dynamic_cast<VariableExpr*>(Call->Args[i].get())) return ve->Name;
+                   else if (auto *me = dynamic_cast<MemberExpr*>(Call->Args[i].get())) return me->toString();
+               }
+            }
+         }
+         return "";
+      };
+
+      for (const auto &dep : Fn->LifeDependencies) {
+         std::string argVar = mapParamToArg(dep);
+         if (!argVar.empty()) m_LastLifeDependencies.insert(argVar);
+      }
+      for (const auto &pair : Fn->MemberDependencies) {
+         for (const auto &dep : pair.second) {
+             std::string argVar = mapParamToArg(dep);
+             if (!argVar.empty()) m_LastFieldDependencies[pair.first].insert(argVar);
+         }
+      }
   }
 
   return ReturnType;
