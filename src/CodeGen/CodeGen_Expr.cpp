@@ -1398,6 +1398,16 @@ PhysEntity CodeGen::genCastExpr(const CastExpr *cast) {
   }
 
   llvm::Type *srcType = val->getType();
+
+  // [Safety Pillar 2] Fat Pointer Downgrade. Extract raw address from Struct.
+  if (srcType->isStructTy() && targetType->isPointerTy()) {
+    if (cast->Expression->ResolvedType && 
+       (cast->Expression->ResolvedType->isFatPointer() || 
+       (cast->Expression->ResolvedType->isSharedPtr() && cast->Expression->ResolvedType->getPointeeType() && cast->Expression->ResolvedType->getPointeeType()->isSlice()))) {
+        val = m_Builder.CreateExtractValue(val, {0}, "fat.downgrade");
+        srcType = val->getType();
+    }
+  }
   if (srcType->isIntegerTy() && targetType->isIntegerTy()) {
     bool isSigned = false;
     if (cast->ResolvedType) {
@@ -4209,6 +4219,15 @@ PhysEntity CodeGen::genNewExpr(const NewExpr *newExpr) {
     }
   }
 
+  if (newExpr->ResolvedType && newExpr->ResolvedType->isFatPointer()) {
+    llvm::Type *fatTy = getLLVMType(newExpr->ResolvedType);
+    llvm::Value *fatVal = llvm::UndefValue::get(fatTy);
+    fatVal = m_Builder.CreateInsertValue(fatVal, heapPtr, {0});
+    llvm::Value *lenVal = arrayCount ? arrayCount : llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), 1);
+    fatVal = m_Builder.CreateInsertValue(fatVal, lenVal, {1});
+    return fatVal;
+  }
+
   return heapPtr;
 }
 
@@ -4663,19 +4682,43 @@ PhysEntity CodeGen::genImplicitBoxExpr(const ImplicitBoxExpr *expr) {
   }
 
   if (expr->IsShared) {
-    llvm::Value *rcSize = llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), 4);
-    llvm::Value *rcPtr = m_Builder.CreateCall(mallocFn, rcSize, "sh_rc_alloc");
-    m_Builder.CreateStore(llvm::ConstantInt::get(llvm::Type::getInt32Ty(m_Context), 1), rcPtr);
+    bool isSlice = expr->ResolvedType && expr->ResolvedType->getPointeeType() && expr->ResolvedType->getPointeeType()->isSlice();
+    llvm::Type *cbTy = nullptr;
+    uint64_t cbSize = 4;
     
-    llvm::Type *refTy = llvm::PointerType::getUnqual(llvm::Type::getInt32Ty(m_Context));
-    llvm::Type *shTy = llvm::StructType::get(m_Context, {m_Builder.getPtrTy(), refTy});
+    if (isSlice) {
+      cbTy = llvm::StructType::get(m_Context, {llvm::Type::getInt32Ty(m_Context), llvm::Type::getInt64Ty(m_Context)});
+      cbSize = dl.getTypeAllocSize(cbTy);
+    }
     
+    llvm::Value *rcSize = llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), cbSize);
+    llvm::Value *rcPtr = m_Builder.CreateCall(mallocFn, rcSize, "sh_cb_alloc");
+    
+    if (isSlice) {
+       llvm::Value *refCountAddr = m_Builder.CreateStructGEP(cbTy, rcPtr, 0);
+       m_Builder.CreateStore(llvm::ConstantInt::get(llvm::Type::getInt32Ty(m_Context), 1), refCountAddr);
+       llvm::Value *lenAddr = m_Builder.CreateStructGEP(cbTy, rcPtr, 1);
+       llvm::Value *lenVal = arrayCount ? arrayCount : llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), 1);
+       m_Builder.CreateStore(lenVal, lenAddr);
+    } else {
+       m_Builder.CreateStore(llvm::ConstantInt::get(llvm::Type::getInt32Ty(m_Context), 1), rcPtr);
+    }
+
+    llvm::Type *shTy = getLLVMType(expr->ResolvedType);
     llvm::Value *shVal = llvm::UndefValue::get(shTy);
     shVal = m_Builder.CreateInsertValue(shVal, heapPtr, 0);
     shVal = m_Builder.CreateInsertValue(shVal, rcPtr, 1);
     
     return PhysEntity(shVal, expr->ResolvedType->toString(), shTy, false);
   } else {
+    if (expr->ResolvedType && expr->ResolvedType->isFatPointer()) {
+      llvm::Type *fatTy = getLLVMType(expr->ResolvedType);
+      llvm::Value *fatVal = llvm::UndefValue::get(fatTy);
+      fatVal = m_Builder.CreateInsertValue(fatVal, heapPtr, {0});
+      llvm::Value *lenVal = arrayCount ? arrayCount : llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), 1);
+      fatVal = m_Builder.CreateInsertValue(fatVal, lenVal, {1});
+      return PhysEntity(fatVal, expr->ResolvedType->toString(), fatTy, false);
+    }
     return PhysEntity(heapPtr, expr->ResolvedType->toString(), m_Builder.getPtrTy(), false);
   }
 }

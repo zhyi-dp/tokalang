@@ -940,6 +940,61 @@ llvm::Value *CodeGen::genAddr(const Expr *expr) {
     if (!indexValue)
       return nullptr;
 
+    // [Safety Pillar 4] Fat Slices & Arrays Automatic Bounds Checking
+    auto arrayTypeObj = idxExpr->Array->ResolvedType;
+    if (arrayTypeObj) {
+        llvm::Value *lenValue = nullptr;
+        // 1. Fat Pointer (UniquePtr / Reference to Slice)
+        if (arrayTypeObj->isFatPointer()) {
+            PhysEntity arrEnt = genExpr(idxExpr->Array.get());
+            llvm::Value *fatStruct = arrEnt.load(m_Builder);
+            if (fatStruct) {
+                lenValue = m_Builder.CreateExtractValue(fatStruct, {1}, "slice.len");
+            }
+        } 
+        // 2. Shared Slice
+        else if (arrayTypeObj->isSharedPtr() && arrayTypeObj->getPointeeType() && arrayTypeObj->getPointeeType()->isSlice()) {
+            PhysEntity arrEnt = genExpr(idxExpr->Array.get());
+            llvm::Value *shStruct = arrEnt.load(m_Builder);
+            if (shStruct) {
+                llvm::Value *cbPtr = m_Builder.CreateExtractValue(shStruct, {1}, "slice.cb");
+                llvm::Type *cbTy = llvm::StructType::get(m_Context, {llvm::Type::getInt32Ty(m_Context), llvm::Type::getInt64Ty(m_Context)});
+                llvm::Value *lenAddr = m_Builder.CreateStructGEP(cbTy, cbPtr, 1, "slice.len.addr");
+                lenValue = m_Builder.CreateLoad(llvm::Type::getInt64Ty(m_Context), lenAddr, "slice.len");
+            }
+        } 
+        // 3. Static Array (Local/Global)
+        else if (arrayTypeObj->isArray()) {
+            auto arr = std::static_pointer_cast<ArrayType>(arrayTypeObj);
+            lenValue = llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), arr->Size);
+        }
+
+        // Generate the runtime assertion block if lenValue exists
+        if (lenValue) {
+            llvm::Value *castedIndex = indexValue;
+            if (castedIndex->getType() != lenValue->getType()) {
+                castedIndex = m_Builder.CreateIntCast(castedIndex, lenValue->getType(), false);
+            }
+            llvm::Value *isOutOfBounds = m_Builder.CreateICmpUGE(castedIndex, lenValue, "bounds.cmp");
+            
+            llvm::BasicBlock *currentBB = m_Builder.GetInsertBlock();
+            llvm::Function *F = currentBB->getParent();
+            llvm::BasicBlock *panicBB = llvm::BasicBlock::Create(m_Context, "bounds.panic", F);
+            llvm::BasicBlock *contBB = llvm::BasicBlock::Create(m_Context, "bounds.cont", F);
+            
+            m_Builder.CreateCondBr(isOutOfBounds, panicBB, contBB);
+            
+            // Generate Trap
+            m_Builder.SetInsertPoint(panicBB);
+            llvm::Function *trapFn = llvm::Intrinsic::getOrInsertDeclaration(m_Module.get(), llvm::Intrinsic::trap);
+            m_Builder.CreateCall(trapFn);
+            m_Builder.CreateUnreachable();
+            
+            // Resume regular generation
+            m_Builder.SetInsertPoint(contBB);
+        }
+    }
+
     auto it = m_Symbols.find(baseName);
     if (it == m_Symbols.end()) {
       // Fallback for non-variable bases using PhysEntity to recover type info

@@ -316,7 +316,35 @@ void CodeGen::cleanupScopes(size_t targetDepth) {
 
             if (it->HasDrop) {
               std::string cleanName = it->SoulName;
-              emitDropCascade(data, cleanName);
+              if (cleanName.find("Uninit<") == 0) {
+                 // Bypass dropping
+              } else if (m_Symbols.count(it->Name) && m_Symbols[it->Name].soulTypeObj && m_Symbols[it->Name].soulTypeObj->getPointeeType() && m_Symbols[it->Name].soulTypeObj->getPointeeType()->isSlice()) {
+                  llvm::Type *cbTy = llvm::StructType::get(m_Context, {llvm::Type::getInt32Ty(m_Context), llvm::Type::getInt64Ty(m_Context)});
+                  llvm::Value *lenAddr = m_Builder.CreateStructGEP(cbTy, refPtr, 1, "sh_len_addr");
+                  llvm::Value *lenVal = m_Builder.CreateLoad(llvm::Type::getInt64Ty(m_Context), lenAddr, "sh_len");
+                  
+                  llvm::BasicBlock *loopBB = llvm::BasicBlock::Create(m_Context, "drop_loop", f);
+                  llvm::BasicBlock *afterBB = llvm::BasicBlock::Create(m_Context, "drop_after", f);
+                  m_Builder.CreateBr(loopBB);
+                  m_Builder.SetInsertPoint(loopBB);
+                  
+                  llvm::PHINode *iVar = m_Builder.CreatePHI(llvm::Type::getInt64Ty(m_Context), 2, "i");
+                  iVar->addIncoming(llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), 0), dropBB);
+                  
+                  llvm::Type *elemTy = resolveType(cleanName, false);
+                  if (!elemTy) elemTy = llvm::Type::getInt8Ty(m_Context);
+                  llvm::Value *elemPtr = m_Builder.CreateInBoundsGEP(elemTy, data, iVar);
+                  
+                  emitDropCascade(elemPtr, cleanName);
+                  
+                  llvm::Value *nextI = m_Builder.CreateAdd(iVar, llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), 1));
+                  llvm::Value *cond = m_Builder.CreateICmpULT(nextI, lenVal);
+                  iVar->addIncoming(nextI, loopBB);
+                  m_Builder.CreateCondBr(cond, loopBB, afterBB);
+                  m_Builder.SetInsertPoint(afterBB);
+              } else {
+                  emitDropCascade(data, cleanName);
+              }
             }
             m_Builder.CreateBr(realFreeBB);
             m_Builder.SetInsertPoint(realFreeBB);
@@ -341,8 +369,12 @@ void CodeGen::cleanupScopes(size_t targetDepth) {
       } else if (it->IsUniquePointer && it->Alloca && it->AllocType) {
         llvm::Value *ptr = m_Builder.CreateLoad(it->AllocType, it->Alloca);
 
+        bool isFat = it->AllocType->isStructTy();
+        llvm::Value *dataPtr = isFat ? m_Builder.CreateExtractValue(ptr, 0, "fat_data") : ptr;
+        llvm::Value *lenVal = isFat ? m_Builder.CreateExtractValue(ptr, 1, "fat_len") : nullptr;
+        
         // [Fix] Nullable Short-Circuit
-        llvm::Value *notNull = m_Builder.CreateIsNotNull(ptr, "not_null");
+        llvm::Value *notNull = m_Builder.CreateIsNotNull(dataPtr, "not_null");
         llvm::Function *f = currBB->getParent();
         if (f) {
           llvm::BasicBlock *valBB =
@@ -355,14 +387,39 @@ void CodeGen::cleanupScopes(size_t targetDepth) {
 
           if (it->HasDrop) {
             std::string cleanName = it->SoulName;
-            emitDropCascade(ptr, cleanName);
+            
+            if (cleanName.find("Uninit<") == 0) {
+                 // Bypass 
+            } else if (isFat) {
+                llvm::BasicBlock *loopBB = llvm::BasicBlock::Create(m_Context, "drop_loop", f);
+                llvm::BasicBlock *afterBB = llvm::BasicBlock::Create(m_Context, "drop_after", f);
+                m_Builder.CreateBr(loopBB);
+                m_Builder.SetInsertPoint(loopBB);
+                
+                llvm::PHINode *iVar = m_Builder.CreatePHI(llvm::Type::getInt64Ty(m_Context), 2, "i");
+                iVar->addIncoming(llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), 0), valBB);
+                
+                llvm::Type *elemTy = resolveType(cleanName, false);
+                if (!elemTy) elemTy = llvm::Type::getInt8Ty(m_Context);
+                llvm::Value *elemPtr = m_Builder.CreateInBoundsGEP(elemTy, dataPtr, iVar);
+                
+                emitDropCascade(elemPtr, cleanName);
+                
+                llvm::Value *nextI = m_Builder.CreateAdd(iVar, llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), 1));
+                llvm::Value *cond = m_Builder.CreateICmpULT(nextI, lenVal);
+                iVar->addIncoming(nextI, loopBB);
+                m_Builder.CreateCondBr(cond, loopBB, afterBB);
+                m_Builder.SetInsertPoint(afterBB);
+            } else {
+                emitDropCascade(dataPtr, cleanName);
+            }
           }
 
           llvm::Function *freeFunc = m_Module->getFunction("free");
           if (freeFunc) {
             m_Builder.CreateCall(
                 freeFunc, m_Builder.CreateBitCast(
-                              ptr, llvm::PointerType::getUnqual(
+                              dataPtr, llvm::PointerType::getUnqual(
                                        llvm::Type::getInt8Ty(m_Context))));
           }
           m_Builder.CreateBr(contBB);

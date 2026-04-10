@@ -3569,6 +3569,10 @@ std::shared_ptr<toka::Type> Sema::checkIndexExpr(ArrayIndexExpr *Idx) {
       if (pointee) {
         auto resolvedPointee = resolveType(pointee, true);
         if (auto slice = std::dynamic_pointer_cast<toka::SliceType>(resolvedPointee)) {
+          // [Safety Pillar 3] Uninit subscript ban
+          if (slice->ElementType->isUninit() && !m_InUnsafeContext) {
+             error(Idx, "Cannot safely subscript into an uninitialized slice. Wrap in unsafe block if initialized via external mechanisms.");
+          }
           resultType = slice->ElementType->withAttributes(baseType->IsWritable || slice->IsWritable || slice->ElementType->IsWritable, slice->ElementType->IsNullable);
         } else if (auto arr = std::dynamic_pointer_cast<toka::ArrayType>(resolvedPointee)) {
           resultType = arr->ElementType->withAttributes(baseType->IsWritable || arr->IsWritable || arr->ElementType->IsWritable, arr->ElementType->IsNullable);

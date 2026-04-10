@@ -795,8 +795,8 @@ llvm::Value *CodeGen::genVariableDecl(const VariableDecl *var) {
     llvm::Type *refTy =
         llvm::PointerType::getUnqual(llvm::Type::getInt32Ty(m_Context));
     type = llvm::StructType::get(m_Context, {ptrTy, refTy});
-  } else if (var->IsUnique && (!type || !type->isPointerTy())) {
-    // Unique variables must be pointers, never raw Soul types
+  } else if (var->IsUnique && (!type || (!type->isPointerTy() && !type->isStructTy()))) {
+    // Unique variables must be pointers or fat pointer structs, never raw Soul types
     type = llvm::PointerType::getUnqual(elemTy);
   } else if (!type) {
     // Regular variables use the Soul type directly
