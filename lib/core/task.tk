@@ -19,6 +19,8 @@ impl<T> TaskHandle<T>@encap {
     
     pub fn clone(self) -> TaskHandle<T> {
         // Return dummy handle to satisfy auto-clone of resource managers
-        return TaskHandle<T>(*coro_handle=null)
+        unsafe {
+            return TaskHandle<T>(*coro_handle=null)
+        }
     }
 }

@@ -640,6 +640,7 @@ std::unique_ptr<ExternDecl> Parser::parseExternDecl() {
     do {
       if (check(TokenType::DotDotDot))
         break;
+      bool isPtrNullable = match(TokenType::KwNul);
       bool hasPointer = match(TokenType::Caret) || match(TokenType::Star);
       Token argName = consume(TokenType::Identifier, "Expected argument name");
       std::string argType = "i64";
@@ -650,6 +651,7 @@ std::unique_ptr<ExternDecl> Parser::parseExternDecl() {
       arg.Name = argName.Text;
       arg.Type = argType;
       arg.HasPointer = hasPointer;
+      arg.IsPointerNullable = isPtrNullable;
       arg.IsValueMutable = argName.HasWrite;
       arg.IsValueNullable = argName.HasNull;
       arg.IsMorphicExempt = (!arg.Type.empty() && arg.Type[0] == '\'');

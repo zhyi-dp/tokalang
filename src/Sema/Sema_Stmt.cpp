@@ -283,7 +283,18 @@ void Sema::checkStmt(Stmt *S) {
         expectedRetObj = resolveType(toka::Type::fromString(CurrentFunctionReturnType));
     }
 
-    if (!isTypeCompatible(expectedRetObj, ExprTypeObj)) {
+    bool bypassNullRet = false;
+    if (m_InUnsafeContext && expectedRetObj && expectedRetObj->isRawPointer() && ExprTypeObj && ExprTypeObj->isNullType()) {
+        bypassNullRet = true;
+    }
+    if (ExprTypeObj && ExprTypeObj->isNullType()) {
+         std::cerr << "[DEBUG] Return null check: unsafe=" << m_InUnsafeContext 
+                   << " expected=" << (expectedRetObj ? expectedRetObj->toString() : "null")
+                   << " isRaw=" << (expectedRetObj ? std::to_string(expectedRetObj->isRawPointer()) : "0")
+                   << " bypass=" << bypassNullRet << "\n";
+    }
+
+    if (!bypassNullRet && !isTypeCompatible(expectedRetObj, ExprTypeObj)) {
       DiagnosticEngine::report(getLoc(Ret), DiagID::ERR_TYPE_MISMATCH, ExprType,
                                CurrentFunctionReturnType);
       HasError = true;

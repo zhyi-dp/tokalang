@@ -3243,7 +3243,7 @@ std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
       if (target && source && isTypeCompatible(target, source)) {
         // OK
       } else {
-        error(Bin, DiagID::ERR_TYPE_MISMATCH, RHS, LHS);
+        error(Bin, DiagID::ERR_TYPE_MISMATCH, RHS + " (ref)", LHS);
       }
       return lhsType;
     }
@@ -3296,10 +3296,15 @@ std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
       }
     }
 
-    if (!isRefAssign && !isSmartNew &&
+    bool bypassNullAssign = false;
+    if (m_InUnsafeContext && lhsCompatType && lhsCompatType->isRawPointer() && rhsType && rhsType->isNullType()) {
+        bypassNullAssign = true;
+    }
+
+    if (!bypassNullAssign && !isRefAssign && !isSmartNew &&
         !isTypeCompatible(lhsCompatType, rhsType) && LHS != "unknown" &&
         RHS != "unknown") {
-      error(Bin, DiagID::ERR_TYPE_MISMATCH, RHS, LHS);
+      error(Bin, DiagID::ERR_TYPE_MISMATCH, RHS + " (assign)", LHS);
     }
 
     // [Fix] Update InitMask logic for 'unset' variables
@@ -3436,7 +3441,13 @@ std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
 
   if (Bin->Op == "==" || Bin->Op == "!=" || Bin->Op == "<" || Bin->Op == ">" ||
       Bin->Op == "<=" || Bin->Op == ">=") {
-    if (!isTypeCompatible(lhsType, rhsType) &&
+    bool bypassNullCmp = false;
+    if (m_InUnsafeContext) {
+        if (lhsType && lhsType->isRawPointer() && rhsType && rhsType->isNullType()) bypassNullCmp = true;
+        if (rhsType && rhsType->isRawPointer() && lhsType && lhsType->isNullType()) bypassNullCmp = true;
+    }
+
+    if (!bypassNullCmp && !isTypeCompatible(lhsType, rhsType) &&
         !isTypeCompatible(rhsType, lhsType)) {
       error(Bin, DiagID::ERR_INVALID_OP, Bin->Op, LHS, RHS);
     }
@@ -4611,7 +4622,12 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
     std::string ctx = "arg " + std::to_string(i + 1);
     checkStrictMorphology(Call->Args[i].get(), targetMorph, sourceMorph, ctx);
 
-    if (!isTypeCompatible(paramType, argType)) {
+    bool bypassNull = false;
+    if (Ext != nullptr && m_InUnsafeContext && paramType && paramType->isRawPointer() && argType && argType->isNullType()) {
+        bypassNull = true;
+    }
+
+    if (!bypassNull && !isTypeCompatible(paramType, argType)) {
       error(Call->Args[i].get(), "Type mismatch for argument " +
                                      std::to_string(i + 1) + ": expected " +
                                      paramType->toString() + ", got " +
@@ -4954,7 +4970,12 @@ Sema::checkStructInit(InitStructExpr *Init, ShapeDecl *SD,
       exprTypeObj = memberTypeObj;
     }
 
-    if (!isTypeCompatible(memberTypeObj, exprTypeObj)) {
+    bool bypassNullStruct = false;
+    if (m_InUnsafeContext && memberTypeObj && memberTypeObj->isRawPointer() && exprTypeObj && exprTypeObj->isNullType()) {
+        bypassNullStruct = true;
+    }
+
+    if (!bypassNullStruct && !isTypeCompatible(memberTypeObj, exprTypeObj)) {
       error(Init, DiagID::ERR_MEMBER_TYPE_MISMATCH, pair.first,
             memberTypeObj->toString(), exprTypeObj->toString());
     }
@@ -5001,7 +5022,12 @@ Sema::checkStructInit(InitStructExpr *Init, ShapeDecl *SD,
           exprTypeObj = memberTypeObj;
         }
 
-        if (!isTypeCompatible(memberTypeObj, exprTypeObj)) {
+        bool bypassNullStruct = false;
+        if (m_InUnsafeContext && memberTypeObj && memberTypeObj->isRawPointer() && exprTypeObj && exprTypeObj->isNullType()) {
+            bypassNullStruct = true;
+        }
+
+        if (!bypassNullStruct && !isTypeCompatible(memberTypeObj, exprTypeObj)) {
           error(Init, DiagID::ERR_MEMBER_TYPE_MISMATCH, defField.Name,
                 memberTypeObj->toString(), exprTypeObj->toString());
         }
@@ -5086,7 +5112,12 @@ Sema::checkUnionInit(InitStructExpr *Init, ShapeDecl *SD,
         checkExpr(pair.second.get(), memberTypeObj);
     m_LastInitMask = ~0ULL; // Union is fully initialized if one field is set
 
-    if (!isTypeCompatible(memberTypeObj, exprTypeObj)) {
+    bool bypassNullStruct = false;
+    if (m_InUnsafeContext && memberTypeObj && memberTypeObj->isRawPointer() && exprTypeObj && exprTypeObj->isNullType()) {
+        bypassNullStruct = true;
+    }
+
+    if (!bypassNullStruct && !isTypeCompatible(memberTypeObj, exprTypeObj)) {
       error(Init, DiagID::ERR_MEMBER_TYPE_MISMATCH, pair.first,
             memberTypeObj->toString(), exprTypeObj->toString());
     }

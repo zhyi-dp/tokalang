@@ -26,7 +26,7 @@ import core/libc::*
 // ------------------------------------------------------
 
 pub shape String (
-    *buf#: [char],
+    nul *buf#: [char],
     len: i32,
     cap: i32
 )
@@ -54,7 +54,7 @@ impl String@encap {
 // ------------------------------------------------------
 
 pub shape SplitIterator (
-    *source: [char],
+    nul *source: [char],
     source_len: i32,
     current_pos#: i32,
     delimiter: char

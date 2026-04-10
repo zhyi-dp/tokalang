@@ -1978,6 +1978,10 @@ llvm::Type *CodeGen::resolveType(const std::string &baseType, bool hasPointer) {
   if (baseType.empty())
     return nullptr;
 
+  if (baseType.size() > 4 && baseType.substr(0, 4) == "nul ") {
+    return resolveType(baseType.substr(4), hasPointer);
+  }
+
   if (baseType == "Self") {
     if (m_CurrentSelfType.empty()) {
       // Should not happen if Parser checks context, but for safety in CodeGen

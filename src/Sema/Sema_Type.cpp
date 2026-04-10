@@ -862,9 +862,6 @@ bool Sema::isTypeCompatible(std::shared_ptr<toka::Type> Target,
     if (T->isPointer() || T->isSmartPointer() || T->isReference()) {
       if (T->IsNullable)
         return true;
-      // [Relaxation] Allow null to all raw pointers (*T, *[T]) implicitly
-      if (T->isRawPointer())
-        return true;
     }
   }
   if (T->isNullType()) {
