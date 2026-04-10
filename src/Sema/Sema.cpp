@@ -73,53 +73,17 @@ void Sema::error(ASTNode *Node, const std::string &Msg) {
   DiagnosticEngine::report(getLoc(Node), DiagID::ERR_GENERIC_SEMA, Msg);
 }
 
-void Sema::enterScope() { CurrentScope = new Scope(CurrentScope); }
+void Sema::enterScope() { 
+  CurrentScope = new Scope(CurrentScope); 
+  BorrowCheckerState.pushScope();
+}
 
 void Sema::exitScope() {
   Scope *Old = CurrentScope;
-  // Cleanup borrows
-  for (auto const &[refName, borrowInfo] : Old->ActiveBorrows) {
-    std::string sourceName = borrowInfo.first;
-    bool isMutable = borrowInfo.second;
-    SymbolInfo *sourcePtr = nullptr;
-    if (CurrentScope->Parent &&
-        CurrentScope->Parent->findSymbol(sourceName, sourcePtr)) {
-      // Robust Cleanup: Clear BOTH if they match the borrower or the intent.
-      if (sourcePtr->IsMutablyBorrowed &&
-          (sourcePtr->MutablyBorrowedBy == refName ||
-           sourcePtr->MutablyBorrowedBy.empty())) {
-        sourcePtr->IsMutablyBorrowed = false;
-        sourcePtr->MutablyBorrowedBy = "";
-      } else if (isMutable && sourcePtr->IsMutablyBorrowed) {
-        // Fallback for anonymous mutable borrows registered by intent
-        sourcePtr->IsMutablyBorrowed = false;
-        sourcePtr->MutablyBorrowedBy = "";
-      }
-
-      if (sourcePtr->ImmutableBorrowCount > 0) {
-        sourcePtr->ImmutableBorrowCount--;
-      }
-    }
-  }
   CurrentScope = CurrentScope->Parent;
+  BorrowCheckerState.popScope();
   delete Old;
 }
-void Sema::clearStmtBorrows() {
-  for (auto const &borrow : m_CurrentStmtBorrows) {
-    SymbolInfo *info = nullptr;
-    if (CurrentScope->findSymbol(borrow.first, info)) {
-      if (borrow.second) {
-        info->IsMutablyBorrowed = false;
-        info->MutablyBorrowedBy = "";
-      } else {
-        info->ImmutableBorrowCount--;
-      }
-    }
-  }
-  m_CurrentStmtBorrows.clear();
-  m_LastBorrowSource = "";
-}
-
 void Sema::registerGlobals(Module &M) {
 
   // Initialize ModuleScope

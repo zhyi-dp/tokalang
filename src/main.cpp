@@ -155,6 +155,7 @@ int main(int argc, char **argv) {
   }
 
   std::vector<std::string> inputFiles;
+  bool disableBorrowCheck = false;
   for (int i = 1; i < argc; ++i) {
     std::string arg = argv[i];
     if (arg == "-I") {
@@ -169,6 +170,8 @@ int main(int argc, char **argv) {
     } else if (arg == "--version" || arg == "-v") {
       llvm::outs() << "toka version 0.8.0\n";
       return 0;
+    } else if (arg == "--disable-borrow-check") {
+      disableBorrowCheck = true;
     } else if (arg.rfind("-", 0) == 0) {
       // Ignore other flags for now or report error
     } else {
@@ -198,6 +201,7 @@ int main(int argc, char **argv) {
   llvm::errs() << "Parse Successful. Running Semantic Analysis...\n";
 
   toka::Sema sema;
+  sema.setBorrowCheckEnabled(!disableBorrowCheck);
   for (const auto &ast : astModules) {
     if (!sema.checkModule(*ast)) {
       return 1;

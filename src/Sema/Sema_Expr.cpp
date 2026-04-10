@@ -337,20 +337,17 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
           if (!Info->IsMutable()) {
             error(Addr, DiagID::ERR_BORROW_IMMUT, Var->Name);
           }
-          if (Info->IsMutablyBorrowed || Info->ImmutableBorrowCount > 0) {
-            error(Addr, DiagID::ERR_BORROW_MUT, Var->Name);
-          }
-          Info->IsMutablyBorrowed = true;
-        } else {
-          if (Info->IsMutablyBorrowed) {
-            error(Addr, DiagID::ERR_BORROW_MUT, Var->Name);
-          }
-          Info->ImmutableBorrowCount++;
         }
-
-        m_LastBorrowSource = Var->Name;
-        m_LastLifeDependencies.insert(Var->Name);
-        m_CurrentStmtBorrows.push_back({Var->Name, wantMutable});
+        std::string pathToBorrow = getStringifyPath(Addr->Expression.get());
+        if (!pathToBorrow.empty()) {
+           if (!m_InLHS) {
+              if (!BorrowCheckerState.recordBorrow(pathToBorrow, wantMutable)) {
+                  error(Addr, DiagID::ERR_BORROW_MUT, pathToBorrow);
+              }
+           }
+           m_LastBorrowSource = pathToBorrow;
+           m_LastLifeDependencies.insert(pathToBorrow);
+        }
       }
     }
 
@@ -524,45 +521,35 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     if (!m_ControlFlowStack.empty())
       borrower = m_ControlFlowStack.back().Label;
 
+    std::string conflictPath = "";
+    if (m_InLHS) {
+       conflictPath = BorrowCheckerState.verifyMutation(actualName);
+    } else {
+       conflictPath = BorrowCheckerState.verifyAccess(actualName);
+    }
+    
+    // Usage-time Authorization: A previously defined reference 
+    // is authorized to access its own source.
     bool authorized = false;
-    // 1. Definition-time Authorization: The being-defined variable (borrower)
-    if (!borrower.empty()) {
-      if (actualName == borrower)
-        authorized = true;
-      else if (EffectiveInfo->IsMutablyBorrowed &&
-               EffectiveInfo->MutablyBorrowedBy == borrower)
-        authorized = true;
-      else {
-        for (const auto &b : m_CurrentStmtBorrows) {
-          if (b.first == EffectiveName) {
+    if (!conflictPath.empty()) {
+       SymbolInfo veInfo;
+       if (CurrentScope->lookup(actualName, veInfo)) {
+         if (veInfo.BorrowedFrom == conflictPath) {
             authorized = true;
-            break;
-          }
-        }
-      }
+         }
+       }
+       if (!authorized && !borrower.empty()) {
+            SymbolInfo borrowerInfo;
+            if (CurrentScope->lookup(borrower, borrowerInfo) && borrowerInfo.BorrowedFrom == conflictPath) {
+               authorized = true;
+            } else if (actualName == borrower) {
+               authorized = true; // writing to myself
+            }
+       }
     }
 
-    // 2. Usage-time Authorization: A previously defined reference (actualName)
-    // is authorized to access its own source (EffectiveName).
-    if (!authorized) {
-      SymbolInfo veInfo;
-      if (CurrentScope->lookup(actualName, veInfo)) {
-        if (veInfo.BorrowedFrom == EffectiveName) {
-          authorized = true;
-        }
-      }
-    }
-
-    if (EffectiveInfo->IsMutablyBorrowed && !authorized) {
-      error(ve, DiagID::ERR_BORROW_MUT, EffectiveName);
-    } else if (EffectiveInfo->ImmutableBorrowCount > 0 && !authorized) {
-      // Shared borrow blocks everyone else's mutable access,
-      // but authorized borrower can access?
-      // Actually, if I am the exclusive borrower, I can still read.
-      // But if I want to MUTATE (in LHS), then shared borrow blocks me.
-      if (m_InLHS) {
-        error(ve, DiagID::ERR_BORROW_MUT, EffectiveName);
-      }
+    if (!conflictPath.empty() && !authorized) {
+       error(ve, DiagID::ERR_BORROW_MUT, conflictPath);
     }
 
     // [Annotated AST] Constant Substitution: The Core Fix
@@ -889,41 +876,13 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
 
           if (!m_InLHS) {
             bool isExclusive = targetInner->IsWritable;
-            std::string borrower = "";
-            bool isReceiver = false;
-            if (!m_ControlFlowStack.empty()) {
-              borrower = m_ControlFlowStack.back().Label;
-              isReceiver = m_ControlFlowStack.back().IsReceiver;
+            std::string pathToBorrow = getStringifyPath(Var);
+            if (!pathToBorrow.empty()) {
+               if (!BorrowCheckerState.recordBorrow(pathToBorrow, isExclusive)) {
+                   error(Cast, DiagID::ERR_BORROW_MUT, pathToBorrow);
+               }
+               m_LastBorrowSource = pathToBorrow;
             }
-
-            if (isExclusive) {
-              if (EffectiveInfo->IsMutablyBorrowed ||
-                  EffectiveInfo->ImmutableBorrowCount > 0) {
-                // [Fix] Authorization on Cast
-                if (!(EffectiveInfo->IsMutablyBorrowed &&
-                      !EffectiveInfo->MutablyBorrowedBy.empty() &&
-                      EffectiveInfo->MutablyBorrowedBy == borrower)) {
-                  error(Cast, DiagID::ERR_BORROW_MUT, EffectiveName);
-                }
-              }
-              if (!isReceiver) {
-                EffectiveInfo->IsMutablyBorrowed = true;
-                if (!borrower.empty())
-                  EffectiveInfo->MutablyBorrowedBy = borrower;
-              }
-            } else {
-              if (EffectiveInfo->IsMutablyBorrowed) {
-                if (!borrower.empty() &&
-                    EffectiveInfo->MutablyBorrowedBy != borrower) {
-                  error(Cast, DiagID::ERR_BORROW_MUT, EffectiveName);
-                }
-              }
-              if (!isReceiver) {
-                EffectiveInfo->ImmutableBorrowCount++;
-              }
-            }
-            m_LastBorrowSource = EffectiveName;
-            m_CurrentStmtBorrows.push_back({EffectiveName, isExclusive});
           }
         }
       }
@@ -1759,8 +1718,10 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
         }
 
         // [Rule] Enforce Explicit Mutability for Method Calls
+        bool requiresMutableBorrow = false;
         if (!FD->Args.empty() && FD->Args[0].Name == "self" &&
             FD->Args[0].IsValueMutable) {
+          requiresMutableBorrow = true;
           // std::cerr << "[DEBUG] MutCheck: Method=" << Met->Method <<
           // std::endl;
           bool isExplicitlyMutable = false;
@@ -1786,15 +1747,13 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
         }
 
         // [Rule] Borrowing check for Method Call
-        if (auto *objVar = dynamic_cast<VariableExpr *>(Met->Object.get())) {
-          SymbolInfo *info = nullptr;
-          if (CurrentScope->findSymbol(objVar->Name, info)) {
-            if (info->IsMutablyBorrowed) {
-              DiagnosticEngine::report(getLoc(Met), DiagID::ERR_BORROW_MUT,
-                                       objVar->Name);
-              HasError = true;
-            }
-          }
+        std::string objPath = getStringifyPath(Met->Object.get());
+        if (!objPath.empty()) {
+           std::string conflictPath = requiresMutableBorrow ? BorrowCheckerState.verifyMutation(objPath) : BorrowCheckerState.verifyAccess(objPath);
+           if (!conflictPath.empty()) {
+               DiagnosticEngine::report(getLoc(Met), DiagID::ERR_BORROW_MUT, conflictPath);
+               HasError = true;
+           }
         }
 
         auto retType = toka::Type::fromString(MethodMap[soulType][Met->Method]);
@@ -2096,63 +2055,20 @@ std::shared_ptr<toka::Type> Sema::checkMemberExpr(MemberExpr *Memb) {
       SymbolInfo *Info = nullptr;
       std::string actualObjName = objVar->Name;
       if (CurrentScope->findVariableWithDeref(objVar->Name, Info, actualObjName)) {
-        // [Fix] Trace to Source for Member Access
-        SymbolInfo *EffectiveInfo = Info;
-        std::string EffectiveName = actualObjName;
-        int traceDepth = 0;
-        while (!EffectiveInfo->BorrowedFrom.empty() && traceDepth < 10) {
-          SymbolInfo *Next = nullptr;
-          if (CurrentScope->findSymbol(EffectiveInfo->BorrowedFrom, Next)) {
-            EffectiveName = EffectiveInfo->BorrowedFrom;
-            EffectiveInfo = Next;
-          } else
-            break;
-          traceDepth++;
-        }
-
-        std::string borrower = "";
-        if (!m_ControlFlowStack.empty())
-          borrower = m_ControlFlowStack.back().Label;
-
         // [Rule] Borrowing check for Member Access
-        bool authorized = (EffectiveInfo->IsMutablyBorrowed &&
-                           !EffectiveInfo->MutablyBorrowedBy.empty() &&
-                           EffectiveInfo->MutablyBorrowedBy == objVar->Name);
-
-        if (objVar->Name == borrower)
-          authorized = true;
-        else if (EffectiveInfo->IsMutablyBorrowed &&
-                 EffectiveInfo->MutablyBorrowedBy == borrower)
-          authorized = true;
-
-        // [FIX] SharedPointer non-exclusive borrow
-        if (EffectiveInfo->TypeObj &&
-            EffectiveInfo->TypeObj->isSmartPointer()) {
-          // Shared pointers allow multiple immutable borrows
-          // Mutable borrows are still exclusive
-          if (EffectiveInfo->TypeObj->typeKind == toka::Type::SharedPtr) {
-            // If it's a shared pointer, immutable borrows are always
-            // allowed. Mutable borrows are still subject to
-            // exclusivity.
-            if (!m_IsAssignmentTarget) { // If not an assignment target,
-                                         // it's an immutable borrow
-              authorized = true;
-            }
-          }
-        }
-
-        if (!authorized) {
-          SymbolInfo objInfo;
-          if (CurrentScope->lookup(objVar->Name, objInfo)) {
-            if (objInfo.BorrowedFrom == EffectiveName)
-              authorized = true;
-          }
-        }
-
-        if (EffectiveInfo->IsMutablyBorrowed && !authorized) {
-          DiagnosticEngine::report(getLoc(Memb), DiagID::ERR_BORROW_MUT,
-                                   EffectiveName);
-          HasError = true;
+        std::string objPath = getStringifyPath(Memb->Object.get());
+        if (!objPath.empty()) {
+           std::string conflictPath = "";
+           if (m_InLHS) {
+              conflictPath = BorrowCheckerState.verifyMutation(objPath);
+           } else {
+              conflictPath = BorrowCheckerState.verifyAccess(objPath);
+           }
+           
+           if (!conflictPath.empty()) {
+               DiagnosticEngine::report(getLoc(Memb), DiagID::ERR_BORROW_MUT, conflictPath);
+               HasError = true;
+           }
         }
 
         if (Info->TypeObj && Info->TypeObj->isShape()) {
@@ -2637,48 +2553,14 @@ std::shared_ptr<toka::Type> Sema::checkUnaryExpr(UnaryExpr *Unary) {
         }
 
         if (!m_InLHS) {
-          std::string borrower = "";
-          bool isReceiver = false;
-          if (!m_ControlFlowStack.empty()) {
-            borrower = m_ControlFlowStack.back().Label;
-            isReceiver = m_ControlFlowStack.back().IsReceiver;
+          std::string pathToBorrow = getStringifyPath(Unary->RHS.get());
+          if (!pathToBorrow.empty()) {
+             // Toka Path-Anchored Check
+             if (!BorrowCheckerState.recordBorrow(pathToBorrow, isExclusive)) {
+                error(Unary, DiagID::ERR_BORROW_MUT, pathToBorrow);
+             }
+             m_LastBorrowSource = pathToBorrow; // keep this so RHS knows what it borrowed
           }
-
-          // Shared logic for verification
-          bool reborrow_authorized = false;
-          if (EffectiveInfo->IsMutablyBorrowed &&
-              !EffectiveInfo->MutablyBorrowedBy.empty() &&
-              EffectiveInfo->MutablyBorrowedBy == borrower) {
-            reborrow_authorized = true;
-          } else if (actualName == borrower) {
-            reborrow_authorized = true;
-          } else {
-            // Usage-time authorization: through reference tracing
-            SymbolInfo refInfo;
-            if (CurrentScope->lookup(actualName, refInfo)) {
-              if (refInfo.BorrowedFrom == EffectiveName)
-                reborrow_authorized = true;
-            }
-          }
-
-          if (isExclusive) {
-            if ((EffectiveInfo->IsMutablyBorrowed ||
-                 EffectiveInfo->ImmutableBorrowCount > 0) &&
-                !reborrow_authorized) {
-              error(Unary, DiagID::ERR_BORROW_MUT, EffectiveName);
-            }
-            EffectiveInfo->IsMutablyBorrowed = true;
-            if (!borrower.empty())
-              EffectiveInfo->MutablyBorrowedBy = borrower;
-          } else {
-            if (EffectiveInfo->IsMutablyBorrowed && !reborrow_authorized) {
-              error(Unary, DiagID::ERR_BORROW_MUT, EffectiveName);
-            }
-            EffectiveInfo->ImmutableBorrowCount++;
-          }
-
-          m_LastBorrowSource = EffectiveName;
-          m_CurrentStmtBorrows.push_back({EffectiveName, isExclusive});
         }
 
         return refType;
@@ -2708,10 +2590,12 @@ std::shared_ptr<toka::Type> Sema::checkUnaryExpr(UnaryExpr *Unary) {
 
       if (Unary->Op == TokenType::Caret) {
         if (!m_InLHS) {
-          if (EffectiveInfo->IsMutablyBorrowed) {
-            error(Unary, DiagID::ERR_BORROW_MUT, EffectiveName);
-          } else if (EffectiveInfo->ImmutableBorrowCount > 0) {
-            error(Unary, DiagID::ERR_MOVE_BORROWED, EffectiveName);
+          std::string pathToBorrow = getStringifyPath(Unary->RHS.get());
+          if (!pathToBorrow.empty()) {
+             std::string conflictPath = BorrowCheckerState.verifyMutation(pathToBorrow);
+             if (!conflictPath.empty()) {
+                 error(Unary, DiagID::ERR_MOVE_BORROWED, conflictPath);
+             }
           }
         }
         if (physType && physType->isUniquePtr()) {
@@ -2728,8 +2612,14 @@ std::shared_ptr<toka::Type> Sema::checkUnaryExpr(UnaryExpr *Unary) {
       }
 
       if (Unary->Op == TokenType::Tilde) {
-        if (!m_InLHS && EffectiveInfo->IsMutablyBorrowed) {
-          error(Unary, DiagID::ERR_BORROW_MUT, EffectiveName);
+        if (!m_InLHS) {
+          std::string pathToBorrow = getStringifyPath(Unary->RHS.get());
+          if (!pathToBorrow.empty()) {
+             std::string conflictPath = BorrowCheckerState.verifyAccess(pathToBorrow);
+             if (!conflictPath.empty()) {
+                 error(Unary, DiagID::ERR_BORROW_MUT, conflictPath);
+             }
+          }
         }
         if (physType && physType->isSharedPtr()) {
           return physType->withAttributes(
@@ -2774,11 +2664,12 @@ std::shared_ptr<toka::Type> Sema::checkUnaryExpr(UnaryExpr *Unary) {
     if (auto *Var = dynamic_cast<VariableExpr *>(Unary->RHS.get())) {
       SymbolInfo *Info = nullptr;
       if (CurrentScope->findSymbol(Var->Name, Info)) {
-        if (Info->IsBorrowed()) {
-          error(Unary, DiagID::ERR_MOVE_BORROWED, Var->Name);
-        }
-        if (Info->IsMutablyBorrowed || Info->ImmutableBorrowCount > 0) {
-          error(Unary, DiagID::ERR_BORROW_MUT, Var->Name);
+        std::string pathToBorrow = getStringifyPath(Unary->RHS.get());
+        if (!pathToBorrow.empty()) {
+           std::string conflictPath = BorrowCheckerState.verifyMutation(pathToBorrow);
+           if (!conflictPath.empty()) {
+               error(Unary, DiagID::ERR_BORROW_MUT, conflictPath);
+           }
         }
       }
     }
@@ -2938,10 +2829,9 @@ std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
       std::string actualRHSName = RHSVar->Name;
       if (CurrentScope->findVariableWithDeref(RHSVar->Name, RHSInfoPtr, actualRHSName) &&
           RHSInfoPtr->IsUnique()) {
-        if (RHSInfoPtr->IsMutablyBorrowed) {
-          error(Bin, DiagID::ERR_BORROW_MUT, actualRHSName);
-        } else if (RHSInfoPtr->ImmutableBorrowCount > 0) {
-          error(Bin, DiagID::ERR_MOVE_BORROWED, actualRHSName);
+        std::string conflictPath = BorrowCheckerState.verifyMutation(actualRHSName);
+        if (!conflictPath.empty()) {
+            error(Bin, DiagID::ERR_MOVE_BORROWED, conflictPath);
         }
         CurrentScope->markMoved(actualRHSName);
       }
@@ -3045,55 +2935,37 @@ std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
       SymbolInfo *InfoPtr = nullptr;
       std::string actualName = Var->Name;
       if (CurrentScope->findVariableWithDeref(Var->Name, InfoPtr, actualName)) {
-        // [Fix] Trace to Source for Borrow Check
-        SymbolInfo *EffectiveInfo = InfoPtr;
-        std::string EffectiveName = Var->Name;
-        int traceDepth = 0;
-        while (!EffectiveInfo->BorrowedFrom.empty() && traceDepth < 10) {
-          SymbolInfo *Next = nullptr;
-          if (CurrentScope->findSymbol(EffectiveInfo->BorrowedFrom, Next)) {
-            EffectiveName = EffectiveInfo->BorrowedFrom;
-            EffectiveInfo = Next;
-          } else
-            break;
-          traceDepth++;
-        }
-
-        if (!isUnsetInit && EffectiveInfo) {
-          std::string borrower = "";
-          if (!m_ControlFlowStack.empty())
-            borrower = m_ControlFlowStack.back().Label;
-
-          bool authorized = (EffectiveInfo->IsMutablyBorrowed &&
-                             !EffectiveInfo->MutablyBorrowedBy.empty() &&
-                             EffectiveInfo->MutablyBorrowedBy == borrower);
-
-          if (actualName == borrower)
-            authorized = true;
-          else if (EffectiveInfo->IsMutablyBorrowed &&
-                   EffectiveInfo->MutablyBorrowedBy == actualName)
-            authorized = true;
-
-          if (!authorized) {
-            if (InfoPtr->BorrowedFrom == EffectiveName) {
-                authorized = true;
-            } else {
-                SymbolInfo varInfo;
-                if (CurrentScope->lookup(actualName, varInfo)) {
-                  if (varInfo.BorrowedFrom == EffectiveName)
-                    authorized = true;
+        std::string lhsPath = getStringifyPath(Bin->LHS.get());
+        if (!isUnsetInit && !lhsPath.empty()) {
+            std::string conflictPath = BorrowCheckerState.verifyMutation(lhsPath);
+            bool authorized = false;
+            
+            if (!conflictPath.empty()) {
+               SymbolInfo info;
+               std::string borrower = "";
+               if (!m_ControlFlowStack.empty())
+                 borrower = m_ControlFlowStack.back().Label;
+                 
+               if (CurrentScope->lookup(actualName, info) && info.BorrowedFrom == conflictPath) {
+                  authorized = true;
+               } else if (!borrower.empty()) {
+                   SymbolInfo borrowerInfo;
+                   if (CurrentScope->lookup(borrower, borrowerInfo) && borrowerInfo.BorrowedFrom == conflictPath) {
+                      authorized = true;
+                   } else if (actualName == borrower) {
+                      authorized = true;
+                   }
+               }
+            }
+            
+            if (!conflictPath.empty() && !authorized) {
+                toka::PathState conflictState = BorrowCheckerState.getState(conflictPath);
+                if (conflictState == toka::PathState::BorrowedShared) {
+                    error(Bin, DiagID::ERR_BORROW_IMMUT, conflictPath);
+                } else {
+                    error(Bin, DiagID::ERR_BORROW_MUT, conflictPath);
                 }
             }
-          }
-
-          if (!authorized) {
-            if (EffectiveInfo->IsMutablyBorrowed) {
-              error(Bin, DiagID::ERR_BORROW_MUT, EffectiveName);
-            } else if (EffectiveInfo->ImmutableBorrowCount > 0) {
-              // Rule: For assignments, use ERR_BORROW_IMMUT (E0442)
-              error(Bin, DiagID::ERR_BORROW_IMMUT, EffectiveName);
-            }
-          }
         }
 
         // [Unset Safety] allow initialization

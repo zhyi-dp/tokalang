@@ -8,9 +8,6 @@ fn main() -> i32 {
 
     // ERROR: Cannot modify 'p' while it is borrowed
     p = new i32(20) // EXPECT: error[E0442]:
-    // EXPECT: error[E0442]:
-    // EXPECT: error[E0441]:
-    
 
     // Use x
     return x

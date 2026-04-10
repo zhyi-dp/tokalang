@@ -274,7 +274,7 @@ void Sema::checkStmt(Stmt *S) {
         }
       }
     }
-    clearStmtBorrows();
+
 
     std::shared_ptr<toka::Type> expectedRetObj = nullptr;
     if (CurrentFunction && CurrentFunction->ResolvedReturnType && CurrentFunctionReturnType == CurrentFunction->ReturnType) {
@@ -359,7 +359,7 @@ void Sema::checkStmt(Stmt *S) {
     ExprS->Expression = foldGenericConstant(std::move(ExprS->Expression));
     checkExpr(ExprS->Expression.get());
     m_ControlFlowStack.pop_back();
-    clearStmtBorrows();
+
   } else if (auto *Var = dynamic_cast<VariableDecl *>(S)) {
     // [Constitutional 1.3] Adversarial Principle: $ is only for contesting
     // inheritance.
@@ -621,37 +621,9 @@ void Sema::checkStmt(Stmt *S) {
         }
       }
 
-      // [NEW] Register in ActiveBorrows for scope-based cleanup
-      bool isMutFromExpr = false;
-      for (auto const &b : m_CurrentStmtBorrows) {
-        if (b.first == m_LastBorrowSource) {
-          isMutFromExpr = b.second;
-          break;
-        }
-      }
-      bool isMut = isMutFromExpr || Var->IsValueMutable || Var->IsRebindable;
-
-      // [Reconcile] Link back the borrowing relationship to authorize this new
-      // variable.
-      SymbolInfo *srcInfo = nullptr;
-      if (CurrentScope->findSymbol(m_LastBorrowSource, srcInfo)) {
-        if (isMut) {
-          srcInfo->IsMutablyBorrowed = true;
-          srcInfo->MutablyBorrowedBy = Var->Name;
-        }
-        // [Fix] Do NOT increment ImmutableBorrowCount here.
-        // It's already incremented by checkExpr() during RHS evaluation.
-      }
       Info.BorrowedFrom = m_LastBorrowSource;
-      CurrentScope->ActiveBorrows[Var->Name] = {m_LastBorrowSource, isMut};
-
-      // Remove from temporary borrows since it's now persistent
-      for (auto it = m_CurrentStmtBorrows.begin();
-           it != m_CurrentStmtBorrows.end(); ++it) {
-        if (it->first == m_LastBorrowSource) {
-          m_CurrentStmtBorrows.erase(it);
-          break;
-        }
+      if (!m_LastBorrowSource.empty()) {
+          BorrowCheckerState.commitTransient(m_LastBorrowSource);
       }
     }
 
@@ -734,10 +706,9 @@ void Sema::checkStmt(Stmt *S) {
         std::string actName;
         if (CurrentScope->findVariableWithDeref(RHSVar->Name, SourceInfoPtr, actName)) {
           if (SourceInfoPtr->IsUnique()) {
-            if (SourceInfoPtr->IsMutablyBorrowed ||
-                SourceInfoPtr->ImmutableBorrowCount > 0) {
-              DiagnosticEngine::report(getLoc(Var), DiagID::ERR_MOVE_BORROWED,
-                                       actName);
+            std::string conflictPath = BorrowCheckerState.verifyMutation(actName);
+            if (!conflictPath.empty()) {
+              DiagnosticEngine::report(getLoc(Var), DiagID::ERR_MOVE_BORROWED, conflictPath);
               HasError = true;
             }
             CurrentScope->markMoved(actName);
@@ -757,7 +728,7 @@ void Sema::checkStmt(Stmt *S) {
         }
       }
     }
-    clearStmtBorrows();
+
     if (Var->Init) {
       m_ControlFlowStack.pop_back();
     }
@@ -791,17 +762,7 @@ void Sema::checkStmt(Stmt *S) {
         if (Destruct->Variables[i].IsReference) {
           Info.TypeObj = std::make_shared<toka::ReferenceType>(soulType);
           Info.BorrowedFrom = m_LastBorrowSource;
-          // Register in ActiveBorrows
-          bool isMutFromExpr = false;
-          for (auto const &b : m_CurrentStmtBorrows) {
-            if (b.first == m_LastBorrowSource) {
-              isMutFromExpr = b.second;
-              break;
-            }
-          }
-          bool isMut = isMutFromExpr || Destruct->Variables[i].IsValueMutable;
-          CurrentScope->ActiveBorrows[Destruct->Variables[i].Name] = {
-              m_LastBorrowSource, isMut};
+
         } else {
           Info.TypeObj = soulType;
         }
@@ -824,15 +785,7 @@ void Sema::checkStmt(Stmt *S) {
           Info.BorrowedFrom = m_LastBorrowSource;
           // Register in ActiveBorrows
           bool isMutFromExpr = false;
-          for (auto const &b : m_CurrentStmtBorrows) {
-            if (b.first == m_LastBorrowSource) {
-              isMutFromExpr = b.second;
-              break;
-            }
-          }
-          bool isMut = isMutFromExpr || Destruct->Variables[i].IsValueMutable;
-          CurrentScope->ActiveBorrows[Destruct->Variables[i].Name] = {
-              m_LastBorrowSource, isMut};
+          Info.BorrowedFrom = m_LastBorrowSource;
         } else {
           Info.TypeObj = soulType;
         }
@@ -848,16 +801,9 @@ void Sema::checkStmt(Stmt *S) {
         if (Var.IsReference) {
           Info.TypeObj = std::make_shared<toka::ReferenceType>(soulType);
           Info.BorrowedFrom = m_LastBorrowSource;
-          // Register in ActiveBorrows
-          bool isMutFromExpr = false;
-          for (auto const &b : m_CurrentStmtBorrows) {
-            if (b.first == m_LastBorrowSource) {
-              isMutFromExpr = b.second;
-              break;
-            }
+          if (!m_LastBorrowSource.empty()) {
+              BorrowCheckerState.commitTransient(m_LastBorrowSource);
           }
-          bool isMut = isMutFromExpr || Var.IsValueMutable;
-          CurrentScope->ActiveBorrows[Var.Name] = {m_LastBorrowSource, isMut};
         } else {
           Info.TypeObj = soulType;
         }
@@ -892,6 +838,9 @@ void Sema::checkStmt(Stmt *S) {
   } else if (auto *Unreachable = dynamic_cast<UnreachableStmt *>(S)) {
     // No-op for now, it's just a marker
   }
+
+  // Clear uncommitted transient borrows created during this statement
+  BorrowCheckerState.clearTransient();
 }
 
 } // namespace toka

@@ -16,6 +16,7 @@
 #include "toka/AST.h"
 #include "toka/DiagnosticEngine.h"
 #include "toka/Type.h"
+#include "toka/BorrowChecker.h"
 #include <map>
 #include <set>
 #include <string>
@@ -40,9 +41,6 @@ struct SymbolInfo {
   uint64_t DirtyReferentMask = ~0ULL; // Default to Clean
 
   // Borrow Tracking
-  int ImmutableBorrowCount = 0;
-  bool IsMutablyBorrowed = false;
-  std::string MutablyBorrowedBy = ""; // [NEW] Name of the mutable borrower
   std::string BorrowedFrom =
       ""; // If this is a reference, name of the source variable
   std::set<std::string> LifeDependencySet; // [NEW] Shadow Dependency Set
@@ -57,9 +55,7 @@ struct SymbolInfo {
 
   bool IsReference() const { return TypeObj && TypeObj->isReference(); }
 
-  bool IsBorrowed() const {
-    return IsMutablyBorrowed || ImmutableBorrowCount > 0;
-  }
+  // IsBorrowed() is now handled externally by BorrowChecker
 
   bool IsUnique() const {
     return TypeObj && TypeObj->typeKind == toka::Type::UniquePtr;
@@ -93,10 +89,6 @@ public:
   Scope *Parent = nullptr;
   std::map<std::string, SymbolInfo> Symbols;
 
-  // Track which variables in THIS scope level are references borrowing from
-  // elsewhere Map: ReferenceName -> {SourceVarName, IsMutable}
-  std::map<std::string, std::pair<std::string, bool>> ActiveBorrows;
-
   int Depth = 0; // [NEW] Scope depth for lifetime comparison
   Scope(Scope *P = nullptr) : Parent(P) {
     if (P)
@@ -105,12 +97,6 @@ public:
 
   void define(const std::string &Name, const SymbolInfo &Info) {
     Symbols[Name] = Info;
-    if (!Info.BorrowedFrom.empty()) {
-      // Use IsSoulMutable() to determine if this is an exclusive (mutable)
-      // borrow. Identity mutability (IsRebindable) doesn't matter for the
-      // borrow status of the source.
-      ActiveBorrows[Name] = {Info.BorrowedFrom, Info.IsSoulMutable()};
-    }
   }
 
   // Find symbol and its owning scope
@@ -176,6 +162,10 @@ public:
   
   std::unique_ptr<toka::Module> extractGenericRegistry() {
     return std::move(GenericInstancesModule);
+  }
+
+  void setBorrowCheckEnabled(bool enabled) {
+    BorrowCheckerState.IsEnabled = enabled;
   }
 
   bool hasErrors() const { return HasError; }
@@ -250,8 +240,7 @@ private:
       m_LastLifeDependencies; // [NEW] Track shape dependencies
   std::shared_ptr<toka::Type> m_ExpectedType;
   std::set<std::string> m_AccessedVariables; // [CLOSURE] Track accessed variables
-  // {VarName, IsMutable}
-  std::vector<std::pair<std::string, bool>> m_CurrentStmtBorrows;
+  BorrowChecker BorrowCheckerState; // [NEW] Path-Anchored Borrow Checker
   struct ModuleScope {
     std::string Name;
     std::map<std::string, FunctionDecl *> Functions;
@@ -315,7 +304,6 @@ private:
   // Scope management
   void enterScope();
   void exitScope();
-  void clearStmtBorrows();
   int getScopeDepth(const std::string &
                         Name); // [NEW] Get depth of scope where name is defined
 

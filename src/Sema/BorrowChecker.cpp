@@ -1,0 +1,143 @@
+// Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "toka/BorrowChecker.h"
+
+namespace toka {
+
+bool BorrowChecker::isPrefixOf(const std::string& prefix, const std::string& full) const {
+  if (prefix == full) return true;
+  if (full.length() > prefix.length() && 
+      full.substr(0, prefix.length()) == prefix && 
+      full[prefix.length()] == '.') {
+    return true;
+  }
+  return false;
+}
+
+bool BorrowChecker::isSuffixDerived(const std::string& base, const std::string& derived) const {
+  // Same logic as prefix overlap in our path model: derived is a sub-path of base
+  return isPrefixOf(base, derived);
+}
+
+bool BorrowChecker::recordBorrow(const std::string& path, bool isMutable) {
+  if (!IsEnabled) return true;
+
+  auto& map = LedgerStack.back().Map;
+  
+  if (map.count(path)) {
+     if (map[path] == PathState::BorrowedMut || isMutable) {
+        return false; // Error: Already mutably borrowed, or want mutable and already borrowed
+     }
+  }
+  
+  map[path] = isMutable ? PathState::BorrowedMut : PathState::BorrowedShared;
+  TransientBorrows.push_back(path);
+  return true;
+}
+
+std::string BorrowChecker::verifyMutation(const std::string& path) {
+  if (!IsEnabled) return "";
+
+  for (auto it = LedgerStack.rbegin(); it != LedgerStack.rend(); ++it) {
+    for (const auto& [regPath, state] : it->Map) {
+      if (state == PathState::BorrowedMut || state == PathState::BorrowedShared) {
+        if (isPrefixOf(regPath, path) || isPrefixOf(path, regPath)) {
+          return regPath;
+        }
+      }
+    }
+  }
+  return "";
+}
+
+std::string BorrowChecker::verifyAccess(const std::string& path) {
+  if (!IsEnabled) return "";
+
+  for (auto it = LedgerStack.rbegin(); it != LedgerStack.rend(); ++it) {
+    for (const auto& [regPath, state] : it->Map) {
+      if (state == PathState::BorrowedMut) {
+        if (isPrefixOf(regPath, path) || isPrefixOf(path, regPath)) {
+          return regPath;
+        }
+      }
+    }
+  }
+  return "";
+}
+
+PathState BorrowChecker::getState(const std::string& path) {
+  if (!IsEnabled) return PathState::Free;
+  for (auto it = LedgerStack.rbegin(); it != LedgerStack.rend(); ++it) {
+    if (it->Map.count(path)) {
+      return it->Map[path];
+    }
+  }
+  return PathState::Free;
+}
+
+void BorrowChecker::commitTransient(const std::string& path) {
+  auto it = std::find(TransientBorrows.begin(), TransientBorrows.end(), path);
+  if (it != TransientBorrows.end()) {
+      TransientBorrows.erase(it);
+  }
+}
+
+void BorrowChecker::clearTransient() {
+  if (LedgerStack.empty()) return;
+  auto& map = LedgerStack.back().Map;
+  for (const auto& path : TransientBorrows) {
+      map.erase(path);
+  }
+  TransientBorrows.clear();
+}
+
+bool BorrowChecker::revokeRoot(const std::string& rootIdentifier) {
+  if (!IsEnabled) return false;
+
+  bool revoked = false;
+  // If the root identifier is reassigned/dropped, ALL paths dependent on it must be killed.
+  for (auto it = LedgerStack.rbegin(); it != LedgerStack.rend(); ++it) {
+    auto& map = it->Map;
+    // Collect paths to erase, though typically if we hit this, it's an error.
+    for (auto mapIt = map.begin(); mapIt != map.end(); ) {
+      if ((mapIt->second == PathState::BorrowedMut || mapIt->second == PathState::BorrowedShared) && isPrefixOf(rootIdentifier, mapIt->first)) {
+        revoked = true;
+        // In a strict static analyzer, this triggers ERR_MOVE_BORROWED.
+        // We will just report the conflict via our verifyMutation, or the caller can throw.
+        mapIt = map.erase(mapIt);
+      } else {
+        ++mapIt;
+      }
+    }
+  }
+  return revoked;
+}
+
+void BorrowChecker::markMoved(const std::string& path) {
+  if (!IsEnabled) return;
+
+  for (auto it = LedgerStack.rbegin(); it != LedgerStack.rend(); ++it) {
+    auto& map = it->Map;
+    for (auto mapIt = map.begin(); mapIt != map.end(); ) {
+      if (isPrefixOf(path, mapIt->first)) {
+         mapIt = map.erase(mapIt);
+      } else {
+        ++mapIt;
+      }
+    }
+  }
+}
+
+} // namespace toka
