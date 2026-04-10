@@ -37,6 +37,7 @@ fn main() -> i32 {
         pass match x {
             1 => {pass 1}
             2 => {pass 2}
+            _ => {pass 0}
         }
     }
     or {

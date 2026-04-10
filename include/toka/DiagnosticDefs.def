@@ -103,6 +103,7 @@ DIAG(ERR_FREE_NON_PTR,       Error, "E0503", "Cannot 'free' value of type '{}'; 
 DIAG(ERR_VARIANT_NO_PAYLOAD, Error, "E0550", "Enum variant '{}' does not accept arguments")
 DIAG(ERR_VARIANT_ARG_MISMATCH, Error, "E0551", "Enum variant '{}' expects {} fields, but got {}")
 DIAG(ERR_UNKNOWN_SHAPE_IN_PAT, Error, "E0552", "Unknown type '{}' in pattern matching")
+DIAG(ERR_MATCH_NOT_EXHAUSTIVE, Error, "E0553", "Match is not exhaustive. Missing: {}")
 
 // --- Generics (Upcoming) ---
 DIAG(ERR_GENERIC_COUNT_MISMATCH, Error, "E0601", "Type '{}' expects {} generic arguments, but got {}")

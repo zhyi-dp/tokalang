@@ -1989,21 +1989,75 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       error(me, DiagID::ERR_YIELD_VALUE_REQUIRED, "match expression");
     }
 
-    // Check for private variants if @encap is active
-    if (EncapMap.count(targetType)) {
-      bool hasWildcard = false;
+    // Exhaustiveness Check
+    bool hasWildcard = false;
+    std::set<std::string> matchedVariants;
+
+    if (ShapeMap.count(targetType) && ShapeMap[targetType]->Kind == ShapeKind::Enum) {
+      ShapeDecl *SD = ShapeMap[targetType];
       for (auto &arm : me->Arms) {
         if (arm->Pat->PatternKind == MatchArm::Pattern::Wildcard) {
+          hasWildcard = true;
+          break;
+        } else if (arm->Pat->PatternKind == MatchArm::Pattern::Decons) {
+          std::string vName = arm->Pat->Name;
+          size_t p = vName.find("::");
+          if (p != std::string::npos) vName = vName.substr(p + 2);
+          matchedVariants.insert(vName);
+        } else if (arm->Pat->PatternKind == MatchArm::Pattern::Variable) {
+          std::string vName = arm->Pat->Name;
+          size_t p = vName.find("::");
+          if (p != std::string::npos) vName = vName.substr(p + 2);
+
+          bool isVariant = false;
+          for (auto &m : SD->Members) {
+            if (m.Name == vName) {
+              isVariant = true;
+              break;
+            }
+          }
+          if (isVariant) {
+            matchedVariants.insert(vName);
+          } else {
+            // True variable! Acts as wildcard.
+            hasWildcard = true;
+            break;
+          }
+        }
+      }
+
+      if (!hasWildcard) {
+        std::vector<std::string> missing;
+        for (auto &m : SD->Members) {
+          if (m.Name == "Moved") continue; // Synthesized state for drop tracking
+          if (matchedVariants.find(m.Name) == matchedVariants.end()) {
+            missing.push_back(m.Name);
+          }
+        }
+        if (!missing.empty()) {
+          std::string missingStr = "";
+          for (size_t i = 0; i < missing.size(); ++i) {
+            missingStr += missing[i];
+            if (i < missing.size() - 1) missingStr += ", ";
+          }
+          DiagnosticEngine::report(getLoc(me), DiagID::ERR_MATCH_NOT_EXHAUSTIVE, missingStr);
+          HasError = true;
+        }
+      }
+    } else {
+      // Not an enum (e.g. integer or boolean), requires a wildcard to be exhaustive!
+      for (auto &arm : me->Arms) {
+        if (arm->Pat->PatternKind == MatchArm::Pattern::Wildcard || 
+           (arm->Pat->PatternKind == MatchArm::Pattern::Variable && !ShapeMap.count(arm->Pat->Name))) {
+          // Verify it's a real variable not just a typo. Actually variables are tracked as wildcards here.
           hasWildcard = true;
           break;
         }
       }
       if (!hasWildcard) {
-        error(me, DiagID::ERR_GENERIC_PARSE,
-              "match on encapsulated type '" + targetType +
-                  "' requires a default '_' branch (Rule 412)");
+        DiagnosticEngine::report(getLoc(me), DiagID::ERR_MATCH_NOT_EXHAUSTIVE, "non-enum types require a wildcard branch ('_')");
+        HasError = true;
       }
-      return toka::Type::fromString(resultType);
     }
 
     return toka::Type::fromString(resultType);
@@ -4666,6 +4720,36 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
     break;
 
   case MatchArm::Pattern::Variable: {
+    // Check if Pattern->Name is actually a zero-payload variant of target T
+    bool isVariant = false;
+    std::string baseShapeName = T;
+    size_t scopePos = Pat->Name.find("::");
+    std::string patName = Pat->Name;
+    if (scopePos != std::string::npos) {
+      baseShapeName = resolveType(patName.substr(0, scopePos));
+      patName = patName.substr(scopePos + 2);
+    }
+    if (ShapeMap.count(baseShapeName)) {
+      ShapeDecl *SD = ShapeMap[baseShapeName];
+      for (auto &Memb : SD->Members) {
+        bool noPayload = Memb.Type.empty() || Memb.Type == "void";
+        if (Memb.Name == patName && noPayload && Memb.SubMembers.empty()) {
+          isVariant = true;
+          break;
+        } else if (Memb.Name == patName) {
+          DiagnosticEngine::report(getLoc(Pat), DiagID::ERR_VARIANT_NO_PAYLOAD, patName);
+          HasError = true;
+          isVariant = true;
+          break;
+        }
+      }
+    }
+
+    if (isVariant) {
+      // It's a zero-payload variant, do not bind as a variable
+      break;
+    }
+
     SymbolInfo Info;
     // Type Migration Stage 1: Coexistence
     // Construct type string to parse object. Pattern bindings infer
@@ -4710,7 +4794,8 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
 
       if (foundMemb) {
         if (Pat->SubPatterns.size() > 0) {
-          if (foundMemb->Type.empty() && foundMemb->SubMembers.empty()) {
+          bool noPayload = foundMemb->Type.empty() || foundMemb->Type == "void";
+          if (noPayload && foundMemb->SubMembers.empty()) {
             DiagnosticEngine::report(
                 getLoc(Pat), DiagID::ERR_VARIANT_NO_PAYLOAD, variantName);
             HasError = true;

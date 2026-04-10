@@ -1,0 +1,10 @@
+import core/option::Option
+import std/io::println
+
+fn main() -> i32 {
+    auto opt = Option<i32>::Some(42)
+    match opt {
+        auto Some(v) => { println("v={}", v) }
+    }
+    return 0
+}

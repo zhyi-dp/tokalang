@@ -80,8 +80,9 @@
 | `while cond { ... }` | 循环 | 最好不要用 c 风格 for，不支持 for(;;)
 | `loop { ... break }` | 无限循环 | 必须显式 `break` |
 | `for x in iter { ... }` | 迭代 | 支持实现了迭代器协议的对象 |
-| `match val { ... }` | 模式匹配 | 必须穷尽所有情况 (Exhaustive) |
-| `auto Variant(x) => ...` | 匹配分支 | 解构枚举变体 |
+| `match val { ... }` | 模式匹配 | 强制穷尽检查 (Exhaustive)，如果有遗漏需用 `_ =>` 通配符 |
+| `auto Variant(x)` | 解构变体 | 支持前缀省略和深层嵌套推导 (如 `auto Some(Some(v))`) |
+| `auto Variant` | 无参解构 | 对于无负荷状态（如 `None`），直接写名字即可 |
 | **特殊机制** | | |
 | `unsafe { ... }` | 不安全块 | 解引用原始指针、调用外部 C 函数必须在此块内 |
 | `impl Type@encap { ... }` | 封装/析构 | 定义私有字段和 `drop` 析构函数 |
