@@ -41,6 +41,7 @@ public:
     Tuple,
     Function,
     DynFn,
+    UninitWrapper,
     Unresolved // String-based placeholder
   };
 
@@ -91,6 +92,15 @@ public:
   bool isDynFn() const { return typeKind == DynFn; }
   bool isVoid() const { return typeKind == Void; }
   bool isUnknown() const { return typeKind == Unresolved; }
+  bool isUninit() const { return typeKind == UninitWrapper; }
+
+  bool isFatPointer() const {
+    if (typeKind == UniquePtr || typeKind == Reference) {
+      auto pointee = getPointeeType();
+      if (pointee && pointee->isSlice()) return true;
+    }
+    return false;
+  }
 
   virtual bool isBoolean() const { return false; }
   virtual bool isInteger() const { return false; }
@@ -160,6 +170,20 @@ public:
                                        bool b = false) const override;
   bool isSend(class Sema* S = nullptr) const override;
   bool isSync(class Sema* S = nullptr) const override;
+};
+
+class UninitType : public Type {
+public:
+  std::shared_ptr<Type> InnerType;
+  UninitType(std::shared_ptr<Type> inner) : Type(UninitWrapper), InnerType(inner) {}
+  std::string toString() const override;
+  bool equals(const Type &other) const override;
+  bool isCompatibleWith(const Type &target) const override;
+  std::shared_ptr<Type> withAttributes(bool w, bool n, bool b = false) const override;
+  bool isSend(class Sema* S = nullptr) const override { return InnerType ? InnerType->isSend(S) : false; }
+  bool isSync(class Sema* S = nullptr) const override { return InnerType ? InnerType->isSync(S) : false; }
+  std::shared_ptr<Type> substitute(const std::map<std::string, std::shared_ptr<Type>> &substMap) const override;
+  std::shared_ptr<Type> getSoulType() const override { return InnerType->getSoulType(); }
 };
 
 class PrimitiveType : public Type {

@@ -68,6 +68,42 @@ std::shared_ptr<Type> VoidType::withAttributes(bool w, bool n, bool b) const {
 bool VoidType::isSend(class Sema *S) const { return true; }
 bool VoidType::isSync(class Sema *S) const { return true; }
 
+std::string UninitType::toString() const {
+  std::string s = "";
+  if (IsCede) s += "cede ";
+  s += "Uninit<" + InnerType->toString() + ">";
+  if (IsWritable && IsNullable) {
+    s += "?#";
+  } else {
+    if (IsNullable) s += "?";
+    if (IsWritable) s += "#";
+    if (IsBlocked) s += "$";
+  }
+  return s;
+}
+
+bool UninitType::equals(const Type &other) const {
+  if (!Type::equals(other)) return false;
+  const auto *otherU = dynamic_cast<const UninitType *>(&other);
+  return otherU && InnerType->equals(*otherU->InnerType);
+}
+
+bool UninitType::isCompatibleWith(const Type &target) const {
+  if (!Type::isCompatibleWith(target)) return false;
+  const auto *otherU = dynamic_cast<const UninitType *>(&target);
+  return otherU && InnerType->isCompatibleWith(*otherU->InnerType);
+}
+
+std::shared_ptr<Type> UninitType::withAttributes(bool w, bool n, bool b) const {
+  return cloneWithAttrs(this, w, n, b);
+}
+
+std::shared_ptr<Type> UninitType::substitute(const std::map<std::string, std::shared_ptr<Type>> &substMap) const {
+  auto ut = std::dynamic_pointer_cast<UninitType>(withAttributes(IsWritable, IsNullable, IsBlocked));
+  if (InnerType) ut->InnerType = InnerType->substitute(substMap);
+  return ut;
+}
+
 std::string PrimitiveType::toString() const {
   std::string s = "";
   if (IsCede) s += "cede ";
@@ -1088,6 +1124,15 @@ std::shared_ptr<Type> Type::fromString(const std::string &rawType) {
       baseName = s.substr(0, colcol);
       variantSuffix = trim(s.substr(colcol));
     }
+  }
+
+  if (baseName == "Uninit" && genericArgs.size() == 1) {
+    auto uninit = std::make_shared<UninitType>(genericArgs[0]);
+    uninit->IsWritable = isWritable;
+    uninit->IsNullable = isNullable;
+    uninit->IsBlocked = isBlocked;
+    uninit->IsCede = isCede;
+    return uninit;
   }
 
   auto shape = std::make_shared<ShapeType>(baseName, genericArgs, variantSuffix);

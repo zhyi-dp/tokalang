@@ -2218,7 +2218,7 @@ llvm::Type *CodeGen::getLLVMType(std::shared_ptr<Type> type) {
     return llvm::Type::getVoidTy(m_Context);
   }
 
-  // Handle Pointers (Raw, Unique, Reference) -> Map to LLVM Pointer
+  // Handle Pointers (Raw, Unique, Reference) -> Map to LLVM Pointer (or Fat Pointer Struct)
   // Note: Reference in Toka is a pointer in LLVM.
   // Note: Unique is a pointer in LLVM.
   if (type->typeKind == Type::RawPtr || type->typeKind == Type::UniquePtr ||
@@ -2226,9 +2226,13 @@ llvm::Type *CodeGen::getLLVMType(std::shared_ptr<Type> type) {
 
     auto ptrType = std::static_pointer_cast<PointerType>(type);
 
-    // For opaque pointers (LLVM 17+), we could just return ptr.
-    // However, if we need typed pointers for GEPs or older LLVM logic (which
-    // Toka seems to rely on with resolveType returning typed ptrs):
+    if (type->isFatPointer()) {
+      llvm::Type *pointeeTy = getLLVMType(ptrType->PointeeType);
+      if (!pointeeTy || pointeeTy->isVoidTy()) pointeeTy = llvm::Type::getInt8Ty(m_Context);
+      llvm::Type *ptrTy = llvm::PointerType::getUnqual(pointeeTy);
+      return llvm::StructType::get(m_Context, {ptrTy, llvm::Type::getInt64Ty(m_Context)});
+    }
+
     llvm::Type *pointeeTy = getLLVMType(ptrType->PointeeType);
     if (!pointeeTy) {
       pointeeTy = llvm::Type::getInt8Ty(m_Context);
@@ -2239,7 +2243,7 @@ llvm::Type *CodeGen::getLLVMType(std::shared_ptr<Type> type) {
     return llvm::PointerType::getUnqual(pointeeTy);
   }
 
-  // Handle Shared Pointer (~T) -> { T*, i32* }
+  // Handle Shared Pointer (~T) -> { T*, cb* }
   if (type->typeKind == Type::SharedPtr) {
     auto sharedType = std::static_pointer_cast<SharedPointerType>(type);
     llvm::Type *elemTy = getLLVMType(sharedType->PointeeType);
@@ -2247,10 +2251,23 @@ llvm::Type *CodeGen::getLLVMType(std::shared_ptr<Type> type) {
       elemTy = llvm::Type::getInt8Ty(m_Context);
 
     llvm::Type *ptrTy = llvm::PointerType::getUnqual(elemTy);
-    llvm::Type *refCountTy =
-        llvm::PointerType::getUnqual(llvm::Type::getInt32Ty(m_Context));
+    llvm::Type *refCountTy;
+    
+    if (sharedType->PointeeType && sharedType->PointeeType->isSlice()) {
+      // Shared slice control block is { refs: i32, length: i64 }
+      llvm::Type *cbTy = llvm::StructType::get(m_Context, {llvm::Type::getInt32Ty(m_Context), llvm::Type::getInt64Ty(m_Context)});
+      refCountTy = llvm::PointerType::getUnqual(cbTy);
+    } else {
+      refCountTy = llvm::PointerType::getUnqual(llvm::Type::getInt32Ty(m_Context));
+    }
 
     return llvm::StructType::get(m_Context, {ptrTy, refCountTy});
+  }
+
+  // Handle Uninit Wrapper (Delegates layout to inner type)
+  if (type->typeKind == Type::UninitWrapper) {
+    auto uninit = std::static_pointer_cast<UninitType>(type);
+    return getLLVMType(uninit->InnerType);
   }
 
   // Handle Slices ([T])
