@@ -9,7 +9,7 @@ fi
 
 # Configuration
 LLI=$(which lli-20 || which lli || echo "/usr/local/opt/llvm@20/bin/lli")
-VERIFIER="tool/test_verify_fail.py"
+VERIFIER="tools/scripts/test_verify_fail.py"
 
 if [ ! -f "$VERIFIER" ]; then
     echo "Error: Verifier script not found at $VERIFIER"

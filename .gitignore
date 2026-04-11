@@ -68,3 +68,15 @@ website/node_modules/
 website/.astro/
 website/dist/
 website/npm-debug.log*
+
+# Temp and Log Files
+*.log
+*.ll
+*.lli
+*.s
+*.bin
+*.out
+compile_err*.txt
+test_output*.txt
+test_pkg_demo/
+
