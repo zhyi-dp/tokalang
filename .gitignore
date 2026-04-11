@@ -1,3 +1,4 @@
+.cache/
 *.patch
 *.orig
 .agent

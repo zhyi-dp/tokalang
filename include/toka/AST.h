@@ -249,19 +249,23 @@ public:
   }
 };
 
+class FunctionDecl;
+
 class BinaryExpr : public Expr {
 public:
   std::string Op;
+  std::string OverloadedMethod; // [NEW] Syntactic sugar method dispatch
   std::unique_ptr<Expr> LHS, RHS;
   BinaryExpr(const std::string &op, std::unique_ptr<Expr> lhs,
              std::unique_ptr<Expr> rhs)
       : Op(op), LHS(std::move(lhs)), RHS(std::move(rhs)) {}
   std::string toString() const override {
-    return "Binary(" + Op + ", " + LHS->toString() + ", " + RHS->toString() +
+    return "Binary(" + Op + (OverloadedMethod.empty() ? "" : "[" + OverloadedMethod + "]") + ", " + LHS->toString() + ", " + RHS->toString() +
            ")";
   }
   std::unique_ptr<ASTNode> clone() const override {
     auto n = std::make_unique<BinaryExpr>(Op, cloneNode(LHS), cloneNode(RHS));
+    n->OverloadedMethod = OverloadedMethod;
     n->Loc = Loc;
     n->ResolvedType = ResolvedType;
     return n;
@@ -602,7 +606,6 @@ public:
   }
 };
 
-class FunctionDecl;
 class ExternDecl;
 class ShapeDecl;
 

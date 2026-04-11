@@ -1,0 +1,44 @@
+import std/string::String
+import std/io::println
+
+shape MyObj(
+    id: i32,
+    name: String
+)
+
+impl MyObj {
+    pub fn eq(self, other: MyObj) -> bool {
+        return self.id == other.id && self.name == other.name 
+    }
+}
+
+fn main() -> i32 {
+    auto s1 = String::from("hello")
+    auto s2 = String::from("hello")
+    auto s3 = String::from("world")
+    
+    // Test std::String overload
+    if s1 == s2 {
+        if s1 != s3 {
+            println("{}", "String overload ok!")
+        } else {
+            return 1
+        }
+    } else {
+        return 1
+    }
+    
+    // Test Custom Object overload
+    auto obj1 = MyObj(id=10, name=String::from("dpai"))
+    auto obj2 = MyObj(id=10, name=String::from("dpai"))
+    auto obj3 = MyObj(id=20, name=String::from("dpai"))
+    
+    if obj1 == obj2 {
+        if obj1 != obj3 {
+            println("{}", "Custom Object overload ok!")
+            return 0
+        }
+    }
+    
+    return 1
+}

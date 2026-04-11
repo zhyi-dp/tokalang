@@ -435,6 +435,24 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
 
   const BinaryExpr *bin = expr;
   std::cerr << "[DEBUG] genBinaryExpr: Op=" << bin->Op << " LHS=" << bin->LHS->toString() << "\n";
+
+  // [Phase 2] Syntactic Sugar / Operator Overloading Dispatch
+  if (!bin->OverloadedMethod.empty()) {
+      std::vector<std::unique_ptr<Expr>> args;
+      args.push_back(std::unique_ptr<Expr>(static_cast<Expr*>(bin->RHS->clone().release())));
+      MethodCallExpr mc(std::unique_ptr<Expr>(static_cast<Expr*>(bin->LHS->clone().release())), bin->OverloadedMethod, std::move(args));
+      mc.Loc = bin->Loc;
+      mc.ResolvedType = toka::Type::fromString("bool");
+      
+      PhysEntity ret = genMethodCall(&mc);
+      if (bin->Op == "!=") {
+          llvm::Value* val = ret.load(m_Builder);
+          val = m_Builder.CreateNot(val, "not_eq");
+          return PhysEntity(val, "bool", val->getType(), false);
+      }
+      return ret;
+  }
+
   if (bin->Op == "=" || bin->Op == "+=" || bin->Op == "-=" || bin->Op == "*=" ||
       bin->Op == "/=" || bin->Op == "%=") {
 

@@ -3467,6 +3467,20 @@ std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
         if (rhsType && rhsType->isRawPointer() && lhsType && lhsType->isNullType()) bypassNullCmp = true;
     }
 
+    // [Phase 2] Syntactic Sugar / Operator Overloading for == and !=
+    if ((Bin->Op == "==" || Bin->Op == "!=") && !bypassNullCmp) {
+      auto shapeLRes = resolveType(lhsType, true);
+      if (shapeLRes->isShape()) {
+        std::string sName = shapeLRes->getSoulName();
+        if (MethodMap.count(sName) && MethodMap[sName].count("eq")) {
+          if (isTypeCompatible(lhsType, rhsType) || isTypeCompatible(rhsType, lhsType)) {
+            Bin->OverloadedMethod = "eq";
+            return toka::Type::fromString("bool");
+          }
+        }
+      }
+    }
+
     if (!bypassNullCmp && !isTypeCompatible(lhsType, rhsType) &&
         !isTypeCompatible(rhsType, lhsType)) {
       error(Bin, DiagID::ERR_INVALID_OP, Bin->Op, LHS, RHS);
