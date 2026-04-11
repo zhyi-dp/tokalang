@@ -1,81 +1,85 @@
 ---
 title: Ownership & RAII
-description: Resource management and memory safety in Toka.
+description: Resource management, lifetimes, and the `cede` transference mechanism in Toka.
 ---
 
-Toka's memory safety is built on a clear **Ownership** model, enforced by the compiler through Pointer Morphology and the innovative **PAL (Path-Anchored Ledger)** borrow checker.
+Toka's memory safety is built upon an extremely rigorous yet developer-friendly **Ownership** model. Unlike Rust's verbose lifetime annotations, Toka frees you from the cognitive burden by relying on the "Hat Principle" and a stealthy background tracker to manage the life and death of all your resources.
 
-## Unique Ownership (`^`)
+## Resource Binding and Deallocation (RAII)
 
-A Unique Pointer (`^T`) is the sole owner of a resource. When it goes out of scope, the resource is automatically cleaned up (RAII).
+In Toka, when you allocate managed heap memory via `new`, or declare a struct that incorporates allocations, you become the owner of that resource. When the owner (typically an exclusive pointer `^` or a stack variable) leaves its scope, the compiler automatically invokes its `drop` destructor function.
 
 ```toka
-fn take_ownership(cede ^u: User) {
-    println("Owning user: {}", u.name)
-} // u is dropped here
-
-pub fn main() -> i32 {
+fn process() {
     auto ^user = new User(name = "Alice")
-    take_ownership(cede ^user) // ownership transferred with cede
-    // ^user is no longer accessible here
-    return 0
-}
+    // ... joyful operations
+} // <-- Leaves scope! The heap memory and object managed by ^user are safely and automatically freed.
 ```
 
-## Shared Ownership (`~`)
+## Function Boundaries: The Default Capture Rule
 
-Shared Pointers (`~p`) use reference counting. The resource is freed only after the last reference is dropped.
-
-```toka
-shape Node (
-    value: i32,
-    ~next: Node?
-)
-```
-
-## Borrowing (`&`)
-
-Borrowing (`&p`) allows you to access data without taking ownership. Borrows can be immutable (`&p`) or mutable (`&p#`).
+Unlike other systems languages, **function parameters in Toka are implicitly "captured" by default (observing the source without borrow annotations)**.
+Passing parameters does NOT spontaneously trigger any Copy or Move operations. This means the arguments you pass to other functions will still be alive and well after the function call concludes.
 
 ```toka
-fn print_user(&u: User) {
+fn print_user(u: User) {
     println(u.name)
 }
 
 pub fn main() -> i32 {
     auto ^user = new User(name = "Bob")
-    print_user(&user) // Immutable borrow (implicit capture)
+    print_user(user) // The parameter 'u' only briefly observes 'user'.
+    
+    // ^user is still usable!
+    println("User is still alive: {}", user.name)
     return 0
 }
 ```
 
-## Explicit Transfer (`cede`)
+## Explicit Transference (`cede`)
 
-You can explicitly transfer ownership of a Soul using the `cede` keyword.
+If you truly need to hand over ownership to someone else (e.g., storing it into an array, or sending it to a separate thread), because the default is safe observation, you must employ the `cede` keyword for **explicit transference**. Once ceded, the original variable is "drained"; subsequent attempts to access it will instantly trigger a compilation error.
+
+### 1. Transference via Assignment
+```toka
+auto ^a = new i32(42)
+auto ^b = cede ^a  // ^a surrenders its resources to ^b. Afterwards, ^a becomes invalid.
+```
+
+### 2. Transference Across Function Boundaries
+If a function signature specifically requires taking over a resource, it will mark the parameter receipt using `cede`:
 
 ```toka
-fn process_data(cede ^v: [i32]) { ... }
+fn devour_data(cede list: [i32]) {
+    // When this function ends, 'list' and all resources within it are destructed!
+}
 
 pub fn main() -> i32 {
-    auto ^v = [1, 2, 3]
-    process_data(cede ^v) // ^v is ceded
+    auto ^arr = new [1, 2, 3]
+    devour_data(cede arr) // Explicitly telling the compiler: I am severing my ownership.
     return 0
 }
 ```
 
-## The @encap Trait
+## The `drop` Method & Custom Destructor Boundaries (`@encap`)
 
-For types that manage external resources (like file handles or sockets), implementing the `@encap` trait allows for custom cleanup logic.
+For standard structs, the Toka compiler automatically generates a deep, cascading recursive destructor setup (for instance, all pointers contained within a Struct drop recursively without you lifting a finger!).
+
+However, for externally managed resources (like an OS File Handle or a Network Socket), you can intercept and write your own closure logic using the proprietary `@encap` Trait:
 
 ```toka
 shape File (
     handle: i32
 )
 
+// Implementing an exclusive codex for File using the @encap trait
 impl File@encap {
-    pub fn drop(self) {
-        // Custom close logic
+    // Mandatory signature: must be the stealthy fn drop(self#) 
+    fn drop(self#) {
+        unsafe {
+            libc_close(self.handle)
+        }
     }
 }
 ```
----
+When `drop` is defined, it triggers unfailingly the moment the object's countdown hits zero.

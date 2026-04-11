@@ -1,64 +1,78 @@
 ---
-title: Generics & Traits
-description: Polymorphism and interface definition in Toka.
+title: Generics
+description: Master the art of using Toka's angle brackets to build reusable compile-time polymorphic components.
 ---
 
-Toka provides a powerful generics system for code reuse and **Traits** for defining shared behavior across different types.
+Generics allow you to write functions and data structures that handle multiple types without incurring any runtime performance penalties. The Toka compiler employs a **Monomorphization** strategy, generating dedicated, highly-optimized machine code for every unique data type you invoke generic code with during the compilation phase.
 
-## Generics
-
-Generics allow you to write functions and data structures that work with multiple types.
+## Generic Data Structures
+Simply append angle brackets after the `shape` name to define a generic component.
 
 ```toka
-shape Buffer<T> (
-    data: [T; 1024]
+// An incredibly useful wrapper
+shape Result<'T, 'E> (
+    Ok(: 'T) |
+    Err(: 'E)
 )
 
-pub fn identity<T>(val: T) -> T {
+// Usage
+auto res = Result<i32, String>::Ok(42)
+```
+> [!TIP]
+> It is conventionally recommended to prefix generic parameter names (like `'T` and `'E`) with a single-quote. This visually signifies that they are undetermined type placeholders.
+
+## Generic Functions
+Functions can also utilize angle brackets to define generic signatures:
+
+```toka
+pub fn identity<'T>(val: 'T) -> 'T {
     return val
 }
+
+auto x = identity<i32>(100)
 ```
+In many scenarios, Toka's type inference engine can automatically deduce what `<'T>` is based on the input argument type. In such cases, you can simply write `identity(100)`.
 
-## Traits
-
-Traits (prefixed with `@` in many standard library contexts, but defined with the `trait` keyword) define a set of methods that a type must implement.
+## Method Extensions on Generics (impl)
+You can choose to write extensions targeted only at specific generic instantiations. For example, if I wanted to add methods to `Mutex`:
 
 ```toka
-trait @Drawable {
-    pub fn draw(self)
+// This signifies you are creating a method for ALL T variants
+impl<'T> Mutex<'T> {
+    pub fn do_something() {}
 }
 
-shape Circle (radius: f32)
-
-// Correct Toka syntax for trait implementation: impl Type@Trait
-impl Circle@Drawable {
-    pub fn draw(self) {
-        // Implementation for Circle
-    }
+// This signifies you are adding a privileged method purely for Mutexes holding an i32.
+// Mutexes holding other types will not be able to call this method.
+impl Mutex<i32> {
+    pub fn do_i32_specific_math() {}
 }
 ```
 
-## Static vs Dynamic Dispatch
+## Bound Constraints
+Once a generic type is decoupled from constraints, it can really only perform foundational parameter transfer operations. If you intend to call a prerequisite method inside a generic function, such as `val1 == val2` or `val.hash()`, you must explicitly restrict the angle brackets to demand that the actual argument complies with those standards.
 
-Toka supports both static and dynamic dispatch.
-
-- **Static Dispatch**: The compiler generates specialized versions of a function for each type it's used with.
-- **Dynamic Dispatch**: Using the `dyn` keyword, Toka uses a vtable for runtime method selection.
+This is precisely where [Interfaces & Traits](../types/traits) step onto the stage.
 
 ```toka
-pub fn draw_all(&items: [dyn @Drawable]) {
-    for item in items {
-        item.draw()
-    }
+// Only types that implement and satisfy the @PartialEq trait 
+// can safely execute val1 == val2 within this function. 
+// This averts a massive array of undefined behaviors.
+pub fn is_equal<'T: @PartialEq>(val1: 'T, val2: 'T) -> bool {
+    return val1 == val2
 }
 ```
 
-## Constraints
+## The Ultimate Permission Barrier `@encap`
 
-You can constrain generic types to ensure they implement certain traits. Multiple constraints are grouped within `@{...}`.
+When wrapping an exceedingly dangerous or rigorous system, you can stamp the `@encap` (encapsulate/hide) boundary atop any generic system. This dictates the compiler to instantly lock the access level of any variable within the `shape` (like `data`, `root_ptr`, etc.) to **Private**.
 
 ```toka
-pub fn print_anything<T: @{Display, Debug}>(val: T) {
-    println("{}", val)
+impl<'T> Vec<'T>@encap {
+    pub(std) * // Open a green light for fellow modules residing in the same `std` library, but shut out external developers
+    
+    // If you don't expose a `pub fn` to provide internal pointers, any external developer
+    // attempting `p.buf` in their code will be swiftly blockaded by Toka during compilation.
 }
-```
+``` 
+This forms an critically vital safety fortress for concurrency-safe containers that deal with low-level pointer deallocation and heap operations.

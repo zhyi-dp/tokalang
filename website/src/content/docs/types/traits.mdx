@@ -1,0 +1,65 @@
+---
+title: Interfaces & Traits
+description: Toka's duck-typing and system-level hard encapsulation barriers.
+---
+
+Toka provides an extremely lightweight yet immensely powerful system for low-level memory security: **Traits**. They do not require repetitive verbose declarations and often only make an explicit appearance when called or when high-security bounds are required.
+
+## Implicit Duck Typing
+
+As of Toka 1.3, the language does not employ the strict `trait XXX { fn yyy(); }` declaration format seen in Rust for every object. As long as you invoke a method on a type in your code, like `p.draw()`, Sema will directly probe whether the type behind `p` possesses an inherent implementation bound via `impl P { pub fn draw() }`. If it does, it compiles; if not, it errors out.
+
+This means that in the vast majority of cases, you don't need to preemptively write out a verbose `Drawable` interface just to map it.
+
+## Built-in Bound Traits
+
+To make generic derivation safer or to interface with the runtime at a system level, Toka includes a batch of special compiler-level Traits with specific semantics. When using a generic `T`, you can apply **explicit constraints**:
+
+```toka
+// Constrains 'K to implement the Hash trait (meaning it must be a hashable type)
+shape HashMap<'K: @Hash, 'V> {
+    // ...
+}
+```
+
+Common built-in Traits include but are not limited to:
+- `@Hash`: The type must have an inherent `.hash()` method or the system must have a built-in one for it.
+- `@PartialEq`: The type must support the `==` operator.
+- `@Sync` / `@Send`: The type holds mathematical proof of safety for cross-thread transfers or concurrent data reads.
+
+## @encap: The Heart of Anti-Tampering
+
+In most Object-Oriented languages, you manage visibility by indiscriminately attaching `private` and `public` to various fields. But in Toka, all fields are ostensibly private to external packages by default. We use an **ultimate weapon, the `@encap` Trait, to declare an iron curtain at the module level.**
+
+When you've written a core abstract type (like `Mutex`) for your complex system, you absolutely do not want users bypassing deadlock detection to read naked data directly via `mutex.data`.
+
+**Enforcing a Hard Lock with `@encap`:**
+
+```toka
+shape Mutex<T> (
+    data: T,
+    handle: u64
+)
+
+impl<T> Mutex<T>@encap {
+    // Leaving this empty signifies TOP SECRET! 
+    // NO ONE can access `data` via m.data
+}
+
+impl<T> Mutex<T> {
+    pub fn lock(self#) {
+        // I only expose the lock mechanism!
+    }
+}
+```
+
+If you are writing foundational components spanning across multiple internal libraries (like the Standard Library), you can **open a whitelist loophole**:
+
+```toka
+impl<T> TaskQueue<T>@encap {
+    pub(crate) *   // Free access to all members for any file within the current project space!
+    pub(std) *     // Green light for the standard library `std` tier!
+}
+```
+
+In Toka's latest semantic build, generic child instantiations and their traits are securely restricted by `@encap` bounds. Any illegal field call traversing across unauthorized path tiers will immediately trigger a red-card interception like `Member xxx of shape yyy is private`.

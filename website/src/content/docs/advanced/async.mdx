@@ -1,64 +1,83 @@
 ---
-title: Async Programming
-description: High-performance concurrency with async/await in Toka.
+title: Async / Await
+description: Master how Toka achieves high-performance, non-blocking I/O using an extremely low-overhead coroutine model.
 ---
 
-Toka provides native, high-performance support for asynchronous programming using a zero-overhead `async/await` model.
+Unlike OS threads which incur expensive system overhead during context switching, Toka provides native, high-performance asynchronous programming support powered by zero-overhead stackful coroutines and an underlying `async/await` engine.
 
-## Core Syntax
+Toka's async runtime is built on an efficient event dispatch loop model (using `epoll` on Linux and `kqueue` on macOS). This allows thousands of concurrent tasks to roam freely on a single physical thread.
 
-Asynchronous functions are defined using the `fn` keyword, with the `async` modifier applied to the return type.
+## Declaring Async Functions
+
+An asynchronous function is defined simply by prepending the `async` modifier to the return type of a traditional function:
 
 ```toka
-fn fetch_data() -> async String {
-    // simulated async operation
-    return "Data fetched!"
+// This function doesn't return an i32 immediately; instead, it returns a "Task that can be advanced to eventually yield an i32"
+fn fetch_data() -> async i32 {
+    // Simulated time-consuming network operation
+    // ...
+    return 42
 }
+```
 
-pub fn main() -> async i32 {
-    auto t = fetch_data()
-    auto result = t.await
-    println(result)
+## Engine Hooks: `.start` and `.await`
+
+Under Toka 1.3's seamless stream coroutine standard, when any `fn () -> async T` function is called, it doesn't actually execute immediately. Instead, it produces a dormant coroutine carrier.
+
+You have two choices to drive this coroutine:
+
+### 1. Suspend and Await Completion (`.await`)
+
+If you don't want to proceed past this line until the coroutine finishes executing (but you're willing to yield the physical thread's execution right to others in the system while waiting), you can append `.await`:
+
+```toka
+fn entry_point() -> async i32 {
+    // Suspend until fetch_data finishes and extract the 42 inside
+    auto result = fetch_data().await
+    println("Obtained: {}", result)
     return 0
 }
 ```
+> [!NOTE]
+> `.await` is an extremely special high-level control flow. You can **ONLY** use `.await` inside a function that is marked with `async`!
 
-## The Reactor Model
+### 2. Throw into the Background to Execute Independently (`.start`)
 
-Toka's async runtime is built on an efficient **Reactor** model (using `epoll` on Linux and `kqueue` on macOS). This allows thousands of concurrent tasks to run on a single thread without the overhead of context switching between OS threads.
-
-### Non-blocking I/O
-
-The standard library provides asynchronous versions of common I/O operations through the `std/task` and `std/net` modules.
+If you call the function and merely want it to run silently in the background without blocking the current line to wait for its result (Fire and forget), use `.start`:
 
 ```toka
-import std/net::TcpStream
-import std/task::sleep
-
-fn handle_connection(^stream: TcpStream) -> async void {
-    auto buf# = [0u8; 1024]
-    auto n = stream.read(buf).await
-    stream.write(buf.slice(0, n)).await
+fn process_client() -> async i32 {
+    // Client handling logic
+    return 0
 }
-```
 
-## Starting and Spawning
-
-You can start a task immediately or spawn it into the background.
-
-```toka
-fn main() -> i32 {
-    fetch_data().start // Fire and forget
+fn web_server_loop() -> async i32 {
+    // Assuming a connection was received
+    // Toss it directly into the coroutine pool to run independently, while the current line continues immediately!
+    process_client().start 
     
-    // Blocking on the main event loop
-    block_on<i32>(fetch_data().to_i32())
     return 0
 }
 ```
 
-## Memory Safety in Async
+## `block_on` (The Bridge Between Async and Sync)
 
-Toka's borrow checker is **async-aware**. It ensures that references passed into or held across an `await` point remain valid.
+Since the main block `main` usually operates synchronously, to get the internal async engine turning, you need a black hole capable of stalling the main process while churning through the coroutine stack: `block_on`.
 
-1. **Unique Ownership**: You can move a `^T` into an async task using `cede`, ensuring it's dropped only when the task completes.
-2. **Borrowed Data**: Borrows across `await` points are tracked to prevent use-after-free in asynchronous flows.
+```toka
+import std/task::{block_on}
+
+pub fn main() -> i32 {
+    // Create an entry point and toss it into the dispatch pool
+    auto entry = entry_point().start
+    
+    // Force the current synchronous main thread to suspend, acting as the system task dispatcher
+    // It remains suspended until the primary tree represented by 'entry' fully completes
+    block_on<i32>(entry#)
+    return 0
+}
+```
+
+## Async Boundaries and Capture Safety
+Toka's ownership system extends flawlessly into the asynchronous model. 
+When operations suspend at an `.await` boundary, the local variables in the current scope must be preserved in a heap-transferred state machine. If you attempt to pass a short-lived pointer across an `.await` boundary (where the referent might actually already be freed by the time it wakes up), Toka's robust semantic analysis detector will preemptively discover the dangling error and reject it during compilation.

@@ -1,63 +1,67 @@
 ---
 title: Unions & Enums
-description: Sum types and pattern matching in Toka.
+description: Understanding Toka's polymorphic type system, runtime destructuring, and scope guards.
 ---
 
-**Unions** and **Enums** are sum types that allow a value to be one of several different variants. In Toka, these are defined within a `shape` declaration using the `|` separator.
+In the [Shapes](./shapes) chapter, we learned that adding the pipe (`|`) branch separator to a `shape` frees it from being a standard product type, transforming it into a sum type (where multiple variants share memory).
 
-## Defining a Sum Type
+Toka acts strictly depending on whether these are **Tagged** or **Untagged** Variants. They feature vastly different access safety requirements.
 
-A sum type is defined inside a `shape` with variants separated by `|`. Variants can optionally carry data.
+## 1. Pure Enum (Tagged)
+
+This is the most common scenario. The moment any branch is merely a variant name, or uses the standard struct format `B(T)` for an anonymous payload, the compiler automatically generates an underlying discriminator (Tag), elevating it to a safe Enum.
 
 ```toka
-shape Shape (
-    Circle(r: f64) |
-    Rect(w: f64, h: f64) |
-    Point
+shape Option<'T> (
+    Some(val: 'T) |
+    None
 )
+
+// Use the double colon to construct
+auto o = Option<i32>::Some(val = 42)
 ```
 
-## Creating Variant Values
+### Destructuring via `match` is Mandatory (Temporary Borrow Guard)
 
-You can create a variant value using the `::` scope operator.
+**For memory safety, Toka absolutely forbids accessing Enum members using the dot operator (e.g., `o.val`)!**
+Because memory is shared, blindly accessing data if the internal state actually holds a `None` will immediately cause a segmentation fault crash.
 
-```toka
-auto c = Shape::Circle(r = 5.0)
-auto p = Shape::Point()
-```
-
-## Pattern Matching
-
-The `match` expression is the most powerful way to handle sum types. You can use `auto Variant(data)` to destructure payloads.
+To access Data inside an Enum, you **MUST** use a `match` pattern match or an `if auto` guard:
 
 ```toka
-pub fn area(s: Shape) -> f64 {
-    match s {
-        auto Circle(r) => {
-            return 3.14 * r * r
+pub fn check_option(o: Option<i32>) {
+    match o {
+        // Toka builds a temporary Scope here.
+        // `val` is a local variable safely deduced by the compiler.
+        auto Some(val) => {
+            println("We safely extracted {}", val)
+            // As we leave the curly brace, `val` is automatically invalidated.
         }
-        auto Rect(w, h) => {
-            return w * h
-        }
-        Point => {
-            return 0.0
+        None => {
+            println("It is an empty value")
         }
     }
 }
 ```
 
-## Enums
+## 2. Untagged Reinterpreted Union
 
-Enums are simply shapes where variants don't carry data. They are often used for state representation.
+When ALL branches utilize the `as Type` or `as name: Type` **reinterpretation map** semantics, the compiler downgrades the structure into an extremely dangerous but highly efficient underlying C-Union. No extra tags are allocated here.
+
+This is widely used for interoperating with C network libraries, advanced pointer-punning hacking, or extreme memory-compression scenarios.
 
 ```toka
-shape Status (
-    Active |
-    Inactive |
-    Pending
+// IEEE 754 float reinterpretation hack example
+shape FloatInt (
+    as f: f32 |
+    as i: i32
 )
+
+auto u = FloatInt()
+u as f32 = 3.14159  // Treat this memory as a float and write to it
+auto bits = u as i32 // Instantly extract the identical bit sequence as an i32!
 ```
 
-## Memory Layout
-
-Toka implements sum types as tagged unions. They consist of a tag (to identify the current variant) and a payload large enough to hold the largest variant's data. This ensures memory efficiency and type safety.
+### Extreme Danger: Unions CANNOT Hold Pointers
+To guard against dangling pointers and illegal release bounds, Toka's semantic analyzer (Sema) **strictly bans** storing pointers (like Exclusive `^`, Borrowed `&`, or structs holding pointers) inside an Untagged `Union`. Such attempts yield a red-card compile rejection!
+If you must overlap pointers, use a Tagged `Enum` which provides safe `match` destructors.

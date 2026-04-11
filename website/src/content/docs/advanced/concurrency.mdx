@@ -1,66 +1,68 @@
 ---
-title: Concurrency
-description: Parallel processing and synchronization in Toka.
+title: Concurrency & RAII Locks
+description: How Toka elegantly prevents data races and implements safe thread interaction.
 ---
 
-Toka provides built-in support for concurrent and parallel programming, including threads, atomics, and synchronization primitives.
+Toka provides an extremely strict compile-time memory barrier for concurrent programming in the multi-core era. By marrying the Ownership mechanics of Pointer Morphology with the Standard Library's `@encap` data structure encapsulation, Toka allows you to write highly secure concurrent code without any verbose lifetime annotations.
 
-## Multi-threading
+## Thread Spawning
 
-Toka leverages OS-level threads for parallel processing.
+Toka leverages OS-level Native Threads for physical parallel processing. To spawn a new thread, simply call `thread_spawn` and pass a closure task that transfers ownership via `cede`:
 
 ```toka
-import std/thread::spawn
+import std/thread::{thread_spawn, sleep_ms}
 
 pub fn main() -> i32 {
-    auto t = spawn({ =>
-        println("Hello from another thread!")
+    // Spawn a thread expecting it to return an i32 result
+    auto handle# = thread_spawn<i32>({ =>
+        println("Hello from a detached thread!")
+        return cede 0
     })
-    t.join()
+    
+    // The main thread waits for it to finish executing
+    handle#.join().unwrap()
     return 0
 }
 ```
 
-## Atomics
+## Mutex & RAII Safety (Guard)
 
-For lock-free synchronization, Toka supports atomic operations on primitive types.
+Because Toka abolishes traditional pointers in favor of a safe encapsulation hierarchy, its `Mutex<T>` **tightly binds the data and the lock together** (based on data encapsulation rather than code-block locking). It is impossible for you to touch the secured data without explicitly unlocking it.
 
-```toka
-import std/atomic
-
-pub fn main() -> i32 {
-    auto counter# = atomic::AtomicI32::make(0)
-    counter.fetch_add(1)
-    return 0
-}
-```
-
-## Mutex & Synchronization
-
-The standard library provides thread-safe synchronization primitives.
+This is achieved via RAII (Resource Acquisition Is Initialization) and implicit scope destruction:
 
 ```toka
-import std/sync::{Mutex, Guard}
-
-shape SharedState (
-    count#: i32
-)
+import std/sync::{Mutex}
+import std/thread::{thread_spawn}
+import std/io::{println}
 
 pub fn main() -> i32 {
-    auto m# = Mutex::make(SharedState(count = 0))
+    // Pack the variable 0 into a Mutex enveloping an i32
+    auto m# = Mutex<i32>::new(0)
+    
+    // Curly braces establish an explicit scope lifetime
     {
-        auto guard# = m.lock()
-        guard.count += 1
-    } // Mutex auto-unlocks when guard is dropped
+        // 1. Attempt to acquire the lock and unwrap the Result wrapper
+        auto mut_guard = m#.lock().unwrap()
+        
+        // 2. Now, the `mut_guard` in your hands is the sole safe defender of the data.
+        // Use the methods it provides to get the pointer controller of the internal data entity itself! 
+        // Add # to gain read/write permissions.
+        auto *mut_val# = mut_guard.get_ref()
+        
+        // 3. Take off the pointer hat to mutate the data directly!
+        mut_val = mut_val + 10
+        println("I modified the value to: {}", mut_val)
+        
+    } // <-- Ends curly brace! The implicit drop destructs `mut_guard`, which in turn [automatically releases the underlying MutexLock]
+    
     return 0
 }
 ```
+**The Core of Safety Defense**: Within the Toka Standard Library design, because `@encap` trait concealment is enforced, `m.data` remains absolutely invisible to external code! Developers are **compulsorily bound** to go through the `m#.lock()` method to retrieve the lifetime guard, bidding a final farewell to the dangerous "forgot to lock but read/wrote data anyway" scenario.
 
-## Memory Safety & Threads
+## Concurrent Type Markers
 
-Toka's type system handles thread safety through **@Send** and **@Sync** trait markers.
-- **@Send**: Indicates that ownership of a type can be safely transferred between threads.
-- **@Sync**: Indicates that it's safe for multiple threads to have shared access (`&T`) to a type.
-
-The unique pointer `^T` naturally supports `@Send`, as only one thread can own it at a time.
----
+Inheriting the spirit of Rust but more concise, Toka uses trait markers to guard against illegal type straddling across the threading abyss:
+- **`@Send`**: Implies a piece of data can safely traverse the wormhole and be handed to another thread. (For instance, all pure value types without pointers are automatically Send).
+- **`@Sync`**: Implies that references to a piece of data are safe to be accessed simultaneously by multiple threads. (For instance, wrapping a type in a `Mutex` shell automatically grants this blessing).

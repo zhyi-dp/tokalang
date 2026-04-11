@@ -1,66 +1,70 @@
 ---
-title: Shapes
-description: Product types and record structures in Toka.
+title: The Universal Shape
+description: Toka's unified product and sum type declaration system.
 ---
 
-**Shapes** are the primary way to define complex data structures (product types) in Toka. They are analogous to `struct` in C/Rust or `class` in Python/Java, but with a focus on value semantics and visual attribute tokens.
+In the vast majority of programming languages, `struct`, `tuple`, `union`, and `enum` feature entirely different keywords and scoping rules. This introduces cognitive overhead and syntactic fragmentation.
 
-## Defining a Shape
+Toka opts for the philosophy of **Ultimate Simplicity**: **it abolishes all such disparate keywords, using the unified `shape` to define all structured data.**
 
-A shape is defined using the `shape` keyword followed by a parenthesized list of fields.
+The compiler mathematically deduces exactly what kind of type you are building based on the format inside the parentheses, subsequently enforcing the appropriate memory layout and access safety constraints.
+
+## The Quadruple Automatic Deduction Table
+
+| Syntax Written | System Deduction Kind | Memory & Safety Constraints |
+| :--- | :--- | :--- |
+| `shape Name(x: T, y: U)` | **Struct** | Classic product memory (contiguous). Direct access via `.name` is considered completely safe. |
+| `shape Name(T, U)` | **Tuple** | Anonymous product memory. Accessed via `.0`, `.1` indices. Essentially a shorthand Struct. |
+| `shape Name(as T \| as name: T)` | **Union (Untagged)** | Types overlap in memory. Extremely dangerous; using `.` is strictly forbidden. Must use `x as Type` for memory-level reintepretation (Type Punning). **Strictly prohibits holding pointers** for safety. |
+| `shape Name(A \| B(T) \| C = N)` | **Enum (Tagged)** | Equivalent to a Rust Enum. Automatically carries a discriminator tag. **Mandates** safe access and destructuring via `match` or `if auto`. |
+
+## I. Defining a Struct
+The most fundamental structure. All members have explicit names.
 
 ```toka
-shape Point (
-    x: i32,
-    y: i32
-)
-
 shape Rect (
-    top_left: Point,
-    bottom_right: Point,
-    color#: String // Mutable field
+    width: i32,
+    height: i32
 )
+
+// Named Initialization
+auto r = Rect(width=10, height=20)
+auto area = r.width * r.height
 ```
 
-## Initialization
-
-Toka uses named arguments for shape initialization, ensuring clarity especially for large structures.
+## II. Defining a Tuple
+When you want to pass multiple types around without inventing a name for the struct and fields, omitting the field names signals a Tuple.
 
 ```toka
-auto r = Rect(
-    top_left = Point(x = 0, y = 0),
-    bottom_right = Point(x = 10, y = 10),
-    color = "Blue"
-)
+shape Pair(i32, String)
+
+// Ordered Initialization
+auto p = Pair(42, "Toka")
+// Safe access via index
+println("Idx 0 is {}, Idx 1 is {}", p.0, p.1)
 ```
 
-## Inherent Implementations
+## III. Defining Unions & Enums
+For highly polymorphic types sharing the same contiguous memory footprint (using the `|` separator). Once the compiler spots the pipe, the identity instantly pivots to an `Enum` or `Union`. Because this involves complex runtime safety checking and temporary pointer lifetimes upon destructuring, we dedicated an entire standalone chapter for it.
 
-You can add methods directly to a shape using the `impl` keyword.
+Please see: [Unions & Enums](./unions)
+
+## The @encap Trait (Privacy & Encapsulation Boundary)
+
+For a large complex `shape`, whether it be a Struct or Enum, it is strongly public to all files within the same package directory by default. But when facing cross-crate dependencies where you want to lock down core internal state from abuse, Toka's sole and ultimate weapon is `impl Name@encap`.
 
 ```toka
-impl Rect {
-    pub fn area(self) -> i32 {
-        auto w = self.bottom_right.x - self.top_left.x
-        auto h = self.bottom_right.y - self.top_left.y
-        return w * h
-    }
+shape Mutex<T> (
+    data: T,
+    handle: u64
+)
+
+impl<T> Mutex<T>@encap {
+    pub(std) * // Grants free access to all members inside the `std` library package
+    
+    // If no external whitelists are provided (like pub(crate) *), thanks to the @encap modifier,
+    // users in other crates (or externally) cannot directly access the variable via `m.data`.
 }
 ```
 
-## Default Values
-
-Shapes can provide default values for their fields.
-
-```toka
-shape Config (
-    port: i32 = 8080,
-    host: String = "localhost"
-)
-
-auto c = Config() // port=8080, host="localhost"
-```
-
-## Memory Layout
-
-Toka's compiler ensures that shapes are laid out efficiently in memory. When a shape is passed by value, it is copied. When passed by reference (`&Point`) or pointer (`^Point`), only the address is handled.
+Toka uses this elegant, tamper-proof encapsulation design to ensure that all unsafe access code must converge within the safe methods you expose (like `m.lock()`).
