@@ -1,3 +1,0 @@
-Hello, Toka!
-This is a test file for the cat utility.
-It has multiple lines.
