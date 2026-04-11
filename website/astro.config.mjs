@@ -15,7 +15,7 @@ export default defineConfig({
 				shiki: {langs: [tokaLanguage]}
 			},
 			logo: {
-				src: './src/assets/logo.png',
+				src: './src/assets/logo.svg',
 			},
 			social: [
 				{ icon: 'github', label: 'GitHub', href: 'https://github.com/zhyi-dp/tokalang' },
