@@ -124,7 +124,8 @@ fn cmd_run() -> i32 {
     if res != 0 { return res }
     
     unsafe {
-        return libc_system("./target/debug/app" as *char)
+        // Find the newest executable in target/debug (excluding .ll files) and run it
+        return libc_system("exe=$(ls -t ./target/debug | grep -v '\\.ll$' | head -n1) && ./target/debug/\"$exe\"" as *char)
     }
 }
 

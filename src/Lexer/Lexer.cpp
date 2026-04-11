@@ -484,9 +484,6 @@ Token Lexer::charLiteral() {
     case 'r':
       text += '\r';
       break;
-    case '0':
-      text += '\0';
-      break;
     case '\\':
       text += '\\';
       break;
@@ -496,6 +493,37 @@ Token Lexer::charLiteral() {
     case '"':
       text += '"';
       break;
+    case 'x': {
+      char hex[3] = {0};
+      if (isxdigit(peek())) {
+        hex[0] = advance();
+        if (isxdigit(peek())) {
+          hex[1] = advance();
+        }
+      }
+      if (hex[0] != '\0') {
+        text += (char)std::strtol(hex, nullptr, 16);
+      } else {
+        text += 'x';
+      }
+      break;
+    }
+    case '0': {
+      char oct[4] = {0};
+      if (peek() >= '0' && peek() <= '7') {
+        oct[0] = advance();
+        if (peek() >= '0' && peek() <= '7') {
+          oct[1] = advance();
+          if (peek() >= '0' && peek() <= '7') {
+            oct[2] = advance();
+          }
+        }
+        text += (char)std::strtol(oct, nullptr, 8);
+      } else {
+        text += '\0';
+      }
+      break;
+    }
     default:
       text += next;
       break;
@@ -530,6 +558,37 @@ Token Lexer::string() {
       case '"':
         text += '"';
         break;
+      case 'x': {
+        char hex[3] = {0};
+        if (isxdigit(peek())) {
+          hex[0] = advance();
+          if (isxdigit(peek())) {
+            hex[1] = advance();
+          }
+        }
+        if (hex[0] != '\0') {
+          text += (char)std::strtol(hex, nullptr, 16);
+        } else {
+          text += 'x';
+        }
+        break;
+      }
+      case '0': {
+        char oct[4] = {0};
+        if (peek() >= '0' && peek() <= '7') {
+          oct[0] = advance();
+          if (peek() >= '0' && peek() <= '7') {
+            oct[1] = advance();
+            if (peek() >= '0' && peek() <= '7') {
+              oct[2] = advance();
+            }
+          }
+          text += (char)std::strtol(oct, nullptr, 8);
+        } else {
+          text += '\0';
+        }
+        break;
+      }
       default:
         text += next;
         break;
