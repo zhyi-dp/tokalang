@@ -55,7 +55,7 @@ fn cmd_add(pkg_url: String) -> i32 {
         
         libc_printf("Adding package: %s\n" as *char, pkg_url.c_str())
         
-        auto pkg_dir# = String::from(".tokapkg/")
+        auto pkg_dir# = String::from(".tokapkg/_")
         pkg_dir#.push_str(pkg_alias.c_str())
         
         auto mkdir_cmd# = String::from("mkdir -p ")
@@ -73,7 +73,10 @@ fn cmd_add(pkg_url: String) -> i32 {
         auto res# = 0
         if pkg_url.eq(String::from("pkg.tokalang.dev/zhyi/ansi")) {
             libc_printf("  -> Using rapid local mock fallback for %s\n" as *char, pkg_url.c_str())
-            res = libc_system("cp -r /Users/zhyi/GitDP/tokalang/examples/libs/ansi .tokapkg/ansi" as *char)
+            auto cp_cmd# = String::from("cp -R /Users/zhyi/GitDP/tokalang/examples/libs/ansi/. ")
+            cp_cmd#.push_str(pkg_dir.c_str())
+            cp_cmd#.push_str("/")
+            res = libc_system(cp_cmd.c_str())
         } else {
             res = libc_system(cmd.c_str())
         }
@@ -83,7 +86,7 @@ fn cmd_add(pkg_url: String) -> i32 {
             return res
         }
         
-        auto ln_cmd# = String::from("cd .tokapkg && ln -sf ")
+        auto ln_cmd# = String::from("cd .tokapkg && ln -sf _")
         ln_cmd#.push_str(pkg_alias.c_str())
         ln_cmd#.push_str("/src/lib.tk ")
         ln_cmd#.push_str(pkg_alias.c_str())
@@ -97,7 +100,7 @@ fn cmd_add(pkg_url: String) -> i32 {
 
 fn cmd_build() -> i32 {
     unsafe {
-        auto sys_clang# = String::from("clang")
+        auto sys_clang# = String::from("/usr/local/opt/llvm@20/bin/clang")
         auto addr = libc_getenv("TOKA_CLANG" as *char) as Addr
         if addr != 0:Addr {
             sys_clang# = String::from(addr as *char)
