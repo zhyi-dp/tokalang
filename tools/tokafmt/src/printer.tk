@@ -53,7 +53,7 @@ impl Printer {
                 auto nl_count# = 0
                 auto i# = 0
                 while i < t.lexeme.len() {
-                    if t.lexeme.at(i) == 10:char {
+                    if t.lexeme.at(i) == '\n' {
                         nl_count = nl_count + 1
                     }
                     i = i + 1
