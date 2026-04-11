@@ -39,21 +39,6 @@ fn main() -> i32 {
     auto printer# = Printer::new()
     auto formatted_code = printer#.format(lexer#)
 
-    // Write file back
-    auto writer_res = File::open(target_file.clone(), String::from("w"))
-    if !writer_res.is_ok() {
-        print(String::from("Error: Could not open file for writing "))
-        print(target_file.clone())
-        print(String::from("\n"))
-        return 1
-    }
-    
-    auto writer# = writer_res.unwrap()
-    writer.write(formatted_code)
-    writer#.close()
-
-    print(String::from("Successfully formatted: "))
-    print(target_file.clone())
-    print(String::from("\n"))
+    print(formatted_code)
     return 0
 }

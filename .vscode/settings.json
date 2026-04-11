@@ -1,1 +1,6 @@
-{}
+{
+    "[toka]": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "zhyi.toka-vscode"
+    }
+}

@@ -108,9 +108,8 @@ class TokaDocumentFormattingProvider {
                     return;
                 }
 
-                cp.execSync(`"${tokafmtPath}" "${tempFile}"`);
-                
-                const formattedText = fs.readFileSync(tempFile, 'utf8');
+                const formattedBuffer = cp.execSync(`"${tokafmtPath}" "${tempFile}"`);
+                const formattedText = formattedBuffer.toString('utf8');
                 fs.unlinkSync(tempFile);
                 
                 const fullRange = new vscode.Range(
