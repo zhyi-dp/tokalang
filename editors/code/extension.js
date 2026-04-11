@@ -23,16 +23,6 @@ function activate(context) {
             new TokaDocumentFormattingProvider()
         )
     );
-
-    // Force format on save unconditionally
-    context.subscriptions.push(
-        vscode.workspace.onWillSaveTextDocument(event => {
-            if (event.document.languageId === 'toka') {
-                const provider = new TokaDocumentFormattingProvider();
-                event.waitUntil(provider.provideDocumentFormattingEdits(event.document, null, null));
-            }
-        })
-    );
 }
 
 class TokaDocumentSymbolProvider {
