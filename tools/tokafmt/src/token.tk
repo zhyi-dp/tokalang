@@ -1,0 +1,33 @@
+import std/string::{String}
+
+alias TokenKind = i32
+
+pub fn TK_UNKNOWN() -> i32 { return 0 }
+pub fn TK_IDENTIFIER() -> i32 { return 1 }
+pub fn TK_NUMBER() -> i32 { return 2 }
+pub fn TK_STRINGLIT() -> i32 { return 3 }
+pub fn TK_CHARLIT() -> i32 { return 4 }
+pub fn TK_KEYWORD() -> i32 { return 5 }
+pub fn TK_OPERATOR() -> i32 { return 6 }
+pub fn TK_DELIMITER() -> i32 { return 7 }
+pub fn TK_WHITESPACE() -> i32 { return 8 }
+pub fn TK_COMMENT() -> i32 { return 9 }
+pub fn TK_EOF() -> i32 { return 10 }
+
+pub shape Token (
+    kind: TokenKind,
+    lexeme: String,
+    line: i32,
+    col: i32
+)
+
+impl Token {
+    pub fn new(kind: TokenKind, lexeme: String, line: i32, col: i32) -> Token {
+        return Token(
+            kind = kind,
+            lexeme = lexeme,
+            line = line,
+            col = col
+        )
+    }
+}

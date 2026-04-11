@@ -1,0 +1,160 @@
+import std/string::{String}
+import src/token::{Token, TokenKind}
+import src/token as token
+
+pub shape Lexer (
+    source: String,
+    pos#: i32,
+    line#: i32,
+    col#: i32
+)
+
+impl Lexer {
+    pub fn new(source: String) -> Lexer {
+        return Lexer(
+            source = source,
+            pos = 0,
+            line = 1,
+            col = 1
+        )
+    }
+
+    fn peek(self) -> char {
+        if self.pos >= self.source.len() {
+            return 0 as char
+        }
+        return self.source.at(self.pos)
+    }
+
+    fn advance(self#) -> char {
+        if self.pos >= self.source.len() {
+            return 0 as char
+        }
+        auto c = self.source.at(self.pos)
+        self.pos = self.pos + 1
+        if c == (10 as char) { // '\n'
+            self.line = self.line + 1
+            self.col = 1
+        } else {
+            self.col = self.col + 1
+        }
+        return c
+    }
+
+    fn peek_next(self) -> char {
+        if self.pos + 1 >= self.source.len() {
+            return 0 as char
+        }
+        return self.source.at(self.pos + 1)
+    }
+
+    fn is_alpha(c: char) -> bool {
+        return (c >= 65:char && c <= 90:char) || (c >= 97:char && c <= 122:char) || c == 95:char // A-Z, a-z, _
+    }
+
+    fn is_digit(c: char) -> bool {
+        return (c >= 48:char && c <= 57:char) // 0-9
+    }
+
+    fn is_whitespace(c: char) -> bool {
+        return c == 32:char || c == 9:char || c == 10:char || c == 13:char
+    }
+
+    pub fn is_eof(self) -> bool {
+        return self.pos >= self.source.len()
+    }
+
+    pub fn next_token(self#) -> Token {
+        if self.is_eof() {
+            return Token::new(token::TK_EOF(), String::from(""), self.line, self.col)
+        }
+
+        auto start_line = self.line
+        auto start_col = self.col
+        auto c = self.peek()
+
+        // Whitespace
+        if Lexer::is_whitespace(c) {
+            auto ws# = String::from("")
+            while Lexer::is_whitespace(self.peek()) {
+                ws#.push_char(self.advance())
+            }
+            return Token::new(token::TK_WHITESPACE(), ws, start_line, start_col)
+        }
+
+        // Line Comments
+        if c == 47:char && self.peek_next() == 47:char { // "//"
+            auto comm# = String::from("")
+            while self.peek() != (0 as char) && self.peek() != (10 as char) {
+                comm#.push_char(self.advance())
+            }
+            return Token::new(token::TK_COMMENT(), comm, start_line, start_col)
+        }
+
+        // Identifier or Keyword
+        if Lexer::is_alpha(c) {
+            auto ident# = String::from("")
+            while Lexer::is_alpha(self.peek()) || Lexer::is_digit(self.peek()) || self.peek() == 64:char { // '@' for macros
+                ident#.push_char(self.advance())
+            }
+            auto kind# = token::TK_IDENTIFIER()
+            // In a full formatter we'd check against a list of keywords here.
+            // For now, simple keywords match
+            if ident.eq(String::from("fn")) || ident.eq(String::from("return")) || ident.eq(String::from("auto")) || ident.eq(String::from("shape")) || ident.eq(String::from("impl")) {
+                kind = token::TK_KEYWORD()
+            }
+            return Token::new(kind, ident, start_line, start_col)
+        }
+
+        // Number
+        if Lexer::is_digit(c) {
+            auto num# = String::from("")
+            while Lexer::is_digit(self.peek()) || self.peek() == 46:char { // '.'
+                num#.push_char(self.advance())
+            }
+            return Token::new(token::TK_NUMBER(), num, start_line, start_col)
+        }
+
+        // String Literal
+        if c == 34:char { // '"'
+            auto str_val# = String::from("")
+            str_val#.push_char(self.advance()) // Consume opening quote
+            while self.peek() != (0 as char) && self.peek() != 34:char {
+                if self.peek() == 92:char { // '\\'
+                    str_val#.push_char(self.advance())
+                }
+                str_val#.push_char(self.advance())
+            }
+            if self.peek() == 34:char {
+                str_val#.push_char(self.advance()) // Consume closing quote
+            }
+            return Token::new(token::TK_STRINGLIT(), str_val, start_line, start_col)
+        }
+        
+        // Single Character Literal or Morphology
+        if c == 39:char { // '\''
+            auto str_val2# = String::from("")
+            str_val2#.push_char(self.advance())
+            if self.peek() == 92:char {
+                str_val2#.push_char(self.advance())
+            }
+            str_val2#.push_char(self.advance())
+            if self.peek() == 39:char {
+                str_val2#.push_char(self.advance())
+            }
+            return Token::new(token::TK_CHARLIT(), str_val2, start_line, start_col)
+        }
+
+        // Delimiters
+        if c == 123:char || c == 125:char || c == 40:char || c == 41:char || c == 91:char || c == 93:char || c == 59:char {
+            auto delim_str# = String::from("")
+            delim_str#.push_char(self.advance())
+            return Token::new(token::TK_DELIMITER(), delim_str, start_line, start_col)
+        }
+
+        // Operators & Morphology
+        auto op# = String::from("")
+        op#.push_char(self.advance())
+        return Token::new(token::TK_OPERATOR(), op, start_line, start_col)
+    }
+}

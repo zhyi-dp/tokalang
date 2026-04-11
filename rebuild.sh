@@ -44,6 +44,25 @@ rm -f main.ll toka
 cd "$ROOT_DIR"
 
 echo ""
-echo "✨ Rebuild Successful! 'tokac' and 'toka' are ready in build/bin."
+echo "====================================="
+echo "3. Building Toka Formatter (tokafmt)"
+echo "====================================="
+cd tools/tokafmt
+echo "   -> Compiling tools/tokafmt/src/main.tk to main.ll..."
+tokac -I "$ROOT_DIR/lib" src/main.tk > main.ll
+
+echo "   -> Compiling main.ll to executable with LLVM 20 Clang..."
+$LLVM_CLANG main.ll -isysroot $(xcrun --show-sdk-path) -o tokafmt
+
+echo "   -> Installing tokafmt to $BIN_DIR/tokafmt..."
+cp tokafmt "$BIN_DIR/tokafmt"
+
+# Clean up build artifacts in tools/tokafmt
+rm -f main.ll tokafmt
+
+cd "$ROOT_DIR"
+
+echo ""
+echo "✨ Rebuild Successful! 'tokac', 'toka', and 'tokafmt' are ready in build/bin."
 echo "Make sure to add $BIN_DIR to your PATH if you haven't already:"
 echo "    export PATH=\"$ROOT_DIR/build/bin:\$PATH\""

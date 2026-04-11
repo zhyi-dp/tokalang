@@ -1,0 +1,6 @@
+import build::{Executable, run_build}
+
+fn main() -> i32 {
+    auto proj# = Executable::make("tokafmt" as *char, "src/main.tk" as *char)
+    return run_build(proj)
+}

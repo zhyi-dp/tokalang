@@ -1,0 +1,81 @@
+import std/string::{String}
+import src/token::{Token, TokenKind}
+import src/token as token
+import src/lexer::{Lexer}
+
+pub shape Printer (
+    indent_level#: i32,
+    output#: String,
+    needs_indent#: bool
+)
+
+impl Printer {
+    pub fn new() -> Printer {
+        return Printer(
+            indent_level = 0,
+            output = String::from(""),
+            needs_indent = false
+        )
+    }
+
+    fn push_indent(self#) {
+        auto i# = 0
+        while i < self.indent_level {
+            self.output#.push_str("    ") // 4 spaces
+            i = i + 1
+        }
+        self.needs_indent = false
+    }
+
+    pub fn format(self#, lex#: Lexer) -> String {
+        auto last_kind# = token::TK_UNKNOWN()
+        
+        while !lex.is_eof() {
+            auto t = lex#.next_token()
+            
+            if t.kind == token::TK_EOF() {
+                break
+            }
+            
+            if t.kind == token::TK_WHITESPACE() {
+                // Determine if there's a newline
+                if t.lexeme.find_char(10 as char) >= 0 {
+                    self.output#.push_str("\n")
+                    self.needs_indent = true
+                } else if last_kind != token::TK_WHITESPACE() && !self.needs_indent {
+                    // Only add space if we didn't just newline
+                    self.output#.push_str(" ")
+                }
+                // Skip recording whitespace to last_kind because we handle spacing implicitly
+                continue
+            }
+            
+            // Adjust indent on closing brace BEFORE printing
+            if t.kind == token::TK_DELIMITER() && t.lexeme.eq(String::from("}")) {
+                if self.indent_level > 0 {
+                    self.indent_level = self.indent_level - 1
+                }
+            }
+
+            if self.needs_indent {
+                if t.kind != token::TK_WHITESPACE() {
+                     self#.push_indent()
+                }
+            }
+
+            // Print the lexeme
+            self.output#.push_str(t.lexeme.c_str())
+            
+            // Adjust indent AFTER opening brace
+            if t.kind == token::TK_DELIMITER() && t.lexeme.eq(String::from("{")) {
+                self.indent_level = self.indent_level + 1
+                self.output#.push_str("\n")
+                self.needs_indent = true
+            }
+            
+            last_kind = t.kind
+        }
+        
+        return self.output
+    }
+}

@@ -1,0 +1,59 @@
+import std/env
+import std/io::{File, print, println}
+import std/string::{String}
+import src/lexer::{Lexer}
+import src/printer::{Printer}
+
+fn main() -> i32 {
+    auto argc = env::args()
+    if argc < 2 {
+        println("Usage: tokafmt <file.tk>")
+        return 1
+    }
+
+    auto target_file = env::get_arg(1)
+    
+    // Open file to read formatting
+    auto file_res = File::open(target_file.clone(), String::from("r"))
+    if !file_res.is_ok() {
+        print(String::from("Error: Could not read file "))
+        print(target_file.clone())
+        print(String::from("\n"))
+        return 1
+    }
+    
+    auto file# = file_res.unwrap()
+    auto content_res = file.read_to_string()
+    if !content_res.is_ok() {
+        println("Error reading string from file")
+        return 1
+    }
+    auto content = content_res.unwrap()
+    file#.close()
+
+    if content.len() == 0 {
+        return 0
+    }
+
+    auto lexer# = Lexer::new(content.clone())
+    auto printer# = Printer::new()
+    auto formatted_code = printer#.format(lexer#)
+
+    // Write file back
+    auto writer_res = File::open(target_file.clone(), String::from("w"))
+    if !writer_res.is_ok() {
+        print(String::from("Error: Could not open file for writing "))
+        print(target_file.clone())
+        print(String::from("\n"))
+        return 1
+    }
+    
+    auto writer# = writer_res.unwrap()
+    writer.write(formatted_code)
+    writer#.close()
+
+    print(String::from("Successfully formatted: "))
+    print(target_file.clone())
+    print(String::from("\n"))
+    return 0
+}

@@ -1,0 +1,12 @@
+fn main()->i32{
+
+    auto x=10
+    if x==10{
+
+        println("Hello")
+    }else{
+
+        println("World")
+    }
+    return 0
+}
