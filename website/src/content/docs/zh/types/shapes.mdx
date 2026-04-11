@@ -1,67 +1,70 @@
 ---
-title: Shape (形状)
-description: Toka 语言中的积类型与记录结构。
+title: 万物归一的 Shape (形状)
+description: Toka 语言中的统一和积类型声明系统。
 ---
 
-**Shape** 是 Toka 中定义复杂数据结构（积类型）的主要方式。它们类似于 C/Rust 中的 `struct` 或 Python/Java 中的 `class`，但侧重于值语义和直观的属性令牌。
+在绝大多数编程语言中，结构体(`struct`)、元组(`tuple`)、联合体(`union`)和枚举(`enum`)有着截然不同的关键字与定义域。这带来了记忆负担和语法的碎片化。
 
-## 定义 Shape
+Toka 选择了**大道至简**的设计：**废弃所有此类关键字，使用统一的 `shape` 定义一切结构化数据**。
 
-使用 `shape` 关键字后跟括号括起来的字段列表来定义 Shape。
+编译器会通过你括号内的形式，**自动推导出这究竟属于什么类型**，并施加不同的内存布局和访问安全约束。
+
+## 四位一体的自动推导映射表
+
+| 你书写的语法特征 | 系统判定 Kind | 内存布局与访控安全约束 |
+| :--- | :--- | :--- |
+| `shape Name(x: T, y: U)` | **Struct (结构体)** | 经典的积内存（连续布局）。字段直接通过 `.name` 自由访问被视为完全安全。 |
+| `shape Name(T, U)` | **Tuple (元组)** | 匿名的积内存。通过 `.0`, `.1` 索引访问。本质由于不需要具名，所以简写。 |
+| `shape Name(as T \| as name: T)` | **Union (无标签联合)** | 不同内存重叠存放。极其危险，严禁使用 `.` 访问，而必须通过 `x as Type` 进行内存级强转/重解释。除非具名字段可用 `.name`。安全起见**严禁内部包含指针**。 |
+| `shape Name(A \| B(T) \| C = N)` | **Enum (带标签枚举)** | 相当于 Rust Enum。系统自带标志位，并**强制要求**必须通过 `match` 或 `if auto` 验证并解包访存。 |
+
+## 一、 定义结构体 (Struct)
+最为基础和常见的表述。所有成员具有显式命名。
 
 ```toka
-shape Point (
-    x: i32,
-    y: i32
-)
-
 shape Rect (
-    top_left: Point,
-    bottom_right: Point,
-    color#: String // 可变字段
+    width: i32,
+    height: i32
 )
+
+// Named 初始化
+auto r = Rect(width=10, height=20)
+auto area = r.width * r.height
 ```
 
-## 初始化
-
-Toka 使用命名参数进行 Shape 初始化，确保即便对于大型结构体也能保持清晰。
+## 二、 定义元组 (Tuple)
+当你懒得给结构体起名字起字段名，或者你想原样透传多个类型时，省去字段即推导为 Tuple。
 
 ```toka
-auto r = Rect(
-    top_left = Point(x = 0, y = 0),
-    bottom_right = Point(x = 10, y = 10),
-    color = "蓝色"
-)
+shape Pair(i32, String)
+
+// 按顺初始化
+auto p = Pair(42, "Toka")
+// 通过按索引安全访问
+println("Idx 0 is {}, Idx 1 is {}", p.0, p.1)
 ```
 
-## 固有实现 (Inherent Implementations)
+## 三、 定义与访问联合与枚举 (Union / Enum)
+对于具有多态和复用内存的类型（`|` 分隔符）。一旦编译器发现有连竖线，立即会将身份转为 `Enum` 或 `Union`。由于涉及复杂安全的运行时匹配以及解构时的临时指针生命周期绑定，我们专门使用独立的一章详细阐述。
 
-你可以使用 `impl` 关键字直接为 Shape 添加方法。
+请见：[联合与枚举 (Unions & Enums)](./unions)
+
+## @encap Trait (实现隐私封装边界)
+
+对于一个大型复杂 `shape`，无论是 Struct 还是 Enum，默认对所有的同一包级文件皆为强公开可见的。但面对跨库依赖，如果想封锁内部核心状态阻止被意外滥用，Toka 的唯一且强大的手段是 `impl Name@encap`。
 
 ```toka
-impl Rect {
-    pub fn area(self) -> i32 {
-        auto w = self.bottom_right.x - self.top_left.x
-        auto h = self.bottom_right.y - self.top_left.y
-        return w * h
-    }
+shape Mutex<T> (
+    data: T,
+    handle: u64
+)
+
+impl<T> Mutex<T>@encap {
+    pub(std) * // 允许 std 内部成员自由穿梭访问包含的任何元素
+    
+    // 如果没有任何对外的允许词（如 pub(crate) *），由于有了 @encap 修饰，
+    // 在其他 crate（甚至此模块外部），使用者将不能直接通过 m.data 访问变量。
 }
 ```
 
-## 默认值
-
-Shape 可以为其字段提供默认值。
-
-```toka
-shape Config (
-    port: i32 = 8080,
-    host: String = "localhost"
-)
-
-auto c = Config() // port=8080, host="localhost"
-```
-
-## 内存布局
-
-Toka 编译器确保 Shape 在内存中被高效布局。当按值传递 Shape 时，它将被拷贝。当按引用 (`&Point`) 或指针 (`^Point`) 传递时，仅处理地址。
----
+Toka 利用这套优雅的防篡改封装设计，确保所有不安全的代码必须被收敛在你指定的方法（如 `m.lock()`）内完成检查。

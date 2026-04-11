@@ -1,63 +1,67 @@
 ---
-title: Unions & Enums (联合与枚举)
-description: Toka 语言中的和类型与模式匹配。
+title: 联合与枚举 (Unions & Enums)
+description: 深入理解 Toka 的多态类型系统、运行时解构与生命周期守卫。
 ---
 
-**Unions** 和 **Enums** 是和类型（Sum Types），它们允许一个值成为多个不同变体中的一个。在 Toka 中，这些是通过在 `shape` 声明中使用 `|` 分隔符来定义的。
+在 [Shape (形状)](./shapes) 章节中我们知道，当给 `shape` 增加竖线 (`|`) 分支时，它就脱离了普通积类型，转变成了联合类型（多个载荷共用内存）。
 
-## 定义一个和类型 (Sum Type)
+Toka 严厉区分这两者是**带标签 (Tagged)** 还是 **无标签 (Untagged)**，它们在访问安全控制上有着天壤之别。
 
-和类型可以在 `shape` 中定义，变体之间用 `|` 分隔。变体可以可选地携带数据。
+## 1. 纯净枚举 Enum (带标签)
+
+最常见的场景。一旦任何一个分支仅仅是一个变体名，或者使用常规结构体格式 `B(T)` 定制负载，编译器会自动生成底层的标志位（Tag），将其提升为安全的 Enum。
 
 ```toka
-shape Shape (
-    Circle(r: f64) |
-    Rect(w: f64, h: f64) |
-    Point
+shape Option<'T> (
+    Some(val: 'T) |
+    None
 )
+
+// 创建时使用双冒号域
+auto o = Option<i32>::Some(val = 42)
 ```
 
-## 创建变体值
+### 必须使用 `match` 解构 (临时借用守卫)
 
-你可以使用 `::` 作用域操作符来创建变体值。
+**Toka 出于内存安全，绝对禁止你使用 `o.val` 这样的点号访问 Enum 的成员！**
+因为由于内存共享，如果你盲目访问时里面存的恰好是 `None`，就会立刻引发段错误崩溃。
 
-```toka
-auto c = Shape::Circle(r = 5.0)
-auto p = Shape::Point()
-```
-
-## 模式匹配 (Pattern Matching)
-
-`match` 表达式是处理和类型最强大的方式。你可以使用 `auto Variant(data)` 来解构载荷。
+想要访问 Enum 数据，你**必须**使用 `match` 模式匹配，或者 `if auto` 守卫：
 
 ```toka
-pub fn area(s: Shape) -> f64 {
-    match s {
-        auto Circle(r) => {
-            return 3.14 * r * r
+pub fn check_option(o: Option<i32>) {
+    match o {
+        // Toka 会在这构建一个临时的作用域 (Scope)
+        // val 的类型是由编译器安全推演出来的局部变量
+        auto Some(val) => {
+            println("我们安全地拆出了 {}", val)
+            // 当离开这个大括号，局部 val 自动失效
         }
-        auto Rect(w, h) => {
-            return w * h
-        }
-        Point => {
-            return 0.0
+        None => {
+            println("这是一个空值")
         }
     }
 }
 ```
 
-## 枚举 (Enums)
+## 2. 无标签重解释联合 Union (Untagged)
 
-枚举仅仅是不携带任何数据的 `shape` 变体。它们常用于状态表示。
+当所有的分支都使用 `as Type` 或 `as name: Type` 这种**重解释映射**标记时，编译器将退化该结构为最危险但极其高效的底层 C-Union。此时系统不会分配额外的标志位。
+
+这往往被广泛应用在与 C 侧网络开发交互、类型双关（Type Punning）的高端黑客魔法或者极致性能压缩场景。
 
 ```toka
-shape Status (
-    Active |
-    Inactive |
-    Pending
+// IEEE 754 浮点转换黑客示例
+shape FloatInt (
+    as f: f32 |
+    as i: i32
 )
+
+auto u = FloatInt()
+u as f32 = 3.14159  // 把这块内存当作 float 写入
+auto bits = u as i32 // 瞬间把相同的内存比特序列按照 i32 提取！
 ```
 
-## 内存布局
-
-Toka 在内部将和类型实现为标签联合（Tagged Union）。它们由一个标签（用于识别当前变体）和一个足以容纳最大变体载荷数据的负载组成。这确保了内存效率和类型安全性。
+### 极致危险：`Union` 不能携带任何指针
+出于防备最基础的悬垂指针和非法解包释放，Toka 的语义分析器 (Sema) **严禁** 在无标识的 Union 中存放诸如独占指针 `^`、借用 `&` 或者包含指针的子结构体！否则立刻引发红牌编译拒绝！ 
+如果必须复用指针，请使用带标签且能通过 `match` 被安全释放的正规 `Enum`。

@@ -1,81 +1,85 @@
 ---
-title: 所有权与 RAII
-description: Toka 语言中的资源管理与内存安全。
+title: 所有权与 RAII (Ownership & RAII)
+description: Toka 语言中的资源管理、生命周期与 cede 转移机制。
 ---
 
-Toka 的内存安全性建立在清晰的 **所有权 (Ownership)** 模型之上，由编译器通过指针构词学 (Pointer Morphology) 和独创的 **PAL (Path-Anchored Ledger)** 路径锚定借用检查器强制执行。
+Toka 的内存安全性建立在极其严密但开发者心智负担极低的 **所有权 (Ownership)** 模型之上。不同于 Rust 繁琐的生命周期标注声明，Toka 依靠“帽氏法则”与隐藏在幕后的追踪器为你管理一切资源的生与死。
 
-## 独占所有权 (`^`)
+## 资源的绑定与释放 (RAII)
 
-独占指针 (`^T`) 是资源的唯一持有者。当它离开作用域时，资源将被自动清理 (RAII)。
+在 Toka 中，当你使用 `new` （托管堆积分配）或者直接声明了包含内存分配的结构体，你就是资源的拥有者。当这个拥有者（通常是独占指针 `^` 或栈变量）离开其所在的作用域时，编译器会自动调用其 `drop` 析构函数。
 
 ```toka
-fn take_ownership(cede ^u: User) {
-    println("拥有用户: {}", u.name)
-} // u 在此处被释放 (dropped)
-
-pub fn main() -> i32 {
+fn process() {
     auto ^user = new User(name = "Alice")
-    take_ownership(cede ^user) // 显式使用 cede 转移所有权
-    // ^user 在此之后不再可访问
-    return 0
-}
+    // ... 愉快的操作
+} // <-- 离开作用域，^user 所管理的堆内存和对象会自动、安全地释放
 ```
 
-## 共享所有权 (`~`)
+## 函数边界：默认捕获法则
 
-共享指针 (`~p`) 使用引用计数。资源仅在最后一个引用被释放后才会被销毁。
-
-```toka
-shape Node (
-    value: i32,
-    ~next: Node?
-)
-```
-
-## 借用 (`&`)
-
-借用 (`&p`) 允许你在不取得所有权的情况下访问数据。借用可以是不可变的 (`&p`) 或可变的 (`&p#`)。
+与其他系统级语言不同，**Toka 的函数入参默认是隐式“捕获”的（无借用标注情况下的按源引用/观察）**。
+传参不会自发进行任何的复制 (Copy) 或所有权转移 (Move)。这也意味着，你传给其他函数的实参变量，在函数调用结束后，依然安然无恙地存活着。
 
 ```toka
-fn print_user(&u: User) {
+fn print_user(u: User) {
     println(u.name)
 }
 
 pub fn main() -> i32 {
     auto ^user = new User(name = "Bob")
-    print_user(&user) // 不可变借用 (隐式捕获传递)
+    print_user(user) // 形参 u 只会短暂观察 user
+    
+    // ^user 依然可用！
+    println("User still alive: {}", user.name)
     return 0
 }
 ```
 
-## 显式转移 (`cede`)
+## 显式让渡所有权 (`cede`)
 
-你可以使用 `cede` 关键字显式地转移一个 Soul (灵魂) 的所有权。
+如果你确实需要把一个所有权转交给别人（例如存入一个数组，或者发给多线程），由于默认是安全观察，你需要使用 `cede` 关键字进行显式的**让渡声明**。一旦让渡，原变量便被“抽干”，后续如敢再访问将引发编译错误。
+
+### 1. 赋值让渡
+```toka
+auto ^a = new i32(42)
+auto ^b = cede ^a  // ^a 放弃了自身的资源给 ^b。此后 ^a 失效。
+```
+
+### 2. 参数穿越边界让渡
+如果函数签名明确要求了需要接管资源，它会使用 `cede` 标记接收参数：
 
 ```toka
-fn process_data(cede ^v: [i32]) { ... }
+fn devour_data(cede list: [i32]) {
+    // 该函数终结时，list 及其内部所有资源会被析构！
+}
 
 pub fn main() -> i32 {
-    auto ^v = [1, 2, 3]
-    process_data(cede ^v) // ^v 已被 cede (让渡所有权)
+    auto ^arr = new [1, 2, 3]
+    devour_data(cede arr) // 明确告之编译器，我要断绝这个数据的所有权
     return 0
 }
 ```
 
-## @encap Trait
+## `drop` 方法与自定义析构边界 (`@encap`)
 
-对于管理外部资源（如文件句柄或套接字）的类型，实现 `@encap` trait 可以自定义清理逻辑。
+对于标准结构体，Toka 编译器会自动为你进行深度级联递归析构（比如 Struct 里有包含的指针，全都会自动递归下降 Drop，不需要你管！）。
+
+但对于外部管理资源（如操作系统的 File Handle 或网络 Socket 套接字），你可以通过特有 Trait `@encap` 拦截并自己书写关闭逻辑：
 
 ```toka
 shape File (
     handle: i32
 )
 
+// 使用 @encap trait 为 File 实现独家操作法典
 impl File@encap {
-    pub fn drop(self) {
-        // 自定义的关闭逻辑
+    // 强制方法签名：必须是隐秘的 fn drop(self#) 
+    fn drop(self#) {
+        unsafe {
+            libc_close(self.handle)
+        }
     }
 }
 ```
----
+当定义了 `drop`，它会在对象的生命倒计时归零时准确无误地触发。

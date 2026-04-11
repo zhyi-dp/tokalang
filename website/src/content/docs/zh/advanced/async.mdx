@@ -1,65 +1,83 @@
 ---
-title: 异步编程
-description: 通 Toka 的 async/await 实现高性能并发。
+title: 异步与协程 (Async / Await)
+description: 掌握 Toka 是如何通过极低开销的协程模型实现高性能无阻塞 I/O 的。
 ---
 
-Toka 通过零开销的 `async/await` 模型提供原生的、高性能的异步编程支持。
+不同于 OS 线程在进行上下文切换时带来的昂贵系统开销，Toka 通过零开销的栈式协程（Coroutine）和底层的 `async/await` 魔法为你提供原生的、高性能的异步编程支持。
 
-## 核心语法
+Toka 的异步运行时基于高效的事件分发循环模型（在 Linux 上是 `epoll`，在 macOS 上是 `kqueue`）。这允许在一个物理线程上并发游走成千上万个任务。
 
-异步函数使用 `fn` 关键字定义，并将 `async` 修饰符应用于返回类型。
+## 声明异步函数
+
+异步函数只需在传统函数的返回类型前加上 `async` 修饰符：
 
 ```toka
-fn fetch_data() -> async String {
-    // 模拟异步操作
-    return "数据已获取！"
+// 这个函数不再立马返回 i32，而是返回一个“随时可推进获取 i32”的 Task
+fn fetch_data() -> async i32 {
+    // 模拟一段耗时的网络操作
+    // ...
+    return 42
 }
+```
+
+## `.start` 与 `.await` 引擎钩子
+
+在 Toka 1.3 的无缝流式协程标准中，任何 `fn () -> async T` 的函数被调用时，它实际上并没有执行，而是产生了一个处于冷寂状态的协程载体。
+
+你有两种选择驱动这个协程载体：
+
+### 1. 悬挂并等待执行完成 (`.await`)
+
+如果你在这个协程运行结束前不想再往下跑了（但是你愿意把物理线程的执行权让给系统里别人先跑），你可以加上 `.await`：
+
+```toka
+fn entry_point() -> async i32 {
+    // 等到 fetch_data 执行完成并提取里面的 42
+    auto result = fetch_data().await
+    println("获取到了: {}", result)
+    return 0
+}
+```
+> [!NOTE]
+> `.await` 是一个极其特殊的高级控制流，你**只能**在一个标有 `async` 的函数内部使用 `.await`！
+
+### 2. 扔到后台独立执行 (`.start`)
+
+如果你调用了函数，并且只希望它在背景默默执行，你不想去阻塞当前行等它的结果（Fire and forget），使用 `.start`：
+
+```toka
+fn process_client() -> async i32 {
+    // 处理客户端的逻辑
+    return 0
+}
+
+fn web_server_loop() -> async i32 {
+    // 假设接收到了一个连接
+    // 直接把它扔到协程池里脱离管控独立运行，当前行立刻继续往下！
+    process_client().start 
+    
+    return 0
+}
+```
+
+## `block_on` (异步与同步的桥梁)
+
+由于主函数 `main` 通常是同步的，为了让内部的异步引擎转动起来，你需要一个能够卡住主进程并吞吐协程栈的黑洞：`block_on`。
+
+```toka
+import std/task::{block_on}
 
 pub fn main() -> i32 {
-    auto t = fetch_data()
-    auto result = t.await
-    println(result)
-    return 0
-}
-```
-
-## Reactor 模型
-
-Toka 的异步运行时建立在高效的 **Reactor** 模型之上（在 Linux 上使用 `epoll`，在 macOS 上使用 `kqueue`）。这允许数千个并发任务在单个线程上运行，而无需在 OS 线程之间进行上下文切换。
-
-### 非阻塞 I/O
-
-标准库通过 `std/task` 和 `std/net` 模块提供常用 I/O 操作的异步版本。
-
-```toka
-import std/net::TcpStream
-import std/task::sleep
-
-fn handle_connection(^stream: TcpStream) -> async void {
-    auto buf# = [0u8; 1024]
-    auto n = stream.read(buf).await
-    stream.write(buf.slice(0, n)).await
-}
-```
-
-## 启动与派生
-
-你可以立即启动一个任务，或者将其派生到后台运行。
-
-```toka
-fn main() -> i32 {
-    fetch_data().start // 即刻启动（Fire and forget）
+    // 创建一个入口点并抛进调度池
+    auto entry = entry_point().start
     
-    // 在主事件循环上阻塞
-    block_on<i32>(fetch_data())
+    // 强制当前同步的 main 线程挂起，担任系统任务调度者
+    // 直到 entry 代表的主树全部结束
+    block_on<i32>(entry#)
     return 0
 }
 ```
 
-## 异步中的内存安全
-
-Toka 的借用检查器是 **异步感知的 (Async-aware)**。它确保在 `await` 点传递或持有的引用保持有效。
-
-1. **唯一所有权**: 你可以使用 `cede` 将 `^T` 移动到异步任务中，确保它仅在任务完成时才被注销。
-2. **借用数据**: 跨 `await` 点的借用会被追踪，以防止异步流中的使用后释放（use-after-free）问题。
----
+## 异步边界与捕获安全
+Toka 的所有权系统完美延生到了异步模型中。
+如果在 `.await` 处挂起，意味着当前作用域的局部栈变量要被保存进堆栈转移状态机中。此时如果你尝试借用一个短命指针穿越了 `.await` 边界（而其本身其实已经可能被释放），Toka 强大的语义分析探测器甚至能提前发现悬空错误并予以驳回。

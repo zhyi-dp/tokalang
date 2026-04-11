@@ -1,65 +1,78 @@
 ---
-title: 泛型与 Trait
-description: Toka 语言中的多态与接口定义。
+title: 泛型 (Generics)
+description: 掌握如何使用 Toka 的尖括号构建可复用的编译期多态组件。
 ---
 
-Toka 提供了一个强大的泛型系统来支持代码复用，以及通过 **Trait** 为不同类型定义共享行为。
+泛型允许你编写可处理多种类型的函数和数据结构，而不会带来运行时的性能损耗。Toka 编译器使用**单态化（Monomorphization）**策略，在编译期为你调用的每一种数据类型生成一份专用的高性能机器码。
 
-## 泛型 (Generics)
-
-泛型允许你编写可处理多种类型的函数和数据结构。
+## 泛型数据结构
+在 `shape` 名称后面追加尖括号即可定义泛型组件。
 
 ```toka
-shape Buffer<T> (
-    data: [T; 1024]
+// 一个非常实用的包装器
+shape Result<'T, 'E> (
+    Ok(: 'T) |
+    Err(: 'E)
 )
 
-pub fn identity<T>(val: T) -> T {
+// 使用
+auto res = Result<i32, String>::Ok(42)
+```
+> [!TIP]
+> 泛型参数名称（例如 `'T`、`'E`）通常建议以单引号起头，这表示它们是一个尚未确定的类型占位符。
+
+## 泛型函数
+函数也可以使用尖括号定义泛型签名：
+
+```toka
+pub fn identity<'T>(val: 'T) -> 'T {
     return val
 }
+
+auto x = identity<i32>(100)
 ```
+在很多情况下，Toka 的类型推演引擎能根据入参的类型自动推断出 `<'T>` 是什么，你只需要写 `identity(100)` 即可。
 
-## Trait
 
-Trait（定义时使用 `trait @Name` 语法）定义了一个类型必须实现的一组方法。
+## 泛型上的方法扩展 (impl)
+你可以只针对特定的泛型实例写入扩展。比如如果我要给 `Mutex` 补充方法：
 
 ```toka
-trait @Drawable {
-    pub fn draw(self)
+// 这表示你将为所有 T 创建方法
+impl<'T> Mutex<'T> {
+    pub fn do_something() {}
 }
 
-shape Circle (radius: f32)
-
-// Toka 特有的 Trait 实现语法：impl Type@Trait
-impl Circle@Drawable {
-    pub fn draw(self) {
-        // Circle 的绘制逻辑
-    }
+// 这表示你只为装有 i32 类型的 Mutex 增加特权方法，
+// 其他 T 类型的 Mutex 无法调用此方法。
+impl Mutex<i32> {
+    pub fn do_i32_specific_math() {}
 }
 ```
 
-## 静态分发与动态分发
+## Trait 约束 (Bound Constraints)
+泛型一旦脱离约束，就只能执行基础的参数转移操作。如果你想在泛型函数里调用某个具有前提的方法，诸如 `val1 == val2` 或者 `val.hash()`，你必须在尖括号里显式要求实参必须符合这类标准。
 
-Toka 同时支持静态分发和动态分发。
-
-- **静态分发**: 编译器会为函数使用的每个类型生成专门的版本。
-- **动态分发**: 使用 `dyn` 关键字，Toka 会通过虚函数表 (vtable) 进行运行时的函数选择。
+这正是 [接口与特征 (Traits)](../types/traits) 发挥威力的舞台。
 
 ```toka
-pub fn draw_all(&items: [dyn @Drawable]) {
-    for item in items {
-        item.draw()
-    }
+// 只有实现并满足了 @PartialEq 特征的两个类型，
+// 这个函数里才能安全地执行 val1 == val2，这避免了非常多的未定义行为。
+pub fn is_equal<'T: @PartialEq>(val1: 'T, val2: 'T) -> bool {
+    return val1 == val2
 }
 ```
 
-## 约束 (Constraints)
+## 泛型模块内的最高权限屏障 `@encap`
 
-你可以约束泛型类型，确保它们实现了特定的 Trait。多个约束通过 `@{...}` 进行分组。
+在封装一个极其危险或严谨的系统时，你可以给任意的泛型系统加盖 `@encap` (封装/隐藏) 印章。这指示编译器将 `shape` 内所有变量（如 `data`, `root_ptr` 等）的访问级别立刻锁定为**私有**。
 
 ```toka
-pub fn print_anything<T: @{Display, Debug}>(val: T) {
-    println("{}", val)
+impl<'T> Vec<'T>@encap {
+    pub(std) * // 给同样身处标准库 std 的兄弟开辟访问绿灯，外部开发者谢绝入内
+    
+    // 如果没有留 pub fn 给你提供内部指针，任何开发者在他们的代码中尝试
+    // p.buf 都会在编译阶段被 Toka 收缴。
 }
-```
----
+``` 
+这对于涉及到底层指针释放和堆操作的并发安全容器来说是极为重要的安全堡垒。
