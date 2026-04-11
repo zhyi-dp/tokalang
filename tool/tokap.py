@@ -79,33 +79,23 @@ def sync_packages():
             print(f"Fetching {url}...")
             os.makedirs(os.path.dirname(cache_path), exist_ok=True)
             
-            # SIMULATION: Because we don't really have the CF proxy in this dev environment,
-            # we will pretend doing a git clone by copying from a known local folder OR cloning from github.
-            # If the user provides a real github, we clone it
-            github_url = f"https://github.com/{urllib_proxy(url)}"
+            # Using our real Cloudflare Edge Router to seamlessly resolve and tunnel to Github via 301/302!
+            remote_url = f"https://{url}"
+            cmd = ["git", "clone", "--depth", "1", remote_url, cache_path]
+            res = subprocess.run(cmd, capture_output=True)
             
-            # Since we are mock testing locally, we'll try to find if there is a local 'examples/libs/ansi'
-            mock_local = f"/Users/zhyi/GitDP/tokalang/examples/libs/{url.split('/')[-1]}"
-            if os.path.exists(mock_local):
-                print(f" (Simulation) Copying from local mock {mock_local} instead of network")
-                shutil.copytree(mock_local, cache_path)
-            else:
-                # Fallback to actual git clone if it exists online
-                cmd = ["git", "clone", "--depth", "1", github_url, cache_path]
-                # print(f"Executing: {' '.join(cmd)}")
-                # res = subprocess.run(cmd, capture_output=True)
-                print(f"Error: Mock local repo {mock_local} not found! Create it first or implement real clone.")
-                sys.exit(1)
-    
+            if res.returncode != 0:
+                print(f"Error: Failed to fetch package {url}. Is it pushed to Github?")
+                print(res.stderr.decode())
+                # Fallback to local simulation ONLY if we fail, for testing purposes
+                mock_local = f"/Users/zhyi/GitDP/tokalang/examples/libs/{url.split('/')[-1]}"
+                if os.path.exists(mock_local):
+                    print(f" -> Found local mock repository instead, copying from {mock_local} as fallback...")
+                    shutil.copytree(mock_local, cache_path, dirs_exist_ok=True)
+                else:
+                    sys.exit(1)
+                    
     return dependencies
-
-def urllib_proxy(url):
-    # Mock CF resolver: pkg.tokalang.dev/zhyi/ansi -> zhyi-dp/ansi
-    # (Just making things work for the POC shell)
-    parts = url.split("/")
-    if len(parts) >= 3:
-        return f"{parts[1]}-dp/{parts[2]}"
-    return url
 
 def build_project(args):
     print("tokap: Synchronizing dependencies...")
