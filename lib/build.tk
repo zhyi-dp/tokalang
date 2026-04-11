@@ -1,4 +1,4 @@
-import core/libc::{libc_system}
+import core/libc::{libc_system, libc_access, libc_getenv}
 import std/string::{String}
 import core/traits::{@encap}
 
@@ -26,6 +26,9 @@ pub fn run_build(proj: Executable) -> i32 {
         
         // Build tokac string: "tokac src_path > target/debug/main.ll"
         auto cmd1# = String::from("tokac ")
+        if libc_access(".tokapkg" as *char, 0) == 0 {
+            cmd1#.push_str("-I .tokapkg ")
+        }
         cmd1#.push_str(&s)
         cmd1#.push_str(" > target/debug/main.ll")
         
