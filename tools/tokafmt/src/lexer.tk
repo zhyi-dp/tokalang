@@ -66,7 +66,7 @@ impl Lexer {
 
     pub fn next_token(self#) -> Token {
         if self.is_eof() {
-            return Token::new(token::TK_EOF(), String::from(""), self.line, self.col)
+            return Token::new(TokenKind::EOF(), String::from(""), self.line, self.col)
         }
 
         auto start_line = self.line
@@ -79,7 +79,7 @@ impl Lexer {
             while Lexer::is_whitespace(self.peek()) {
                 ws#.push_char(self.advance())
             }
-            return Token::new(token::TK_WHITESPACE(), ws, start_line, start_col)
+            return Token::new(TokenKind::Whitespace(), ws, start_line, start_col)
         }
 
         // Line Comments
@@ -88,7 +88,7 @@ impl Lexer {
             while self.peek() != (0 as char) && self.peek() != (10 as char) {
                 comm#.push_char(self.advance())
             }
-            return Token::new(token::TK_COMMENT(), comm, start_line, start_col)
+            return Token::new(TokenKind::Comment(), comm, start_line, start_col)
         }
 
         // Identifier or Keyword
@@ -97,11 +97,11 @@ impl Lexer {
             while Lexer::is_alpha(self.peek()) || Lexer::is_digit(self.peek()) || self.peek() == 64:char { // '@' for macros
                 ident#.push_char(self.advance())
             }
-            auto kind# = token::TK_IDENTIFIER()
+            auto kind# = TokenKind::Identifier()
             // In a full formatter we'd check against a list of keywords here.
             // For now, simple keywords match
             if ident.eq(String::from("fn")) || ident.eq(String::from("return")) || ident.eq(String::from("auto")) || ident.eq(String::from("shape")) || ident.eq(String::from("impl")) {
-                kind = token::TK_KEYWORD()
+                kind = TokenKind::Keyword()
             }
             return Token::new(kind, ident, start_line, start_col)
         }
@@ -112,7 +112,7 @@ impl Lexer {
             while Lexer::is_digit(self.peek()) || self.peek() == 46:char { // '.'
                 num#.push_char(self.advance())
             }
-            return Token::new(token::TK_NUMBER(), num, start_line, start_col)
+            return Token::new(TokenKind::Number(), num, start_line, start_col)
         }
 
         // String Literal
@@ -128,7 +128,7 @@ impl Lexer {
             if self.peek() == 34:char {
                 str_val#.push_char(self.advance()) // Consume closing quote
             }
-            return Token::new(token::TK_STRINGLIT(), str_val, start_line, start_col)
+            return Token::new(TokenKind::StringLit(), str_val, start_line, start_col)
         }
         
         // Single Character Literal or Morphology
@@ -142,14 +142,14 @@ impl Lexer {
             if self.peek() == 39:char {
                 str_val2#.push_char(self.advance())
             }
-            return Token::new(token::TK_CHARLIT(), str_val2, start_line, start_col)
+            return Token::new(TokenKind::CharLit(), str_val2, start_line, start_col)
         }
 
         // Delimiters
         if c == 123:char || c == 125:char || c == 40:char || c == 41:char || c == 91:char || c == 93:char || c == 59:char {
             auto delim_str# = String::from("")
             delim_str#.push_char(self.advance())
-            return Token::new(token::TK_DELIMITER(), delim_str, start_line, start_col)
+            return Token::new(TokenKind::Delimiter(), delim_str, start_line, start_col)
         }
 
         // Operators & Morphology
@@ -172,6 +172,6 @@ impl Lexer {
         } else {
             op#.push_char(self.advance())
         }
-        return Token::new(token::TK_OPERATOR(), op, start_line, start_col)
+        return Token::new(TokenKind::Operator(), op, start_line, start_col)
     }
 }

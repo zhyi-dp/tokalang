@@ -28,7 +28,7 @@ impl Printer {
     }
 
     pub fn format(self#, lex#: Lexer) -> String {
-        auto last_kind# = token::TK_UNKNOWN()
+        auto last_kind# = TokenKind::Unknown()
         auto last_lexeme# = String::from("")
         auto in_import# = false
         auto pending_space# = false
@@ -38,7 +38,7 @@ impl Printer {
         while !lex.is_eof() {
             auto t = lex#.next_token()
             
-            if t.kind == token::TK_EOF() {
+            if t.kind == TokenKind::EOF() {
                 break
             }
             
@@ -46,7 +46,7 @@ impl Printer {
                 in_import = true
             }
             
-            if t.kind == token::TK_WHITESPACE() {
+            if t.kind == TokenKind::Whitespace() {
                 auto nl_count# = 0
                 auto i# = 0
                 while i < t.lexeme.len() {
@@ -81,7 +81,7 @@ impl Printer {
             }
             
             // Adjust indent on closing brace BEFORE printing
-            if t.kind == token::TK_DELIMITER() && t.lexeme.eq(String::from("}")) {
+            if t.kind == TokenKind::Delimiter() && t.lexeme.eq(String::from("}")) {
                 if !in_import && self.indent_level > 0 {
                     self.indent_level = self.indent_level - 1
                     
@@ -96,9 +96,9 @@ impl Printer {
 
             auto did_indent# = false
             if self.needs_indent {
-                if t.kind != token::TK_WHITESPACE() {
+                if t.kind != TokenKind::Whitespace() {
                     // Avoid indenting if it's multiple consecutive closing braces
-                    if t.kind == token::TK_DELIMITER() && t.lexeme.eq(String::from("}")) && self.output#.ends_with(String::from("}")) {
+                    if t.kind == TokenKind::Delimiter() && t.lexeme.eq(String::from("}")) && self.output#.ends_with(String::from("}")) {
                         // Edge case handle? No, push_indent uses indent_level correctly.
                     }
                     self#.push_indent()
@@ -119,7 +119,7 @@ impl Printer {
 
             // Pointer vs Multiplication & Unary minus vs Binary minus
             if t.lexeme.eq(String::from("*")) || t.lexeme.eq(String::from("-")) || t.lexeme.eq(String::from("&")) || t.lexeme.eq(String::from("~")) || t.lexeme.eq(String::from("^")) {
-                if last_kind == token::TK_OPERATOR() || last_kind == token::TK_KEYWORD() || last_lexeme.eq(String::from("(")) || last_lexeme.eq(String::from("[")) || last_lexeme.eq(String::from(",")) || last_lexeme.eq(String::from("::")) || last_kind == token::TK_UNKNOWN() {
+                if last_kind == TokenKind::Operator() || last_kind == TokenKind::Keyword() || last_lexeme.eq(String::from("(")) || last_lexeme.eq(String::from("[")) || last_lexeme.eq(String::from(",")) || last_lexeme.eq(String::from("::")) || last_kind == TokenKind::Unknown() {
                     is_binary_op = false
                 }
             }
@@ -127,15 +127,15 @@ impl Printer {
             auto is_namespace_brace = last_lexeme.eq(String::from("::"))
 
             // Force space insertion requirements BEFORE the token
-            if t.kind == token::TK_OPERATOR() && is_binary_op {
+            if t.kind == TokenKind::Operator() && is_binary_op {
                 pending_space = true
             }
-            if t.kind == token::TK_DELIMITER() && t.lexeme.eq(String::from("{")) {
+            if t.kind == TokenKind::Delimiter() && t.lexeme.eq(String::from("{")) {
                 if !is_namespace_brace {
                     pending_space = true
                 }
             }
-            if t.kind == token::TK_COMMENT() {
+            if t.kind == TokenKind::Comment() {
                 if !did_indent {
                     pending_space = true
                 }
@@ -164,14 +164,14 @@ impl Printer {
                 }
                 
                 // Tightly bind pointers and unary ops
-                if last_kind == token::TK_OPERATOR() && !last_was_binary_op {
+                if last_kind == TokenKind::Operator() && !last_was_binary_op {
                     if last_lexeme.eq(String::from("*")) || last_lexeme.eq(String::from("-")) || last_lexeme.eq(String::from("&")) || last_lexeme.eq(String::from("~")) || last_lexeme.eq(String::from("^")) {
                         should_space = false
                     }
                 }
                 
                 // No space between function name and `(`
-                if t.lexeme.eq(String::from("(")) && last_kind == token::TK_IDENTIFIER() {
+                if t.lexeme.eq(String::from("(")) && last_kind == TokenKind::Identifier() {
                     should_space = false
                 }
                 
@@ -185,10 +185,10 @@ impl Printer {
             self.output#.push_str(t.lexeme.c_str())
             
             // Force space requirements AFTER the token
-            if t.kind == token::TK_OPERATOR() && is_binary_op {
+            if t.kind == TokenKind::Operator() && is_binary_op {
                 pending_space = true
             }
-            if t.kind == token::TK_DELIMITER() && (t.lexeme.eq(String::from(",")) || t.lexeme.eq(String::from(":"))) {
+            if t.kind == TokenKind::Delimiter() && (t.lexeme.eq(String::from(",")) || t.lexeme.eq(String::from(":"))) {
                 pending_space = true
             }
             
@@ -197,7 +197,7 @@ impl Printer {
             last_was_binary_op = is_binary_op
             
             // Adjust indent AFTER opening brace
-            if t.kind == token::TK_DELIMITER() && t.lexeme.eq(String::from("{")) {
+            if t.kind == TokenKind::Delimiter() && t.lexeme.eq(String::from("{")) {
                 if !is_namespace_brace {
                     self.indent_level = self.indent_level + 1
                     self.output#.push_str("\n")

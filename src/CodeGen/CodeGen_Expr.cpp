@@ -933,6 +933,18 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
       }
     }
   }
+  // [Fix] Zero-Payload Union Equality (Stage 0 Enums)
+  // If the types are simple structs with exactly one integer field (discriminant), extract them for comparison.
+  if (lhsType->isStructTy() && rhsType->isStructTy() && (bin->Op == "==" || bin->Op == "!=")) {
+    if (lhsType->getStructNumElements() == 1 && rhsType->getStructNumElements() == 1) {
+      if (lhsType->getStructElementType(0)->isIntegerTy() && rhsType->getStructElementType(0)->isIntegerTy()) {
+        lhs = m_Builder.CreateExtractValue(lhs, 0, "enum_tag_lhs");
+        rhs = m_Builder.CreateExtractValue(rhs, 0, "enum_tag_rhs");
+        lhsType = lhs->getType();
+        rhsType = rhs->getType();
+      }
+    }
+  }
 
   if (!lhsType->isIntOrIntVectorTy() && !lhsType->isPtrOrPtrVectorTy() &&
       !lhsType->isFloatingPointTy()) {
