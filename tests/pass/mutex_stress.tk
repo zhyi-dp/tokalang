@@ -3,27 +3,25 @@ import std/thread::{thread_spawn, yield_now}
 import std/io::{println}
 
 pub fn main() -> i32 {
-    auto m = Mutex<i32>::new(0)
+    auto m# = Mutex<i32>::new(0)
     
-    // 我们启动 5 个线程，每个线程循环 1000 次，每次将 m.data 加 1
+    // 我们启动 5 个线程，每个线程循环 1000 次，每次将保护的值加 1
     // 总计预期应该是 5000
     auto f: fn() -> cede i32 = { =>
         auto i# = 0
         while i < 1000 {
-            auto lock_res = m.lock()
-            if lock_res.is_err() {
-                return cede 1
-            }
+            auto g = m#.lock().unwrap()
+            auto *p# = g.get_ref()
             
             // 拿到锁之后进行计算
-            auto current = m.data
+            auto current = p
             // 模拟一些复杂的环境故意 yield 让出 CPU 增加竞态概率
             if i % 10 == 0 {
                 yield_now()
             }
-            m.data = current + 1
+            p = current + 1
             
-            m.unlock().unwrap()
+            // 锁 `g` 会在当前作用域结束时自动利用 RAII 释放，千万不要手动 `m.unlock()`!
             i = i + 1
         }
         return cede 0
@@ -43,11 +41,13 @@ pub fn main() -> i32 {
     t4#.join().unwrap()
     t5#.join().unwrap()
     
-    auto final_lock = m.lock().unwrap()
-    println("All threads finished. Final Mutex data: {}", m.data)
+    auto final_lock = m#.lock().unwrap()
+    auto *fp = final_lock.get_ref()
     
-    // 如果无锁保护，最终结果必定小于 5000
-    if m.data == 5000 {
+    println("All threads finished. Final Mutex data: {}", fp)
+    
+    // 最终结果必须等于 5000
+    if fp == 5000 {
         println("Stress test PASS! Mutex protected the data perfectly.")
         return 0
     }
