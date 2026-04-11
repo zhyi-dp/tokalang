@@ -20,17 +20,20 @@ impl Lexer {
     }
 
     fn peek(self) -> char {
-        if self.pos >= self.source.len() {
-            return 0 as char
+        if self.pos >= self.source.len() { return 0 as char }
+        unsafe {
+            auto *b = self.source.c_str() as *[char]
+            return b[self.pos]
         }
-        return self.source.at(self.pos)
     }
 
     fn advance(self#) -> char {
-        if self.pos >= self.source.len() {
-            return 0 as char
+        if self.pos >= self.source.len() { return 0 as char }
+        auto c# = 0:char
+        unsafe {
+            auto *b = self.source.c_str() as *[char]
+            c = b[self.pos]
         }
-        auto c = self.source.at(self.pos)
         self.pos = self.pos + 1
         if c == (10 as char) { // '\n'
             self.line = self.line + 1
@@ -42,10 +45,11 @@ impl Lexer {
     }
 
     fn peek_next(self) -> char {
-        if self.pos + 1 >= self.source.len() {
-            return 0 as char
+        if self.pos + 1 >= self.source.len() { return 0 as char }
+        unsafe {
+            auto *b = self.source.c_str() as *[char]
+            return b[self.pos + 1]
         }
-        return self.source.at(self.pos + 1)
     }
 
     fn is_alpha(c: char) -> bool {
@@ -75,28 +79,31 @@ impl Lexer {
 
         // Whitespace
         if Lexer::is_whitespace(c) {
-            auto ws# = String::from("")
+            auto start_idx = self.pos
             while Lexer::is_whitespace(self.peek()) {
-                ws#.push_char(self.advance())
+                self#.advance()
             }
+            auto ws = self.source.substring(start_idx, self.pos)
             return Token::new(TokenKind::Whitespace(), ws, start_line, start_col)
         }
 
         // Line Comments
         if c == 47:char && self.peek_next() == 47:char { // "//"
-            auto comm# = String::from("")
+            auto start_idx = self.pos
             while self.peek() != (0 as char) && self.peek() != (10 as char) {
-                comm#.push_char(self.advance())
+                self#.advance()
             }
+            auto comm = self.source.substring(start_idx, self.pos)
             return Token::new(TokenKind::Comment(), comm, start_line, start_col)
         }
 
         // Identifier or Keyword
         if Lexer::is_alpha(c) {
-            auto ident# = String::from("")
+            auto start_idx = self.pos
             while Lexer::is_alpha(self.peek()) || Lexer::is_digit(self.peek()) || self.peek() == 64:char { // '@' for macros
-                ident#.push_char(self.advance())
+                self#.advance()
             }
+            auto ident = self.source.substring(start_idx, self.pos)
             auto kind# = TokenKind::Identifier()
             // In a full formatter we'd check against a list of keywords here.
             // For now, simple keywords match
@@ -108,52 +115,56 @@ impl Lexer {
 
         // Number
         if Lexer::is_digit(c) {
-            auto num# = String::from("")
+            auto start_idx = self.pos
             while Lexer::is_digit(self.peek()) || self.peek() == 46:char { // '.'
-                num#.push_char(self.advance())
+                self#.advance()
             }
+            auto num = self.source.substring(start_idx, self.pos)
             return Token::new(TokenKind::Number(), num, start_line, start_col)
         }
 
         // String Literal
         if c == 34:char { // '"'
-            auto str_val# = String::from("")
-            str_val#.push_char(self.advance()) // Consume opening quote
+            auto start_idx = self.pos
+            self#.advance() // Consume opening quote
             while self.peek() != (0 as char) && self.peek() != 34:char {
                 if self.peek() == 92:char { // '\\'
-                    str_val#.push_char(self.advance())
+                    self#.advance()
                 }
-                str_val#.push_char(self.advance())
+                self#.advance()
             }
             if self.peek() == 34:char {
-                str_val#.push_char(self.advance()) // Consume closing quote
+                self#.advance() // Consume closing quote
             }
+            auto str_val = self.source.substring(start_idx, self.pos)
             return Token::new(TokenKind::StringLit(), str_val, start_line, start_col)
         }
         
         // Single Character Literal or Morphology
         if c == 39:char { // '\''
-            auto str_val2# = String::from("")
-            str_val2#.push_char(self.advance())
+            auto start_idx = self.pos
+            self#.advance()
             if self.peek() == 92:char {
-                str_val2#.push_char(self.advance())
+                self#.advance()
             }
-            str_val2#.push_char(self.advance())
+            self#.advance()
             if self.peek() == 39:char {
-                str_val2#.push_char(self.advance())
+                self#.advance()
             }
+            auto str_val2 = self.source.substring(start_idx, self.pos)
             return Token::new(TokenKind::CharLit(), str_val2, start_line, start_col)
         }
 
         // Delimiters
         if c == 123:char || c == 125:char || c == 40:char || c == 41:char || c == 91:char || c == 93:char || c == 59:char {
-            auto delim_str# = String::from("")
-            delim_str#.push_char(self.advance())
+            auto start_idx = self.pos
+            self#.advance()
+            auto delim_str = self.source.substring(start_idx, self.pos)
             return Token::new(TokenKind::Delimiter(), delim_str, start_line, start_col)
         }
 
         // Operators & Morphology
-        auto op# = String::from("")
+        auto start_idx_op = self.pos
         auto n_c = self.peek_next()
         auto is_two# = false
         if c == 61:char && n_c == 61:char { is_two = true }
@@ -167,11 +178,12 @@ impl Lexer {
         if c == 58:char && n_c == 58:char { is_two = true }
 
         if is_two {
-            op#.push_char(self.advance())
-            op#.push_char(self.advance())
+            self#.advance()
+            self#.advance()
         } else {
-            op#.push_char(self.advance())
+            self#.advance()
         }
+        auto op = self.source.substring(start_idx_op, self.pos)
         return Token::new(TokenKind::Operator(), op, start_line, start_col)
     }
 }
