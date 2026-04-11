@@ -1,0 +1,45 @@
+import std/io::println
+import std/io::print
+import std/string::String
+
+shape Color (
+    code: str
+)
+
+impl Color {
+    pub fn red() -> Color {
+        return Color(code = "\x1b[31m")
+    }
+    
+    pub fn green() -> Color {
+        return Color(code = "\x1b[32m")
+    }
+
+    pub fn yellow() -> Color {
+        return Color(code = "\x1b[33m")
+    }
+    
+    pub fn blue() -> Color {
+        return Color(code = "\x1b[34m")
+    }
+    
+    pub fn reset() -> Color {
+        return Color(code = "\x1b[0m")
+    }
+}
+
+pub fn print_color(c: Color, text: str) {
+    print(String::from(c.code))
+    print(String::from(text))
+    auto r = Color::reset()
+    print(String::from(r.code))
+    println("")
+}
+
+pub fn red(text: str) {
+    print_color(Color::red(), text)
+}
+
+pub fn green(text: str) {
+    print_color(Color::green(), text)
+}
