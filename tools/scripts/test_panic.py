@@ -26,7 +26,7 @@ def run_test(file_path):
         # The common pattern in test_single.sh is redirection or it creates .tk.ll
         # To be safe, we'll run tokac and then locate the generated file 
         # or better, use the known behavior from test_single.sh
-        subprocess.check_output(f"./build/src/tokac {file_path} > {ll_file}", shell=True, stderr=subprocess.STDOUT)
+        subprocess.check_output(f"./build/bin/tokac {file_path} > {ll_file}", shell=True, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
         print(f"  FAIL: Compilation failed\n{e.output.decode()}")
         return False

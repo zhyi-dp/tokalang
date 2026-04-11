@@ -35,7 +35,7 @@ echo "=== 正在对比测试: $FILE_NAME ==="
 
 # --- Toka 编译流程 ---
 echo "--- Step 1: 编译 Toka ($FILE_NAME.tk) 到 LLVM IR ---"
-build/src/tokac "$TK_FILE" > "$LL_FILE"
+build/bin/tokac "$TK_FILE" > "$LL_FILE"
 
 echo "--- Step 2: 编译 LLVM IR 到 Native 二进制 ---"
 SDK_PATH=$(xcrun --show-sdk-path)

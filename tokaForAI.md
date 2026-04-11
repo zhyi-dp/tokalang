@@ -548,7 +548,7 @@ The compiler generates LLVM IR (.ll) which can be executed using `lli` (LLVM int
 
 ```bash
 # 1. Compile .tk to .ll
-./build/src/tokac tests/your_file.tk > your_file.ll
+./build/bin/tokac tests/your_file.tk > your_file.ll
 
 # 2. Run with lli
 lli your_file.ll
@@ -556,5 +556,5 @@ lli your_file.ll
 
 Or as a one-line command:
 ```bash
-./build/src/tokac tests/your_file.tk > tests/your_file.ll && lli tests/your_file.ll
+./build/bin/tokac tests/your_file.tk > tests/your_file.ll && lli tests/your_file.ll
 ```

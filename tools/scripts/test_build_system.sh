@@ -2,7 +2,7 @@
 set -e
 
 # Path to the compiler
-TOKAC="./build/src/tokac"
+TOKAC="./build/bin/tokac"
 LLI="lli-20"
 CLANG="clang-20"
 

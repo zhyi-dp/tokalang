@@ -2,7 +2,7 @@
 # tool/test_pass.sh - Parallel Test Runner
 
 # --- Configuration ---
-TOKAC="./build/src/tokac"
+TOKAC="./build/bin/tokac"
 if which lli-20 >/dev/null 2>&1; then
     LLI="lli-20"
 elif [ -x "/opt/homebrew/opt/llvm@20/bin/lli" ]; then
@@ -27,8 +27,11 @@ run_worker() {
     [ -e "$test_path" ] || exit 0
     
     file_name=$(basename "$test_path")
-    ll_file="${file_name}.ll"
-    log_file="${file_name}.log"
+    safe_target=$(echo "$test_path" | tr '/' '_')
+    out_dir="/tmp/tokac_tests"
+    mkdir -p "$out_dir"
+    ll_file="${out_dir}/${safe_target}.ll"
+    log_file="${out_dir}/${safe_target}.log"
     
     # Capture output in a buffer to ensure atomic printing
     OUTPUT=""

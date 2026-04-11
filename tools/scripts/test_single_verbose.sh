@@ -8,11 +8,16 @@ if [ $? -ne 0 ]; then
 fi
 
 TEST_FILE=$1
+SAFE_TARGET=$(echo "$TEST_FILE" | tr '/' '_')
+OUT_DIR="/tmp/tokac_tests"
+mkdir -p "$OUT_DIR"
+LL_FILE="${OUT_DIR}/${SAFE_TARGET}.ll"
+
 echo "Testing $TEST_FILE..."
-./build/src/tokac $TEST_FILE > ${TEST_FILE%.tk}.ll
+./build/bin/tokac $TEST_FILE > $LL_FILE
 if [ $? -eq 0 ]; then
     echo "Compilation Succeeded"
-    lli ${TEST_FILE%.tk}.ll
+    lli $LL_FILE
     if [ $? -eq 0 ]; then
         echo "Execution Succeeded"
         exit 0

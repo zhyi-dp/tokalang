@@ -135,7 +135,7 @@ Currently, `tokac` compiles `.tk` source files into LLVM IR (`.ll`). You can exe
 
 **One-liner to compile and run:**
 ```bash
-./build/src/tokac tests/test_trait.tk > output.ll && lli output.ll
+./build/bin/tokac tests/test_trait.tk > output.ll && lli output.ll
 ```
 
 ## 📄 Example

@@ -23,11 +23,14 @@ if [ ! -f "$TK_FILE" ]; then
 fi
 
 BASE_NAME=$(basename "$TK_FILE")
-LL_FILE="${BASE_NAME}.ll"
-LOG_FILE="${BASE_NAME}.log"
+SAFE_TARGET=$(echo "$TK_FILE" | tr '/' '_')
+OUT_DIR="/tmp/tokac_tests"
+mkdir -p "$OUT_DIR"
+LL_FILE="${OUT_DIR}/${SAFE_TARGET}.ll"
+LOG_FILE="${OUT_DIR}/${SAFE_TARGET}.log"
 # Configuration
 # --- Configuration ---
-TOKAC="./build/src/tokac"
+TOKAC="./build/bin/tokac"
 if which lli-20 >/dev/null 2>&1; then
     LLI="lli-20"
 elif [ -x "/opt/homebrew/opt/llvm@20/bin/lli" ]; then

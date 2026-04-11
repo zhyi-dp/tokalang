@@ -8,7 +8,7 @@
 SCRIPT_DIR="$(dirname "$0")"
 # Try to resolve project root based on script location (assuming tool/ is one level deep)
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-TOKAC="$PROJECT_ROOT/build/src/tokac"
+TOKAC="$PROJECT_ROOT/build/bin/tokac"
 CLANG="xcrun clang"
 
 # Default to "tokac" in PATH if build version not found

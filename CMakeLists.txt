@@ -40,6 +40,9 @@ configure_file(
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Output executables to build/bin instead of build/src/
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+
 # Find LLVM 20 intelligently
 if(NOT LLVM_DIR)
     if(APPLE)

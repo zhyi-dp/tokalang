@@ -6,7 +6,7 @@ import glob
 import re
 
 # Configuration
-TOKAC = "./build/src/tokac"
+TOKAC = "./build/bin/tokac"
 FAIL_TEST_DIR = "tests/fail"
 
 GREEN = '\033[0;32m'

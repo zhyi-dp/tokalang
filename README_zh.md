@@ -135,7 +135,7 @@ make
 
 **一键编译并运行:**
 ```bash
-./build/src/tokac tests/test_trait.tk > output.ll && lli output.ll
+./build/bin/tokac tests/test_trait.tk > output.ll && lli output.ll
 ```
 
 ## 📄 示例
