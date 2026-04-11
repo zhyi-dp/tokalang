@@ -56,7 +56,15 @@ pub fn run_build(proj: Executable) -> i32 {
         }
         
         // Build tokac string: "tokac src_path > target/debug/main.ll"
-        auto cmd1# = String::from("tokac -I /Users/zhyi/GitDP/tokalang/lib ")
+        auto cmd1# = String::from("tokac ")
+        auto toka_lib = libc_getenv("TOKA_LIB" as *char) as Addr
+        if toka_lib != 0:Addr {
+            cmd1#.push_str("-I ")
+            cmd1#.push_str(toka_lib as *char)
+            cmd1#.push_str(" ")
+        } else {
+            cmd1#.push_str("-I /usr/local/lib/toka ")
+        }
         if libc_access(".tokapkg" as *char, 0) == 0 {
             cmd1#.push_str("-I .tokapkg ")
         }

@@ -19,6 +19,7 @@ bin/
 target/
 .toka_build_exe
 .toka_build.ll
+.tokapkg/
 # Prerequisites
 *.d
 *_bin

@@ -106,7 +106,16 @@ fn cmd_build() -> i32 {
             sys_clang# = String::from(addr as *char)
         }
         
-        auto cmd# = String::from("tokac -I /Users/zhyi/GitDP/tokalang/lib Project.tk > .toka_build.ll && ")
+        auto cmd# = String::from("tokac ")
+        auto toka_lib = libc_getenv("TOKA_LIB" as *char) as Addr
+        if toka_lib != 0:Addr {
+            cmd#.push_str("-I ")
+            cmd#.push_str(toka_lib as *char)
+            cmd#.push_str(" ")
+        } else {
+            cmd#.push_str("-I /usr/local/lib/toka ")
+        }
+        cmd#.push_str("Project.tk > .toka_build.ll && ")
         cmd#.push_str(sys_clang.c_str())
         cmd#.push_str(" .toka_build.ll -isysroot $(xcrun --show-sdk-path) -o .toka_build_exe && ./.toka_build_exe")
 
