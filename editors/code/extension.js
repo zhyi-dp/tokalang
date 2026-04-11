@@ -23,6 +23,16 @@ function activate(context) {
             new TokaDocumentFormattingProvider()
         )
     );
+
+    // Force format on save unconditionally
+    context.subscriptions.push(
+        vscode.workspace.onWillSaveTextDocument(event => {
+            if (event.document.languageId === 'toka') {
+                const provider = new TokaDocumentFormattingProvider();
+                event.waitUntil(provider.provideDocumentFormattingEdits(event.document, null, null));
+            }
+        })
+    );
 }
 
 class TokaDocumentSymbolProvider {
@@ -90,36 +100,82 @@ class TokaDocumentSymbolProvider {
 
 function deactivate() { }
 
+const outputChannel = vscode.window.createOutputChannel("Toka Formatter");
+
 class TokaDocumentFormattingProvider {
     provideDocumentFormattingEdits(document, options, token) {
         return new Promise((resolve, reject) => {
+            outputChannel.appendLine(`Format requested for ${document.fileName}`);
             try {
                 const text = document.getText();
+                if (text.trim() === '') {
+                    outputChannel.appendLine('Document is empty, ignoring.');
+                    return resolve([]);
+                }
+                
                 const tempFile = path.join(os.tmpdir(), `tokafmt_${Date.now()}.tk`);
                 fs.writeFileSync(tempFile, text);
                 
                 // Assume the extension is running in a workspace where 'build/bin/tokafmt' exists
-                const projectRoot = vscode.workspace.workspaceFolders ? vscode.workspace.workspaceFolders[0].uri.fsPath : '';
-                const tokafmtPath = path.join(projectRoot, 'build', 'bin', 'tokafmt');
+                // We fallback to workspace folder if available, else give explicit error
+                let projectRoot = '';
+                if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+                    projectRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
+                } else {
+                    outputChannel.appendLine('No workspace folders active. Assuming standalone mode might fail if tokafmt not in PATH.');
+                }
                 
-                if (!fs.existsSync(tokafmtPath)) {
-                    vscode.window.showErrorMessage('tokafmt not found! Please run rebuild.sh in the Toka root directory.');
+                let tokafmtPath = 'tokafmt';
+                if (projectRoot !== '') {
+                    tokafmtPath = path.join(projectRoot, 'build', 'bin', 'tokafmt');
+                }
+                
+                outputChannel.appendLine(`Using tokafmt path: ${tokafmtPath}`);
+                if (projectRoot !== '' && !fs.existsSync(tokafmtPath)) {
+                    vscode.window.showErrorMessage(`tokafmt not found at ${tokafmtPath}. Please run rebuild.sh in the Toka root directory.`);
+                    outputChannel.appendLine('tokafmt binary missing.');
                     resolve([]);
                     return;
                 }
 
-                const formattedBuffer = cp.execSync(`"${tokafmtPath}" "${tempFile}"`);
-                const formattedText = formattedBuffer.toString('utf8');
-                fs.unlinkSync(tempFile);
+                outputChannel.appendLine(`Running: ${tokafmtPath} ${tempFile}`);
+                const result = cp.spawnSync(tokafmtPath, [tempFile], { encoding: 'utf8' });
                 
-                const fullRange = new vscode.Range(
-                    document.positionAt(0),
-                    document.positionAt(text.length)
-                );
+                fs.unlinkSync(tempFile);
+
+                if (result.error) {
+                    throw result.error;
+                }
+                if (result.status !== 0) {
+                    const errMsg = result.stderr || result.stdout || `Exit code ${result.status}`;
+                    throw new Error(`Command failed: ${errMsg}`);
+                }
+
+                let formattedText = result.stdout;
+                if (!formattedText || formattedText.trim() === '') {
+                    outputChannel.appendLine('tokafmt returned empty text, no changes applied.');
+                    resolve([]);
+                    return;
+                }
+                
+                outputChannel.appendLine('Successfully formatted.');
+                
+                const startPos = document.lineAt(0).range.start;
+                const endPos = document.lineAt(document.lineCount - 1).range.end;
+                const fullRange = new vscode.Range(startPos, endPos);
+                
+                // Verify if it actually changed to avoid unnecessary edits
+                if (formattedText === text) {
+                     outputChannel.appendLine('Text is identical. No edit applied.');
+                     resolve([]);
+                     return;
+                }
                 
                 resolve([vscode.TextEdit.replace(fullRange, formattedText)]);
+                vscode.window.showInformationMessage("Toka file formatted successfully!");
             } catch (err) {
                 console.error(err);
+                outputChannel.appendLine(`Error: ${err.message}`);
                 vscode.window.showErrorMessage(`Toka Formatting Failed: ${err.message}`);
                 resolve([]);
             }
