@@ -28,10 +28,9 @@ pub fn main() -> i32 {
         while i < 50000 {
             auto ~local = ~m1
             // Use locked value to ensure no optimization removes this
-            auto lock = local.lock()
-            if lock.is_err() { return cede 1 }
-            local.data.val += 1
-            local.unlock().unwrap()
+            auto g = local.lock().unwrap()
+            auto *p# = g.get_ref()
+            p.val = p.val + 1
             i = i + 1
         }
         return cede 0
@@ -41,10 +40,9 @@ pub fn main() -> i32 {
         auto i# = 0
         while i < 50000 {
             auto ~local = ~m2
-            auto lock = local.lock()
-            if lock.is_err() { return cede 1 }
-            local.data.val += 1
-            local.unlock().unwrap()
+            auto g = local.lock().unwrap()
+            auto *p# = g.get_ref()
+            p.val = p.val + 1
             i = i + 1
         }
         return cede 0
@@ -54,10 +52,9 @@ pub fn main() -> i32 {
         auto i# = 0
         while i < 50000 {
             auto ~local = ~m3
-            auto lock = local.lock()
-            if lock.is_err() { return cede 1 }
-            local.data.val += 1
-            local.unlock().unwrap()
+            auto g = local.lock().unwrap()
+            auto *p# = g.get_ref()
+            p.val = p.val + 1
             i = i + 1
         }
         return cede 0
@@ -67,10 +64,9 @@ pub fn main() -> i32 {
         auto i# = 0
         while i < 50000 {
             auto ~local = ~m4
-            auto lock = local.lock()
-            if lock.is_err() { return cede 1 }
-            local.data.val += 1
-            local.unlock().unwrap()
+            auto g = local.lock().unwrap()
+            auto *p# = g.get_ref()
+            p.val = p.val + 1
             i = i + 1
         }
         return cede 0
@@ -80,10 +76,9 @@ pub fn main() -> i32 {
         auto i# = 0
         while i < 50000 {
             auto ~local = ~m5
-            auto lock = local.lock()
-            if lock.is_err() { return cede 1 }
-            local.data.val += 1
-            local.unlock().unwrap()
+            auto g = local.lock().unwrap()
+            auto *p# = g.get_ref()
+            p.val = p.val + 1
             i = i + 1
         }
         return cede 0
