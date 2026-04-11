@@ -284,6 +284,17 @@ impl String {
         return 1
     }
 
+    pub fn pop_char(self#) -> char {
+        if self.len == 0 { return 0:char }
+        unsafe {
+            auto *b# = self.*buf
+            auto last_char = b[self.len - 1]
+            b[self.len - 1] = 0:char
+            self.len = self.len - 1
+            return last_char
+        }
+    }
+
     pub fn eq(self, other: String) -> bool {
         unsafe {
             if self.len != other.len() { return false }
@@ -459,6 +470,37 @@ impl String {
                 i = i + 1
             }
             return -1
+        }
+    }
+
+    pub fn count_char(self, c: char) -> i32 {
+        auto cnt# = 0
+        unsafe {
+            auto i# = 0
+            auto *b = self.*buf
+            while i < self.len {
+                if b[i] == c {
+                    cnt = cnt + 1
+                }
+                i = i + 1
+            }
+        }
+        return cnt
+    }
+
+    pub fn starts_with_char(self, c: char) -> bool {
+        if self.len == 0 { return false }
+        unsafe {
+            auto *b = self.*buf
+            return b[0] == c
+        }
+    }
+
+    pub fn ends_with_char(self, c: char) -> bool {
+        if self.len == 0 { return false }
+        unsafe {
+            auto *b = self.*buf
+            return b[self.len - 1] == c
         }
     }
 

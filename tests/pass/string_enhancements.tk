@@ -1,0 +1,40 @@
+import std/io::{println}
+import std/string::{String}
+
+fn main() -> i32 {
+    auto s# = String::from("hello tokalang")
+    
+    // Test count_char
+    if s.count_char(108:char) != 3 { // 'l'
+        println("count_char failed")
+        return 1
+    }
+    println("count_char ok")
+
+    // Test starts_with_char / ends_with_char
+    if !s.starts_with_char(104:char) { // 'h'
+        println("starts_with_char failed")
+        return 1
+    }
+    if !s.ends_with_char(103:char) { // 'g'
+        println("ends_with_char failed")
+        return 1
+    }
+    println("starts_ends_char ok")
+
+    // Test pop_char
+    auto last = s#.pop_char()
+    if last != 103:char {
+        println("pop_char failed")
+        return 1
+    }
+    println("pop_char ok")
+    
+    // Test trimmed string
+    if s.ends_with_char(103:char) {
+        println("pop_char didn't remove char")
+        return 1
+    }
+    
+    return 0
+}
