@@ -12,9 +12,10 @@ Toka 目前推荐从源码构建，以确保获取最新的编译器性能优化
 - **LLVM 20**: Toka 编译器基于 LLVM 20 框架构建。
 - **Clang 20**: 用于将生成的 LLVM IR 链接为最终可执行文件。
 - **CMake**: 3.15 或更高版本。
-- **Zsh**: 在 macOS 上，推荐使用 Zsh 以获得最佳开发体验。
 
-## 构建编译器
+## 构建编译器与包管理工具
+
+Toka 项目内包含了一个极其方便的自动化构建脚本 `rebuild.sh`，它可以一次性为您编译好 `tokac` (核心编译器) 以及纯正原生的 `toka` (原生包管理器与命令行工具)。
 
 1. 克隆代码仓库：
    ```bash
@@ -22,45 +23,71 @@ Toka 目前推荐从源码构建，以确保获取最新的编译器性能优化
    cd tokalang
    ```
 
-2. 创建构建目录并运行 CMake：
+2. 首次运行前配置 CMake 项目（只需一次）：
    ```bash
    mkdir build && cd build
-   mkdir src
    cmake ..
-   make
+   cd ..
    ```
 
-3. 编译后的编译器二进制文件 `tokac` 将位于 `build/` 目录下。
-
-## Toka 构建工具
-
-`toka` 工具负责项目管理和增量构建。有趣的是，它本身也是一个用 Toka 语言编写的应用程序！
-
-1. 从源码构建该工具：
+3. 运行根目录下的全量编译脚本：
    ```bash
-   ./tokac tools/toka/src/main.tk > build/toka.ll
-   clang build/toka.ll -o build/toka -isysroot $(xcrun --show-sdk-path)
+   ./rebuild.sh
    ```
 
-2. 将该工具加入您的 `PATH`:
-   ```bash
-   export PATH="$PATH:$(pwd)/build"
-   ```
+编译完成后，您的编译器与包管理工具会自动输出并存放在本项目的 `build/bin` 目录下。
 
 ## 环境配置
 
-为了获得最佳体验，请将以下内容添加至您的 `.zshrc` 或 `.bashrc`:
+为了在任何地方都可以自由无感地使用 Toka，请将以下几行配置加入到您的 `.zshrc` 或者 `.bashrc` 中：
 
 ```bash
-# 指向编译器和构建工具的路径
-export PATH="$PATH:/path/to/tokalang/build"
+# 将刚刚编译出的 tokac 和 toka 所在的产物目录加入环境变量
+export PATH="/path/to/tokalang/build/bin:$PATH"
 
-# 关键：指向 Toka 标准库的路径
-export TOKA_LIB_PATH="/path/to/tokalang/lib"
+# 关键设置：让编译器及包管理工具精准地定位到标准库
+export TOKA_LIB="/path/to/tokalang/lib"
 
-# 用于链接的 Clang 编译器
-export TOKA_CLANG="/usr/local/bin/clang"
+# (可选) 指定用于底层链接的工具。默认为 macOS 原生或 /usr/local/opt/llvm@20/bin/clang
+export TOKA_CLANG="/usr/local/opt/llvm@20/bin/clang"
 ```
 
 > [!IMPORTANT]
-> 请务必确保 `TOKA_CLANG` 指向的 Clang 版本与安装 `tokac` 所使用的 LLVM 版本（目前为 LLVM 20）完全一致。
+> 请务必将 `/path/to/tokalang` 替换为您本地克隆该工程的实际完整绝对路径。
+
+## 使用包管理工具开发
+
+配置好环境变量后，您可以在任意目录直接使用原生 `toka` 命令来开发应用！
+
+### 1. 初始化新工程
+
+通过 `new` 命令可以快速生成带有标准化目录结构的工程包：
+
+```bash
+toka new my_app
+cd my_app
+```
+
+该命令将为您生成：
+- `src/main.tk`: 项目入口文件。
+- `Project.tk`: Toka 原生的声明式包管理与构建配置剧本。您可以通过在这个文件中配置依赖和包属性，纯代码化地管理整个项目。
+
+### 2. 引入第三方依赖包
+
+需要使用开源或第三方的库时，使用 `add` 命令将其注册到工程目录下的 `.tokapkg` 中：
+
+```bash
+toka add pkg.tokalang.dev/user/ansi
+```
+
+随后你就可以直接在代码中使用标准方式导入了：`import ansi::{...}`
+
+### 3. 一键编译与运行
+
+在平时开发测试时，您不需要手动操作编译器，直接在由 `Project.tk` 统控的目录下执行：
+
+```bash
+toka run
+```
+
+该命令将自动读取配置、下载拉取所有必须的依赖库，完成编译，并最终向您呈现可执行文件的运行输出！如果您只想编译出最终二进制文件而不运行，可以使用 `toka build`。

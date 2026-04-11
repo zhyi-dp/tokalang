@@ -12,9 +12,10 @@ Before installing Toka, ensure your system has the following dependencies:
 - **LLVM 20**: The Toka compiler is built on the LLVM 20 framework.
 - **Clang 20**: Required for linking the generated LLVM IR into final executables.
 - **CMake**: Version 3.15 or higher.
-- **Zsh**: Recommended for the best development experience on macOS.
 
-## Building the Compiler
+## Building the Compiler and Tools
+
+Toka provides a convenient automated build script `rebuild.sh` that compiles both the core compiler `tokac` and the native package manager `toka` at once.
 
 1. Clone the repository:
    ```bash
@@ -22,45 +23,71 @@ Before installing Toka, ensure your system has the following dependencies:
    cd tokalang
    ```
 
-2. Create a build directory and run CMake:
+2. Configure the CMake project (for the first time):
    ```bash
    mkdir build && cd build
-   mkdir src
    cmake ..
-   make
+   cd ..
    ```
 
-3. The compiler binary `tokac` will be located in `build/`.
-
-## The Toka Build Tool
-
-The `toka` tool handles project management and incremental builds. It is a Toka application itself!
-
-1. Build the tool from source:
+3. Run the complete rebuild script from the root directory:
    ```bash
-   ./tokac tools/toka/src/main.tk > build/toka.ll
-   clang build/toka.ll -o build/toka -isysroot $(xcrun --show-sdk-path)
+   ./rebuild.sh
    ```
 
-2. Add the tool to your `PATH`:
-   ```bash
-   export PATH="$PATH:$(pwd)/build"
-   ```
+After compilation, both binaries will be available in the `build/bin` directory.
 
 ## Environment Configuration
 
-For the best experience, add these to your `.zshrc` or `.bashrc`:
+To use Toka seamlessly from any directory, add these configurations to your `.zshrc` or `.bashrc`:
 
 ```bash
-# Path to the compiler and build tool
-export PATH="$PATH:/path/to/tokalang/build"
+# Add the compiler and build tool to your PATH
+export PATH="/path/to/tokalang/build/bin:$PATH"
 
-# Critical: Path to the standard library
-export TOKA_LIB_PATH="/path/to/tokalang/lib"
+# Critical: Set the exact path to the Toka standard library
+export TOKA_LIB="/path/to/tokalang/lib"
 
-# The Clang compiler to use for linking
-export TOKA_CLANG="/usr/local/bin/clang"
+# (Optional) Specify the Clang compiler to use for linking. Defaults to /usr/local/opt/llvm@20/bin/clang
+export TOKA_CLANG="/usr/local/opt/llvm@20/bin/clang"
 ```
 
 > [!IMPORTANT]
-> Ensure that `TOKA_CLANG` points to a version of Clang that matches the LLVM version of your `tokac` (currently LLVM 20).
+> Be sure to replace `/path/to/tokalang` with the actual absolute path to your cloned repository.
+
+## Developing with the Package Manager
+
+Once your environment variables are set, you can use the native `toka` CLI directly.
+
+### 1. Initialize a New Project
+
+Use the `new` command to instantly scaffold a standardized project:
+
+```bash
+toka new my_app
+cd my_app
+```
+
+This generates:
+- `src/main.tk`: The main entry point.
+- `Project.tk`: Toka's native declarative build and dependency manifest.
+
+### 2. Add Third-Party Requirements
+
+To fetch third-party libraries seamlessly, use the `add` command which registers dependencies in your local `.tokapkg` directory:
+
+```bash
+toka add pkg.tokalang.dev/user/ansi
+```
+
+Then you can import them directly in your code via `import ansi::{...}`.
+
+### 3. Build and Run 
+
+For continuous testing, simply orchestrate standard builds via:
+
+```bash
+toka run
+```
+
+This ensures required packages are downloaded, compile your source files efficiently, and instantly executes your application. Use `toka build` instead if you simply wish to compile a binary.
