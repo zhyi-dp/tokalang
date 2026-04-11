@@ -29,6 +29,8 @@ impl Printer {
 
     pub fn format(self#, lex#: Lexer) -> String {
         auto last_kind# = token::TK_UNKNOWN()
+        auto last_lexeme# = String::from("")
+        auto in_import# = false
         
         while !lex.is_eof() {
             auto t = lex#.next_token()
@@ -37,22 +39,27 @@ impl Printer {
                 break
             }
             
+            if t.lexeme.eq(String::from("import")) {
+                in_import = true
+            }
+            
             if t.kind == token::TK_WHITESPACE() {
                 // Determine if there's a newline
                 if t.lexeme.find_char(10 as char) >= 0 {
                     self.output#.push_str("\n")
                     self.needs_indent = true
+                    in_import = false // Reset state
                 } else if last_kind != token::TK_WHITESPACE() && !self.needs_indent {
                     // Only add space if we didn't just newline
                     self.output#.push_str(" ")
                 }
-                // Skip recording whitespace to last_kind because we handle spacing implicitly
+                last_kind = token::TK_WHITESPACE()
                 continue
             }
             
             // Adjust indent on closing brace BEFORE printing
             if t.kind == token::TK_DELIMITER() && t.lexeme.eq(String::from("}")) {
-                if self.indent_level > 0 {
+                if !in_import && self.indent_level > 0 {
                     self.indent_level = self.indent_level - 1
                 }
             }
@@ -63,17 +70,53 @@ impl Printer {
                 }
             }
 
+            // Automatic spacing before specific tokens
+            auto is_binary_op# = t.lexeme.eq(String::from("=")) || t.lexeme.eq(String::from("==")) || t.lexeme.eq(String::from("->")) || t.lexeme.eq(String::from("+")) || t.lexeme.eq(String::from("-")) || t.lexeme.eq(String::from("*")) || t.lexeme.eq(String::from("/")) || t.lexeme.eq(String::from("<")) || t.lexeme.eq(String::from(">")) || t.lexeme.eq(String::from("<=")) || t.lexeme.eq(String::from(">=")) || t.lexeme.eq(String::from("!=")) || t.lexeme.eq(String::from("&&")) || t.lexeme.eq(String::from("||"))
+            
+            if in_import && t.lexeme.eq(String::from("/")) {
+                is_binary_op = false
+            }
+
+            if t.kind == token::TK_OPERATOR() && is_binary_op {
+                if last_kind != token::TK_WHITESPACE() && !self.needs_indent {
+                    // Only add space if output does not already end with space or newline
+                    self.output#.push_str(" ")
+                }
+            }
+            
+            auto is_namespace_brace = last_lexeme.eq(String::from("::"))
+            
+            if t.kind == token::TK_DELIMITER() && t.lexeme.eq(String::from("{")) {
+                if !is_namespace_brace && last_kind != token::TK_WHITESPACE() && !self.needs_indent {
+                    self.output#.push_str(" ")
+                }
+            }
+
+
             // Print the lexeme
             self.output#.push_str(t.lexeme.c_str())
             
+            // Automatic spacing after specific tokens
+            if t.kind == token::TK_OPERATOR() && is_binary_op {
+                // Next iteration handles not putting double spaces due to TK_WHITESPACE ignore logic
+                self.output#.push_str(" ") 
+                last_kind = token::TK_WHITESPACE() // Trick the whitespace handler so it doesn't add another space
+            } else if t.kind == token::TK_OPERATOR() && t.lexeme.eq(String::from(",")) {
+                self.output#.push_str(" ")
+                last_kind = token::TK_WHITESPACE()
+            } else {
+                last_kind = t.kind
+            }
+            last_lexeme = t.lexeme.clone()
+            
             // Adjust indent AFTER opening brace
             if t.kind == token::TK_DELIMITER() && t.lexeme.eq(String::from("{")) {
-                self.indent_level = self.indent_level + 1
-                self.output#.push_str("\n")
-                self.needs_indent = true
+                if !is_namespace_brace {
+                    self.indent_level = self.indent_level + 1
+                    self.output#.push_str("\n")
+                    self.needs_indent = true
+                }
             }
-            
-            last_kind = t.kind
         }
         
         return self.output

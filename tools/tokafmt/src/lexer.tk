@@ -154,7 +154,24 @@ impl Lexer {
 
         // Operators & Morphology
         auto op# = String::from("")
-        op#.push_char(self.advance())
+        auto n_c = self.peek_next()
+        auto is_two# = false
+        if c == 61:char && n_c == 61:char { is_two = true }
+        if c == 33:char && n_c == 61:char { is_two = true }
+        if c == 60:char && n_c == 61:char { is_two = true }
+        if c == 62:char && n_c == 61:char { is_two = true }
+        if c == 45:char && n_c == 62:char { is_two = true }
+        if c == 61:char && n_c == 62:char { is_two = true }
+        if c == 38:char && n_c == 38:char { is_two = true }
+        if c == 124:char && n_c == 124:char { is_two = true }
+        if c == 58:char && n_c == 58:char { is_two = true }
+
+        if is_two {
+            op#.push_char(self.advance())
+            op#.push_char(self.advance())
+        } else {
+            op#.push_char(self.advance())
+        }
         return Token::new(token::TK_OPERATOR(), op, start_line, start_col)
     }
 }
