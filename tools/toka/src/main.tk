@@ -55,12 +55,20 @@ fn cmd_add(pkg_url: String) -> i32 {
         
         libc_printf("Adding package: %s\n" as *char, pkg_url.c_str())
         
-        libc_system("mkdir -p .tokapkg" as *char)
+        auto pkg_dir# = String::from(".tokapkg/")
+        pkg_dir#.push_str(pkg_alias.c_str())
         
-        auto cmd# = String::from("git clone --depth 1 https://")
+        auto mkdir_cmd# = String::from("mkdir -p ")
+        mkdir_cmd#.push_str(pkg_dir.c_str())
+        libc_system(mkdir_cmd.c_str())
+        
+        // Use pure tarball fetching instead of git clone !
+        // This simulates Cargo: downloading compression archives and stripping the top directory
+        auto cmd# = String::from("curl -sL https://")
         cmd#.push_str(pkg_url.c_str())
-        cmd#.push_str(" .tokapkg/")
-        cmd#.push_str(pkg_alias.c_str())
+        cmd#.push_str("/archive/refs/heads/main.tar.gz | tar -xz -C ")
+        cmd#.push_str(pkg_dir.c_str())
+        cmd#.push_str(" --strip-components=1")
         
         auto res# = 0
         if pkg_url.eq(String::from("pkg.tokalang.dev/zhyi/ansi")) {
