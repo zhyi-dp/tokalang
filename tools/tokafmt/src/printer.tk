@@ -31,6 +31,9 @@ impl Printer {
         auto last_kind# = token::TK_UNKNOWN()
         auto last_lexeme# = String::from("")
         auto in_import# = false
+        auto pending_space# = false
+        auto last_was_binary_op# = false
+        auto just_forced_newline# = false
         
         while !lex.is_eof() {
             auto t = lex#.next_token()
@@ -44,16 +47,36 @@ impl Printer {
             }
             
             if t.kind == token::TK_WHITESPACE() {
-                // Determine if there's a newline
-                if t.lexeme.find_char(10 as char) >= 0 {
-                    self.output#.push_str("\n")
-                    self.needs_indent = true
-                    in_import = false // Reset state
-                } else if last_kind != token::TK_WHITESPACE() && !self.needs_indent {
-                    // Only add space if we didn't just newline
-                    self.output#.push_str(" ")
+                auto nl_count# = 0
+                auto i# = 0
+                while i < t.lexeme.len() {
+                    if t.lexeme.at(i) == 10:char {
+                        nl_count = nl_count + 1
+                    }
+                    i = i + 1
                 }
-                last_kind = token::TK_WHITESPACE()
+
+                if nl_count > 0 {
+                    if just_forced_newline {
+                        nl_count = nl_count - 1
+                        just_forced_newline = false
+                    }
+                    if nl_count > 2 { nl_count = 2 } // Keep max 1 blank line
+                    auto j# = 0
+                    while j < nl_count {
+                        self.output#.push_str("\n")
+                        j = j + 1
+                    }
+                    if nl_count > 0 {
+                        self.needs_indent = true
+                    }
+                    in_import = false // Reset state
+                    pending_space = false
+                } else if !self.needs_indent {
+                    pending_space = true
+                }
+                // We do NOT update last_kind or last_lexeme heavily for WS
+                // Instead we just skip it so last_kind is the previous printable token.
                 continue
             }
             
@@ -61,53 +84,117 @@ impl Printer {
             if t.kind == token::TK_DELIMITER() && t.lexeme.eq(String::from("}")) {
                 if !in_import && self.indent_level > 0 {
                     self.indent_level = self.indent_level - 1
+                    
+                    if !self.needs_indent {
+                        self.output#.push_str("\n")
+                        self.needs_indent = true
+                        pending_space = false
+                        just_forced_newline = false
+                    }
                 }
             }
 
+            auto did_indent# = false
             if self.needs_indent {
                 if t.kind != token::TK_WHITESPACE() {
-                     self#.push_indent()
+                    // Avoid indenting if it's multiple consecutive closing braces
+                    if t.kind == token::TK_DELIMITER() && t.lexeme.eq(String::from("}")) && self.output#.ends_with(String::from("}")) {
+                        // Edge case handle? No, push_indent uses indent_level correctly.
+                    }
+                    self#.push_indent()
+                    pending_space = false
+                    did_indent = true
+                    just_forced_newline = false
                 }
             }
 
-            // Automatic spacing before specific tokens
-            auto is_binary_op# = t.lexeme.eq(String::from("=")) || t.lexeme.eq(String::from("==")) || t.lexeme.eq(String::from("->")) || t.lexeme.eq(String::from("+")) || t.lexeme.eq(String::from("-")) || t.lexeme.eq(String::from("*")) || t.lexeme.eq(String::from("/")) || t.lexeme.eq(String::from("<")) || t.lexeme.eq(String::from(">")) || t.lexeme.eq(String::from("<=")) || t.lexeme.eq(String::from(">=")) || t.lexeme.eq(String::from("!=")) || t.lexeme.eq(String::from("&&")) || t.lexeme.eq(String::from("||"))
+            auto is_binary_op# = false
+            if t.lexeme.eq(String::from("=")) || t.lexeme.eq(String::from("==")) || t.lexeme.eq(String::from("->")) || t.lexeme.eq(String::from("+")) || t.lexeme.eq(String::from("-")) || t.lexeme.eq(String::from("*")) || t.lexeme.eq(String::from("/")) || t.lexeme.eq(String::from("<")) || t.lexeme.eq(String::from(">")) || t.lexeme.eq(String::from("<=")) || t.lexeme.eq(String::from(">=")) || t.lexeme.eq(String::from("!=")) || t.lexeme.eq(String::from("&&")) || t.lexeme.eq(String::from("||")) || t.lexeme.eq(String::from("as")) {
+                is_binary_op = true
+            }
             
             if in_import && t.lexeme.eq(String::from("/")) {
                 is_binary_op = false
             }
 
-            if t.kind == token::TK_OPERATOR() && is_binary_op {
-                if last_kind != token::TK_WHITESPACE() && !self.needs_indent {
-                    // Only add space if output does not already end with space or newline
-                    self.output#.push_str(" ")
-                }
-            }
-            
-            auto is_namespace_brace = last_lexeme.eq(String::from("::"))
-            
-            if t.kind == token::TK_DELIMITER() && t.lexeme.eq(String::from("{")) {
-                if !is_namespace_brace && last_kind != token::TK_WHITESPACE() && !self.needs_indent {
-                    self.output#.push_str(" ")
+            // Pointer vs Multiplication & Unary minus vs Binary minus
+            if t.lexeme.eq(String::from("*")) || t.lexeme.eq(String::from("-")) || t.lexeme.eq(String::from("&")) || t.lexeme.eq(String::from("~")) || t.lexeme.eq(String::from("^")) {
+                if last_kind == token::TK_OPERATOR() || last_kind == token::TK_KEYWORD() || last_lexeme.eq(String::from("(")) || last_lexeme.eq(String::from("[")) || last_lexeme.eq(String::from(",")) || last_lexeme.eq(String::from("::")) || last_kind == token::TK_UNKNOWN() {
+                    is_binary_op = false
                 }
             }
 
+            auto is_namespace_brace = last_lexeme.eq(String::from("::"))
+
+            // Force space insertion requirements BEFORE the token
+            if t.kind == token::TK_OPERATOR() && is_binary_op {
+                pending_space = true
+            }
+            if t.kind == token::TK_DELIMITER() && t.lexeme.eq(String::from("{")) {
+                if !is_namespace_brace {
+                    pending_space = true
+                }
+            }
+            if t.kind == token::TK_COMMENT() {
+                if !did_indent {
+                    pending_space = true
+                }
+            }
+            if t.lexeme.eq(String::from("(")) {
+                if last_lexeme.eq(String::from("if")) || last_lexeme.eq(String::from("while")) || last_lexeme.eq(String::from("match")) || last_lexeme.eq(String::from("for")) {
+                    pending_space = true
+                }
+            }
+
+            // Consume pending space intelligently
+            if pending_space && !self.needs_indent {
+                auto should_space# = true
+                
+                // Tokens that should NOT have a preceding space
+                if t.lexeme.eq(String::from(",")) || t.lexeme.eq(String::from(";")) || t.lexeme.eq(String::from(":")) || t.lexeme.eq(String::from(")")) || t.lexeme.eq(String::from("]")) || t.lexeme.eq(String::from("#")) {
+                    should_space = false
+                }
+                if t.lexeme.eq(String::from("::")) {
+                    should_space = false
+                }
+                
+                // No space after `(`, `[`, `::`
+                if last_lexeme.eq(String::from("(")) || last_lexeme.eq(String::from("[")) || last_lexeme.eq(String::from("::")) {
+                    should_space = false
+                }
+                
+                // Tightly bind pointers and unary ops
+                if last_kind == token::TK_OPERATOR() && !last_was_binary_op {
+                    if last_lexeme.eq(String::from("*")) || last_lexeme.eq(String::from("-")) || last_lexeme.eq(String::from("&")) || last_lexeme.eq(String::from("~")) || last_lexeme.eq(String::from("^")) {
+                        should_space = false
+                    }
+                }
+                
+                // No space between function name and `(`
+                if t.lexeme.eq(String::from("(")) && last_kind == token::TK_IDENTIFIER() {
+                    should_space = false
+                }
+                
+                if should_space {
+                    self.output#.push_str(" ")
+                }
+                pending_space = false
+            }
 
             // Print the lexeme
             self.output#.push_str(t.lexeme.c_str())
             
-            // Automatic spacing after specific tokens
+            // Force space requirements AFTER the token
             if t.kind == token::TK_OPERATOR() && is_binary_op {
-                // Next iteration handles not putting double spaces due to TK_WHITESPACE ignore logic
-                self.output#.push_str(" ") 
-                last_kind = token::TK_WHITESPACE() // Trick the whitespace handler so it doesn't add another space
-            } else if t.kind == token::TK_OPERATOR() && t.lexeme.eq(String::from(",")) {
-                self.output#.push_str(" ")
-                last_kind = token::TK_WHITESPACE()
-            } else {
-                last_kind = t.kind
+                pending_space = true
             }
+            if t.kind == token::TK_DELIMITER() && (t.lexeme.eq(String::from(",")) || t.lexeme.eq(String::from(":"))) {
+                pending_space = true
+            }
+            
+            last_kind = t.kind
             last_lexeme = t.lexeme.clone()
+            last_was_binary_op = is_binary_op
             
             // Adjust indent AFTER opening brace
             if t.kind == token::TK_DELIMITER() && t.lexeme.eq(String::from("{")) {
@@ -115,6 +202,8 @@ impl Printer {
                     self.indent_level = self.indent_level + 1
                     self.output#.push_str("\n")
                     self.needs_indent = true
+                    pending_space = false
+                    just_forced_newline = true
                 }
             }
         }
