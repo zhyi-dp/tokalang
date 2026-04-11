@@ -1,4 +1,8 @@
 const vscode = require('vscode');
+const cp = require('child_process');
+const path = require('path');
+const os = require('os');
+const fs = require('fs');
 
 /**
  * @param {vscode.ExtensionContext} context
@@ -10,6 +14,13 @@ function activate(context) {
         vscode.languages.registerDocumentSymbolProvider(
             { scheme: 'file', language: 'toka' },
             new TokaDocumentSymbolProvider()
+        )
+    );
+
+    context.subscriptions.push(
+        vscode.languages.registerDocumentFormattingEditProvider(
+            { scheme: 'file', language: 'toka' },
+            new TokaDocumentFormattingProvider()
         )
     );
 }
@@ -78,6 +89,44 @@ class TokaDocumentSymbolProvider {
 }
 
 function deactivate() { }
+
+class TokaDocumentFormattingProvider {
+    provideDocumentFormattingEdits(document, options, token) {
+        return new Promise((resolve, reject) => {
+            try {
+                const text = document.getText();
+                const tempFile = path.join(os.tmpdir(), `tokafmt_${Date.now()}.tk`);
+                fs.writeFileSync(tempFile, text);
+                
+                // Assume the extension is running in a workspace where 'build/bin/tokafmt' exists
+                const projectRoot = vscode.workspace.workspaceFolders ? vscode.workspace.workspaceFolders[0].uri.fsPath : '';
+                const tokafmtPath = path.join(projectRoot, 'build', 'bin', 'tokafmt');
+                
+                if (!fs.existsSync(tokafmtPath)) {
+                    vscode.window.showErrorMessage('tokafmt not found! Please run rebuild.sh in the Toka root directory.');
+                    resolve([]);
+                    return;
+                }
+
+                cp.execSync(`"${tokafmtPath}" "${tempFile}"`);
+                
+                const formattedText = fs.readFileSync(tempFile, 'utf8');
+                fs.unlinkSync(tempFile);
+                
+                const fullRange = new vscode.Range(
+                    document.positionAt(0),
+                    document.positionAt(text.length)
+                );
+                
+                resolve([vscode.TextEdit.replace(fullRange, formattedText)]);
+            } catch (err) {
+                console.error(err);
+                vscode.window.showErrorMessage(`Toka Formatting Failed: ${err.message}`);
+                resolve([]);
+            }
+        });
+    }
+}
 
 module.exports = {
     activate,
