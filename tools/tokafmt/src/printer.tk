@@ -34,6 +34,7 @@ impl Printer {
         auto pending_space# = false
         auto last_was_binary_op# = false
         auto just_forced_newline# = false
+        auto pending_nl_count# = 0
         
         while !lex.is_eof() {
             auto t = lex#.next_token()
@@ -41,6 +42,8 @@ impl Printer {
             if t.kind == TokenKind::EOF() {
                 break
             }
+            
+            auto is_namespace_brace = last_lexeme.eq(String::from("::"))
             
             if t.lexeme.eq(String::from("import")) {
                 in_import = true
@@ -61,15 +64,7 @@ impl Printer {
                         nl_count = nl_count - 1
                         just_forced_newline = false
                     }
-                    if nl_count > 2 { nl_count = 2 } // Keep max 1 blank line
-                    auto j# = 0
-                    while j < nl_count {
-                        self.output#.push_str("\n")
-                        j = j + 1
-                    }
-                    if nl_count > 0 {
-                        self.needs_indent = true
-                    }
+                    pending_nl_count = pending_nl_count + nl_count
                     in_import = false // Reset state
                     pending_space = false
                 } else if !self.needs_indent {
@@ -80,18 +75,39 @@ impl Printer {
                 continue
             }
             
+            // Space collapsing for { and else
+            if t.kind == TokenKind::Delimiter() && t.lexeme.eq(String::from("{")) {
+                if !is_namespace_brace {
+                    pending_nl_count = 0
+                    pending_space = true
+                }
+            } else if t.kind == TokenKind::Keyword() && t.lexeme.eq(String::from("else")) {
+                pending_nl_count = 0
+                pending_space = true
+            }
+            
             // Adjust indent on closing brace BEFORE printing
             if t.kind == TokenKind::Delimiter() && t.lexeme.eq(String::from("}")) {
                 if !in_import && self.indent_level > 0 {
                     self.indent_level = self.indent_level - 1
                     
-                    if !self.needs_indent {
-                        self.output#.push_str("\n")
-                        self.needs_indent = true
-                        pending_space = false
-                        just_forced_newline = false
+                    if !self.needs_indent && pending_nl_count == 0 {
+                        pending_nl_count = 1
                     }
                 }
+            }
+
+            // Apply pending newlines
+            if pending_nl_count > 0 {
+                if pending_nl_count > 2 { pending_nl_count = 2 } // Keep max 1 blank line
+                auto j# = 0
+                while j < pending_nl_count {
+                    self.output#.push_str("\n")
+                    j = j + 1
+                }
+                self.needs_indent = true
+                pending_space = false
+                pending_nl_count = 0
             }
 
             auto did_indent# = false
@@ -124,7 +140,7 @@ impl Printer {
                 }
             }
 
-            auto is_namespace_brace = last_lexeme.eq(String::from("::"))
+
 
             // Force space insertion requirements BEFORE the token
             if t.kind == TokenKind::Operator() && is_binary_op {
@@ -200,9 +216,7 @@ impl Printer {
             if t.kind == TokenKind::Delimiter() && t.lexeme.eq(String::from("{")) {
                 if !is_namespace_brace {
                     self.indent_level = self.indent_level + 1
-                    self.output#.push_str("\n")
-                    self.needs_indent = true
-                    pending_space = false
+                    pending_nl_count = 1
                     just_forced_newline = true
                 }
             }
