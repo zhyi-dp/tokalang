@@ -52,6 +52,10 @@ impl<'K, 'V> HashMap<'K, 'V>@encap {
 }
 
 impl<'K, 'V> HashMap<'K, 'V> {
+    pub fn len(self) -> usize {
+        return self.len
+    }
+
     pub fn new() -> HashMap<'K, 'V> {
         unsafe {
             auto init_cap = 128

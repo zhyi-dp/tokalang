@@ -3,27 +3,30 @@ import std/thread::{thread_spawn, sleep_ms}
 import std/io::{println}
 
 pub fn main() -> i32 {
-    auto m = Mutex<i32>::new(0)
+    auto m# = Mutex<i32>::new(0)
+    {
     
     // Test basic lock and unlock on the main thread
-    auto lock_res = m.lock()
+    auto lock_res = m#.lock()
     if lock_res.is_err() {
         println("Lock failed")
         return 1
     }
+    auto mut_guard = lock_res.unwrap()
+    auto *mut_val# = mut_guard.get_ref()
+    // Increment the data using standard mutable reference
+    mut_val = mut_val + 10
+    println("Main thread initial data: {}", mut_val)
     
-    // Increment the data inside the interior mutable Mutex directly!
-    m.data = m.data + 10
-    println("Main thread initial data: {}", m.data)
-    
-    m.unlock().unwrap()
+    // Auto drop will unlock when mut_guard goes out of scope here
+    }
     
     auto f: fn() -> cede i32 = { =>
         sleep_ms(100:u32)
-        auto l2 = m.lock().unwrap()
-        m.data = m.data + 20
-        println("Worker thread changed data to: {}", m.data)
-        m.unlock().unwrap()
+        auto mut_guard2 = m#.lock().unwrap()
+        auto *mut_val2# = mut_guard2.get_ref()
+        mut_val2 = mut_val2 + 20
+        println("Worker thread changed data to: {}", mut_val2)
         return cede 0
     }
     auto handle# = thread_spawn<i32>(f)
@@ -31,11 +34,14 @@ pub fn main() -> i32 {
     auto join_res = handle#.join()
     join_res.unwrap()
     
-    auto l3 = m.lock().unwrap()
-    println("Main thread final data: {}", m.data)
-    
-    if m.data == 30 {
-        return 0
+    {
+        auto mut_guard3 = m#.lock().unwrap()
+        auto *mut_val3 = mut_guard3.get_ref()
+        println("Main thread final data: {}", mut_val3)
+        
+        if mut_val3 == 30 {
+            return 0
+        }
     }
     
     return 1

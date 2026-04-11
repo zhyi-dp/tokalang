@@ -103,7 +103,11 @@ pub fn main() -> i32 {
         return 1
     }
 
-    println("Final Mutex data: {}", m.data.val)
+    {
+        auto g = m#.lock().unwrap()
+        auto *val = g.get_ref()
+        println("Final Mutex data: {}", val.val)
+    }
 
     println("Stress test PASS! Reference counter didn't corrupt :)")
     return 0

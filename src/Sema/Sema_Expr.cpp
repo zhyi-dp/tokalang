@@ -2214,9 +2214,15 @@ std::shared_ptr<toka::Type> Sema::checkMemberExpr(MemberExpr *Memb) {
 
         if (membFile != sdFile) {
           // Check EncapMap
-          if (EncapMap.count(ObjType)) {
+          std::string baseObjType = ObjType;
+          if (baseObjType.find("_M_") != std::string::npos) {
+              baseObjType = baseObjType.substr(0, baseObjType.find("_M_"));
+          }
+          std::string accessType = EncapMap.count(ObjType) ? ObjType : (EncapMap.count(baseObjType) ? baseObjType : "");
+
+          if (!accessType.empty()) {
             bool accessible = false;
-            for (const auto &entry : EncapMap[ObjType]) {
+            for (const auto &entry : EncapMap[accessType]) {
               bool fieldMatches = false;
               if (entry.IsExclusion) {
                 fieldMatches = true;

@@ -34,10 +34,10 @@ impl<'T> HashSet<'T> {
     }
 
     pub fn len(self) -> usize {
-        return self.map.len
+        return self.map.len()
     }
 
     pub fn is_empty(self) -> bool {
-        return self.map.len == 0
+        return self.map.len() == 0:usize
     }
 }

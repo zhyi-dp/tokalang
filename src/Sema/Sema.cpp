@@ -498,11 +498,19 @@ void Sema::registerGlobals(Module &M) {
       if (lt != std::string::npos)
         baseName = baseName.substr(0, lt);
       GenericImplMap[baseName].push_back(Impl.get());
+      
+      if (Impl->TraitName == "encap") {
+        EncapMap[baseName] = Impl->EncapEntries;
+      }
+
       continue; // Skip standard registration for templates
     }
 
     if (Impl->TraitName == "encap") {
-      EncapMap[Impl->TypeName] = Impl->EncapEntries;
+      std::string encapBaseName = Impl->TypeName;
+      size_t lt_encap = encapBaseName.find('<');
+      if (lt_encap != std::string::npos) encapBaseName = encapBaseName.substr(0, lt_encap);
+      EncapMap[encapBaseName] = Impl->EncapEntries;
       // removed continue to allow method registration (hybrid trait)
     }
     registerImpl(Impl.get());

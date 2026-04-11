@@ -11,7 +11,7 @@ fn main() -> i32 {
         println("Locked")
         // g.get_ref() returns the address of target's data
         auto *p# = g.get_ref()
-        println("Guard target Addr is {}", g.handle as OAddr)
+
         println("Pointer Addr is {}", *p as OAddr)
         if *p != null {
             println("Data is {}", p)

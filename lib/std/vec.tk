@@ -40,6 +40,7 @@ impl<'T: @Send> Vec<'T> @Send {}
 impl<'T: @Sync> Vec<'T> @Sync {}
 
 impl<'T> Vec<'T>@encap {
+    pub(std) *
     fn drop(self#) {
         unsafe {
             if self.*buf != null {

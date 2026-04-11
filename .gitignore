@@ -1,3 +1,5 @@
+*.patch
+*.orig
 .agent
 toka.md
 Toka*.md

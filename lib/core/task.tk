@@ -12,6 +12,7 @@ pub shape TaskHandle<T>(
 )
 
 impl<T> TaskHandle<T>@encap {
+    pub(std) *
     fn drop(self#) {
         // TODO: Scheduler currently takes raw pointers without ref-counting. 
         // Destroying the coro here causes use-after-free if it's still scheduled.
