@@ -911,6 +911,13 @@ void Sema::checkStmt(Stmt *S) {
     auto targetTypeObj = checkExpr(GuardBind->Target.get());
     std::string targetType = targetTypeObj->toString();
 
+    // [New] Temporary Lifetime Extension
+    // Signal CodeGen that this target expression should have its lifetime extended
+    // to the end of the current scope (block) if it is a temporary value.
+    if (GuardBind->Target) {
+        GuardBind->Target->ExtendLifetime = true;
+    }
+
     // Check Pattern and bind variables into CurrentScope
     checkPattern(GuardBind->Pat.get(), targetType, false);
 

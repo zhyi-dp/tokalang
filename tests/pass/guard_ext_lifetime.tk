@@ -1,0 +1,63 @@
+import std/sync::{Mutex, MutexLock}
+import core/result::{Result}
+import std/io::println
+
+fn test_guard_ext() -> i32 {
+    auto m# = Mutex<i32>::new(100)
+
+    // Using guard with reference borrow ok(&g) -> lifetime extends!
+    guard auto Result::Ok(&g) = m#.lock() else {
+        println("Failed to lock!")
+        return 1
+    }
+
+    println("Lock acquired successfully.")
+    
+    // The lock MUST still be held here, and g MUST be valid to read/write!
+    auto *p# = g.get_ref()
+    if (p != 100) {
+        println("Invalid state!")
+        return 2
+    }
+    
+    p = 200
+
+    // Lock naturally released AT THE END OF THE BLOCK.
+    return 0
+}
+
+fn test_match_ext() -> i32 {
+    auto m# = Mutex<i32>::new(300)
+
+    match m#.lock() {
+        auto Result::Ok(&g) => {
+            println("Match lock acquired.")
+            auto *p# = g.get_ref()
+            p = 400
+        }
+        _ => {
+            return 1
+        }
+    }
+    
+    // Here we can re-lock since it was dropped at the end of the match arm block
+    guard auto Result::Ok(&g2) = m#.lock() else {
+        return 2
+    }
+    auto *p2# = g2.get_ref()
+    if (p2 != 400) {
+        return 3
+    }
+    return 0
+}
+
+fn main() -> i32 {
+    if (test_guard_ext() != 0) {
+        return 1
+    }
+    if (test_match_ext() != 0) {
+        return 2
+    }
+    println("All lifetime extension tests passed.")
+    return 0
+}

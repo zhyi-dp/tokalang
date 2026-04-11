@@ -119,6 +119,7 @@ PhysEntity CodeGen::genAllocExpr(const AllocExpr *ae) {
 
 void CodeGen::emitDropCascade(llvm::Value *ptrAddr, const std::string &typeName) {
   if (typeName.empty() || !ptrAddr) return;
+  std::cerr << "[DEBUG] emitDropCascade: entered for type '" << typeName << "'\n";
   
   // [NEW] Dynamic Closure (dyn fn) Drop Logic
   if (typeName.find("dyn fn(") == 0) {
@@ -186,7 +187,10 @@ void CodeGen::emitDropCascade(llvm::Value *ptrAddr, const std::string &typeName)
   if (!calledDestructor && m_Shapes.count(typeName)) {
     const ShapeDecl *sh = m_Shapes[typeName];
     llvm::StructType *st = m_StructTypes[typeName];
-    if (!st) return;
+    if (!st) {
+        std::cerr << "[DEBUG] emitDropCascade: No struct type found in m_StructTypes for '" << typeName << "'\n";
+        return;
+    }
 
     if (sh->Kind == ShapeKind::Enum) {
       llvm::Value *tagAddr = m_Builder.CreateStructGEP(st, ptrAddr, 0, "drop_tag.gep");
@@ -198,8 +202,10 @@ void CodeGen::emitDropCascade(llvm::Value *ptrAddr, const std::string &typeName)
 
       int numPayloads = 0;
       for (const auto &member : sh->Members) {
+        std::cerr << "[DEBUG] Enum " << typeName << " member " << member.Name << " has Type='" << member.Type << "' subCount=" << member.SubMembers.size() << "\n";
         if (!member.Type.empty() || !member.SubMembers.empty()) numPayloads++;
       }
+      std::cerr << "[DEBUG] Enum " << typeName << " has numPayloads=" << numPayloads << "\n";
 
       if (numPayloads > 0) {
         llvm::SwitchInst *switchInst = m_Builder.CreateSwitch(tagVal, mergeBB, numPayloads);
@@ -214,30 +220,56 @@ void CodeGen::emitDropCascade(llvm::Value *ptrAddr, const std::string &typeName)
           m_Builder.SetInsertPoint(caseBB);
           llvm::Value *payloadArrayPtr = m_Builder.CreateStructGEP(st, ptrAddr, 1, "drop_payload.gep");
 
-          std::string payloadTypeName = variant.Type;
-          if (variant.ResolvedType) {
-              payloadTypeName = variant.ResolvedType->getSoulName();
+          std::vector<std::string> payloadTypes;
+          if (!variant.SubMembers.empty()) {
+              for (const auto& f : variant.SubMembers) {
+                  std::string pt = f.Type;
+                  if (f.ResolvedType) pt = f.ResolvedType->getSoulName();
+                  payloadTypes.push_back(pt);
+              }
+          } else {
+              std::string pt = variant.Type;
+              if (variant.ResolvedType) pt = variant.ResolvedType->getSoulName();
+              if (pt != "void" && !pt.empty()) payloadTypes.push_back(pt);
           }
-          if (!payloadTypeName.empty()) {
-            bool isPointer = false;
-            std::string rawType = payloadTypeName;
-            while (!rawType.empty() && rawType[0] == '(' && rawType.back() == ')') {
-              rawType = rawType.substr(1, rawType.size() - 2);
-            }
-            if (!rawType.empty() && (rawType[0] == '*' || rawType[0] == '^' || rawType[0] == '~' || rawType[0] == '&' || rawType[0] == '#')) {
-              isPointer = true;
-            }
-            if (!isPointer) {
-              std::string memberType = Type::stripMorphology(rawType);
-              if (m_Shapes.count(memberType)) {
-                  llvm::Type *payloadIrType = resolveType(memberType, false);
-                  if (payloadIrType) {
-                      llvm::Value *typedPayload = m_Builder.CreateBitCast(payloadArrayPtr, llvm::PointerType::getUnqual(payloadIrType), "drop_cast");
-                      std::cerr << "[DEBUG] emitDropCascade: Enum Case " << variant.Name << " dropping payload " << memberType << "\n";
-                      emitDropCascade(typedPayload, memberType);
+
+          if (!payloadTypes.empty()) {
+              llvm::Type *payloadLayoutType = nullptr;
+              std::vector<llvm::Type*> fieldTypes;
+              if (!variant.SubMembers.empty()) {
+                  for (const auto& tyStr : payloadTypes) {
+                      fieldTypes.push_back(resolveType(tyStr, false));
+                  }
+                  payloadLayoutType = llvm::StructType::get(m_Context, fieldTypes, true);
+              } else {
+                  payloadLayoutType = resolveType(payloadTypes[0], false);
+              }
+
+              if (payloadLayoutType) {
+                  llvm::Value *variantAddr = m_Builder.CreateBitCast(payloadArrayPtr, llvm::PointerType::getUnqual(payloadLayoutType), "drop_cast");
+                  for (size_t k = 0; k < payloadTypes.size(); ++k) {
+                      std::string memType = payloadTypes[k];
+                      bool isPointer = false;
+                      std::string rawType = memType;
+                      while (!rawType.empty() && rawType[0] == '(' && rawType.back() == ')') {
+                        rawType = rawType.substr(1, rawType.size() - 2);
+                      }
+                      if (!rawType.empty() && (rawType[0] == '*' || rawType[0] == '^' || rawType[0] == '~' || rawType[0] == '&' || rawType[0] == '#')) {
+                        isPointer = true;
+                      }
+                      if (!isPointer) {
+                        std::string cleanType = Type::stripMorphology(rawType);
+                        if (m_Shapes.count(cleanType)) {
+                            llvm::Value *fieldAddr = variantAddr;
+                            if (payloadTypes.size() > 1 || !variant.SubMembers.empty()) {
+                                fieldAddr = m_Builder.CreateStructGEP(payloadLayoutType, variantAddr, k, "drop_field_gep");
+                            }
+                            std::cerr << "[DEBUG] emitDropCascade: Enum Case " << variant.Name << " dropping payload " << cleanType << "\n";
+                            emitDropCascade(fieldAddr, cleanType);
+                        }
+                      }
                   }
               }
-            }
           }
           m_Builder.CreateBr(mergeBB);
         }

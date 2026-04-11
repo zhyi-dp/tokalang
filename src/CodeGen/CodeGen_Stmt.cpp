@@ -464,6 +464,7 @@ void CodeGen::cleanupScopes(size_t targetDepth) {
         }
       } else if (it->HasDrop && it->Alloca) {
         std::string cleanName = it->SoulName;
+        std::cerr << "[DEBUG] cleanupScopes dropping " << it->Name << " of type " << cleanName << "\n";
         emitDropCascade(it->Alloca, cleanName);
       }
     }
@@ -497,16 +498,36 @@ llvm::Value *CodeGen::genGuardBindStmt(const GuardBindStmt *gbs) {
   llvm::AllocaInst *targetAddr = createEntryBlockAlloca(targetType, nullptr, "guard_target_addr");
   m_Builder.CreateStore(targetVal, targetAddr);
 
+  std::string baseShapeName = targetTypeStr;
+  if (baseShapeName.find('<') != std::string::npos) {
+    baseShapeName = baseShapeName.substr(0, baseShapeName.find('<'));
+  }
+
+  if (gbs->Target && gbs->Target->ExtendLifetime && !m_ScopeStack.empty()) {
+      bool hasDrop = false;
+      if (!baseShapeName.empty() && m_Shapes.count(baseShapeName)) {
+          hasDrop = true;
+      }
+      if (hasDrop) {
+          VariableScopeInfo vsi;
+          static int extendIdCount = 0;
+          vsi.Name = ".guard_ext_" + std::to_string(extendIdCount++);
+          vsi.Alloca = targetAddr;
+          vsi.AllocType = targetType;
+          vsi.IsUniquePointer = false;
+          vsi.IsShared = false;
+          vsi.HasDrop = true;
+          vsi.SoulName = targetTypeStr;
+          m_ScopeStack.back().push_back(vsi);
+      }
+  }
+
   llvm::Function *func = m_Builder.GetInsertBlock()->getParent();
   llvm::BasicBlock *contBB = llvm::BasicBlock::Create(m_Context, "guard_cont", func);
   llvm::BasicBlock *elseBB = llvm::BasicBlock::Create(m_Context, "guard_else", func);
 
   int expectedTag = -1;
   const ShapeMember *variant = nullptr;
-  std::string baseShapeName = targetTypeStr;
-  if (baseShapeName.find('<') != std::string::npos) {
-    baseShapeName = baseShapeName.substr(0, baseShapeName.find('<'));
-  }
   
   if (!baseShapeName.empty() && m_Shapes.count(baseShapeName) && m_Shapes[baseShapeName]->Kind == ShapeKind::Enum) {
     const ShapeDecl *sh = m_Shapes[baseShapeName];
@@ -535,8 +556,13 @@ llvm::Value *CodeGen::genGuardBindStmt(const GuardBindStmt *gbs) {
   llvm::BasicBlock *savedBB = m_Builder.GetInsertBlock();
   m_Builder.SetInsertPoint(elseBB);
   
+  // Notice: The manual emitDropCascade(targetAddr) was REMOVED here.
+  // We now rely on Temporary Lifetime Extension via m_ScopeStack registration
+  // OR the `else` body must properly drop it anyway if we didn't extend it.
+  // Actually, wait, if ExtendLifetime is false, then we MUST drop it.
+  
   if (!baseShapeName.empty() && m_Shapes.count(baseShapeName)) {
-      if (!m_Shapes[baseShapeName]->MangledDestructorName.empty()) {
+      if (!gbs->Target || !gbs->Target->ExtendLifetime) {
           emitDropCascade(targetAddr, targetTypeStr);
       }
   }

@@ -1937,6 +1937,10 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     std::string resultType = "void";
     std::shared_ptr<toka::Type> resultTypeObj;
 
+    if (me->Target) {
+        me->Target->ExtendLifetime = true;
+    }
+
     bool isReceiver = false;
     if (!m_ControlFlowStack.empty()) {
       isReceiver = m_ControlFlowStack.back().IsReceiver;
@@ -4778,8 +4782,21 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
 
     size_t pos = variantName.find("::");
     if (pos != std::string::npos) {
-      shapeName = resolveType(variantName.substr(0, pos));
+      std::string requestedShape = resolveType(variantName.substr(0, pos));
       variantName = variantName.substr(pos + 2);
+      
+      bool isMatch = false;
+      if (T == requestedShape) isMatch = true;
+      if (T.find(requestedShape + "_M") == 0) isMatch = true;
+      if (T.find(requestedShape + "<") == 0) isMatch = true;
+      
+      if (!isMatch) {
+          DiagnosticEngine::report(getLoc(Pat), DiagID::ERR_UNKNOWN_SHAPE_IN_PAT, requestedShape);
+          HasError = true;
+      }
+      shapeName = T;
+    } else {
+      shapeName = T;
     }
 
     if (ShapeMap.count(shapeName)) {

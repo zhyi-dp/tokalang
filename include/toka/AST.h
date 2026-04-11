@@ -75,6 +75,7 @@ public:
   std::shared_ptr<Type> ResolvedType;
   bool IsMorphicExempt = false; // [NEW] Track morphic exemption at expression level
   bool HasParens = false; // [NEW] Track explicit parentheses
+  bool ExtendLifetime = false; // [NEW] Flag for Temporary Lifetime Extension
 };
 class Stmt : public ASTNode {};
 

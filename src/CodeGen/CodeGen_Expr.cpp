@@ -1723,6 +1723,9 @@ llvm::Value *CodeGen::genNullCheck(llvm::Value *val, const ASTNode *node,
 }
 
 PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
+  // [New] Match expressions create their own temporary scope
+  m_ScopeStack.push_back({});
+
   PhysEntity targetVal_ent = genExpr(expr->Target.get());
   llvm::Value *targetVal = targetVal_ent.load(m_Builder);
   llvm::Type *targetType = targetVal->getType();
@@ -1749,11 +1752,40 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
 
   // Use the physical address if it already exists, otherwise create a temporary staging block
   llvm::Value *targetAddr = nullptr;
+  bool isNewlyAllocated = false;
   if (targetVal_ent.isAddress) {
       targetAddr = targetVal_ent.value;
   } else {
       targetAddr = createEntryBlockAlloca(targetType, nullptr, "match_target_addr");
       m_Builder.CreateStore(targetVal, targetAddr);
+      isNewlyAllocated = true;
+  }
+
+  // [New] Temporary Lifetime Extension
+  // If the target is an RValue temporary and needs its lifetime extended,
+  // register it in the current scope so it survives until the end of the block.
+  if (expr->Target && expr->Target->ExtendLifetime && isNewlyAllocated && !m_ScopeStack.empty()) {
+      bool hasDrop = false;
+      std::string baseShapeName = shapeName;
+      if (baseShapeName.find('<') != std::string::npos) {
+          baseShapeName = baseShapeName.substr(0, baseShapeName.find('<'));
+      }
+      if (!baseShapeName.empty() && m_Shapes.count(baseShapeName)) {
+          hasDrop = true;
+      }
+      
+      if (hasDrop) {
+          VariableScopeInfo vsi;
+          static int matchExtId = 0;
+          vsi.Name = ".match_ext_" + std::to_string(matchExtId++);
+          vsi.Alloca = targetAddr;
+          vsi.AllocType = targetType;
+          vsi.IsUniquePointer = false;
+          vsi.IsShared = false;
+          vsi.HasDrop = true;
+          vsi.SoulName = shapeName; // Original full shape name
+          m_ScopeStack.back().push_back(vsi);
+      }
   }
 
   llvm::Function *func = m_Builder.GetInsertBlock()->getParent();
@@ -2002,15 +2034,20 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
   // code.
   if (mergeBB->use_empty()) {
     mergeBB->eraseFromParent(); // Remove dead block
+    
+    // Compile-time only: pop the match scope
+    m_ScopeStack.pop_back();
+
     // Return dummy value since we can't be here at runtime
-    // But we need to return something valid for the caller to not crash if
-    // it uses the value type. However, if we removed the block, we have no
-    // insert point? Actually if we return nullptr, genStmt might handle it?
-    // genExpr must return a Value*. Use Undef.
     return llvm::UndefValue::get(resultType);
   }
 
   m_Builder.SetInsertPoint(mergeBB);
+  
+  // [New] Clean up match-level temporary scope
+  cleanupScopes(m_ScopeStack.size() - 1);
+  m_ScopeStack.pop_back();
+
   if (!resultAddr) {
     // Void result
     return PhysEntity(nullptr, "", llvm::Type::getVoidTy(m_Context), false);

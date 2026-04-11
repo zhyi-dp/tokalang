@@ -1,0 +1,15 @@
+import core/result::Result
+import std/io::println
+
+fn main() -> i32 {
+    auto res# = Result<i32, i32>::Ok(100)
+    
+    guard auto Result::Ok(&g) = res else {
+        return 1
+    }
+    
+    if (g == 100) {
+        return 0
+    }
+    return 2
+}
