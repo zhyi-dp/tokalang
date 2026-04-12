@@ -404,6 +404,14 @@ Token Lexer::punctuation() {
     }
     return Token{TokenType::Bang, "!", line, col};
   case '<': {
+    if (peek() == '<') {
+      bool spaceBefore = (m_Current - 2 >= m_Source) && std::isspace(m_Current[-2]);
+      bool spaceAfter = std::isspace(m_Current[1]);
+      if (spaceBefore && spaceAfter) {
+        advance();
+        return Token{TokenType::LessLess, "<<", line, col};
+      }
+    }
     if (peek() == '-') {
       advance();
       return Token{TokenType::Dependency, "<-", line, col};
@@ -420,6 +428,14 @@ Token Lexer::punctuation() {
     return Token{TokenType::GenericLT, "<", line, col};
   }
   case '>':
+    if (peek() == '>') {
+      bool spaceBefore = (m_Current - 2 >= m_Source) && std::isspace(m_Current[-2]);
+      bool spaceAfter = std::isspace(m_Current[1]);
+      if (spaceBefore && spaceAfter) {
+        advance();
+        return Token{TokenType::GreaterGreater, ">>", line, col};
+      }
+    }
     if (peek() == '=') {
       advance();
       return Token{TokenType::GreaterEqual, ">=", line, col};
