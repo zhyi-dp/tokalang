@@ -149,6 +149,9 @@ Sema::MorphKind Sema::getSyntacticMorphology(Expr *E) {
     case TokenType::Caret:
       return MorphKind::Unique;
     case TokenType::Tilde:
+      // [Toka 1.3] Bitwise NOT (~) on integer is Morph-Exempt (Value)
+      if (U->RHS && U->RHS->ResolvedType && U->RHS->ResolvedType->isInteger())
+          return MorphKind::None;
       return MorphKind::Shared;
     case TokenType::Ampersand:
       return MorphKind::Ref;
@@ -2528,6 +2531,17 @@ std::shared_ptr<toka::Type> Sema::checkUnaryExpr(UnaryExpr *Unary) {
 
   std::string rhsInfo = rhsType->toString();
 
+  // [Toka 1.3] Bitwise NOT (~) and Logical NOT (!) support
+  if (Unary->Op == TokenType::Tilde && rhsType->isInteger()) {
+      return rhsType; // Bitwise NOT on integer
+  }
+  if (Unary->Op == TokenType::KwBnot) {
+      if (!rhsType->isInteger()) {
+          error(Unary, DiagID::ERR_OPERAND_TYPE_MISMATCH, "bnot", "integer", rhsInfo);
+      }
+      return rhsType;
+  }
+
   if (Unary->Op == TokenType::Bang) {
     if (!rhsType->isBoolean()) {
       error(Unary, "operand of '!' must be bool, got '" + rhsInfo + "'");
@@ -2766,13 +2780,6 @@ std::shared_ptr<toka::Type> Sema::checkUnaryExpr(UnaryExpr *Unary) {
            }
         }
       }
-    }
-    return rhsType;
-  }
-  if (Unary->Op == TokenType::KwBnot) {
-    if (!rhsType->isInteger()) {
-      error(Unary, DiagID::ERR_OPERAND_TYPE_MISMATCH, "bnot", "integer",
-            rhsInfo);
     }
     return rhsType;
   }
@@ -3517,7 +3524,9 @@ std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
   }
 
   if (Bin->Op == "band" || Bin->Op == "bor" || Bin->Op == "bxor" ||
-      Bin->Op == "bshl" || Bin->Op == "bshr") {
+      Bin->Op == "bshl" || Bin->Op == "bshr" ||
+      Bin->Op == "&" || Bin->Op == "|" || Bin->Op == "^" ||
+      Bin->Op == "<<" || Bin->Op == ">>") {
     if (!resolveType(lhsType, true)->isInteger() ||
         !resolveType(rhsType, true)->isInteger()) {
       error(Bin, "operands of '" + Bin->Op + "' must be integers");

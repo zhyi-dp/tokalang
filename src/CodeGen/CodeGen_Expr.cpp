@@ -1111,15 +1111,15 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
     // Should have been handled above
     return nullptr;
   }
-  if (bin->Op == "band")
+  if (bin->Op == "band" || bin->Op == "&")
     return m_Builder.CreateAnd(lhs, rhs, "andtmp");
-  if (bin->Op == "bor")
+  if (bin->Op == "bor" || bin->Op == "|")
     return m_Builder.CreateOr(lhs, rhs, "ortmp");
-  if (bin->Op == "bxor")
+  if (bin->Op == "bxor" || bin->Op == "^")
     return m_Builder.CreateXor(lhs, rhs, "xortmp");
-  if (bin->Op == "bshl")
+  if (bin->Op == "bshl" || bin->Op == "<<")
     return m_Builder.CreateShl(lhs, rhs, "shltmp");
-  if (bin->Op == "bshr") {
+  if (bin->Op == "bshr" || bin->Op == ">>") {
     // Check signedness of LHS
     if (lhs->getType()->isIntegerTy()) {
       // If type implies signedness (in Toka Types, not LLVM types which are
@@ -1184,7 +1184,7 @@ PhysEntity CodeGen::genUnaryExpr(const UnaryExpr *unary) {
     return newVal;
   }
 
-  if (unary->Op == TokenType::KwBnot) {
+  if (unary->Op == TokenType::KwBnot || (unary->Op == TokenType::Tilde && unary->RHS->ResolvedType && unary->RHS->ResolvedType->isInteger())) {
     PhysEntity rhs_ent = genExpr(unary->RHS.get()).load(m_Builder);
     llvm::Value *rhs = rhs_ent.load(m_Builder);
     if (!rhs)

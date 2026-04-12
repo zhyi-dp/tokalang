@@ -157,8 +157,10 @@ enum class TokenType {
   Bang,
   Neq,
   Less,
+  LessLess,  // <<
   GenericLT, // < (no space after)
   Greater,
+  GreaterGreater, // >>
   LessEqual,
   GreaterEqual,
   PlusPlus,
@@ -246,6 +248,14 @@ inline int getPrecedence(TokenType T) {
     return 4;
   case TokenType::Or:
     return 3;
+  case TokenType::Ampersand:
+    return 10; // Same as KwBand
+  case TokenType::Pipe:
+  case TokenType::Caret:
+    return 5; // Same as KwBor/KwBxor
+  case TokenType::LessLess:
+  case TokenType::GreaterGreater:
+    return 20; // Same as KwBshl/KwBshr
   case TokenType::KwBshl:
   case TokenType::KwBshr:
     return 20; // High precedence (multiplication level)
