@@ -1994,65 +1994,54 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
       llvm::BasicBlock *nextArmBB =
           llvm::BasicBlock::Create(m_Context, "match_next", func);
 
-      // 1. Check Pattern
-      llvm::Value *cond = nullptr;
-      if (arm->Pat->PatternKind == MatchArm::Pattern::Literal) {
-        if (targetType->isIntegerTy() || targetType->isPointerTy()) {
-          llvm::Value *litVal = nullptr;
-          if (arm->Pat->Name == "true") {
-            litVal = llvm::ConstantInt::getTrue(m_Context);
-          } else if (arm->Pat->Name == "false") {
-            litVal = llvm::ConstantInt::getFalse(m_Context);
-          } else if (!arm->Pat->Name.empty() && arm->Pat->Name[0] == '\'') {
-             // Char literal
-             litVal = llvm::ConstantInt::get(targetType, arm->Pat->LiteralVal);
-          } else {
-             // Integer literal
-             litVal = llvm::ConstantInt::get(targetType, arm->Pat->LiteralVal);
+      // 1. Check Pattern (Recursive helper for value/or patterns)
+      std::function<llvm::Value *(const MatchArm::Pattern *)> genValuePatCond =
+          [&](const MatchArm::Pattern *pat) -> llvm::Value * {
+        if (pat->PatternKind == MatchArm::Pattern::Literal) {
+          if (targetType->isIntegerTy() || targetType->isPointerTy()) {
+            llvm::Value *litVal = nullptr;
+            if (pat->Name == "true") {
+              litVal = llvm::ConstantInt::getTrue(m_Context);
+            } else if (pat->Name == "false") {
+              litVal = llvm::ConstantInt::getFalse(m_Context);
+            } else if (!pat->Name.empty() && pat->Name[0] == '\'') {
+              litVal = llvm::ConstantInt::get(targetType, pat->LiteralVal);
+            } else {
+              litVal = llvm::ConstantInt::get(targetType, pat->LiteralVal);
+            }
+            return m_Builder.CreateICmpEQ(targetVal, litVal);
+          } else if (expr->Target->ResolvedType->toString() == "String" &&
+                     !pat->Name.empty() && pat->Name[0] == '"') {
+            std::string rawLit = pat->Name.substr(1, pat->Name.size() - 2);
+            auto strLit = std::make_unique<StringExpr>(rawLit);
+            strLit->ResolvedType = toka::Type::fromString("str");
+            PhysEntity litEnt = genExpr(strLit.get());
+            llvm::Value *rawPtr = litEnt.load(m_Builder);
+            if (auto *fromFn = m_Module->getFunction("String_from")) {
+              llvm::Value *otherVal = m_Builder.CreateCall(fromFn, {rawPtr});
+              llvm::Value *otherAddr = createEntryBlockAlloca(
+                  otherVal->getType(), nullptr, "match_other_addr");
+              m_Builder.CreateStore(otherVal, otherAddr);
+              if (auto *llvmFn = m_Module->getFunction("PartialEq_String_eq")) {
+                return m_Builder.CreateCall(llvmFn, {targetAddr, otherAddr});
+              }
+            }
           }
-          cond = m_Builder.CreateICmpEQ(targetVal, litVal);
-        } else if (expr->Target->ResolvedType->toString() == "String" && !arm->Pat->Name.empty() && arm->Pat->Name[0] == '"') {
-          // String literal match
-          // We need to call String::eq(target, String::from("lit"))
-          
-          // 1. Generate String::from("lit") call
-          std::string rawLit = arm->Pat->Name.substr(1, arm->Pat->Name.size() - 2);
-          auto strLit = std::make_unique<StringExpr>(rawLit);
-          strLit->ResolvedType = toka::Type::fromString("str");
-          PhysEntity litEnt = genExpr(strLit.get());
-          llvm::Value* rawPtr = litEnt.load(m_Builder);
-
-          llvm::Value* otherVal = nullptr;
-          if (auto* fromFn = m_Module->getFunction("String_from")) {
-              otherVal = m_Builder.CreateCall(fromFn, { rawPtr });
-          } else {
-              cond = m_Builder.getInt1(false);
-              continue;
+          return m_Builder.getInt1(false);
+        } else if (pat->PatternKind == MatchArm::Pattern::Or) {
+          llvm::Value *accum = m_Builder.getInt1(false);
+          for (auto &sub : pat->SubPatterns) {
+            accum = m_Builder.CreateOr(accum, genValuePatCond(sub.get()));
           }
-
-          // 1.5. Store otherVal into a temporary alloca because eq expects a pointer
-          llvm::Type* stringTy = otherVal->getType();
-          llvm::Value* otherAddr = createEntryBlockAlloca(stringTy, nullptr, "match_other_addr");
-          m_Builder.CreateStore(otherVal, otherAddr);
-
-          // 2. Call eq method: String@PartialEq::eq(targetAddr, otherAddr)
-          std::string mangledName = "PartialEq_String_eq";
-          if (auto* llvmFn = m_Module->getFunction(mangledName)) {
-              std::vector<llvm::Value*> args = { targetAddr, otherAddr };
-              cond = m_Builder.CreateCall(llvmFn, args);
-          } else {
-              cond = m_Builder.getInt1(false);
-          }
-        } else {
-          // Fail safely (match nothing)
-          cond = m_Builder.getInt1(false);
+          return accum;
+        } else if (pat->PatternKind == MatchArm::Pattern::Wildcard ||
+                   pat->PatternKind == MatchArm::Pattern::Variable) {
+          return m_Builder.getInt1(true);
         }
-      } else if (arm->Pat->PatternKind == MatchArm::Pattern::Wildcard ||
-                 arm->Pat->PatternKind == MatchArm::Pattern::Variable) {
-        cond = m_Builder.getInt1(true);
-      } else {
-        cond = m_Builder.getInt1(false);
-      }
+        return m_Builder.getInt1(false);
+      };
+
+      llvm::Value *cond = genValuePatCond(arm->Pat.get());
 
       // 2. Branch to guard-check, arm or next
       if (arm->Guard) {

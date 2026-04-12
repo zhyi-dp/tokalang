@@ -144,23 +144,9 @@ impl Printer {
 
             auto is_binary_op# = false
             match t.lexeme {
-                "=" => is_binary_op = true
-                "==" => is_binary_op = true
-                "->" => is_binary_op = true
-                "=>" => is_binary_op = true
-                "+" => is_binary_op = true
-                "-" => is_binary_op = true
-                "*" => is_binary_op = true
-                "/" => is_binary_op = true
-                "<" => is_binary_op = true
-                ">" => is_binary_op = true
-                "<=" => is_binary_op = true
-                ">=" => is_binary_op = true
-                "!=" => is_binary_op = true
-                "&&" => is_binary_op = true
-                "||" => is_binary_op = true
-                "as" => is_binary_op = true
-                "|" => is_binary_op = true
+                "=" | "==" | "->" | "=>" | "+" | "-" | "*" | "/" | "<" | ">" | "<=" | ">=" | "!=" | "&&" | "||" | "as" | "|" | "&" | "^" | "<<" | ">>" => {
+                    is_binary_op = true
+                }
                 _ => {}
             }
             
@@ -175,27 +161,7 @@ impl Printer {
 
             // Pointer vs Multiplication & Unary minus vs Binary minus
             match t.lexeme {
-                "*" => {
-                    if last_kind == TokenKind::Operator() || last_kind == TokenKind::Keyword() || last_lexeme.eq(String::from("(")) || last_lexeme.eq(String::from("[")) || last_lexeme.eq(String::from(",")) || last_lexeme.eq(String::from("::")) || last_kind == TokenKind::Unknown() {
-                        is_binary_op = false
-                    }
-                }
-                "-" => {
-                    if last_kind == TokenKind::Operator() || last_kind == TokenKind::Keyword() || last_lexeme.eq(String::from("(")) || last_lexeme.eq(String::from("[")) || last_lexeme.eq(String::from(",")) || last_lexeme.eq(String::from("::")) || last_kind == TokenKind::Unknown() {
-                        is_binary_op = false
-                    }
-                }
-                "&" => {
-                    if last_kind == TokenKind::Operator() || last_kind == TokenKind::Keyword() || last_lexeme.eq(String::from("(")) || last_lexeme.eq(String::from("[")) || last_lexeme.eq(String::from(",")) || last_lexeme.eq(String::from("::")) || last_kind == TokenKind::Unknown() {
-                        is_binary_op = false
-                    }
-                }
-                "~" => {
-                    if last_kind == TokenKind::Operator() || last_kind == TokenKind::Keyword() || last_lexeme.eq(String::from("(")) || last_lexeme.eq(String::from("[")) || last_lexeme.eq(String::from(",")) || last_lexeme.eq(String::from("::")) || last_kind == TokenKind::Unknown() {
-                        is_binary_op = false
-                    }
-                }
-                "^" => {
+                "*" | "-" | "&" | "~" | "^" => {
                     if last_kind == TokenKind::Operator() || last_kind == TokenKind::Keyword() || last_lexeme.eq(String::from("(")) || last_lexeme.eq(String::from("[")) || last_lexeme.eq(String::from(",")) || last_lexeme.eq(String::from("::")) || last_kind == TokenKind::Unknown() {
                         is_binary_op = false
                     }
@@ -219,10 +185,9 @@ impl Printer {
             }
             if t.lexeme.eq(String::from("(")) {
                 match last_lexeme {
-                    "if" => pending_space = true
-                    "while" => pending_space = true
-                    "match" => pending_space = true
-                    "for" => pending_space = true
+                    "if" | "while" | "match" | "for" => {
+                        pending_space = true
+                    }
                     _ => {}
                 }
             }
@@ -231,30 +196,25 @@ impl Printer {
             if pending_space && !self.needs_indent {
                 auto should_space# = true
                 match t.lexeme {
-                    "," => should_space = false
-                    ";" => should_space = false
-                    ":" => should_space = false
-                    ")" => should_space = false
-                    "]" => should_space = false
-                    "#" => should_space = false
+                    "," | ";" | ":" | ")" | "]" | "#" => {
+                        should_space = false
+                    }
                     _ => {}
                 }
                 if t.lexeme.eq(String::from("::")) {
                     should_space = false
                 }
                 match last_lexeme {
-                    "(" => should_space = false
-                    "[" => should_space = false
-                    "::" => should_space = false
+                    "(" | "[" | "::" => {
+                        should_space = false
+                    }
                     _ => {}
                 }
                 if last_kind == TokenKind::Operator() && !last_was_binary_op {
                     match last_lexeme {
-                        "*" => should_space = false
-                        "-" => should_space = false
-                        "&" => should_space = false
-                        "~" => should_space = false
-                        "^" => should_space = false
+                        "*" | "-" | "&" | "~" | "^" => {
+                            should_space = false
+                        }
                         _ => {}
                     }
                 }
@@ -276,8 +236,9 @@ impl Printer {
             }
             if t.kind == TokenKind::Delimiter() {
                 match t.lexeme {
-                    "," => pending_space = true
-                    ":" => pending_space = true
+                    "," | ":" => {
+                        pending_space = true
+                    }
                     _ => {}
                 }
             }

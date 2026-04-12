@@ -4767,6 +4767,16 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
     break;
   }
 
+  case MatchArm::Pattern::Or: {
+    for (auto &sub : Pat->SubPatterns) {
+      checkPattern(sub.get(), TargetType, false);
+      if (sub->PatternKind == MatchArm::Pattern::Variable) {
+          error(sub.get(), "Or-patterns currently do not support variable bindings. Use literals or _ instead.");
+      }
+    }
+    break;
+  }
+
   case MatchArm::Pattern::Wildcard:
     break;
 

@@ -793,14 +793,14 @@ public:
 class MatchArm {
 public:
   struct Pattern : public ASTNode {
-    enum Kind { Literal, Variable, Decons, Wildcard };
+    enum Kind { Literal, Variable, Decons, Wildcard, Or };
     Kind PatternKind;
     std::string Name;        // For Variable/Decons (e.g., "Maybe::One")
     uint64_t LiteralVal = 0; // For Literal
     bool IsReference = false;
     bool IsValueMutable = false;
     bool IsValueBlocked = false;
-    std::vector<std::unique_ptr<Pattern>> SubPatterns; // For Decons
+    std::vector<std::unique_ptr<Pattern>> SubPatterns; // For Decons and Or
 
     Pattern(Kind k) : PatternKind(k) {}
     std::string toString() const override {
@@ -821,6 +821,15 @@ public:
       }
       case Wildcard:
         return "_";
+      case Or: {
+        std::string s = "";
+        for (size_t i = 0; i < SubPatterns.size(); ++i) {
+          if (i > 0)
+            s += " | ";
+          s += SubPatterns[i]->toString();
+        }
+        return s;
+      }
       }
       return "";
     }
