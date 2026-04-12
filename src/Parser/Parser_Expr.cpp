@@ -34,6 +34,7 @@ std::unique_ptr<MatchArm::Pattern> Parser::parsePattern() {
   if (check(TokenType::Integer) || check(TokenType::String) ||
       check(TokenType::KwTrue) || check(TokenType::KwFalse)) {
     auto p = std::make_unique<MatchArm::Pattern>(MatchArm::Pattern::Literal);
+    p->Loc = peek().Loc;
     p->Name = advance().Text;
     if (previous().Kind == TokenType::Integer) {
       try {
@@ -88,6 +89,7 @@ std::unique_ptr<MatchArm::Pattern> Parser::parsePattern() {
       }
       consume(TokenType::RParen, "Expected ')' after subpatterns");
       auto p = std::make_unique<MatchArm::Pattern>(MatchArm::Pattern::Decons);
+      p->Loc = nameTok.Loc;
       p->Name = name;
       p->SubPatterns = std::move(subs);
       p->IsReference = isRef;
@@ -95,6 +97,7 @@ std::unique_ptr<MatchArm::Pattern> Parser::parsePattern() {
     }
 
     auto p = std::make_unique<MatchArm::Pattern>(MatchArm::Pattern::Variable);
+    p->Loc = nameTok.Loc;
     p->Name = name;
     p->IsReference = isRef;
     p->IsValueMutable = nameTok.HasWrite;

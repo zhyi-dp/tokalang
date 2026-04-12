@@ -4721,9 +4721,42 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
   }
 
   switch (Pat->PatternKind) {
-  case MatchArm::Pattern::Literal:
-    // Literal patterns don't bind variables
+  case MatchArm::Pattern::Literal: {
+    // Literal patterns don't bind variables, but we must check types.
+    // Pat->Name contains the raw text of the literal (Integer, String, true, false)
+    std::shared_ptr<toka::Type> litType;
+    if (Pat->Name == "true" || Pat->Name == "false") {
+      litType = toka::Type::fromString("bool");
+    } else if (!Pat->Name.empty() && Pat->Name[0] == '"') {
+      litType = toka::Type::fromString("String");
+    } else if (!Pat->Name.empty() && Pat->Name[0] == '\'') {
+      litType = toka::Type::fromString("char");
+    } else {
+      // Assume integer for now (Parser sets LiteralVal for these)
+      // We'll use the target type to disambiguate if it's an integer type
+      auto targetObj = toka::Type::fromString(T);
+      if (targetObj && targetObj->isInteger()) {
+        litType = targetObj;
+      } else {
+        litType = toka::Type::fromString("i32");
+      }
+    }
+
+    auto targetObj = toka::Type::fromString(T);
+    if (targetObj && litType && !isTypeCompatible(targetObj, litType)) {
+      error(Pat, DiagID::ERR_TYPE_MISMATCH, litType->toString(), T);
+    }
+
+    // Trait Check: If it's not a primitive, it must implement @PartialEq
+    if (targetObj && !targetObj->isInteger() && !targetObj->isBoolean()) {
+        std::string resolvedTarget = resolveType(T);
+        std::string implKey = resolvedTarget + "@PartialEq";
+        if (ImplMap.find(implKey) == ImplMap.end()) {
+            error(Pat, DiagID::ERR_TRAIT_NOT_FOUND, "@PartialEq", T);
+        }
+    }
     break;
+  }
 
   case MatchArm::Pattern::Wildcard:
     break;
