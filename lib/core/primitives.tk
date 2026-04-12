@@ -13,6 +13,32 @@ impl i32@PartialEq {
     }
 }
 
+// u32 Implementation
+impl u32@Hash {
+    pub fn hash(self) -> u64 {
+        return self as u64
+    }
+}
+
+impl u32@PartialEq {
+    pub fn eq(self, other: u32) -> bool {
+        return self == other
+    }
+}
+
+// i64 Implementation
+impl i64@Hash {
+    pub fn hash(self) -> u64 {
+        return self as u64
+    }
+}
+
+impl i64@PartialEq {
+    pub fn eq(self, other: i64) -> bool {
+        return self == other
+    }
+}
+
 // u64 Implementation
 impl u64@Hash {
     pub fn hash(self) -> u64 {
@@ -26,6 +52,20 @@ impl u64@PartialEq {
     }
 }
 
+// bool Implementation
+impl bool@Hash {
+    pub fn hash(self) -> u64 {
+        if self { return 1:u64 }
+        return 0:u64
+    }
+}
+
+impl bool@PartialEq {
+    pub fn eq(self, other: bool) -> bool {
+        return self == other
+    }
+}
+
 // char Implementation
 impl char@Hash {
     pub fn hash(self) -> u64 {
@@ -35,6 +75,20 @@ impl char@Hash {
 
 impl char@PartialEq {
     pub fn eq(self, other: char) -> bool {
+        return self == other
+    }
+}
+
+// f64 Implementation (PartialEq only, no Hash for floats usually)
+impl f64@PartialEq {
+    pub fn eq(self, other: f64) -> bool {
+        return self == other
+    }
+}
+
+// f32 Implementation
+impl f32@PartialEq {
+    pub fn eq(self, other: f32) -> bool {
         return self == other
     }
 }

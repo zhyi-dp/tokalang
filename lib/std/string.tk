@@ -17,7 +17,7 @@
 // ==========================================
 
 import core/types::{char, usize, Addr, ADDR0}
-import core/traits::{@encap, @Hash}
+import core/traits::{@encap, @Hash, @PartialEq}
 import core/libc::*
 
 
@@ -292,22 +292,6 @@ impl String {
             b[self.len - 1] = 0:char
             self.len = self.len - 1
             return last_char
-        }
-    }
-
-    pub fn eq(self, other: String) -> bool {
-        unsafe {
-            if self.len != other.len() { return false }
-            auto i# = 0
-            auto *b1 = self.c_str()
-            auto *b2 = other.c_str()
-            while i < self.len {
-                auto *p1 = (b1 as usize + i as usize) as *char
-                auto *p2 = (b2 as usize + i as usize) as *char
-                if *p1 != *p2 { return false }
-                i = i + 1
-            }
-            return true
         }
     }
 
@@ -677,6 +661,24 @@ impl String@Hash {
                 i = i + 1
             }
             return hash
+        }
+    }
+}
+
+impl String@PartialEq {
+    pub fn eq(self, other: String) -> bool {
+        unsafe {
+            if self.len != other.len() { return false }
+            auto i# = 0
+            auto *b1 = self.c_str()
+            auto *b2 = other.c_str()
+            while i < self.len {
+                auto *p1 = (b1 as usize + i as usize) as *char
+                auto *p2 = (b2 as usize + i as usize) as *char
+                if *p1 != *p2 { return false }
+                i = i + 1
+            }
+            return true
         }
     }
 }
