@@ -47,6 +47,7 @@ export default defineConfig({
 						{ label: 'Pointer Morphology', translations: { 'zh-CN': '指针形态与帽氏法则' }, slug: 'concepts/pointers' },
 						{ label: 'Ownership & RAII', translations: { 'zh-CN': '所有权与 RAII' }, slug: 'concepts/ownership' },
 						{ label: 'Soul vs Identity', translations: { 'zh-CN': '灵与壳 (Soul vs Identity)' }, slug: 'concepts/soul-identity' },
+						{ label: 'Pattern Matching', translations: { 'zh-CN': '模式匹配 (Match)' }, slug: 'concepts/pattern-matching' },
 					],
 				},
 				{

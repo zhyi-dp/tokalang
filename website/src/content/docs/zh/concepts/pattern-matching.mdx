@@ -1,0 +1,77 @@
+---
+title: 模式匹配
+description: 掌握 Toka 的 match 表达式
+---
+
+模式匹配是 Toka 最具表达力的特性之一。`match` 表达式允许你解构复杂的数据形状（Shapes）、处理枚举变体，并进行高效的值比较。
+
+## 基本语法
+
+`match` 表达式将目标值与一系列模式进行比对，并执行第一个匹配的分支。
+
+```toka
+match value {
+    Pattern1 => expression_or_block,
+    Pattern2 => { 
+        // 块语法
+    },
+    _ => fallback // 通配符（通吃分支）
+}
+```
+
+## 支持的模式
+
+### 1. 枚举解构
+Toka 擅长解构 `shape` 枚举。你可以将变体内部的值绑定到新的变量。
+
+```toka
+shape Result(Ok(i32) | Err(String))
+
+fn handle(res: Result) {
+    match res {
+        Ok(val) => println("值: {}", val),
+        Err(msg) => println("错误: {}", msg)
+    }
+}
+```
+
+### 2. 值匹配 (字面量)
+你可以直接匹配整数、布尔值以及 **字符串 (String)**。
+
+```toka
+match status_code {
+    200 => println("OK"),
+    404 => println("Not Found"),
+    _ => println("Unknown")
+}
+
+match username {
+    "admin" => println("超级管理员"),
+    _ => println("普通用户")
+}
+```
+
+### 3. 或模式 (`|`)
+你可以使用 `|` 运算符在一个分支中合并多个模式。
+
+```toka
+match char {
+    'a' | 'e' | 'i' | 'o' | 'u' => println("元音"),
+    _ => println("辅音")
+}
+```
+
+## 详尽性检查
+Toka 编译器强制执行 **详尽性检查**。
+- 对于非枚举类型，必须提供通配符分支 (`_`) 以确保所有可能的值都被处理。
+- 对于枚举类型，编译器会确保你已经覆盖了定义中的所有变体。
+
+## 守卫 (Guards)
+你可以使用 `if` 守卫为分支增加额外的过滤条件。
+
+```toka
+match x {
+    val if val > 100 => println("大数"),
+    _ => println("小数")
+}
+```

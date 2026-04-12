@@ -1,21 +1,21 @@
 ---
 title: Introduction
-description: What is Toka Lang?
+description: What is Toka?
 ---
 
 Toka is a modern systems programming language designed for **performance, safety, and conciseness**. It bridges the gap between high-level productivity and low-level control through its unique **Attribute Token System** and **Pointer Morphology**.
 
-## Key Philosophy
+## Core Philosophy
 
-Toka is built on several "Iron Laws" that make the code predictable and visually distinct.
+Toka is built on a few "Hard Rules" that make code visually predictable and highly distinguishable.
 
-### 1. The Hat Principle (Soul vs. Handle)
-Unlike C or Rust, Toka treats the variable name as the **Soul** (the value itself). Accessing a pointer variable `p` automatically gives you the data. To operate on the **Handle** (the pointer address), you "put on a hat" using symbols like `^`, `~`, `&`, or `*`.
+### 1. The Hat Principle (Soul & Identity)
+Unlike C or Rust, Toka treats variable names as the **Soul (Value)**. Accessing a pointer variable `p` automatically dereferences it to its data. To operate on the **Identity (Address)**, you must "put a hat on it" using a sigil like `^`, `~`, `&`, or `*`.
 
-- `p = value` (Modifies the data pointed to by p - Soul operation)
-- `^p = ^q` (Rebinds the pointer p to a new address - Handle operation)
+- `p = value` (Modify data pointed by p - Soul operation)
+- `^p = ^q` (Rebind pointer p to a new identity - Identity operation)
 
-### 2. Syntactic Attributes
+### 2. Conciseness with Attribute Tokens
 Toka uses concise tokens to define mutability and nullability. These are discrete dimensions:
 
 - `#` (Suffix to name): **Soul Mutability** (e.g., `auto x# = 10`)
@@ -29,9 +29,23 @@ Toka's Pointer Morphology defines ownership and lifetime:
 - `~T`: **Shared** ownership (Reference Counting).
 - `&T`: **Borrowed** access.
 
-## A Quick Taste of Toka
+## Modern Features
 
-Toka uses named arguments for initialization and a unique `for-or` loop.
+### Pattern Matching
+Powerful `match` expressions support Enums, Strings, Integers, and **Or-Patterns** (`|`).
+
+```toka
+match result {
+    Ok(val) => println("Success"),
+    Err("timeout" | "disconnected") => println("Retry required"),
+    _ => println("Fatal error")
+}
+```
+
+### Standard Bitwise Operators
+Standard C-style symbols for bitwise logic: `&`, `|`, `^`, `~`, `<<`, `>>`.
+
+## A Quick Taste of Toka
 
 ```toka
 import std/io::println
@@ -53,7 +67,7 @@ pub fn main() -> i32 {
     // Initializing a shape
     auto r = Rect(width = 10, height = 20)
     println("Area: {}", r.area())
-    
+
     // Arrays and for-or
     auto list = [1, 2, 3]
     for x in list {
@@ -61,10 +75,10 @@ pub fn main() -> i32 {
     } or {
         println("List is empty!")
     }
-    
+
     return 0
 }
 ```
 
-Toka is built for developers who want the power of C++ with the safety of Rust and the beauty of a modern syntax.
+<p class="slogan">Toka is built for developers who want the power of C++ with the safety of Rust and the beauty of a modern syntax.</p>
 ---

@@ -1,0 +1,75 @@
+---
+title: Pattern Matching
+description: Mastering match expressions in Toka
+---
+
+Pattern matching is one of Toka's most expressive features. The `match` expression allows you to destructure complex data shapes, handle enum variants, and perform efficient value comparisons.
+
+## Basic Syntax
+
+A `match` expression compares a target value against a series of patterns. The first matching arm is executed.
+
+```toka
+match value {
+    Pattern1 => expression_or_block,
+    Pattern2 => { 
+        // block syntax
+    },
+    _ => fallback // Wildcard
+}
+```
+
+## Supported Patterns
+
+### 1. Enum Destructuring
+Toka excels at destructuring `shape` enums. You can bind internal values to new variables.
+
+```toka
+shape Result(Ok(i32) | Err(String))
+
+fn handle(res: Result) {
+    match res {
+        Ok(val) => println("Value: {}", val),
+        Err(msg) => println("Error: {}", msg)
+    }
+}
+```
+
+### 2. Value Matching (Literals)
+You can match directly against integers, booleans, and **Strings**.
+
+```toka
+match status_code {
+    200 => println("OK"),
+    404 => println("Not Found"),
+    _ => println("Unknown")
+}
+
+match username {
+    "admin" => println("Root Access"),
+    _ => println("User Access")
+}
+```
+
+### 3. Or-Patterns (`|`)
+You can combine multiple patterns into a single arm using the `|` operator.
+
+```toka
+match char {
+    'a' | 'e' | 'i' | 'o' | 'u' => println("Vowel"),
+    _ => println("Consonant")
+}
+```
+
+## Exhaustiveness
+Toka's compiler enforces **exhaustiveness checking**. For non-enum types, a wildcard branch (`_`) is mandatory to ensure all possible values are handled. For enums, the compiler ensures all variants are covered.
+
+## Guards
+You can add extra conditions to an arm using an `if` guard.
+
+```toka
+match x {
+    val if val > 100 => println("Large"),
+    _ => println("Small")
+}
+```
