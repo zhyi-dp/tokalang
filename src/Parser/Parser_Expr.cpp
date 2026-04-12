@@ -35,10 +35,16 @@ std::unique_ptr<MatchArm::Pattern> Parser::parsePattern() {
       check(TokenType::KwTrue) || check(TokenType::KwFalse)) {
     auto p = std::make_unique<MatchArm::Pattern>(MatchArm::Pattern::Literal);
     p->Loc = peek().Loc;
-    p->Name = advance().Text;
-    if (previous().Kind == TokenType::Integer) {
+    Token t = advance();
+    if (t.Kind == TokenType::String) {
+      p->Name = "\"" + t.Text + "\"";
+    } else {
+      p->Name = t.Text;
+    }
+    
+    if (t.Kind == TokenType::Integer) {
       try {
-        p->LiteralVal = std::stoull(previous().Text, nullptr, 0);
+        p->LiteralVal = std::stoull(t.Text, nullptr, 0);
       } catch (...) {
         p->LiteralVal = 0;
       }

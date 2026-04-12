@@ -1997,10 +1997,52 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
       // 1. Check Pattern
       llvm::Value *cond = nullptr;
       if (arm->Pat->PatternKind == MatchArm::Pattern::Literal) {
-        if (targetType->isIntOrIntVectorTy() ||
-            targetType->isPtrOrPtrVectorTy()) {
-          cond = m_Builder.CreateICmpEQ(
-              targetVal, m_Builder.getInt32(arm->Pat->LiteralVal));
+        if (targetType->isIntegerTy() || targetType->isPointerTy()) {
+          llvm::Value *litVal = nullptr;
+          if (arm->Pat->Name == "true") {
+            litVal = llvm::ConstantInt::getTrue(m_Context);
+          } else if (arm->Pat->Name == "false") {
+            litVal = llvm::ConstantInt::getFalse(m_Context);
+          } else if (!arm->Pat->Name.empty() && arm->Pat->Name[0] == '\'') {
+             // Char literal
+             litVal = llvm::ConstantInt::get(targetType, arm->Pat->LiteralVal);
+          } else {
+             // Integer literal
+             litVal = llvm::ConstantInt::get(targetType, arm->Pat->LiteralVal);
+          }
+          cond = m_Builder.CreateICmpEQ(targetVal, litVal);
+        } else if (expr->Target->ResolvedType->toString() == "String" && !arm->Pat->Name.empty() && arm->Pat->Name[0] == '"') {
+          // String literal match
+          // We need to call String::eq(target, String::from("lit"))
+          
+          // 1. Generate String::from("lit") call
+          std::string rawLit = arm->Pat->Name.substr(1, arm->Pat->Name.size() - 2);
+          auto strLit = std::make_unique<StringExpr>(rawLit);
+          strLit->ResolvedType = toka::Type::fromString("str");
+          PhysEntity litEnt = genExpr(strLit.get());
+          llvm::Value* rawPtr = litEnt.load(m_Builder);
+
+          llvm::Value* otherVal = nullptr;
+          if (auto* fromFn = m_Module->getFunction("String_from")) {
+              otherVal = m_Builder.CreateCall(fromFn, { rawPtr });
+          } else {
+              cond = m_Builder.getInt1(false);
+              continue;
+          }
+
+          // 1.5. Store otherVal into a temporary alloca because eq expects a pointer
+          llvm::Type* stringTy = otherVal->getType();
+          llvm::Value* otherAddr = createEntryBlockAlloca(stringTy, nullptr, "match_other_addr");
+          m_Builder.CreateStore(otherVal, otherAddr);
+
+          // 2. Call eq method: String@PartialEq::eq(targetAddr, otherAddr)
+          std::string mangledName = "PartialEq_String_eq";
+          if (auto* llvmFn = m_Module->getFunction(mangledName)) {
+              std::vector<llvm::Value*> args = { targetAddr, otherAddr };
+              cond = m_Builder.CreateCall(llvmFn, args);
+          } else {
+              cond = m_Builder.getInt1(false);
+          }
         } else {
           // Fail safely (match nothing)
           cond = m_Builder.getInt1(false);
