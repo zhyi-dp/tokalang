@@ -68,7 +68,7 @@ extern fn libc_strdup(*s: char) -> *char
 extern fn libc_sprintf(*dest: char, *format: char, ...) -> usize
 extern fn libc_snprintf(*dest: char, size: usize, *format: char, ...) -> i32
 
-// Math
+// Math (Double Precision - f64)
 extern fn libc_sin(x: f64) -> f64
 extern fn libc_cos(x: f64) -> f64
 extern fn libc_tan(x: f64) -> f64
@@ -94,6 +94,32 @@ extern fn libc_trunc(x: f64) -> f64
 extern fn libc_fmod(x: f64, y: f64) -> f64
 extern fn libc_abs(n: i32) -> i32
 extern fn libc_fabs(x: f64) -> f64
+
+// Math (Single Precision - f32)
+extern fn libc_sinf(x: f32) -> f32
+extern fn libc_cosf(x: f32) -> f32
+extern fn libc_tanf(x: f32) -> f32
+extern fn libc_asinf(x: f32) -> f32
+extern fn libc_acosf(x: f32) -> f32
+extern fn libc_atanf(x: f32) -> f32
+extern fn libc_atan2f(y: f32, x: f32) -> f32
+extern fn libc_sinhf(x: f32) -> f32
+extern fn libc_coshf(x: f32) -> f32
+extern fn libc_tanhf(x: f32) -> f32
+extern fn libc_sqrtf(x: f32) -> f32
+extern fn libc_cbrtf(x: f32) -> f32
+extern fn libc_hypotf(x: f32, y: f32) -> f32
+extern fn libc_powf(x: f32, y: f32) -> f32
+extern fn libc_logf(x: f32) -> f32
+extern fn libc_log10f(x: f32) -> f32
+extern fn libc_log2f(x: f32) -> f32
+extern fn libc_expf(x: f32) -> f32
+extern fn libc_ceilf(x: f32) -> f32
+extern fn libc_floorf(x: f32) -> f32
+extern fn libc_roundf(x: f32) -> f32
+extern fn libc_truncf(x: f32) -> f32
+extern fn libc_fmodf(x: f32, y: f32) -> f32
+extern fn libc_fabsf(x: f32) -> f32
 extern fn libc_isnan(x: f64) -> i32
 extern fn libc_isinf(x: f64) -> i32
 extern fn libc_isfinite(x: f64) -> i32

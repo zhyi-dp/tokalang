@@ -1,7 +1,7 @@
 // Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
 import core/libc
 
-// --- Constants (Workaround for compiler const import bug) ---
+// --- Constants (Double Precision - f64) ---
 const _PI: f64    = 3.14159265358979323846
 const _TAU: f64   = 6.28318530717958647692
 const _E: f64     = 2.71828182845904523536
@@ -12,8 +12,11 @@ pub fn TAU() -> f64 { return _TAU }
 pub fn E() -> f64 { return _E }
 pub fn SQRT2() -> f64 { return _SQRT2 }
 
-// --- Public API (Floating Point) ---
-// We use 'f' prefix to avoid collision with C symbols and prevent recursion.
+// --- Constants (Single Precision - f32) ---
+pub fn PI32() -> f32 { return 3.14159265:f32 }
+pub fn E32() -> f32 { return 2.71828183:f32 }
+
+// --- Public API (Double Precision - f64) ---
 
 pub fn fsin(x: f64) -> f64 { unsafe { return libc::libc_sin(x) } }
 pub fn fcos(x: f64) -> f64 { unsafe { return libc::libc_cos(x) } }
@@ -27,10 +30,26 @@ pub fn flog(x: f64) -> f64 { unsafe { return libc::libc_log(x) } }
 pub fn fpow(x: f64, y: f64) -> f64 { unsafe { return libc::libc_pow(x, y) } }
 pub fn ffabs(x: f64) -> f64 { unsafe { return libc::libc_fabs(x) } }
 
+// --- Public API (Single Precision - f32) ---
+
+pub fn fsin32(x: f32) -> f32 { unsafe { return libc::libc_sinf(x) } }
+pub fn fcos32(x: f32) -> f32 { unsafe { return libc::libc_cosf(x) } }
+pub fn ftan32(x: f32) -> f32 { unsafe { return libc::libc_tanf(x) } }
+pub fn fasin32(x: f32) -> f32 { unsafe { return libc::libc_asinf(x) } }
+pub fn facos32(x: f32) -> f32 { unsafe { return libc::libc_acosf(x) } }
+pub fn fatan32(x: f32) -> f32 { unsafe { return libc::libc_atanf(x) } }
+pub fn fatan2_32(y: f32, x: f32) -> f32 { unsafe { return libc::libc_atan2f(y, x) } }
+pub fn fsqrt32(x: f32) -> f32 { unsafe { return libc::libc_sqrtf(x) } }
+pub fn flog32(x: f32) -> f32 { unsafe { return libc::libc_logf(x) } }
+pub fn fpow32(x: f32, y: f32) -> f32 { unsafe { return libc::libc_powf(x, y) } }
+pub fn ffabs32(x: f32) -> f32 { unsafe { return libc::libc_fabsf(x) } }
+
+// --- Common Tools ---
+
 pub fn degrees(r: f64) -> f64 { return r * 180.0 / _PI }
 pub fn radians(d: f64) -> f64 { return d * _PI / 180.0 }
 
-// --- Generic Utilities (Support i32, i64, f64, etc.) ---
+// --- Generic Utilities (Support i32, i64, f64, f32, etc.) ---
 
 pub fn abs<T>(val: T) -> T {
     if val < (0 as T) { return (0 as T) - val }
@@ -53,7 +72,7 @@ pub fn clamp<T>(val: T, min_val: T, max_val: T) -> T {
     return val
 }
 
-pub fn lerp(a: f64, b: f64, t: f64) -> f64 {
+pub fn lerp<T>(a: T, b: T, t: T) -> T {
     return a + (b - a) * t
 }
 
@@ -74,9 +93,11 @@ pub fn lcm<T>(a: T, b: T) -> T {
 }
 
 // --- Status ---
-pub fn is_nan(x: f64) -> bool { return x != x }
+pub fn is_nan<T>(x: T) -> bool { return x != x }
+
 pub fn is_inf(x: f64) -> bool {
     auto inf = 1.0 / 0.0
     return x == inf || x == (0.0 - inf)
 }
-pub fn is_finite(x: f64) -> bool { return !is_nan(x) && !is_inf(x) }
+
+pub fn is_finite(x: f64) -> bool { return !is_nan<f64>(x) && !is_inf(x) }
