@@ -98,3 +98,29 @@ pub const LIMITS = (
 )
 
 pub shape SourceLoc(file: str, line: i32)
+
+pub shape view_str(
+    *buf$: [char], //$ inner immutable
+    len$: i32      ////$ inner immutable
+)
+
+impl view_str@encap {
+    fn drop(self) {
+        //do nothing
+    }
+    pub fn clone(self) -> view_str {
+        return view_str(*buf = self.*buf, len = self.len)
+    }
+}
+
+impl view_str {
+    pub fn raw(self) -> *[char] {
+        return self.*buf
+    }
+    pub fn raw_addr(self) -> Addr {
+        return self.*buf as Addr
+    }
+    pub fn len(self) -> i32 {
+        return self.len
+    }
+}
