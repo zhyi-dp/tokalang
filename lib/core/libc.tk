@@ -72,12 +72,31 @@ extern fn libc_snprintf(*dest: char, size: usize, *format: char, ...) -> i32
 extern fn libc_sin(x: f64) -> f64
 extern fn libc_cos(x: f64) -> f64
 extern fn libc_tan(x: f64) -> f64
+extern fn libc_asin(x: f64) -> f64
+extern fn libc_acos(x: f64) -> f64
+extern fn libc_atan(x: f64) -> f64
+extern fn libc_atan2(y: f64, x: f64) -> f64
+extern fn libc_sinh(x: f64) -> f64
+extern fn libc_cosh(x: f64) -> f64
+extern fn libc_tanh(x: f64) -> f64
 extern fn libc_sqrt(x: f64) -> f64
+extern fn libc_cbrt(x: f64) -> f64
+extern fn libc_hypot(x: f64, y: f64) -> f64
 extern fn libc_pow(x: f64, y: f64) -> f64
 extern fn libc_log(x: f64) -> f64
+extern fn libc_log10(x: f64) -> f64
+extern fn libc_log2(x: f64) -> f64
 extern fn libc_exp(x: f64) -> f64
+extern fn libc_ceil(x: f64) -> f64
+extern fn libc_floor(x: f64) -> f64
+extern fn libc_round(x: f64) -> f64
+extern fn libc_trunc(x: f64) -> f64
+extern fn libc_fmod(x: f64, y: f64) -> f64
 extern fn libc_abs(n: i32) -> i32
 extern fn libc_fabs(x: f64) -> f64
+extern fn libc_isnan(x: f64) -> i32
+extern fn libc_isinf(x: f64) -> i32
+extern fn libc_isfinite(x: f64) -> i32
 
 // System/Process
 extern fn libc_gettimeofday(*tv: void, *tz: void) -> i32

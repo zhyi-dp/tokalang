@@ -1,0 +1,30 @@
+// Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
+import std/math::{PI, E, fsin, fcos, abs, gcd, lcm, min, max, clamp}
+import std/io::{println}
+
+fn main() -> i32 {
+    println("--- Math Library Test (Generic Edition) ---")
+
+    // 1. Generic abs
+    assert(abs<i32>(0 - 10) == 10, "abs<i32>")
+    assert(abs<f64>(0.0 - 3.14) == 3.14, "abs<f64>")
+    
+    // 2. Generic min/max
+    assert(min<i32>(10, 20) == 10, "min<i32>")
+    assert(max<f64>(1.1, 2.2) == 2.2, "max<f64>")
+
+    // 3. Generic clamp
+    assert(clamp<i32>(50, 0, 10) == 10, "clamp high")
+    assert(clamp<f64>(0.5, 0.0, 1.0) == 0.5, "clamp mid")
+
+    // 4. Generic gcd/lcm
+    assert(gcd<i32>(48, 18) == 6, "gcd<i32>")
+    assert(lcm<i32>(4, 6) == 12, "lcm<i32>")
+
+    // 5. Floating Point (with prefix)
+    assert(fsin(PI() / 2.0) == 1.0, "fsin")
+    assert(fcos(0.0) == 1.0, "fcos")
+
+    println("All Generic Math Tests Passed!")
+    return 0
+}
