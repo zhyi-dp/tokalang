@@ -1,7 +1,7 @@
 // Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
 import core/libc
 
-// --- Constants (Double Precision - f64) ---
+// --- Constants ---
 const _PI: f64    = 3.14159265358979323846
 const _TAU: f64   = 6.28318530717958647692
 const _E: f64     = 2.71828182845904523536
@@ -12,44 +12,75 @@ pub fn TAU() -> f64 { return _TAU }
 pub fn E() -> f64 { return _E }
 pub fn SQRT2() -> f64 { return _SQRT2 }
 
-// --- Constants (Single Precision - f32) ---
 pub fn PI32() -> f32 { return 3.14159265:f32 }
 pub fn E32() -> f32 { return 2.71828183:f32 }
 
-// --- Public API (Double Precision - f64) ---
+// --- The Float Trait ---
 
-pub fn fsin(x: f64) -> f64 { unsafe { return libc::libc_sin(x) } }
-pub fn fcos(x: f64) -> f64 { unsafe { return libc::libc_cos(x) } }
-pub fn ftan(x: f64) -> f64 { unsafe { return libc::libc_tan(x) } }
-pub fn fasin(x: f64) -> f64 { unsafe { return libc::libc_asin(x) } }
-pub fn facos(x: f64) -> f64 { unsafe { return libc::libc_acos(x) } }
-pub fn fatan(x: f64) -> f64 { unsafe { return libc::libc_atan(x) } }
-pub fn fatan2(y: f64, x: f64) -> f64 { unsafe { return libc::libc_atan2(y, x) } }
-pub fn fsqrt(x: f64) -> f64 { unsafe { return libc::libc_sqrt(x) } }
-pub fn flog(x: f64) -> f64 { unsafe { return libc::libc_log(x) } }
-pub fn fpow(x: f64, y: f64) -> f64 { unsafe { return libc::libc_pow(x, y) } }
-pub fn ffabs(x: f64) -> f64 { unsafe { return libc::libc_fabs(x) } }
+pub trait @Float {
+    pub fn sin(self) -> self
+    pub fn cos(self) -> self
+    pub fn tan(self) -> self
+    pub fn asin(self) -> self
+    pub fn acos(self) -> self
+    pub fn atan(self) -> self
+    pub fn sqrt(self) -> self
+    pub fn log(self) -> self
+    pub fn exp(self) -> self
+    pub fn abs(self) -> self
+    pub fn floor(self) -> self
+    pub fn ceil(self) -> self
+}
 
-// --- Public API (Single Precision - f32) ---
+// --- Implementation for f64 ---
 
-pub fn fsin32(x: f32) -> f32 { unsafe { return libc::libc_sinf(x) } }
-pub fn fcos32(x: f32) -> f32 { unsafe { return libc::libc_cosf(x) } }
-pub fn ftan32(x: f32) -> f32 { unsafe { return libc::libc_tanf(x) } }
-pub fn fasin32(x: f32) -> f32 { unsafe { return libc::libc_asinf(x) } }
-pub fn facos32(x: f32) -> f32 { unsafe { return libc::libc_acosf(x) } }
-pub fn fatan32(x: f32) -> f32 { unsafe { return libc::libc_atanf(x) } }
-pub fn fatan2_32(y: f32, x: f32) -> f32 { unsafe { return libc::libc_atan2f(y, x) } }
-pub fn fsqrt32(x: f32) -> f32 { unsafe { return libc::libc_sqrtf(x) } }
-pub fn flog32(x: f32) -> f32 { unsafe { return libc::libc_logf(x) } }
-pub fn fpow32(x: f32, y: f32) -> f32 { unsafe { return libc::libc_powf(x, y) } }
-pub fn ffabs32(x: f32) -> f32 { unsafe { return libc::libc_fabsf(x) } }
+impl f64@Float {
+    pub fn sin(self) -> f64 { unsafe { return libc::libc_sin(self) } }
+    pub fn cos(self) -> f64 { unsafe { return libc::libc_cos(self) } }
+    pub fn tan(self) -> f64 { unsafe { return libc::libc_tan(self) } }
+    pub fn asin(self) -> f64 { unsafe { return libc::libc_asin(self) } }
+    pub fn acos(self) -> f64 { unsafe { return libc::libc_acos(self) } }
+    pub fn atan(self) -> f64 { unsafe { return libc::libc_atan(self) } }
+    pub fn sqrt(self) -> f64 { unsafe { return libc::libc_sqrt(self) } }
+    pub fn log(self) -> f64 { unsafe { return libc::libc_log(self) } }
+    pub fn exp(self) -> f64 { unsafe { return libc::libc_exp(self) } }
+    pub fn abs(self) -> f64 { unsafe { return libc::libc_fabs(self) } }
+    pub fn floor(self) -> f64 { unsafe { return libc::libc_floor(self) } }
+    pub fn ceil(self) -> f64 { unsafe { return libc::libc_ceil(self) } }
+}
 
-// --- Common Tools ---
+// --- Implementation for f32 ---
 
-pub fn degrees(r: f64) -> f64 { return r * 180.0 / _PI }
-pub fn radians(d: f64) -> f64 { return d * _PI / 180.0 }
+impl f32@Float {
+    pub fn sin(self) -> f32 { unsafe { return libc::libc_sinf(self) } }
+    pub fn cos(self) -> f32 { unsafe { return libc::libc_cosf(self) } }
+    pub fn tan(self) -> f32 { unsafe { return libc::libc_tanf(self) } }
+    pub fn asin(self) -> f32 { unsafe { return libc::libc_asinf(self) } }
+    pub fn acos(self) -> f32 { unsafe { return libc::libc_acosf(self) } }
+    pub fn atan(self) -> f32 { unsafe { return libc::libc_atanf(self) } }
+    pub fn sqrt(self) -> f32 { unsafe { return libc::libc_sqrtf(self) } }
+    pub fn log(self) -> f32 { unsafe { return libc::libc_logf(self) } }
+    pub fn exp(self) -> f32 { unsafe { return libc::libc_expf(self) } }
+    pub fn abs(self) -> f32 { unsafe { return libc::libc_fabsf(self) } }
+    pub fn floor(self) -> f32 { unsafe { return libc::libc_floorf(self) } }
+    pub fn ceil(self) -> f32 { unsafe { return libc::libc_ceilf(self) } }
+}
 
-// --- Generic Utilities (Support i32, i64, f64, f32, etc.) ---
+// --- Unified Global API ---
+
+pub fn sin<T>(x: T) -> T { return x.sin() }
+pub fn cos<T>(x: T) -> T { return x.cos() }
+pub fn tan<T>(x: T) -> T { return x.tan() }
+pub fn asin<T>(x: T) -> T { return x.asin() }
+pub fn acos<T>(x: T) -> T { return x.acos() }
+pub fn atan<T>(x: T) -> T { return x.atan() }
+pub fn sqrt<T>(x: T) -> T { return x.sqrt() }
+pub fn log<T>(x: T) -> T { return x.log() }
+pub fn exp<T>(x: T) -> T { return x.exp() }
+pub fn floor<T>(x: T) -> T { return x.floor() }
+pub fn ceil<T>(x: T) -> T { return x.ceil() }
+
+// --- Generic Utilities ---
 
 pub fn abs<T>(val: T) -> T {
     if val < (0 as T) { return (0 as T) - val }

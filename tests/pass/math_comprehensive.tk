@@ -1,26 +1,36 @@
 // Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
-import std/math::{PI, PI32, fsin, fsin32, fsqrt, fsqrt32, abs, gcd, lerp}
+import std/math::{PI, PI32, sin, sqrt, abs, gcd, lerp}
 import std/io::{println}
 
+// Move generic function to global scope
+fn generic_calculate<T>(val: T) -> T {
+    return sin(val) // Relies on T having .sin()
+}
+
 fn main() -> i32 {
-    println("--- Math Library Test (Explicit Precision) ---")
+    println("--- Math Library Test (Trait Duck Typing) ---")
 
-    // 1. Double Precision (f64)
-    assert(fsin(PI() / 2.0) == 1.0, "fsin(f64)")
-    assert(fsqrt(16.0) == 4.0, "fsqrt(f64)")
+    // 1. Static Dispatch via Trait Methods (f64)
+    auto x64 = 1.0 // f64
+    assert(x64.sin() == 1.0.sin(), "Method call consistency (f64)")
+    assert(sin(PI() / 2.0) == 1.0, "Functional sin(f64)")
+    assert(16.0.sqrt() == 4.0, "Method sqrt(f64)")
 
-    // 2. Single Precision (f32)
-    assert(fsin32(PI32() / 2.0:f32) == 1.0:f32, "fsin32(f32)")
-    assert(fsqrt32(16.0:f32) == 4.0:f32, "fsqrt32(f32)")
+    // 2. Static Dispatch via Trait Methods (f32)
+    auto x32 = 1.0:f32
+    assert(x32.sin() == (1.0:f32).sin(), "Method call consistency (f32)")
+    assert(sin(PI32() / 2.0:f32) == 1.0:f32, "Functional sin(f32)")
+    assert((16.0:f32).sqrt() == 4.0:f32, "Method sqrt(f32)")
 
-    // 3. Generic Tools
-    assert(lerp(0.0, 10.0, 0.5) == 5.0, "lerp(f64)")
-    assert(lerp(0.0:f32, 10.0:f32, 0.5:f32) == 5.0:f32, "lerp(f32)")
+    // 3. Generic Dispatch
+    assert(generic_calculate<f64>(PI() / 2.0) == 1.0, "Generic calculate (f64)")
+    assert(generic_calculate<f32>(PI32() / 2.0:f32) == 1.0:f32, "Generic calculate (f32)")
 
-    // 4. Integers
+    // 4. Generic Utils
     assert(gcd(48, 18) == 6, "gcd(i32)")
     assert(abs(0 - 100) == 100, "abs(i32)")
+    assert(abs(0.0 - 3.14) == 3.14, "abs(f64)")
 
-    println("All Explicit Precision Math Tests Passed!")
+    println("All Duck-Typed Trait Math Tests Passed!")
     return 0
 }

@@ -1,0 +1,30 @@
+// Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
+import std/io::{println}
+
+trait @MathExt {
+    fn double(self) -> f64
+}
+
+impl f64@MathExt {
+    fn double(self) -> f64 {
+        return self * 2.0
+    }
+}
+
+fn main() -> i32 {
+    auto x = 10.5
+    println("Testing primitive trait method call...")
+    
+    // Explicit call (Static Dispatch)
+    auto y = x.double()
+    
+    println("Value: {}, Doubled: {}", x, y)
+    
+    if y == 21.0 {
+        println("Success!")
+        return 0
+    }
+    
+    println("Failed!")
+    return 1
+}
