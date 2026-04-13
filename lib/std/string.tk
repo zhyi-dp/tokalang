@@ -264,6 +264,26 @@ impl String {
         return 1
     }
 
+    pub fn push_buf(self#, *buf: u8, count: usize) -> i32 {
+        if count == 0:usize { return 1 }
+        unsafe {
+            auto needed = self.len + (count as i32)
+            if needed >= self.cap {
+                auto new_cap = (self.cap * 2) + (count as i32) + 1
+                auto *tmp = libc_realloc(self.*buf as *void, new_cap as usize) as *[char]
+                if *tmp == null { return 0 }
+                self.*buf = *tmp
+                self.cap = new_cap
+            }
+            auto *dst# = (self.*buf as usize + self.len as usize) as *[char]
+            libc_memcpy(*dst as *void, *buf as *void, count)
+            self.len = needed
+            auto last_idx = count as i32
+            dst[last_idx] = 0 as char
+        }
+        return 1
+    }
+
     pub fn push_char(self#, c: char) -> i32 {
         unsafe {
             auto needed = self.len + 1

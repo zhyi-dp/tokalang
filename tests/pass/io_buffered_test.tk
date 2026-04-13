@@ -1,0 +1,51 @@
+// Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
+import std/io::{File, println, remove_file}
+import std/string::{String}
+
+fn main() -> i32 {
+    auto path = String::from("test_optimized_io.txt")
+    
+    // 1. Prepare test file
+    {
+        auto f_res# = File::open(path, String::from("w"))
+        match f_res# {
+            auto Result<File, String>::Ok(&f#) => {
+                f#.write(String::from("Line 1: High Performance\n"))
+                f#.write(String::from("Line 2: Native Buffering\n"))
+                f#.close()
+            }
+            _ => { return 1 }
+        }
+    }
+    
+    // 2. Reading Test
+    {
+        auto f_res# = File::open(path, String::from("r"))
+        match f_res# {
+            auto Result<File, String>::Ok(&f#) => {
+                auto l1_res# = f#.read_line()
+                match l1_res# {
+                    auto Result<String, String>::Ok(&l1) => {
+                        println("Read L1: {}", l1.c_str())
+                        if !l1.eq(String::from("Line 1: High Performance\n")) { return 2 }
+                    }
+                    _ => return 3
+                }
+                
+                auto l2_res# = f#.read_line()
+                match l2_res# {
+                    auto Result<String, String>::Ok(&l2) => {
+                        println("Read L2: {}", l2.c_str())
+                        if !l2.eq(String::from("Line 2: Native Buffering\n")) { return 4 }
+                    }
+                    _ => return 5
+                }
+            }
+            _ => { return 6 }
+        }
+    }
+    
+    remove_file(path)
+    println("Optimized IO Test Passed!")
+    return 0
+}

@@ -17,7 +17,6 @@ import core/libc::*
 import core/result::{Result}
 
 // Intrinsic
-// Intrinsic
 extern fn println(fmt: str, ...) -> void
 
 // Specific Result Types to avoid Generic Instantiation B
@@ -97,21 +96,15 @@ impl File {
                 return IoStringResult::Ok(String::from(""))
             }
             
-            // Alloc temp buffer using libc_malloc
             auto *buf# = libc_malloc((size + 1) as usize) as *[char]
-            
-            // Read
             auto count = libc_fread(*buf as *void, 1, size as usize, self.*handle)
-            buf[count] = 0 as char
+            auto last_idx = count as i32
+            buf[last_idx] = 0 as char
             
-            // Make String (copies data)
             auto s# = String::from_with_len(*buf, count as i32)
-            
-            // Free temp
             libc_free(*buf as *void)
             
             auto res = IoStringResult::Ok(s)
-            // s#.unsafe_forget() // Handled by Move
             return res
         }
     }
@@ -134,7 +127,6 @@ impl File {
             if !self.opened { 
                 return IoSizeResult::Err(String::from("File not open"))
             }
-            
             auto count = libc_fread(*buf as *void, 1, len, self.*handle)
             return IoSizeResult::Ok(count as usize)
         }
@@ -147,35 +139,39 @@ impl File {
         }
     }
 
+    // Optimized read_line using libc_fgets
     pub fn read_line(self) -> Result<String, String> {
         unsafe {
             if !self.opened { 
                  return IoStringResult::Err(String::from("File not open"))
             }
             
+            auto buf_size = 4096:i32
+            auto *temp_buf# = libc_malloc(buf_size as usize) as *[char]
             auto s# = String::from("")
-            // Loop char by char
-            // TODO: optimize with buffering later if needed
-            
-            // We use an infinite loop and break
             auto done# = false
+            
             while !done {
-                auto c = libc_fgetc(self.*handle)
-                
-                if c == -1 { // EOF
+                auto *res = libc_fgets(*temp_buf as *char, buf_size, self.*handle)
+                if *res == null {
                     done = true
                 } else {
-                    auto ch = c as char
-                    s#.push_char(ch) // Appends to String
-                    if ch == 10 as char { // \n
+                    auto slen = libc_strlen(*temp_buf as *char)
+                    s#.push_buf(*temp_buf as *u8, slen)
+                    
+                    // Check if newline was reached
+                    auto last_char_idx = (slen as i32) - 1
+                    if last_char_idx >= 0 && temp_buf[last_char_idx] == 10 as char {
                         done = true
                     }
                 }
             }
             
-            auto res = IoStringResult::Ok(s)
-            // s#.unsafe_forget() // Handled by Move
-            return res
+            libc_free(*temp_buf as *void)
+            
+            // To maintain backward compatibility: 
+            // Return Ok("") on EOF if no data was read.
+            return IoStringResult::Ok(s)
         }
     }
 
