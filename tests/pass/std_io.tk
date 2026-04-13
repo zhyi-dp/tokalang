@@ -21,12 +21,14 @@ fn main() -> i32 {
     // Write
     auto res1# = File::open(String::from("test_io.txt"), String::from("w"))
     auto f1 = res1#.unwrap()
+    res1 = IoResult::Err(String::from("moved")) // Prevent double free
     f1.write(content)
     f1#.close()
     
     // Read
     auto res2# = File::open(String::from("test_io.txt"), String::from("r"))
     auto f2 = res2#.unwrap()
+    res2 = IoResult::Err(String::from("moved")) // Prevent double free
     
     println("Reading lines:")
     

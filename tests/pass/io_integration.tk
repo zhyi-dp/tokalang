@@ -8,6 +8,7 @@ fn main() -> i32 {
     {
         auto res# = File::open(path, String::from("w"))
         auto f = res#.unwrap()
+        res = IoResult::Err(String::from("moved"))
         f.write(String::from("Hello RAII\n"))
         // f drops here, should close
     }
@@ -16,6 +17,7 @@ fn main() -> i32 {
     {
         auto res# = File::open(path, String::from("r"))
         auto f = res#.unwrap()
+        res = IoResult::Err(String::from("moved"))
         // read_line returns IoResult
         auto tmp# = f.read_line()
         auto s = tmp#.unwrap()
