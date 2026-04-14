@@ -22,6 +22,9 @@ pub shape view_str(
 )
 
 impl view_str@encap {    
+    pub fn clone(self) -> view_str <- self {
+        return view_str(&buf = &(self.buf), len = self.len)
+    }
 }
 
 impl view_str {
@@ -122,6 +125,20 @@ impl view_str {
             return Option<usize>::None
         }
     }
+    /*
+    pub fn substr(self, pos: usize, length: usize) -> res: view_str
+    effects:
+        res.&buf <- self.buf
+    {
+        
+        if pos == 0 && length >= self.len() { 
+            return self.clone() 
+        }
+        else {
+            return self.clone()
+        }
+    }
+    */
 }
 
 pub alias str = view_str // Slice (like C++ std::string_view)
