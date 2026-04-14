@@ -1,0 +1,61 @@
+import std/io::println
+import core/types::*
+
+extern fn libc_memcmp(*s1: void, *s2: void, n: usize) -> i32
+
+impl view_str {
+    pub fn is_empty(self) -> bool {
+        return self.len <= 0
+    }
+
+    pub fn equals(self, other: view_str) -> bool {
+        if self.len != other.len { return false }
+        if self.len <= 0 { return true }
+        unsafe {
+            return libc_memcmp(self.*buf as *void, other.*buf as *void, self.len) == 0
+        }
+    }
+
+    pub fn starts_with(self, prefix: view_str) -> bool {
+        if prefix.len > self.len { return false }
+        if prefix.len <= 0 { return true }
+        unsafe {
+            return libc_memcmp(self.*buf as *void, prefix.*buf as *void, prefix.len) == 0
+        }
+    }
+
+    pub fn ends_with(self, suffix: view_str) -> bool {
+        if suffix.len > self.len { return false }
+        if suffix.len <= 0 { return true }
+        unsafe {
+            auto offset = self.len - suffix.len
+            auto *start = (self.*buf as usize + offset) as *void
+            return libc_memcmp(start, suffix.*buf as *void, suffix.len) == 0
+        }
+    }
+
+    pub fn substr(self, start: usize, length: usize) -> view_str <- self {
+        if start >= self.len { return view_str(&buf=self.buf, len=0) }
+        auto new_len = length
+        if start + length > self.len {
+            new_len = self.len - start
+        }
+        unsafe {
+            auto *new_ptr = (self.*buf as usize + start) as *[char]
+            return view_str(&buf=new_ptr, len=new_len)
+        }
+    }
+}
+
+fn main() -> i32 {
+    auto s1 = "hello world"
+    auto s2 = "hello"
+    
+    assert(s1.is_empty() == false, "not empty")
+    assert(s1.starts_with(s2), "starts with")
+    assert(s1.ends_with("world"), "ends with")
+    assert(s1.equals("hello world"), "equals")
+    assert(s1.substr(0, 5).equals(s2), "substr equals")
+    
+    return 0
+}
