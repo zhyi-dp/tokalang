@@ -18,7 +18,7 @@ fn main() -> i32 {
                     data[2] = 67:u8 // 'C'
                     data[3] = 68:u8 // 'D'
                     
-                    f.write_buf(*data, 4:usize)
+                    f.write_buf(*data as *u8, 4:usize)
                     f#.close()
                     free [4] *data
                 }
@@ -38,7 +38,7 @@ fn main() -> i32 {
                     // Clear buffer
                     buf[0] = 0:u8
                     
-                    auto read_res = f.read(*buf, 10:usize)
+                    auto read_res = f.read(*buf as *u8, 10:usize)
                     match read_res {
                         auto Result<usize, String>::Ok(n) => {
                             if n != 4:usize {

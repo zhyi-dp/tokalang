@@ -3576,6 +3576,33 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
       // No-op for Pass-By-Pointer
     }
 
+    // [NEW] Fat Pointer Synthesis for Strings
+    if (funcDecl && i < funcDecl->Args.size()) {
+       auto targetTyObj = funcDecl->Args[i].ResolvedType;
+       if (targetTyObj && targetTyObj->isShape()) {
+           auto shpTarget = std::static_pointer_cast<toka::ShapeType>(targetTyObj);
+           if (shpTarget->Name == "view_str" || shpTarget->Name == "str") {
+               auto argTyObj = call->Args[i]->ResolvedType;
+               bool isNakedCString = false;
+               if (argTyObj) {
+                   std::string argStr = argTyObj->toString();
+                   if (argStr == "*char" || argStr == "cstring") isNakedCString = true;
+               }
+               auto *strExpr = dynamic_cast<const StringExpr *>(call->Args[i].get());
+               
+               llvm::errs() << "[SYNTHESIS] target is view_str. isNakedCString=" << isNakedCString 
+                            << ", strExpr=" << (strExpr != nullptr) 
+                            << ", isPointerTy=" << (val && val->getType()->isPointerTy()) << "\n";
+                            
+               if (isNakedCString && !strExpr) {
+                   // User requested Safety Mode B: Do not allow dynamic *char implicitly!
+                   error(call->Args[i].get(), "Unsafe implicit cast: cannot automatically elevate a dynamic 'cstring' (*char) to a boundary-checked 'str' (view_str). Only string literals are permitted.");
+                   return nullptr;
+               }
+           }
+       }
+    }
+
     // [NEW] Fat Pointer Synthesis for Closures
     if (val && call->Args[i]->ResolvedType && call->Args[i]->ResolvedType->isShape()) {
       auto shp = std::static_pointer_cast<toka::ShapeType>(call->Args[i]->ResolvedType);

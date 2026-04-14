@@ -1933,6 +1933,31 @@ PhysEntity toka::CodeGen::genMethodCall(const toka::MethodCallExpr *expr) {
     if (!argVal)
       return nullptr;
 
+    // [NEW] Fat Pointer Synthesis for Strings in Method Calls
+    // Method argument types might not be found in local m_Functions if defined in another module.
+    // However, Sema updates the argument's ResolvedType to the expected shape (e.g. view_str) if it allowed an implicit cast!
+    if (expr->Args[i]->ResolvedType && expr->Args[i]->ResolvedType->isShape()) {
+        auto shpArg = std::static_pointer_cast<toka::ShapeType>(expr->Args[i]->ResolvedType);
+        if (shpArg->Name == "view_str" || shpArg->Name == "str") {
+            auto *strExpr = dynamic_cast<const StringExpr *>(expr->Args[i].get());
+            if (strExpr) {
+                // We must synthesize { i8*, i64 } for literal
+                size_t literalLen = strExpr->Value.size();
+                llvm::StructType *viewStrTy = m_StructTypes["view_str"];
+                if (viewStrTy) {
+                    llvm::Value *alloca = createEntryBlockAlloca(viewStrTy, nullptr, "str_synth");
+                    llvm::Value *bufPtr = m_Builder.CreateStructGEP(viewStrTy, alloca, 0, "buf_ptr");
+                    llvm::Value *lenPtr = m_Builder.CreateStructGEP(viewStrTy, alloca, 1, "len_ptr");
+                    m_Builder.CreateStore(argVal, bufPtr);
+                    m_Builder.CreateStore(llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), literalLen), lenPtr);
+                    argVal = m_Builder.CreateLoad(viewStrTy, alloca);
+                }
+            } else if (argVal->getType()->isPointerTy() && !argVal->getType()->isStructTy()) {
+                 // Wait, opaque pointers are just PTR. If we reached here but it wasn't a StringExpr.
+                 // We don't abort unless we are SURE it was a naked CString.
+            }
+        }
+    }
     // Auto-cast for primitives
     // ... (Existing cast logic could be added here if needed) ...
 

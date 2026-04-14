@@ -1,0 +1,18 @@
+
+fn test_view_str(vstr: view_str) -> i32 {
+    // Test 1: Full slice clone
+    auto full = vstr.clone()
+    //println("full: {}", full)
+    if !full.equals(vstr) { libc_printf("FAIL: clone\n", 0 as OAddr); libc_exit(1) }
+
+    // Test 2: Substr start
+    auto s = vstr.substr(0, 5)
+    if !s.equals("hello") { libc_printf("FAIL: prefix\n", 0 as OAddr); libc_exit(1) }
+    return 0;
+}
+
+fn main() -> i32 {
+    test_view_str("hello, toka!")    
+    
+    return 0
+}

@@ -1793,6 +1793,44 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
            }
         }
 
+        // [FIX] Typecheck Method Arguments
+        if (FD) {
+            size_t expectedArgs = FD->Args.size() - 1; // exclude self
+            if (Met->Args.size() != expectedArgs && !FD->IsVariadic) {
+                // If variadic, handle appropriately
+                if (Met->Args.size() < expectedArgs) {
+                    error(Met, "Method '" + Met->Method + "' expects at least " + std::to_string(expectedArgs) + " arguments, got " + std::to_string(Met->Args.size()));
+                }
+            }
+            
+            for (size_t i = 0; i < Met->Args.size(); ++i) {
+                Met->Args[i] = foldGenericConstant(std::move(Met->Args[i]));
+                std::shared_ptr<toka::Type> expectedParamTy = nullptr;
+                if (i < expectedArgs) {
+                    expectedParamTy = toka::Type::fromString(Sema::synthesizePhysicalType(FD->Args[i + 1]));
+                }
+                
+                auto argTy = checkExpr(Met->Args[i].get(), expectedParamTy);
+                
+                if (expectedParamTy) {
+                    if (!isTypeCompatible(expectedParamTy, argTy)) {
+                        error(Met->Args[i].get(), "Type mismatch in method argument " + std::to_string(i + 1) + ": expected " + expectedParamTy->toString() + ", got " + argTy->toString());
+                    } else if (expectedParamTy->isShape() && argTy->isRawPointer()) {
+                        auto shp = std::static_pointer_cast<toka::ShapeType>(expectedParamTy);
+                        if (shp->Name == "view_str" || shp->Name == "str") {
+                            Met->Args[i]->ResolvedType = expectedParamTy;
+                        }
+                    }
+                }
+            }
+        } else {
+            // Unresolved method definition context (e.g. core/std method called locally but not parsed as FD).
+            // This is a flaw in Toka's global pass - we fallback to just checking the arguments to ensure they are visited.
+            for (size_t i = 0; i < Met->Args.size(); ++i) {
+                checkExpr(Met->Args[i].get()); 
+            }
+        }
+
         auto retType = toka::Type::fromString(MethodMap[soulType][Met->Method]);
         if (FD && FD->Effect == EffectKind::Async) {
             std::string tName = "TaskHandle<" + retType->toString() + ">";
@@ -4684,6 +4722,13 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
                                      std::to_string(i + 1) + ": expected " +
                                      paramType->toString() + ", got " +
                                      argType->toString());
+    } else if (paramType && argType && paramType->isShape() && argType->isRawPointer()) {
+      // [NEW] If Sema permitted an implicit cast from cstring (*char) to a string shape (view_str/str),
+      // we must mutate the argument's ResolvedType so CodeGen knows to perform Fat Pointer Synthesis!
+      auto shp = std::static_pointer_cast<toka::ShapeType>(paramType);
+      if (shp->Name == "view_str" || shp->Name == "str") {
+        Call->Args[i]->ResolvedType = paramType;
+      }
     }
   }
   
