@@ -9,7 +9,7 @@ Sema/Sema_Type.cpp
 Sema/Sema_Expr.cpp
 Sema/Sema_Stmt.cpp
 Sema/Sema_Template.cpp
-Sema/BorrowChecker.cpp
+Sema/PAL_Checker.cpp
 Type.cpp
 CodeGen/CodeGen.cpp 
 CodeGen/CodeGen_Expr.cpp 

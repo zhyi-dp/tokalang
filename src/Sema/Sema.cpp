@@ -75,13 +75,13 @@ void Sema::error(ASTNode *Node, const std::string &Msg) {
 
 void Sema::enterScope() { 
   CurrentScope = new Scope(CurrentScope); 
-  BorrowCheckerState.pushScope();
+  PALCheckerState.pushScope();
 }
 
 void Sema::exitScope() {
   Scope *Old = CurrentScope;
   CurrentScope = CurrentScope->Parent;
-  BorrowCheckerState.popScope();
+  PALCheckerState.popScope();
   delete Old;
 }
 void Sema::registerGlobals(Module &M) {

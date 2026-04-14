@@ -16,7 +16,7 @@
 #include "toka/AST.h"
 #include "toka/DiagnosticEngine.h"
 #include "toka/Type.h"
-#include "toka/BorrowChecker.h"
+#include "toka/PAL_Checker.h"
 #include <map>
 #include <set>
 #include <string>
@@ -56,7 +56,7 @@ struct SymbolInfo {
 
   bool IsReference() const { return TypeObj && TypeObj->isReference(); }
 
-  // IsBorrowed() is now handled externally by BorrowChecker
+  // IsBorrowed() is now handled externally by PALChecker
 
   bool IsUnique() const {
     return TypeObj && TypeObj->typeKind == toka::Type::UniquePtr;
@@ -166,7 +166,7 @@ public:
   }
 
   void setBorrowCheckEnabled(bool enabled) {
-    BorrowCheckerState.IsEnabled = enabled;
+    PALCheckerState.IsEnabled = enabled;
   }
 
   bool hasErrors() const { return HasError; }
@@ -242,7 +242,7 @@ private:
   std::map<std::string, std::set<std::string>> m_LastFieldDependencies; // [NEW] Track field specific dependencies
   std::shared_ptr<toka::Type> m_ExpectedType;
   std::set<std::string> m_AccessedVariables; // [CLOSURE] Track accessed variables
-  BorrowChecker BorrowCheckerState; // [NEW] Path-Anchored Borrow Checker
+  PALChecker PALCheckerState; // [NEW] Path-Anchored Borrow Checker
   struct ModuleScope {
     std::string Name;
     std::map<std::string, FunctionDecl *> Functions;

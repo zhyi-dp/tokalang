@@ -697,7 +697,7 @@ void Sema::checkStmt(Stmt *S) {
 
       Info.BorrowedFrom = m_LastBorrowSource;
       if (!m_LastBorrowSource.empty()) {
-          BorrowCheckerState.commitTransient(m_LastBorrowSource);
+          PALCheckerState.commitTransient(m_LastBorrowSource);
       }
     }
 
@@ -785,7 +785,7 @@ void Sema::checkStmt(Stmt *S) {
         std::string actName;
         if (CurrentScope->findVariableWithDeref(RHSVar->Name, SourceInfoPtr, actName)) {
           if (SourceInfoPtr->IsUnique()) {
-            std::string conflictPath = BorrowCheckerState.verifyMutation(actName);
+            std::string conflictPath = PALCheckerState.verifyMutation(actName);
             if (!conflictPath.empty()) {
               DiagnosticEngine::report(getLoc(Var), DiagID::ERR_MOVE_BORROWED, conflictPath);
               HasError = true;
@@ -893,7 +893,7 @@ void Sema::checkStmt(Stmt *S) {
           Info.TypeObj = std::make_shared<toka::ReferenceType>(soulType);
           Info.BorrowedFrom = m_LastBorrowSource;
           if (!m_LastBorrowSource.empty()) {
-              BorrowCheckerState.commitTransient(m_LastBorrowSource);
+              PALCheckerState.commitTransient(m_LastBorrowSource);
           }
         } else {
           Info.TypeObj = soulType;
@@ -938,7 +938,7 @@ void Sema::checkStmt(Stmt *S) {
   }
 
   // Clear uncommitted transient borrows created during this statement
-  BorrowCheckerState.clearTransient();
+  PALCheckerState.clearTransient();
 }
 
 } // namespace toka

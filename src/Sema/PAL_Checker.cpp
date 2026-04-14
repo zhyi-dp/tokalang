@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "toka/BorrowChecker.h"
+#include "toka/PAL_Checker.h"
 
 namespace toka {
 
-bool BorrowChecker::isPrefixOf(const std::string& prefix, const std::string& full) const {
+bool PALChecker::isPrefixOf(const std::string& prefix, const std::string& full) const {
   if (prefix == full) return true;
   if (full.length() > prefix.length() && 
       full.substr(0, prefix.length()) == prefix && 
@@ -26,12 +26,12 @@ bool BorrowChecker::isPrefixOf(const std::string& prefix, const std::string& ful
   return false;
 }
 
-bool BorrowChecker::isSuffixDerived(const std::string& base, const std::string& derived) const {
+bool PALChecker::isSuffixDerived(const std::string& base, const std::string& derived) const {
   // Same logic as prefix overlap in our path model: derived is a sub-path of base
   return isPrefixOf(base, derived);
 }
 
-bool BorrowChecker::recordBorrow(const std::string& path, bool isMutable) {
+bool PALChecker::recordBorrow(const std::string& path, bool isMutable) {
   if (!IsEnabled) return true;
 
   auto& map = LedgerStack.back().Map;
@@ -47,7 +47,7 @@ bool BorrowChecker::recordBorrow(const std::string& path, bool isMutable) {
   return true;
 }
 
-std::string BorrowChecker::verifyMutation(const std::string& path) {
+std::string PALChecker::verifyMutation(const std::string& path) {
   if (!IsEnabled) return "";
 
   for (auto it = LedgerStack.rbegin(); it != LedgerStack.rend(); ++it) {
@@ -62,7 +62,7 @@ std::string BorrowChecker::verifyMutation(const std::string& path) {
   return "";
 }
 
-std::string BorrowChecker::verifyAccess(const std::string& path) {
+std::string PALChecker::verifyAccess(const std::string& path) {
   if (!IsEnabled) return "";
 
   for (auto it = LedgerStack.rbegin(); it != LedgerStack.rend(); ++it) {
@@ -77,7 +77,7 @@ std::string BorrowChecker::verifyAccess(const std::string& path) {
   return "";
 }
 
-PathState BorrowChecker::getState(const std::string& path) {
+PathState PALChecker::getState(const std::string& path) {
   if (!IsEnabled) return PathState::Free;
   for (auto it = LedgerStack.rbegin(); it != LedgerStack.rend(); ++it) {
     if (it->Map.count(path)) {
@@ -87,14 +87,14 @@ PathState BorrowChecker::getState(const std::string& path) {
   return PathState::Free;
 }
 
-void BorrowChecker::commitTransient(const std::string& path) {
+void PALChecker::commitTransient(const std::string& path) {
   auto it = std::find(TransientBorrows.begin(), TransientBorrows.end(), path);
   if (it != TransientBorrows.end()) {
       TransientBorrows.erase(it);
   }
 }
 
-void BorrowChecker::clearTransient() {
+void PALChecker::clearTransient() {
   if (LedgerStack.empty()) return;
   auto& map = LedgerStack.back().Map;
   for (const auto& path : TransientBorrows) {
@@ -103,7 +103,7 @@ void BorrowChecker::clearTransient() {
   TransientBorrows.clear();
 }
 
-bool BorrowChecker::revokeRoot(const std::string& rootIdentifier) {
+bool PALChecker::revokeRoot(const std::string& rootIdentifier) {
   if (!IsEnabled) return false;
 
   bool revoked = false;
@@ -125,7 +125,7 @@ bool BorrowChecker::revokeRoot(const std::string& rootIdentifier) {
   return revoked;
 }
 
-void BorrowChecker::markMoved(const std::string& path) {
+void PALChecker::markMoved(const std::string& path) {
   if (!IsEnabled) return;
 
   for (auto it = LedgerStack.rbegin(); it != LedgerStack.rend(); ++it) {

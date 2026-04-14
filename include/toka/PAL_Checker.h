@@ -33,11 +33,11 @@ enum class PathState {
 /// PAL is the official identifier for Toka's Borrow Checker mechanism. 
 /// It enforces memory safety and resource aliasing rules at compile time 
 /// uniformly utilizing an AST path-string based transient-lexical ledger stack.
-class BorrowChecker {
+class PALChecker {
 public:
   bool IsEnabled = true;
 
-  BorrowChecker() {
+  PALChecker() {
     // Top level global scope
     pushScope();
   }

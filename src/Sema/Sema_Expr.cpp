@@ -351,7 +351,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
                 }
             }
             if (!m_InLHS) {
-                if (!BorrowCheckerState.recordBorrow(pathToBorrow, wantMutable)) {
+                if (!PALCheckerState.recordBorrow(pathToBorrow, wantMutable)) {
                     error(Addr, DiagID::ERR_BORROW_MUT, pathToBorrow);
                 }
             }
@@ -559,9 +559,9 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     std::string conflictPath = "";
     if (!m_InIntermediatePath) {
       if (m_InLHS) {
-         conflictPath = BorrowCheckerState.verifyMutation(actualName);
+         conflictPath = PALCheckerState.verifyMutation(actualName);
       } else {
-         conflictPath = BorrowCheckerState.verifyAccess(actualName);
+         conflictPath = PALCheckerState.verifyAccess(actualName);
       }
     }
     
@@ -915,7 +915,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
             bool isExclusive = targetInner->IsWritable;
             std::string pathToBorrow = getStringifyPath(Var);
             if (!pathToBorrow.empty()) {
-               if (!BorrowCheckerState.recordBorrow(pathToBorrow, isExclusive)) {
+               if (!PALCheckerState.recordBorrow(pathToBorrow, isExclusive)) {
                    error(Cast, DiagID::ERR_BORROW_MUT, pathToBorrow);
                }
                m_LastBorrowSource = pathToBorrow;
@@ -1786,7 +1786,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
         // [Rule] Borrowing check for Method Call
         std::string objPath = getStringifyPath(Met->Object.get());
         if (!objPath.empty()) {
-           std::string conflictPath = requiresMutableBorrow ? BorrowCheckerState.verifyMutation(objPath) : BorrowCheckerState.verifyAccess(objPath);
+           std::string conflictPath = requiresMutableBorrow ? PALCheckerState.verifyMutation(objPath) : PALCheckerState.verifyAccess(objPath);
            if (!conflictPath.empty()) {
                DiagnosticEngine::report(getLoc(Met), DiagID::ERR_BORROW_MUT, conflictPath);
                HasError = true;
@@ -2098,7 +2098,7 @@ std::shared_ptr<toka::Type> Sema::checkMemberExpr(MemberExpr *Memb) {
       if (CurrentScope->findVariableWithDeref(objVar->Name, Info, actualObjName)) {
         // [Rule] Borrowing check for Member Access
         if (!m_InIntermediatePath && !path.empty()) {
-           std::string conflictPath = BorrowCheckerState.verifyAccess(path);
+           std::string conflictPath = PALCheckerState.verifyAccess(path);
            if (!conflictPath.empty()) {
                DiagnosticEngine::report(getLoc(Memb), DiagID::ERR_BORROW_MUT, conflictPath);
                HasError = true;
@@ -2617,7 +2617,7 @@ std::shared_ptr<toka::Type> Sema::checkUnaryExpr(UnaryExpr *Unary) {
           std::string pathToBorrow = getStringifyPath(Unary->RHS.get());
           if (!pathToBorrow.empty()) {
              // Toka Path-Anchored Check
-             if (!BorrowCheckerState.recordBorrow(pathToBorrow, isExclusive)) {
+             if (!PALCheckerState.recordBorrow(pathToBorrow, isExclusive)) {
                 error(Unary, DiagID::ERR_BORROW_MUT, pathToBorrow);
              }
              m_LastBorrowSource = pathToBorrow; // keep this so RHS knows what it borrowed
@@ -2653,7 +2653,7 @@ std::shared_ptr<toka::Type> Sema::checkUnaryExpr(UnaryExpr *Unary) {
         if (!m_InLHS) {
           std::string pathToBorrow = getStringifyPath(Unary->RHS.get());
           if (!pathToBorrow.empty()) {
-             std::string conflictPath = BorrowCheckerState.verifyMutation(pathToBorrow);
+             std::string conflictPath = PALCheckerState.verifyMutation(pathToBorrow);
              if (!conflictPath.empty()) {
                  error(Unary, DiagID::ERR_MOVE_BORROWED, conflictPath);
              }
@@ -2676,7 +2676,7 @@ std::shared_ptr<toka::Type> Sema::checkUnaryExpr(UnaryExpr *Unary) {
         if (!m_InLHS) {
           std::string pathToBorrow = getStringifyPath(Unary->RHS.get());
           if (!pathToBorrow.empty()) {
-             std::string conflictPath = BorrowCheckerState.verifyAccess(pathToBorrow);
+             std::string conflictPath = PALCheckerState.verifyAccess(pathToBorrow);
              if (!conflictPath.empty()) {
                  error(Unary, DiagID::ERR_BORROW_MUT, conflictPath);
              }
@@ -2722,7 +2722,7 @@ std::shared_ptr<toka::Type> Sema::checkUnaryExpr(UnaryExpr *Unary) {
     if (!m_InLHS) {
       std::string pathToBorrow = getStringifyPath(Unary->RHS.get());
       if (!pathToBorrow.empty()) {
-         if (!BorrowCheckerState.recordBorrow(pathToBorrow, isExclusive)) {
+         if (!PALCheckerState.recordBorrow(pathToBorrow, isExclusive)) {
              error(Unary, DiagID::ERR_BORROW_MUT, pathToBorrow);
          }
          m_LastBorrowSource = pathToBorrow;
@@ -2735,7 +2735,7 @@ std::shared_ptr<toka::Type> Sema::checkUnaryExpr(UnaryExpr *Unary) {
     if (!m_InLHS) {
       std::string pathToBorrow = getStringifyPath(Unary->RHS.get());
       if (!pathToBorrow.empty()) {
-         std::string conflictPath = BorrowCheckerState.verifyMutation(pathToBorrow);
+         std::string conflictPath = PALCheckerState.verifyMutation(pathToBorrow);
          if (!conflictPath.empty()) {
              error(Unary, DiagID::ERR_MOVE_BORROWED, conflictPath);
          }
@@ -2751,7 +2751,7 @@ std::shared_ptr<toka::Type> Sema::checkUnaryExpr(UnaryExpr *Unary) {
     if (!m_InLHS) {
       std::string pathToBorrow = getStringifyPath(Unary->RHS.get());
       if (!pathToBorrow.empty()) {
-         std::string conflictPath = BorrowCheckerState.verifyAccess(pathToBorrow);
+         std::string conflictPath = PALCheckerState.verifyAccess(pathToBorrow);
          if (!conflictPath.empty()) {
              error(Unary, DiagID::ERR_BORROW_MUT, conflictPath);
          }
@@ -2780,7 +2780,7 @@ std::shared_ptr<toka::Type> Sema::checkUnaryExpr(UnaryExpr *Unary) {
       if (CurrentScope->findSymbol(Var->Name, Info)) {
         std::string pathToBorrow = getStringifyPath(Unary->RHS.get());
         if (!pathToBorrow.empty()) {
-           std::string conflictPath = BorrowCheckerState.verifyMutation(pathToBorrow);
+           std::string conflictPath = PALCheckerState.verifyMutation(pathToBorrow);
            if (!conflictPath.empty()) {
                error(Unary, DiagID::ERR_BORROW_MUT, conflictPath);
            }
@@ -2936,7 +2936,7 @@ std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
       std::string actualRHSName = RHSVar->Name;
       if (CurrentScope->findVariableWithDeref(RHSVar->Name, RHSInfoPtr, actualRHSName) &&
           RHSInfoPtr->IsUnique()) {
-        std::string conflictPath = BorrowCheckerState.verifyMutation(actualRHSName);
+        std::string conflictPath = PALCheckerState.verifyMutation(actualRHSName);
         if (!conflictPath.empty()) {
             error(Bin, DiagID::ERR_MOVE_BORROWED, conflictPath);
         }
@@ -3044,7 +3044,7 @@ std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
       if (CurrentScope->findVariableWithDeref(Var->Name, InfoPtr, actualName)) {
         std::string lhsPath = getStringifyPath(Bin->LHS.get());
         if (!isUnsetInit && !lhsPath.empty()) {
-            std::string conflictPath = BorrowCheckerState.verifyMutation(lhsPath);
+            std::string conflictPath = PALCheckerState.verifyMutation(lhsPath);
             bool authorized = false;
             
             if (!conflictPath.empty()) {
@@ -3066,7 +3066,7 @@ std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
             }
             
             if (!conflictPath.empty() && !authorized) {
-                toka::PathState conflictState = BorrowCheckerState.getState(conflictPath);
+                toka::PathState conflictState = PALCheckerState.getState(conflictPath);
                 if (conflictState == toka::PathState::BorrowedShared) {
                     error(Bin, DiagID::ERR_BORROW_IMMUT, conflictPath);
                 } else {
