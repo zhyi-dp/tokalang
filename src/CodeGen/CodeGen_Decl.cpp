@@ -85,10 +85,7 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
       // Determine LLVM Type
       llvm::Type *t = getLLVMType(typeObj);
       if (!t) {
-        std::cerr << "CodeGen Error: Failed to resolve LLVM type for argument '"
-                  << arg.Name << "' in function '" << funcName
-                  << "'. typeObj: " << (typeObj ? typeObj->toString() : "null")
-                  << "\n";
+        error(func, "Unresolved argument type for '" + arg.Name + "' in function '" + funcName + "'");
         return nullptr;
       }
 
@@ -148,11 +145,7 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
 
     llvm::Type *retType = getLLVMType(retTypeObj);
     if (!retType) {
-      std::cerr
-          << "CodeGen Error: Failed to resolve LLVM return type for function '"
-          << funcName
-          << "'. typeObj: " << (retTypeObj ? retTypeObj->toString() : "null")
-          << "\n";
+      error(func, "Unresolved return type for function '" + funcName + "'");
       return nullptr;
     }
 
@@ -1389,9 +1382,17 @@ void CodeGen::genExtern(const ExternDecl *ext) {
   std::vector<llvm::Type *> argTypes;
   for (const auto &arg : ext->Args) {
     llvm::Type *t = resolveType(arg.Type, arg.HasPointer || arg.IsReference);
+    if (!t) {
+      error(ext, "Unresolved argument type '" + arg.Type + "' in extern function '" + ext->Name + "'");
+      return;
+    }
     argTypes.push_back(t);
   }
   llvm::Type *retType = resolveType(ext->ReturnType, false);
+  if (!retType) {
+    error(ext, "Unresolved return type '" + ext->ReturnType + "' in extern function '" + ext->Name + "'");
+    return;
+  }
   llvm::FunctionType *ft =
       llvm::FunctionType::get(retType, argTypes, ext->IsVariadic);
 
@@ -1422,8 +1423,9 @@ void CodeGen::genShape(const ShapeDecl *sh) {
   if (sh->Kind == ShapeKind::Struct || sh->Kind == ShapeKind::Tuple) {
     std::vector<std::string> fieldNames;
     for (const auto &member : sh->Members) {
+      llvm::Type *t = nullptr;
       if (member.ResolvedType) {
-        body.push_back(getLLVMType(member.ResolvedType));
+        t = getLLVMType(member.ResolvedType);
       } else {
         // Fallback (Should be unreachable if Sema Pass 2 worked)
         if (member.Type == "unknown") { // Assuming "unknown" is the string
@@ -1432,10 +1434,15 @@ void CodeGen::genShape(const ShapeDecl *sh) {
                                    DiagID::WARN_CODEGEN_UNRESOLVED,
                                    member.Name);
         }
-        body.push_back(resolveType(member.Type,
+        t = resolveType(member.Type,
                                    member.HasPointer || member.IsUnique ||
-                                       member.IsShared || member.IsReference));
+                                       member.IsShared || member.IsReference);
       }
+      if (!t) {
+        error(sh, "Unresolved member type '" + member.Type + "' in shape '" + sh->Name + "'");
+        return;
+      }
+      body.push_back(t);
       fieldNames.push_back(member.Name);
     }
     st->setBody(body, sh->IsPacked);
@@ -1446,6 +1453,10 @@ void CodeGen::genShape(const ShapeDecl *sh) {
       elemTy = getLLVMType(sh->Members[0].ResolvedType);
     } else {
       elemTy = resolveType(sh->Members[0].Type, false);
+    }
+    if (!elemTy) {
+      error(sh, "Unresolved array element type '" + sh->Members[0].Type + "' in shape '" + sh->Name + "'");
+      return;
     }
     llvm::Type *arrTy = llvm::ArrayType::get(elemTy, sh->ArraySize);
     body.push_back(arrTy);
@@ -1461,8 +1472,10 @@ void CodeGen::genShape(const ShapeDecl *sh) {
       } else {
         t = resolveType(member.Type, false);
       }
-      if (!t)
-        continue;
+      if (!t) {
+        error(sh, "Unresolved union member type '" + member.Type + "' in shape '" + sh->Name + "'");
+        return;
+      }
       maxSize =
           std::max(maxSize, (uint64_t)DL.getTypeAllocSize(t).getFixedValue());
       maxAlign = std::max(maxAlign, (uint64_t)DL.getABITypeAlign(t).value());
@@ -1490,11 +1503,17 @@ void CodeGen::genShape(const ShapeDecl *sh) {
       if (!variant.SubMembers.empty()) {
         std::vector<llvm::Type *> fieldTypes;
         for (const auto &field : variant.SubMembers) {
+          llvm::Type *t = nullptr;
           if (field.ResolvedType) {
-            fieldTypes.push_back(getLLVMType(field.ResolvedType));
+            t = getLLVMType(field.ResolvedType);
           } else {
-            fieldTypes.push_back(resolveType(field.Type, false));
+            t = resolveType(field.Type, false);
           }
+          if (!t) {
+            error(sh, "Unresolved variant field type '" + field.Type + "' in enum '" + sh->Name + "'");
+            return;
+          }
+          fieldTypes.push_back(t);
         }
         // Use packed layout to estimate consistent payload size
         llvm::StructType *st =
@@ -1507,7 +1526,11 @@ void CodeGen::genShape(const ShapeDecl *sh) {
         } else {
           t = resolveType(variant.Type, false);
         }
-        if (t && !t->isVoidTy()) {
+        if (!t) {
+          error(sh, "Unresolved variant payload type '" + variant.Type + "' in enum '" + sh->Name + "'");
+          return;
+        }
+        if (!t->isVoidTy()) {
           variantSize = DL.getTypeAllocSize(t).getFixedValue();
         }
       }

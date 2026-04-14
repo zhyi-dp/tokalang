@@ -15,6 +15,9 @@
 import core/types::*
 import core/option::{Option}
 
+//impl view_str@encap {    
+//}
+
 impl view_str {
     pub fn buf(self) -> &[char] <- self {
         return &(self.buf)
