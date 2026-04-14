@@ -109,11 +109,6 @@ pub shape RefFat<T>(
     len: usize
 )
 
-// A memory-safe, zero-allocation reference to a string view
-pub shape view_str(
-    &buf$: [char], //$ inner immutable
-    len$: usize      ////$ inner immutable
-)
 
 //impl view_str@encap {    
 //}

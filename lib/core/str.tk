@@ -15,8 +15,14 @@
 import core/types::*
 import core/option::{Option}
 
-//impl view_str@encap {    
-//}
+// A memory-safe, zero-allocation reference to a string view
+pub shape view_str(
+    &buf$: [char], //$ inner immutable
+    len$: usize      ////$ inner immutable
+)
+
+impl view_str@encap {    
+}
 
 impl view_str {
     pub fn buf(self) -> &[char] <- self {
@@ -48,10 +54,10 @@ impl view_str {
     }
 
     pub fn ends_with(self, suffix: view_str) -> bool {
-        if suffix.len() > self.len() { return false }
+        if suffix.len() > self.len { return false }
         if suffix.len() <= 0 { return true }
         unsafe {
-            auto offset = self.len() - suffix.len()
+            auto offset = self.len - suffix.len()
             auto *start = (self.*buf as Addr + offset) as *void
             return libc_memcmp(*start, suffix.*buf as *void, suffix.len) == 0
         }
@@ -66,54 +72,54 @@ impl view_str {
         }
     }
 
-    pub fn index_of(self, c: char) -> i32 {
-        if self.len == 0 { return -1 }
+    pub fn index_of(self, c: char) -> Option<usize> {
+        if self.len() == 0 { return Option<usize>::None }
         unsafe {
             auto i# = 0:usize
             auto *b = self.*buf as *char
-            while i < self.len {
+            while i < self.len() {
                 auto *ptr = (*b as Addr + i) as *char
-                if ptr == c { return i as i32 }
+                if ptr == c { return Option<usize>::Some(i) }
                 i = i + 1
             }
-            return -1
+            return Option<usize>::None
         }
     }
 
-    pub fn last_index_of(self, c: char) -> i32 {
-        if self.len == 0 { return -1 }
+    pub fn last_index_of(self, c: char) -> Option<usize> {
+        if self.len() == 0 { return Option<usize>::None }
         unsafe {
-            auto i# = self.len as i32 - 1
+            auto i# = self.len()
             auto *b = self.*buf as *char
-            while i >= 0 {
-                auto *ptr = (*b as Addr + i as usize) as *char
-                if ptr == c { return i }
+            while i > 0 {
                 i = i - 1
+                auto *ptr = (*b as Addr + i) as *char
+                if ptr == c { return Option<usize>::Some(i) }
             }
-            return -1
+            return Option<usize>::None
         }
     }
 
     pub fn contains_char(self, c: char) -> bool {
-        return self.index_of(c) >= 0
+        return self.index_of(c).is_some()
     }
 
-    pub fn index_of_str(self, needle: view_str) -> i32 {
-        if needle.len == 0 { return 0 }
-        if needle.len > self.len { return -1 }
+    pub fn index_of_str(self, needle: view_str) -> Option<usize> {
+        if needle.len() == 0 { return Option<usize>::Some(0) }
+        if needle.len() > self.len() { return Option<usize>::None }
         unsafe {
             auto i# = 0:usize
             auto *haystack = self.*buf as *char
             auto *n_ptr = needle.*buf as *char
-            auto max_i = self.len - needle.len
+            auto max_i = self.len() - needle.len()
             while i <= max_i {
                 auto *start = (*haystack as Addr + i) as *void
-                if libc_memcmp(*start, *n_ptr as *void, needle.len) == 0 {
-                    return i as i32
+                if libc_memcmp(*start, *n_ptr as *void, needle.len()) == 0 {
+                    return Option<usize>::Some(i)
                 }
                 i = i + 1
             }
-            return -1
+            return Option<usize>::None
         }
     }
 }
