@@ -99,28 +99,32 @@ pub const LIMITS = (
 
 pub shape SourceLoc(file: str, line: i32)
 
+pub shape RowFat<T>(
+    *buf: [T],
+    len: usize
+)
+
+pub shape RefFat<T>(
+    &buf: [T],
+    len: usize
+)
+
 pub shape view_str(
-    *buf$: [char], //$ inner immutable
-    len$: i32      ////$ inner immutable
+    &buf$: [char], //$ inner immutable
+    len$: usize      ////$ inner immutable
 )
 
 impl view_str@encap {
-    fn drop(self) {
-        //do nothing
-    }
-    pub fn clone(self) -> view_str {
-        return view_str(*buf = self.*buf, len = self.len)
+    pub fn clone(self) -> view_str <- self {
+        return view_str(&buf = &(self.buf), len = self.len)
     }
 }
 
 impl view_str {
-    pub fn raw(self) -> *[char] {
-        return self.*buf
+    pub fn buf(self) -> &[char] <- self {
+        return &(self.buf) 
     }
-    pub fn raw_addr(self) -> Addr {
-        return self.*buf as Addr
-    }
-    pub fn len(self) -> i32 {
+    pub fn len(self) -> usize {
         return self.len
     }
 }

@@ -95,10 +95,6 @@ public:
   bool isUninit() const { return typeKind == UninitWrapper; }
 
   bool isFatPointer() const {
-    if (typeKind == UniquePtr || typeKind == Reference) {
-      auto pointee = getPointeeType();
-      if (pointee && pointee->isSlice()) return true;
-    }
     return false;
   }
 

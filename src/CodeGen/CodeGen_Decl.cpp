@@ -2261,14 +2261,7 @@ llvm::Type *CodeGen::getLLVMType(std::shared_ptr<Type> type) {
 
     llvm::Type *ptrTy = llvm::PointerType::getUnqual(elemTy);
     llvm::Type *refCountTy;
-    
-    if (sharedType->PointeeType && sharedType->PointeeType->isSlice()) {
-      // Shared slice control block is { refs: i32, length: i64 }
-      llvm::Type *cbTy = llvm::StructType::get(m_Context, {llvm::Type::getInt32Ty(m_Context), llvm::Type::getInt64Ty(m_Context)});
-      refCountTy = llvm::PointerType::getUnqual(cbTy);
-    } else {
-      refCountTy = llvm::PointerType::getUnqual(llvm::Type::getInt32Ty(m_Context));
-    }
+    refCountTy = llvm::PointerType::getUnqual(llvm::Type::getInt32Ty(m_Context));
 
     return llvm::StructType::get(m_Context, {ptrTy, refCountTy});
   }

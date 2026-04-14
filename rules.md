@@ -2,18 +2,18 @@
 - 默认使用英文（代码注释以及文档以你你自己的思考过程等），但对话框你需要给我传达的信息请使用中文，纯讨论时请使用中文
 - 不要主动生成任何.txt扩展名文件，不要主动创建任何无扩展名的文件
 - make 编译器方法：make -C build -j8 如果成功会生成可执行编译器 build/bin/tokac
-- pass 批量测试脚本：正向测试是tool/test_pass.sh 反向测试是tool/test_fail.sh
-- 单个测试脚本：tool/test_single.sh tests/pass/xxx.tk
+- pass 批量测试脚本：正向测试是tools/scripts/test_pass.sh 反向测试是tools/scripts/test_fail.sh
+- 单个测试脚本：tools/scripts/test_single.sh tests/pass/xxx.tk
 - 正向测试 tk 都放在 tests/pass/下
 - 反向测试 tk 都放在 tests/fail/下
 - 生成 IR 到.ll 文件：build/bin/tokac tests/pass/xxx.tk > x.ll
 - 执行.ll 文件：lli x.ll
 - 每次完成阶段性的工作并且 pass 测试全部通过之前，请提交一次 commit，然后给出中文总结，并等待新的指示
 - git commit -m 信息不能包含可能被 bash/zsh 等截断内容的符号
-- 每次commit前运行 tool/test_pass.sh， 将测试结果以 [pass 71/79]的格式放在 commit 信息的最开始
+- 每次commit前运行 tools/scripts/test_pass.sh， 将测试结果以 [pass 71/79]的格式放在 commit 信息的最开始
 - git 命令不要跟任何其他命令一起&&执行
 - 执行的命令中不要出现任何的中文
-- 如果遇到编译器代码出现大括号不匹配的问题，可以使用 tool/check_braces.py 工具辅助定位
+- 如果遇到编译器代码出现大括号不匹配的问题，可以使用 tools/scripts/check_braces.py 工具辅助定位
 - toka编译器的编译错误信息必须出自DiagnosticDefs.def，若有新的错误信息类型，请维护DiagnosticDefs.def先
 - toka没有`let`关键字，而是`auto`关键字; toka的shape定义使用圆括号而不是大括号
 - toka的指针形态符号(&^~*)用法跟其他语言有很大不同，你必须切记：在toka中 如果是一个指针，那他在任何地方必须携带指针形态符号，如果去掉指针形态符号就是解指针/解引用，记住了吗！！！！！
