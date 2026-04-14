@@ -28,21 +28,21 @@ impl view_str@encap {
 }
 
 pub trait @StrCommon {
-    pub fn buf(self) -> &[char] <- self;
-    pub fn len(self) -> usize;
-    pub fn is_empty(self) -> bool;
-    pub fn equals(self, other: Self) -> bool;
-    pub fn starts_with(self, prefix: Self) -> bool;
-    pub fn ends_with(self, suffix: Self) -> bool;
-    pub fn index_of_str(self, needle: Self) -> Option<usize>;
+    pub fn buf(self) -> &[char] <- self
+    pub fn len(self) -> usize
+    pub fn is_empty(self) -> bool
+    pub fn equals(self, other: Self) -> bool
+    pub fn starts_with(self, prefix: Self) -> bool
+    pub fn ends_with(self, suffix: Self) -> bool
+    pub fn index_of_str(self, needle: Self) -> Option<usize>
 }
 
 pub trait @StringOps {
-    pub fn at(self, index: usize) -> Option<char>;
-    pub fn index_of(self, c: char) -> Option<usize>;
-    pub fn last_index_of(self, c: char) -> Option<usize>;
-    pub fn contains_char(self, c: char) -> bool;
-    pub fn substr(self, pos: usize, length: usize) -> res: Self;
+    pub fn at(self, index: usize) -> Option<char>
+    pub fn index_of(self, c: char) -> Option<usize>
+    pub fn last_index_of(self, c: char) -> Option<usize>
+    pub fn contains_char(self, c: char) -> bool
+    pub fn substr(self, pos: usize, length: usize) -> res: Self
 }
 
 impl view_str@StrCommon {

@@ -656,7 +656,11 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
   if (check(TokenType::LBrace)) {
     body = parseBlock();
   } else {
-    expectEndOfStatement();
+    if (previous().Kind == TokenType::Greater && peek().HasNewlineBefore) {
+      // Allow implicit semicolon for generic return type or effects ending with >
+    } else {
+      expectEndOfStatement();
+    }
   }
   auto decl = std::make_unique<FunctionDecl>(
       isPub, name.Text, std::move(args), std::move(body), retType,
