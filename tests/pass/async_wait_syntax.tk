@@ -1,16 +1,16 @@
 import std/task
 import std/task::{block_on, __toka_spawn_blocking}
 
-fn fetch() -> async str {
+fn fetch() -> async cstring {
     return "hello"
 }
 
-fn read_config() -> wait str {
+fn read_config() -> wait cstring {
     return "config"
 }
 
 fn pure_caller() {
-    block_on<str>(fetch())
+    block_on<cstring>(fetch())
 }
 
 pub fn main() -> i32 {

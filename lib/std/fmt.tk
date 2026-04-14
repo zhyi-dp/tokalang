@@ -6,7 +6,7 @@ import core/libc::{libc_snprintf, libc_malloc, libc_free}
 import core/traits::{@encap}
 
 // Forward declaration for snprintf (if not in libc yet, but we will add it)
-// extern fn libc_snprintf(*str: char, size: usize, *format: char, ...) -> i32
+// extern fn libc_snprintf(*cstring: char, size: usize, *format: char, ...) -> i32
 
 pub shape StringBuilder (
     buffer: String

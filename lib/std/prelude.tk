@@ -21,11 +21,11 @@ pub import std::error::{Error}
 import std/sys/os::*
 
 /*
-pub fn panic(message: str) {
+pub fn panic(message: cstring) {
     __toka_panic_handler(message)
 }
 
-pub fn assert(condition: bool, message: str) {
+pub fn assert(condition: bool, message: cstring) {
     if (!condition) {
         panic(message)
     }

@@ -2014,7 +2014,7 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
                      !pat->Name.empty() && pat->Name[0] == '"') {
             std::string rawLit = pat->Name.substr(1, pat->Name.size() - 2);
             auto strLit = std::make_unique<StringExpr>(rawLit);
-            strLit->ResolvedType = toka::Type::fromString("str");
+            strLit->ResolvedType = toka::Type::fromString("cstring");
             PhysEntity litEnt = genExpr(strLit.get());
             llvm::Value *rawPtr = litEnt.load(m_Builder);
             if (auto *fromFn = m_Module->getFunction("String_from")) {
@@ -3119,7 +3119,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
           } else if (ty->isFloatTy()) {
             spec = "%f";
             pVal = m_Builder.CreateFPExt(val, m_Builder.getDoubleTy());
-          } else if (semanticType == "*char" || semanticType == "str" ||
+          } else if (semanticType == "*char" || semanticType == "cstring" ||
                      semanticType == "String") {
             // Explicit check for String type (including String struct if we
             // support it)

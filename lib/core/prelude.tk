@@ -20,11 +20,11 @@ pub import core/task::*
 
 import core/internal/runtime::__toka_panic_handler;
 
-pub fn panic(message: str) {
+pub fn panic(message: cstring) {
     __toka_panic_handler(message)
 }
 
-pub fn assert(condition: bool, message: str) {
+pub fn assert(condition: bool, message: cstring) {
     if (!condition) {
         panic(message)
     }

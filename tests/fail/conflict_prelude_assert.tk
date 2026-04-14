@@ -2,7 +2,7 @@
 // This test attempts to define 'assert' which is now in the prelude
 // It should fail with ERR_SYMBOL_REDEFINED
 
-fn assert(cond: bool, msg: str) {
+fn assert(cond: bool, msg: cstring) {
     // shadow/conflict
 }
 

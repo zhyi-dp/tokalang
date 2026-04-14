@@ -3,7 +3,7 @@
 
 shape CounterInfo(
     accesses#: i32, // 零成本内部可变性，纯值类型
-    name: str
+    name: cstring
 )
 
 fn process_info(info: CounterInfo) {

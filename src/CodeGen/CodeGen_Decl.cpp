@@ -2155,7 +2155,7 @@ llvm::Type *CodeGen::resolveType(const std::string &baseType, bool hasPointer) {
     type = llvm::Type::getFloatTy(m_Context);
   else if (baseType == "f64" || baseType == "double")
     type = llvm::Type::getDoubleTy(m_Context);
-  else if (baseType == "str")
+  else if (baseType == "cstring")
     type = llvm::PointerType::getUnqual(llvm::Type::getInt8Ty(m_Context));
   else if (baseType == "void")
     type = llvm::Type::getVoidTy(m_Context);
@@ -2216,7 +2216,7 @@ llvm::Type *CodeGen::getLLVMType(std::shared_ptr<Type> type) {
       return llvm::Type::getDoubleTy(m_Context);
     if (prim->Name == "void")
       return llvm::Type::getVoidTy(m_Context);
-    if (prim->Name == "str")
+    if (prim->Name == "cstring")
       return llvm::PointerType::getUnqual(llvm::Type::getInt8Ty(m_Context));
     if (prim->Name == "Addr" || prim->Name == "OAddr" || prim->Name == "null")
       return llvm::PointerType::getUnqual(m_Context);

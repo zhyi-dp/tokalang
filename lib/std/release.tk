@@ -3,5 +3,5 @@ import core/types::SourceLoc
 
 // assert is implicitly provided by prelude now
 // assert is implicitly provided by prelude now
-// pub fn assert(condition: bool, message: str, loc: SourceLoc = __LOC__) {
+// pub fn assert(condition: bool, message: cstring, loc: SourceLoc = __LOC__) {
 // }

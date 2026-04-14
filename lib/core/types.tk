@@ -38,8 +38,8 @@ pub type String16 = Vec<u16>    // UTF-16 String
 pub type String32 = Vec<Char32> // UTF-32 String
 pub alias String = String8
 
-//Slice (like C++ std::string_view or Rust &str)
-pub type str  = Slice<char>
+//Slice (like C++ std::string_view or Rust &cstring)
+pub type cstring  = Slice<char>
 pub type Str8  = Slice<byte>
 pub type Str16 = Slice<u16>
 pub type Str32 = Slice<Char32>
@@ -97,7 +97,7 @@ pub const LIMITS = (
     )
 )
 
-pub shape SourceLoc(file: str, line: i32)
+pub shape SourceLoc(file: cstring, line: i32)
 
 pub shape RowFat<T>(
     *buf: [T],

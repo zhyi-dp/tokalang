@@ -441,7 +441,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
   } else if (auto *Unary = dynamic_cast<UnaryExpr *>(E)) {
     return checkUnaryExpr(Unary);
   } else if (auto *Str = dynamic_cast<StringExpr *>(E)) {
-    return toka::Type::fromString("str");
+    return toka::Type::fromString("cstring");
   } else if (auto *ve = dynamic_cast<VariableExpr *>(E)) {
     m_AccessedVariables.insert(ve->Name); // [CLOSURE] Tracker
     // [Ch 5] Single Hat Principle: Intermediate paths MUST NOT have morphology
@@ -4043,7 +4043,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
       return resolveType(fnTy->ReturnType, false);
     }
 
-    if (CallName != "str" && CallName != "unknown") {
+    if (CallName != "cstring" && CallName != "unknown") {
       DiagnosticEngine::report(getLoc(Call), DiagID::ERR_UNDECLARED, CallName);
       HasError = true;
     }

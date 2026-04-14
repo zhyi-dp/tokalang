@@ -207,7 +207,7 @@ public:
   bool isFloatingPoint() const override {
     return Name == "f32" || Name == "f64";
   }
-  bool isStringType() const override { return Name == "str"; }
+  bool isStringType() const override { return Name == "cstring"; }
   bool isAddrType() const override { return Name == "Addr"; }
   bool isOAddrType() const override { return Name == "OAddr"; }
   bool isNullType() const override { return Name == "null"; }

@@ -15,15 +15,15 @@ fn test_option() {
 }
 
 fn test_result() {
-    auto res : Result<i32, str> = Result<i32, str>::Ok(200)
+    auto res : Result<i32, cstring> = Result<i32, cstring>::Ok(200)
     assert(res.is_ok(), "Should be ok")
     
-    auto err : Result<i32, str> = Result<i32, str>::Err("Error")
+    auto err : Result<i32, cstring> = Result<i32, cstring>::Err("Error")
     assert(err.is_err(), "Should be err")
     
     match res {
-        auto Result<i32, str>::Ok(v) => assert(v == 200, "Value mismatch")
-        auto Result<i32, str>::Err(e) => assert(false, "Should not be Err")
+        auto Result<i32, cstring>::Ok(v) => assert(v == 200, "Value mismatch")
+        auto Result<i32, cstring>::Err(e) => assert(false, "Should not be Err")
     }
 }
 

@@ -231,7 +231,7 @@ pub fn unsetenv_impl(name: String) -> bool {
     }
 }
 
-pub fn __toka_panic_handler(msg: str) {
+pub fn __toka_panic_handler(msg: cstring) {
     // macOS 特有的实现：写 stderr + 退出
     libc_abort()
 }
