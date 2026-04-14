@@ -19,7 +19,7 @@
 import core/types::{char, usize, Addr, ADDR0}
 import core/traits::{@encap, @Hash, @PartialEq}
 import core/libc::*
-
+import core/str::{view_str, str}
 
 // ------------------------------------------------------
 // 2. Shape Definition
@@ -160,6 +160,13 @@ impl String {
         }
     }
 
+    pub fn from_str(s: str) -> String {
+        if s.len() == 0:usize { return String::from("") }
+        unsafe {
+            return String::from_with_len(&(s.buf()[0]), s.len() as i32)
+        }
+    }
+
     // === Converters ===
 
     /**
@@ -239,6 +246,12 @@ impl String {
 
     pub fn c_str(self) -> *char {
         return self.*buf as *char
+    }
+
+    pub fn as_str(self) -> str {
+        unsafe {
+            return view_str(&buf = self.*buf as &[char], len = self.len as usize)
+        }
     }
     
     // === Mutation ===
@@ -700,5 +713,15 @@ impl String@PartialEq {
             }
             return true
         }
+    }
+}
+
+// ------------------------------------------------------
+// 5. Extensions
+// ------------------------------------------------------
+
+impl view_str {
+    pub fn to_string(self) -> String {
+        return String::from_str(self)
     }
 }

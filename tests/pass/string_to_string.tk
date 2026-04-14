@@ -1,0 +1,34 @@
+import std/io::{println}
+import std/string::{String}
+
+fn main() -> i32 {
+    // 1. Create an owned String
+    auto s_owned = String::from("Toka Language")
+    println("Owned: {}", s_owned)
+    
+    // 2. Get a slice (str) via as_str()
+    auto s = s_owned.as_str()
+    // Test slice properties
+    if s.len() != 13:usize { return 1 }
+    
+    // 3. Convert back to String via String::from_str
+    auto s1 = String::from_str(s)
+    println("From str: {}", s1)
+    if s1.len() != 13 { return 2 }
+    if !s1.eq(s_owned) { return 3 }
+    
+    // 4. Convert back to String via str.to_string() extension
+    auto s2 = s.to_string()
+    println("To String ext: {}", s2)
+    if s2.len() != 13 { return 4 }
+    if !s2.eq(s_owned) { return 5 }
+    
+    // 5. Test with an empty String
+    auto empty_owned = String::from("")
+    auto empty_slice = empty_owned.as_str()
+    auto empty_back = empty_slice.to_string()
+    if empty_back.len() != 0 { return 6 }
+    
+    println("All String <-> str conversion tests passed!")
+    return 0
+}
