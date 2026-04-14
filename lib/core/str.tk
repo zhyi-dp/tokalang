@@ -27,7 +27,17 @@ impl view_str@encap {
     }
 }
 
-impl view_str {
+pub trait @StrCommon {
+    pub fn buf(self) -> &[char] <- self
+    pub fn len(self) -> usize
+    pub fn is_empty(self) -> bool
+    pub fn equals(self, other: Self) -> bool
+    pub fn starts_with(self, prefix: Self) -> bool
+    pub fn ends_with(self, suffix: Self) -> bool
+    pub fn index_of_str(self, needle: Self) -> Option<usize>
+}
+
+impl view_str@StrCommon {
     pub fn buf(self) -> &[char] <- self {
         return &(self.buf)
     }
@@ -40,7 +50,7 @@ impl view_str {
         return self.len <= 0
     }
 
-    pub fn equals(self, other: view_str) -> bool {
+    pub fn equals(self, other: Self) -> bool {
         if self.len != other.len { return false }
         if self.len <= 0 { return true }
         unsafe {
@@ -48,7 +58,7 @@ impl view_str {
         }
     }
 
-    pub fn starts_with(self, prefix: view_str) -> bool {
+    pub fn starts_with(self, prefix: Self) -> bool {
         if prefix.len > self.len { return false }
         if prefix.len <= 0 { return true }
         unsafe {
@@ -58,7 +68,7 @@ impl view_str {
 
 
 
-    pub fn ends_with(self, suffix: view_str) -> bool {
+    pub fn ends_with(self, suffix: Self) -> bool {
         if suffix.len > self.len { return false }
         if suffix.len <= 0 { return true }
         unsafe {
@@ -67,6 +77,24 @@ impl view_str {
         }
     }
 
+    pub fn index_of_str(self, needle: Self) -> Option<usize> {
+        if needle.len == 0 { return Option<usize>::Some(0) }
+        if needle.len > self.len { return Option<usize>::None }
+        unsafe {
+            auto i# = 0:usize
+            auto max_i = self.len - needle.len
+            while i <= max_i {
+                if libc_memcmp(&(self.buf[i]) as *void, &(needle.buf[0]) as *void, needle.len) == 0 {
+                    return Option<usize>::Some(i)
+                }
+                i = i + 1
+            }
+            return Option<usize>::None
+        }
+    }
+}
+
+impl view_str {
     pub fn at(self, index: usize) -> Option<char> {
         if index >= self.len { return Option<char>::None }
         unsafe {
@@ -100,22 +128,6 @@ impl view_str {
 
     pub fn contains_char(self, c: char) -> bool {
         return self.index_of(c).is_some()
-    }
-
-    pub fn index_of_str(self, needle: view_str) -> Option<usize> {
-        if needle.len == 0 { return Option<usize>::Some(0) }
-        if needle.len > self.len { return Option<usize>::None }
-        unsafe {
-            auto i# = 0:usize
-            auto max_i = self.len - needle.len
-            while i <= max_i {
-                if libc_memcmp(&(self.buf[i]) as *void, &(needle.buf[0]) as *void, needle.len) == 0 {
-                    return Option<usize>::Some(i)
-                }
-                i = i + 1
-            }
-            return Option<usize>::None
-        }
     }
     
     pub fn substr(self, pos: usize, length: usize) -> res: view_str
