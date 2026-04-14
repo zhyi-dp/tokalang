@@ -14,6 +14,7 @@
 
 // core/prelude.tk
 pub import core/types::*
+pub import core/str::*
 pub import core/option::*
 pub import core/result::*
 pub import core/task::*

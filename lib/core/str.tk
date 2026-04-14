@@ -1,0 +1,118 @@
+// Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import core/types::*
+import core/option::{Option}
+
+impl view_str {
+    pub fn buf(self) -> &[char] <- self {
+        return &(self.buf)
+    }
+
+    pub fn len(self) -> usize {
+        return self.len
+    }
+
+    pub fn is_empty(self) -> bool {
+        return self.len <= 0
+    }
+
+    pub fn equals(self, other: view_str) -> bool {
+        if self.len != other.len { return false }
+        if self.len <= 0 { return true }
+        unsafe {
+            return libc_memcmp(self.*buf as *void, other.*buf as *void, self.len) == 0
+        }
+    }
+
+    pub fn starts_with(self, prefix: view_str) -> bool {
+        if prefix.len > self.len { return false }
+        if prefix.len <= 0 { return true }
+        unsafe {
+            return libc_memcmp(self.*buf as *void, prefix.*buf as *void, prefix.len) == 0
+        }
+    }
+
+    pub fn ends_with(self, suffix: view_str) -> bool {
+        if suffix.len() > self.len() { return false }
+        if suffix.len() <= 0 { return true }
+        unsafe {
+            auto offset = self.len() - suffix.len()
+            auto *start = (self.*buf as Addr + offset) as *void
+            return libc_memcmp(*start, suffix.*buf as *void, suffix.len) == 0
+        }
+    }
+
+    pub fn at(self, index: usize) -> Option<char> {
+        if index >= self.len { return Option<char>::None }
+        unsafe {
+            auto *b = self.*buf as *char
+            auto *ptr = (*b as Addr + index) as *char
+            return Option<char>::Some(ptr)
+        }
+    }
+
+    pub fn index_of(self, c: char) -> i32 {
+        if self.len == 0 { return -1 }
+        unsafe {
+            auto i# = 0:usize
+            auto *b = self.*buf as *char
+            while i < self.len {
+                auto *ptr = (*b as Addr + i) as *char
+                if ptr == c { return i as i32 }
+                i = i + 1
+            }
+            return -1
+        }
+    }
+
+    pub fn last_index_of(self, c: char) -> i32 {
+        if self.len == 0 { return -1 }
+        unsafe {
+            auto i# = self.len as i32 - 1
+            auto *b = self.*buf as *char
+            while i >= 0 {
+                auto *ptr = (*b as Addr + i as usize) as *char
+                if ptr == c { return i }
+                i = i - 1
+            }
+            return -1
+        }
+    }
+
+    pub fn contains_char(self, c: char) -> bool {
+        return self.index_of(c) >= 0
+    }
+
+    pub fn index_of_str(self, needle: view_str) -> i32 {
+        if needle.len == 0 { return 0 }
+        if needle.len > self.len { return -1 }
+        unsafe {
+            auto i# = 0:usize
+            auto *haystack = self.*buf as *char
+            auto *n_ptr = needle.*buf as *char
+            auto max_i = self.len - needle.len
+            while i <= max_i {
+                auto *start = (*haystack as Addr + i) as *void
+                if libc_memcmp(*start, *n_ptr as *void, needle.len) == 0 {
+                    return i as i32
+                }
+                i = i + 1
+            }
+            return -1
+        }
+    }
+}
+
+pub alias str = view_str // Slice (like C++ std::string_view)
