@@ -276,6 +276,8 @@ private:
   TokenType m_OuterPointerSigil =
       TokenType::TokenNone; // [NEW] Track outer pointer sigil for nested member
                             // access
+  bool m_AllowPermissionSuffix = false; // [NEW] Track explicit method call context
+  bool m_ExpectedWritability = false;   // [NEW] Contextual expectation for borrow exclusivity
 
   struct ControlFlowInfo {
     std::string Label;

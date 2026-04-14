@@ -62,6 +62,9 @@ public:
   // Verifies if a path can be accessed (read)
   std::string verifyAccess(const std::string& path);
 
+  // Registers an upgrade of a previously shared borrow to mutable
+  bool upgradeBorrow(const std::string& path);
+
   // Gets the exact state of a path
   PathState getState(const std::string& path);
 

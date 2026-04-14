@@ -44,7 +44,7 @@ fn main() -> i32 {
     }
     unsafe {
         auto *p# = alloc [10]i32(42)
-        auto h# = Hero(*buf# = *p)
+        auto h# = Hero(*buf = *p)
         h.buf[0] = 10
         if p[0] != 10 {
             return -1

@@ -466,6 +466,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
           prefix = "&";
 
         Token fieldName = consume(TokenType::Identifier, "Expected field name");
+        if (fieldName.HasWrite || fieldName.IsBlocked) error(fieldName, DiagID::ERR_ILLEGAL_FIELD_MODIFIER);
         consume(TokenType::Equal, "Expected '=' after field name");
         fields.push_back({prefix + fieldName.Text, parseExpr()});
         match(TokenType::Comma);
@@ -522,6 +523,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
 
           Token fieldName =
               consume(TokenType::Identifier, "Expected field name");
+          if (fieldName.HasWrite || fieldName.IsBlocked) error(fieldName, DiagID::ERR_ILLEGAL_FIELD_MODIFIER);
           consume(TokenType::Equal, "Expected '=' after field name");
           fields.push_back({prefix + fieldName.Text, parseExpr()});
           if (!check(TokenType::RParen))
@@ -613,6 +615,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
             if (match(TokenType::TokenWrite)) prefix += "#";
             
             Token fieldName = consume(TokenType::Identifier, "Expected field name");
+            if (fieldName.HasWrite || fieldName.IsBlocked) error(fieldName, DiagID::ERR_ILLEGAL_FIELD_MODIFIER);
             consume(TokenType::Equal, "Expected '='");
             fields.push_back({prefix + fieldName.Text, parseExpr()});
             if (!check(TokenType::RParen)) match(TokenType::Comma);
@@ -743,6 +746,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
 
           Token fieldName =
               consume(TokenType::Identifier, "Expected field name");
+          if (fieldName.HasWrite || fieldName.IsBlocked) error(fieldName, DiagID::ERR_ILLEGAL_FIELD_MODIFIER);
           consume(TokenType::Equal, "Expected '=' after field name");
           fields.push_back({prefix + fieldName.Text, parseExpr()});
           if (!check(TokenType::RParen))
@@ -1071,6 +1075,7 @@ std::unique_ptr<Expr> Parser::parseAllocExpr() {
           prefix = "&";
 
         Token fieldName = consume(TokenType::Identifier, "Expected field name");
+        if (fieldName.HasWrite || fieldName.IsBlocked) error(fieldName, DiagID::ERR_ILLEGAL_FIELD_MODIFIER);
         consume(TokenType::Equal, "Expected '=' after field name");
         fields.push_back({prefix + fieldName.Text, parseExpr()});
         match(TokenType::Comma);

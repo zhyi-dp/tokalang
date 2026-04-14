@@ -13,7 +13,7 @@ fn sum_array<N_: usize>(arr: [i32; N_]) -> i32 {
     auto i#: usize = 0
     loop {
         if i == N_ { break }
-        sum# = sum + arr[i]
+        sum = sum + arr[i]
         i = i + 1 as usize
     }
     return sum

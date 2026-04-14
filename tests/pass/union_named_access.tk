@@ -14,7 +14,7 @@ fn main() -> i32 {
 
     println("--- Test 2: Bitcast View ---")
     // 2. 写入 Float
-    u#.Float = 3.14:f32
+    u.Float = 3.14:f32
     // 3.14f 的位模式是 0x4048F5C3 (1078523331)
     
     // 读取 Int 视图

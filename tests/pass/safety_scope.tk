@@ -16,7 +16,7 @@ import std/io::println
 fn main() -> i32 {
     auto x# = 10
     {
-        auto &y# = &x#
+        auto &y# = &x
         y = 20
         println("y = {}", y)
     }
@@ -29,11 +29,11 @@ fn main() -> i32 {
 
     auto y# = 10
     {
-        auto &#z# = &x#
+        auto &#z# = &x
         z = 33
         println("z = {}", z)
 
-        &z = &y#
+        &z = &y
         z = 44
         println("z = {}", z)
     }

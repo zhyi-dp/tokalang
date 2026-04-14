@@ -25,7 +25,7 @@ pub fn check_pure_data() {
     assert(x == 10, "x should be 10")
 
     {
-        auto(&a,&b#) = pt#
+        auto(&a,&b#) = pt
         b += 1
         println("Point: a={}, b={}", a, b)
     }
@@ -112,7 +112,7 @@ pub fn main() -> i32 {
     auto string_res# = Result<String, String>::Ok(String::from("Toka Destructure Safety"))
 
     // Invoke the destructuring exhibition
-    check_mut_result(string_res#)
+    check_mut_result(string_res)
 
 
     // At the end of the main function, since string_res is the true owner,

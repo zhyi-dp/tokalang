@@ -163,7 +163,7 @@ impl TcpStream {
     }
     
     pub fn write_async(self#, *buf: u8, len: usize) -> async Result<usize, String> {
-        return net_async_write(self#, *buf, len).await
+        return net_async_write(self, *buf, len).await
     }
     
     pub fn write_string_async(self#, s: String) -> async Result<usize, String> {

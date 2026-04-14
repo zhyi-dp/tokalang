@@ -8,7 +8,7 @@ fn main() -> i32 {
     // 1. Prepare test file
     {
         auto f_res# = File::open(path, String::from("w"))
-        match f_res# {
+        match f_res {
             auto Result<File, String>::Ok(&f#) => {
                 f#.write(String::from("Line 1: High Performance\n"))
                 f#.write(String::from("Line 2: Native Buffering\n"))
@@ -21,10 +21,10 @@ fn main() -> i32 {
     // 2. Reading Test
     {
         auto f_res# = File::open(path, String::from("r"))
-        match f_res# {
+        match f_res {
             auto Result<File, String>::Ok(&f#) => {
                 auto l1_res# = f#.read_line()
-                match l1_res# {
+                match l1_res {
                     auto Result<String, String>::Ok(&l1) => {
                         println("Read L1: {}", l1.c_str())
                         if !l1.eq(String::from("Line 1: High Performance\n")) { return 2 }
@@ -33,7 +33,7 @@ fn main() -> i32 {
                 }
                 
                 auto l2_res# = f#.read_line()
-                match l2_res# {
+                match l2_res {
                     auto Result<String, String>::Ok(&l2) => {
                         println("Read L2: {}", l2.c_str())
                         if !l2.eq(String::from("Line 2: Native Buffering\n")) { return 4 }

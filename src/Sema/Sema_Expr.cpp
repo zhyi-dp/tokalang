@@ -336,6 +336,11 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     std::string pathToBorrow = getStringifyPath(scan);
     if (!pathToBorrow.empty()) {
         bool wantMutable = innerObj->IsWritable;
+        if (wantMutable) {
+            if (!m_ExpectedWritability) {
+                wantMutable = false;
+            }
+        }
 
         std::string baseVar = pathToBorrow;
         size_t dotPos = baseVar.find('.');
@@ -450,6 +455,15 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     return toka::Type::fromString("cstring");
   } else if (auto *ve = dynamic_cast<VariableExpr *>(E)) {
     m_AccessedVariables.insert(ve->Name); // [CLOSURE] Tracker
+
+    // [NEW] Enforce Suffix Lifecycle Rule: '#' and '$' only allowed in declarations
+    // or explicit mutable method invocation caller contexts.
+    if (ve->IsValueMutable || ve->IsValueBlocked) {
+      if (!m_AllowPermissionSuffix) {
+        error(ve, DiagID::ERR_ILLEGAL_MODIFIER_SUFFIX);
+      }
+    }
+
     // [Ch 5] Single Hat Principle: Intermediate paths MUST NOT have morphology
     // or permissions Check flags because Lexer splits them from the identifier
     // name.
@@ -787,19 +801,14 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     // now.
     if (shouldCollapse || (current && !current->isPointer())) {
       if (current) {
-        // [Toka 1.3] Permission View: Default to immutable unless '#' is
-        // present or in LHS.
+        // [Toka 1.3] Permission View: Inherit inherent mutability.
+        // With explicit suffixes banned in expressions, variables inherently exhibit 
+        // their declared mutability.
         bool usageMutable = ve->IsValueMutable;
-        if (m_InLHS) {
-          if (shouldCollapse) {
-            // Looking at soul: inherit soul mutability
-            if (Info.IsSoulMutable())
-              usageMutable = true;
-          } else {
-            // Looking at identity: inherit handle mutability (rebindable)
-            if (Info.IsRebindable || Info.IsMutable())
-              usageMutable = true;
-          }
+        if (shouldCollapse) {
+           if (Info.IsSoulMutable()) usageMutable = true;
+        } else {
+           if (Info.IsRebindable || Info.IsMutable()) usageMutable = true;
         }
 
         bool effectiveNull = current->IsNullable || ve->IsValueNullable;
@@ -810,7 +819,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     // Identity view (Collapse disabled)
     if (!shouldCollapse && current) {
       bool identWritable = ve->IsValueMutable;
-      if (m_InLHS && (Info.IsRebindable || Info.IsMutable())) {
+      if (Info.IsRebindable || Info.IsMutable()) {
         identWritable = true;
       }
       return current->withAttributes(identWritable, current->IsNullable);
@@ -1298,19 +1307,21 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
                        fe->IterElementType = fullType;
     } else {
         // 2. Iterator Protocol Method Lookup
-        if (!MethodMap.count(soulType) || !MethodMap[soulType].count("iter")) {
+        std::string baseSoulType = toka::Type::stripMorphology(soulType);
+        if (!MethodMap.count(baseSoulType) || !MethodMap[baseSoulType].count("iter")) {
             error(fe->Collection.get(), "Type '" + soulType + "' does not implement iterator protocol (.iter())");
             fullType = "i32";
         } else {
-            std::string iterObjStr = MethodMap[soulType]["iter"];
+            std::string iterObjStr = MethodMap[baseSoulType]["iter"];
             iterObjStr = resolveType(iterObjStr, false);
               auto iterObj = toka::Type::fromString(iterObjStr);
             auto iterSoul = iterObj->getSoulType()->toString();
+            std::string baseIterSoul = toka::Type::stripMorphology(iterSoul);
             
             // 1. Peek at next() to see what the element type is
             std::string E_type = "";
-            if (MethodMap.count(iterSoul) && MethodMap[iterSoul].count("next")) {
-                std::string nextRetStr = MethodMap[iterSoul]["next"];
+            if (MethodMap.count(baseIterSoul) && MethodMap[baseIterSoul].count("next")) {
+                std::string nextRetStr = MethodMap[baseIterSoul]["next"];
                 if (nextRetStr.size() > 7 && nextRetStr.substr(0, 7) == "Option<") {
                     E_type = nextRetStr.substr(7, nextRetStr.size() - 8);
                 }
@@ -1645,7 +1656,11 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     }
     return toka::Type::fromString("*" + baseType);
   } else if (auto *Met = dynamic_cast<MethodCallExpr *>(E)) {
+    bool oldAllow = m_AllowPermissionSuffix;
+    m_AllowPermissionSuffix = true; // [NEW] Grant suffix allowance for explicit method call objects
     auto ObjTypeObj = checkExpr(Met->Object.get());
+    m_AllowPermissionSuffix = oldAllow;
+    
     std::string ObjType = resolveType(ObjTypeObj->toString());
 
     // Check for Dynamic Trait Object
@@ -1904,6 +1919,14 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     // [Fix] Do NOT disable soul collapse.
     // If the user wants the handle, they must use explicit prefix (e.g.
     // ^ptr#). Otherwise `ptr#` means "Mutable Value".
+
+    // [NEW] Enforce Suffix Lifecycle Rule
+    if (Post->Op == TokenType::TokenWrite) {
+      if (!m_AllowPermissionSuffix) {
+        error(Post, DiagID::ERR_ILLEGAL_MODIFIER_SUFFIX);
+      }
+    }
+
     if (m_InIntermediatePath) {
       if (Post->Op == TokenType::TokenWrite ||
           Post->Op == TokenType::TokenNull) {
@@ -2031,8 +2054,11 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     bool hasWildcard = false;
     std::set<std::string> matchedVariants;
 
-    if (ShapeMap.count(targetType) && ShapeMap[targetType]->Kind == ShapeKind::Enum) {
-      ShapeDecl *SD = ShapeMap[targetType];
+    std::string unstrippedTargetType = targetType;
+    std::string baseTargetType = toka::Type::stripMorphology(targetType);
+
+    if (ShapeMap.count(baseTargetType) && ShapeMap[baseTargetType]->Kind == ShapeKind::Enum) {
+      ShapeDecl *SD = ShapeMap[baseTargetType];
       for (auto &arm : me->Arms) {
         if (arm->Pat->PatternKind == MatchArm::Pattern::Wildcard) {
           hasWildcard = true;
@@ -2650,6 +2676,13 @@ std::shared_ptr<toka::Type> Sema::checkUnaryExpr(UnaryExpr *Unary) {
             isExclusive = true;
           }
         }
+        
+        // [Contextual Borrow] Downgrade to shared if context expects read-only
+        if (isExclusive && !handleMutable) {
+            if (!m_ExpectedWritability) {
+                isExclusive = false;
+            }
+        }
 
         if (!m_InLHS) {
           std::string pathToBorrow = getStringifyPath(Unary->RHS.get());
@@ -2754,8 +2787,13 @@ std::shared_ptr<toka::Type> Sema::checkUnaryExpr(UnaryExpr *Unary) {
     
     bool isExclusive = Unary->IsRebindable;
     if (inner->IsWritable && !(inner->isSharedPtr() || inner->isRawPointer() || inner->isReference())) {
-      isExclusive = true;
+      if (m_ExpectedWritability) {
+          isExclusive = true;
+      }
     }
+
+    std::cerr << "[DEBUG] Ampersand for '" << getStringifyPath(Unary->RHS.get()) 
+              << "' -> expectedWrit=" << m_ExpectedWritability << ", exclusive=" << isExclusive << "\n";
 
     if (!m_InLHS) {
       std::string pathToBorrow = getStringifyPath(Unary->RHS.get());
@@ -2836,7 +2874,12 @@ std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
   // [Toka 1.3] Evaluation Order: Check RHS first to avoid LHS
   // borrows/moves blocking RHS usage (e.g. &#cursor = cursor.&next)
   Bin->RHS = foldGenericConstant(std::move(Bin->RHS));
+  m_LastBorrowSource = ""; // [NEW] Clear stale borrow source
   auto rhsType = checkExpr(Bin->RHS.get());
+  std::string rhsBorrowSource = ""; 
+  if (!getStringifyPath(Bin->RHS.get()).empty()) {
+      rhsBorrowSource = m_LastBorrowSource;
+  }
 
   bool isAssign = (Bin->Op == "=" || Bin->Op == "+=" || Bin->Op == "-=" ||
                    Bin->Op == "*=" || Bin->Op == "/=" || Bin->Op == "%=");
@@ -2873,6 +2916,12 @@ std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
     m_ControlFlowStack.pop_back();
   m_InLHS = oldLHS;
   m_IsAssignmentTarget = oldTarget;
+
+  if (isAssign && lhsType && lhsType->IsWritable && !rhsBorrowSource.empty()) {
+      if (!PALCheckerState.upgradeBorrow(rhsBorrowSource)) {
+          error(Bin, DiagID::ERR_BORROW_MUT, rhsBorrowSource);
+      }
+  }
 
   if (!lhsType || !rhsType)
     return toka::Type::fromString("unknown");

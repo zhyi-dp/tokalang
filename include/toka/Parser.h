@@ -15,6 +15,7 @@
 
 #include "toka/AST.h"
 #include "toka/Lexer.h"
+#include "toka/DiagnosticEngine.h"
 #include <memory>
 #include <string>
 #include <vector>
@@ -47,6 +48,7 @@ private:
   void expectEndOfStatement();
   bool isEndOfStatement();
   void error(const Token &tok, const std::string &message);
+  void error(const Token &tok, DiagID id);
 
   // Recursive Descent Methods
   std::unique_ptr<FunctionDecl> parseFunctionDecl(bool isPub = false);

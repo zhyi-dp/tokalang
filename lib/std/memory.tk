@@ -41,13 +41,13 @@ pub fn __toka_free(*#ptr: void) {
 
 pub fn __toka_memset(*ptr#: void, val: u8, len: usize) {
     unsafe {
-        libc_memset(*ptr#, val as i32, len)
+        libc_memset(*ptr, val as i32, len)
     }
 }
 
 pub fn __toka_memcpy(*dest#: void, *src: void, len: usize) {
     unsafe {
-        libc_memcpy(*dest#, *src, len)
+        libc_memcpy(*dest, *src, len)
     }
 }
 

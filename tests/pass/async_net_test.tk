@@ -14,7 +14,7 @@ pub fn async_server() -> async i32 {
     auto listener# = listener_res.unwrap()
     
     println("[Server] Awaiting incoming connection...")
-    auto stream_res = net_async_accept(listener#).await
+    auto stream_res = net_async_accept(listener).await
     if !stream_res.is_ok() {
         println("[Server] Accept failed!")
         return -1
@@ -25,7 +25,7 @@ pub fn async_server() -> async i32 {
     // Read using async_read
     unsafe {
         auto *buf# = unsafe alloc [128]u8
-        auto r_res = net_async_read(stream#, *buf as *u8, 128:usize).await
+        auto r_res = net_async_read(stream, *buf as *u8, 128:usize).await
         auto n = r_res.unwrap()
         
         println("[Server] Received data from client. Echoing back...")
@@ -56,7 +56,7 @@ pub fn async_client() -> async i32 {
     println("[Client] Awaiting response...")
     unsafe {
         auto *buf# = unsafe alloc [128]u8
-        auto r_res = net_async_read(stream#, *buf as *u8, 128:usize).await
+        auto r_res = net_async_read(stream, *buf as *u8, 128:usize).await
         auto n = r_res.unwrap()
         println("[Client] Received Echo Payload!")
         unsafe free [128] *#buf

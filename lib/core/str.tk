@@ -123,15 +123,15 @@ impl view_str {
         res.&buf <- self.buf
     {
         auto actual_len# = length
-        if pos >= self.len() { 
-            return view_str(&buf = self.&buf, len$ = 0) 
+        if pos >= self.len { 
+            return view_str(&buf = self.&buf, len = 0) 
         }
-        if pos == 0 && actual_len >= self.len() { 
+        if pos == 0 && actual_len >= self.len { 
             return self.clone() 
         }
         
-        if pos + actual_len > self.len() { 
-            actual_len = self.len() - pos 
+        if pos + actual_len > self.len { 
+            actual_len = self.len - pos 
         }
         
         unsafe {
@@ -139,7 +139,7 @@ impl view_str {
             auto ptr_addr = b_addr + pos
             
             // 1. Construct safe view using original reference to satisfy PAL
-            auto ret# = view_str(&buf = self.&buf, len$ = actual_len)
+            auto ret# = view_str(&buf = self.&buf, len = actual_len)
             
             // 2. Overwrite the internal array pointer (offset 0) unconditionally via FFI
             // This safely bypasses Toka's raw pointer immutability laws (E0406/E0443)

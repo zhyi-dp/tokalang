@@ -16,7 +16,7 @@ fn main() -> i32 {
     }
     
     // Test L-Value
-    auto (&r, &g#, &x, &y) = u# as (u8, u8, u8, u8)
+    auto (&r, &g#, &x, &y) = u as (u8, u8, u8, u8)
     g = 0xFF
     
     auto (a2, b2, c2, d2) = u as (u8, u8, u8, u8)

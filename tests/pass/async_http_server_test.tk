@@ -32,7 +32,7 @@ fn process_client(stream: TcpStream) -> async i32 {
         auto buf: [char; 1024] = [0 as char; 1024]
         auto *buf_ptr# = &buf[0] as *u8
         
-        auto read_res = net_async_read(stream#, *buf_ptr, 1024:usize).await
+        auto read_res = net_async_read(stream, *buf_ptr, 1024:usize).await
         if read_res.is_err() {
             println("[Client Handler] Read error")
             return 1
@@ -74,7 +74,7 @@ fn run_server(port: u16) -> async i32 {
     println("[Server] Listening...")
     
     while !g_server_stop {
-        auto stream_res = net_async_accept(listener#).await
+        auto stream_res = net_async_accept(listener).await
         if stream_res.is_ok() {
             if g_server_stop { break } // exit before processing if stopped
             println("[Server] Accepted Web connection natively asynchronously!")
@@ -109,7 +109,7 @@ fn async_client_runner() -> async i32 {
         // Read response
         auto buf: [char; 1024] = [0 as char; 1024]
         auto *buf_ptr# = &buf[0] as *u8
-        auto read_res = net_async_read(stream#, *buf_ptr, 1024:usize).await
+        auto read_res = net_async_read(stream, *buf_ptr, 1024:usize).await
         
         if read_res.is_ok() {
             auto n = read_res.unwrap()
@@ -143,6 +143,6 @@ fn entry_point() -> async i32 {
 
 pub fn main() -> i32 {
     auto entry = entry_point().start
-    block_on<i32>(entry#)
+    block_on<i32>(entry)
     return 0
 }

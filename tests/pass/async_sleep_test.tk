@@ -53,7 +53,7 @@ pub fn main() -> i32 {
     // block on completion
     auto handle = entry_point().start
     
-    block_on<i32>(handle#)
+    block_on<i32>(handle)
     log_ms("[MAIN] 2. block_on returned!" as *char)
     return 0
 }

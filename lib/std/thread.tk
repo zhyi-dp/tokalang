@@ -35,7 +35,7 @@ pub fn thread_spawn<'T: @Send>(f: fn() -> cede 'T) -> JoinHandle<'T> {
         auto *box_ptr# = (libc_malloc(sizeof(ClosureBox<'T>) as usize) as *ClosureBox<'T>)
         auto f_arg = unsafe ((*box_ptr) as Addr)
         
-        box_ptr# = ClosureBox<'T>(closure = cede f, self_ptr = f_arg)
+        box_ptr = ClosureBox<'T>(closure = cede f, self_ptr = f_arg)
         
         // Read the struct value to capture it
         auto captured_box = box_ptr
@@ -53,7 +53,7 @@ pub fn thread_spawn<'T: @Send>(f: fn() -> cede 'T) -> JoinHandle<'T> {
                 auto *ret_ptr# = (libc_malloc(sizeof('T) as usize) as *'T)
                 
                 // Write the structural closure evaluation safely to memory by utilizing `cede` keyword for moves!
-                ret_ptr# = cede closure()
+                ret_ptr = cede closure()
                 
                 return (*ret_ptr) as Addr
             }
@@ -61,7 +61,7 @@ pub fn thread_spawn<'T: @Send>(f: fn() -> cede 'T) -> JoinHandle<'T> {
         
         // Box the trampoline manually via libc_malloc to avoid compiler managed auto-drop
         auto *tramp_buf# = (libc_malloc(sizeof(TrampBox) as usize) as *TrampBox)
-        tramp_buf# = TrampBox(f = cede tramp_fn)
+        tramp_buf = TrampBox(f = cede tramp_fn)
         
         // Now safely extract the native C function pointer & environment block
         auto *tramp_mem# = (*tramp_buf) as *Addr
@@ -73,7 +73,7 @@ pub fn thread_spawn<'T: @Send>(f: fn() -> cede 'T) -> JoinHandle<'T> {
         
         // 3. Allocate Addr for thread_id
         auto *thread_ptr# = (libc_malloc(8 as usize) as *Addr)
-        thread_ptr# = 0:Addr
+        thread_ptr = 0:Addr
         
         // 4. Fire the thread natively. We pass `f_arg` (the heap-allocated ClosureBox pointer) 
         // as the `env_ptr`, safely tricking the closure into reading it instead of the local stack bounds!
@@ -104,7 +104,7 @@ impl<'T: @Send> JoinHandle<'T> {
             unsafe {
                 libc_pthread_detach(self.id)
             }
-            self.id# = 0:Addr
+            self.id = 0:Addr
         }
     }
     
@@ -113,7 +113,7 @@ impl<'T: @Send> JoinHandle<'T> {
     /// Waits for the thread to finish and returns its yielded value or an Error if the OS join fails.
     pub fn join(self#) -> Result<'T, Error> {
         auto tid = self.id
-        self.id# = 0:Addr // Clear ownership safely post-join (or before aborting) to bypass Sema self-shadowing!
+        self.id = 0:Addr // Clear ownership safely post-join (or before aborting) to bypass Sema self-shadowing!
         
         if tid == 0:Addr {
             auto msg# = String::from("thread was already joined or detached")
@@ -157,7 +157,7 @@ impl<'T: @Send> JoinHandle<'T>@encap {
     fn drop(self#) {
         if self.id != 0:Addr {
             unsafe { libc_pthread_detach(self.id) }
-            self.id# = 0:Addr
+            self.id = 0:Addr
         }
     }
 }

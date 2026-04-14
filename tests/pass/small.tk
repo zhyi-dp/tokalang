@@ -53,10 +53,10 @@ fn main() -> i32 {
     p.x = addx(p, 10)
     println("[{}]p.x is {} (after addx, should be 41)", logi++, p.x)
     
-    addtox(p#, 10)
+    addtox(p, 10)
     println("[{}]p.x is {} (after addtox, should be 51 because of In-place Capture)", logi++, p.x)
     
-    addtox_useref(p#, 10)
+    addtox_useref(p, 10)
     println("[{}]p.x is {} (after addtox_useref, should be 61)", logi++, p.x)
 
     auto b# = true

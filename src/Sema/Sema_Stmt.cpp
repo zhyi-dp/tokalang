@@ -463,7 +463,13 @@ void Sema::checkStmt(Stmt *S) {
         }
       }
       
+      bool oldExpectedWritability = m_ExpectedWritability;
+      if (Var->IsReference) {
+          m_ExpectedWritability = Var->IsValueMutable;
+      }
+      m_LastBorrowSource = ""; // [NEW] Clear stale borrow source
       InitTypeObj = checkExpr(Var->Init.get());
+      m_ExpectedWritability = oldExpectedWritability;
       InitType = InitTypeObj->toString();
       m_AllowUnsetUsage = false;
     }
@@ -532,6 +538,11 @@ void Sema::checkStmt(Stmt *S) {
         
 
         
+        // [New] Decay inherently mutable auto-inferred types to ReadOnly if var doesn't declare it.
+        if (!Var->IsValueMutable && !Inferred.empty() && Inferred.back() == '#') {
+            Inferred.pop_back();
+        }
+
         Var->TypeName = Inferred;
       }
     } else {

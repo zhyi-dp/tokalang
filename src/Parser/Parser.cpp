@@ -130,6 +130,11 @@ void Parser::error(const Token &tok, const std::string &message) {
   std::exit(1);
 }
 
+void Parser::error(const Token &tok, DiagID id) {
+  DiagnosticEngine::report(tok.Loc, id);
+  std::exit(1);
+}
+
 std::string Parser::parseTypeString() {
   std::string type;
   int balance = 0;

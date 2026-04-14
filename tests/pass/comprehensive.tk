@@ -157,7 +157,7 @@ fn main() -> i32 {
             break 200 // OK
         }
         
-        if !simulate(e1#) {
+        if !simulate(e1) {
             break 500 // Error
         }
         

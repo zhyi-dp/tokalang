@@ -54,11 +54,11 @@ fn main() -> i32 {
     println("[{}]p.x is {} (after addx, should be 41)", logi++, p.x)
     assert(p.x == 41, "p.x mismatch after addx")
     
-    addtox(p#, 10)
+    addtox(p, 10)
     println("[{}]p.x is {} (after addtox, should be 51 because of In-place Capture)", logi++, p.x)
     assert(p.x == 51, "p.x mismatch after addtox")
     
-    addtox_useref(p#, 10)
+    addtox_useref(p, 10)
     println("[{}]p.x is {} (after addtox_useref, should be 61)", logi++, p.x)
     assert(p.x == 61, "p.x mismatch after addtox_useref")
 
@@ -106,7 +106,7 @@ fn main() -> i32 {
     // Reference tests following safety rules
     auto a# = 10
     {
-        auto &b# = &a#
+        auto &b# = &a
         b = 20
         // Accessing 'a' here would be a violation of rule 406
     }

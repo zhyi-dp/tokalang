@@ -47,6 +47,19 @@ bool PALChecker::recordBorrow(const std::string& path, bool isMutable) {
   return true;
 }
 
+bool PALChecker::upgradeBorrow(const std::string& path) {
+  if (!IsEnabled) return true;
+  
+  if (!LedgerStack.empty()) {
+      auto& map = LedgerStack.back().Map;
+      if (map.count(path) && map[path] == PathState::BorrowedShared) {
+          map[path] = PathState::BorrowedMut;
+          return true;
+      }
+  }
+  return false;
+}
+
 std::string PALChecker::verifyMutation(const std::string& path) {
   if (!IsEnabled) return "";
 
