@@ -21,6 +21,26 @@
 namespace toka {
 
 std::unique_ptr<MatchArm::Pattern> Parser::parsePattern() {
+  auto pat = parseSinglePattern();
+  if (!pat) return nullptr;
+
+  if (check(TokenType::Pipe)) {
+    auto orPat = std::make_unique<MatchArm::Pattern>(MatchArm::Pattern::Or);
+    orPat->Loc = pat->Loc;
+    orPat->SubPatterns.push_back(std::move(pat));
+    while (match(TokenType::Pipe)) {
+      auto next = parseSinglePattern();
+      if (next) {
+        orPat->SubPatterns.push_back(std::move(next));
+      }
+    }
+    return orPat;
+  }
+
+  return pat;
+}
+
+std::unique_ptr<MatchArm::Pattern> Parser::parseSinglePattern() {
   bool isMut = false;
   bool isRef = false;
   match(TokenType::KwAuto); // skip auto if present

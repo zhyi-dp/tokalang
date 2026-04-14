@@ -17,7 +17,7 @@ import core/libc::*
 import core/result::{Result}
 
 // Intrinsic
-extern fn println(fmt: cstring, ...) -> void
+extern fn println(fmt: str, ...) -> void
 
 // Specific Result Types to avoid Generic Instantiation B
 pub shape File (

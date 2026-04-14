@@ -1,6 +1,6 @@
 import core/libc::*
 
-pub fn __toka_panic_handler(msg: cstring)
+pub fn __toka_panic_handler(msg: str)
 {
     libc_abort()
 }

@@ -1723,8 +1723,11 @@ llvm::Value *CodeGen::genNullCheck(llvm::Value *val, const ASTNode *node,
   if (!panicFunc) {
     // Declare if not found (happens during early codegen stages or if not
     // imported)
-    std::vector<llvm::Type *> panicArgs = {
-        m_Builder.getPtrTy(), m_Builder.getPtrTy(), m_Builder.getInt32Ty()};
+    llvm::Type *strTy = llvm::StructType::get(
+        m_Context, {m_Builder.getPtrTy(), m_Builder.getInt64Ty()});
+    llvm::Type *ptrTy = llvm::PointerType::getUnqual(m_Context);
+    std::vector<llvm::Type *> panicArgs = {ptrTy, ptrTy,
+                                           m_Builder.getInt32Ty()};
     llvm::FunctionType *panicFT =
         llvm::FunctionType::get(m_Builder.getVoidTy(), panicArgs, false);
     panicFunc = llvm::Function::Create(panicFT, llvm::Function::ExternalLinkage,
@@ -1742,9 +1745,30 @@ llvm::Value *CodeGen::genNullCheck(llvm::Value *val, const ASTNode *node,
     }
   }
 
+  llvm::Type *strTy = llvm::StructType::get(
+      m_Context, {m_Builder.getPtrTy(), m_Builder.getInt64Ty()});
+
+  llvm::Value *msgPtr = m_Builder.CreateGlobalString(msg, "panic_msg");
+  llvm::Value *msgStr = llvm::UndefValue::get(strTy);
+  msgStr = m_Builder.CreateInsertValue(msgStr, msgPtr, 0);
+  msgStr = m_Builder.CreateInsertValue(msgStr, m_Builder.getInt64(msg.length()), 1);
+
+  llvm::Value *filePtr = m_Builder.CreateGlobalString(fileName, "panic_file");
+  llvm::Value *fileStr = llvm::UndefValue::get(strTy);
+  fileStr = m_Builder.CreateInsertValue(fileStr, filePtr, 0);
+  fileStr = m_Builder.CreateInsertValue(fileStr, m_Builder.getInt64(fileName.length()), 1);
+
+  // Toka ABI passes aggregates (shapes) by pointer.
+  llvm::IRBuilder<> tmpB(&f->getEntryBlock(), f->getEntryBlock().begin());
+  llvm::Value *msgAlloc = tmpB.CreateAlloca(strTy, nullptr, "panic_msg_alloc");
+  llvm::Value *fileAlloc = tmpB.CreateAlloca(strTy, nullptr, "panic_file_alloc");
+  
+  m_Builder.CreateStore(msgStr, msgAlloc);
+  m_Builder.CreateStore(fileStr, fileAlloc);
+
   std::vector<llvm::Value *> args;
-  args.push_back(m_Builder.CreateGlobalString(msg, "panic_msg"));
-  args.push_back(m_Builder.CreateGlobalString(fileName, "panic_file"));
+  args.push_back(msgAlloc);
+  args.push_back(fileAlloc);
   args.push_back(m_Builder.getInt32(line));
 
   m_Builder.CreateCall(panicFunc, args);

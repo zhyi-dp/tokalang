@@ -3,7 +3,7 @@ import core/types::SourceLoc
 
 fn get_line(line: i32 = __LINE__) -> i32 { return line }
 
-fn get_file(f: cstring = __FILE__) -> cstring { return f }
+fn get_file(f: str = __FILE__) -> str { return f }
 
 fn get_loc(loc: SourceLoc = __LOC__) -> SourceLoc { return loc }
 
@@ -20,12 +20,12 @@ fn main() -> i32 {
 
     // 3. __FILE__
     auto f = get_file()
-    assert(f != "", "File injection failed")
+    assert(f.len() > 0, "File injection failed")
 
     // 4. __LOC__
     auto loc = get_loc()
     assert(loc.line == 26, "Loc line failed")
-    assert(loc.file != "", "Loc file failed")
+    assert(loc.file.len() > 0, "Loc file failed")
 
     return 0
 }

@@ -58,6 +58,7 @@ private:
   std::unique_ptr<ImplDecl> parseImpl();
   std::unique_ptr<TraitDecl> parseTrait(bool isPub = false);
   std::unique_ptr<Expr> parseMatchExpr();
+  std::unique_ptr<MatchArm::Pattern> parseSinglePattern();
   std::unique_ptr<MatchArm::Pattern> parsePattern();
   std::vector<GenericParam> parseGenericParams();
 
