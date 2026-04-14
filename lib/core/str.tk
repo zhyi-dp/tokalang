@@ -44,7 +44,6 @@ impl view_str {
         if self.len != other.len { return false }
         if self.len <= 0 { return true }
         unsafe {
-            libc_printf("DEBUG EQUALS: self='%c', other='%c'\n" as *u8, self.buf[0], other.buf[0])
             return libc_memcmp(&(self.buf[0]) as *void, &(other.buf[0]) as *void, self.len) == 0
         }
     }
@@ -57,41 +56,30 @@ impl view_str {
         }
     }
 
-    pub fn starts_with(self, prefix: view_str) -> bool {
-        if prefix.len > self.len { return false }
-        if prefix.len <= 0 { return true }
-        unsafe {
-            return libc_memcmp(self.buf() as Addr as *void, prefix.buf() as Addr as *void, prefix.len) == 0
-        }
-    }
+
 
     pub fn ends_with(self, suffix: view_str) -> bool {
-        if suffix.len() > self.len { return false }
-        if suffix.len() <= 0 { return true }
+        if suffix.len > self.len { return false }
+        if suffix.len <= 0 { return true }
         unsafe {
-            auto offset = self.len - suffix.len()
-            auto *start = (self.*buf as Addr + offset) as *void
-            return libc_memcmp(*start, suffix.*buf as *void, suffix.len) == 0
+            auto offset = self.len - suffix.len
+            return libc_memcmp(&(self.buf[offset]) as *void, &(suffix.buf[0]) as *void, suffix.len) == 0
         }
     }
 
     pub fn at(self, index: usize) -> Option<char> {
         if index >= self.len { return Option<char>::None }
         unsafe {
-            auto *b = self.*buf as *char
-            auto *ptr = (*b as Addr + index) as *char
-            return Option<char>::Some(ptr)
+            return Option<char>::Some(self.buf[index])
         }
     }
 
     pub fn index_of(self, c: char) -> Option<usize> {
-        if self.len() == 0 { return Option<usize>::None }
+        if self.len == 0 { return Option<usize>::None }
         unsafe {
             auto i# = 0:usize
-            auto *b = self.*buf as *char
-            while i < self.len() {
-                auto *ptr = (*b as Addr + i) as *char
-                if ptr == c { return Option<usize>::Some(i) }
+            while i < self.len {
+                if self.buf[i] == c { return Option<usize>::Some(i) }
                 i = i + 1
             }
             return Option<usize>::None
@@ -99,14 +87,12 @@ impl view_str {
     }
 
     pub fn last_index_of(self, c: char) -> Option<usize> {
-        if self.len() == 0 { return Option<usize>::None }
+        if self.len == 0 { return Option<usize>::None }
         unsafe {
-            auto i# = self.len()
-            auto *b = self.*buf as *char
+            auto i# = self.len
             while i > 0 {
                 i = i - 1
-                auto *ptr = (*b as Addr + i) as *char
-                if ptr == c { return Option<usize>::Some(i) }
+                if self.buf[i] == c { return Option<usize>::Some(i) }
             }
             return Option<usize>::None
         }
@@ -117,16 +103,13 @@ impl view_str {
     }
 
     pub fn index_of_str(self, needle: view_str) -> Option<usize> {
-        if needle.len() == 0 { return Option<usize>::Some(0) }
-        if needle.len() > self.len() { return Option<usize>::None }
+        if needle.len == 0 { return Option<usize>::Some(0) }
+        if needle.len > self.len { return Option<usize>::None }
         unsafe {
             auto i# = 0:usize
-            auto *haystack = self.*buf as *char
-            auto *n_ptr = needle.*buf as *char
-            auto max_i = self.len() - needle.len()
+            auto max_i = self.len - needle.len
             while i <= max_i {
-                auto *start = (*haystack as Addr + i) as *void
-                if libc_memcmp(*start, *n_ptr as *void, needle.len()) == 0 {
+                if libc_memcmp(&(self.buf[i]) as *void, &(needle.buf[0]) as *void, needle.len) == 0 {
                     return Option<usize>::Some(i)
                 }
                 i = i + 1

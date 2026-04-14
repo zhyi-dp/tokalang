@@ -8,6 +8,35 @@ fn test_view_str(vstr: view_str) -> i32 {
     // Test 2: Substr start
     auto s = vstr.substr(0, 5)
     if !s.equals("hello") { libc_printf("FAIL: prefix\n", 0 as OAddr); libc_exit(1) }
+
+    // Test 3: starts_with / ends_with
+    if !vstr.starts_with("hello") { libc_printf("FAIL: starts_with\n", 0 as OAddr); libc_exit(1) }
+    if !vstr.ends_with("toka!") { libc_printf("FAIL: ends_with\n", 0 as OAddr); libc_exit(1) }
+    if vstr.starts_with("hella") { libc_printf("FAIL: starts_with negative\n", 0 as OAddr); libc_exit(1) }
+    if vstr.ends_with("toba!") { libc_printf("FAIL: ends_with negative\n", 0 as OAddr); libc_exit(1) }
+
+    // Test 4: Char indexing
+    auto c1 = vstr.at(0:usize)
+    auto c2 = vstr.at(7:usize)
+    if c1.unwrap() != 'h' { libc_printf("FAIL: at 0\n", 0 as OAddr); libc_exit(1) }
+    if c2.unwrap() != 't' { libc_printf("FAIL: at 7\n", 0 as OAddr); libc_exit(1) }
+
+    // Test 5: index_of
+    auto i1 = vstr.index_of('o')
+    auto i2 = vstr.last_index_of('o')
+    if i1.unwrap() != 4:usize { libc_printf("FAIL: index_of\n", 0 as OAddr); libc_exit(1) }
+    if i2.unwrap() != 8:usize { libc_printf("FAIL: last_index_of\n", 0 as OAddr); libc_exit(1) }
+    if vstr.index_of('z').is_some() { libc_printf("FAIL: index_of negative\n", 0 as OAddr); libc_exit(1) }
+
+    // Test 6: index_of_str
+    auto str1 = vstr.index_of_str("toka")
+    auto str2 = vstr.index_of_str("hello")
+    auto str3 = vstr.index_of_str(",")
+    if str1.unwrap() != 7:usize { libc_printf("FAIL: index_of_str toka\n", 0 as OAddr); libc_exit(1) }
+    if str2.unwrap() != 0:usize { libc_printf("FAIL: index_of_str hello\n", 0 as OAddr); libc_exit(1) }
+    if str3.unwrap() != 5:usize { libc_printf("FAIL: index_of_str comma\n", 0 as OAddr); libc_exit(1) }
+    if vstr.index_of_str("toba").is_some() { libc_printf("FAIL: index_of_str negative\n", 0 as OAddr); libc_exit(1) }
+
     return 0;
 }
 
