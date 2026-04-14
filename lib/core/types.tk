@@ -39,7 +39,7 @@ pub type String32 = Vec<Char32> // UTF-32 String
 pub alias String = String8
 
 //Slice (like C++ std::string_view or Rust &cstring)
-pub type cstring  = Slice<char>
+pub type str  = view_str
 pub type Str8  = Slice<byte>
 pub type Str16 = Slice<u16>
 pub type Str32 = Slice<Char32>

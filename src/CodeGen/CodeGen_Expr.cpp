@@ -1680,7 +1680,15 @@ PhysEntity CodeGen::genLiteralExpr(const Expr *expr) {
     return llvm::ConstantPointerNull::get(m_Builder.getPtrTy());
   }
   if (auto *str = dynamic_cast<const StringExpr *>(expr)) {
-    return m_Builder.CreateGlobalString(str->Value);
+    llvm::Value *ptr = m_Builder.CreateGlobalString(str->Value);
+    if (str->ResolvedType && str->ResolvedType->isShape()) {
+        llvm::Type *fatTy = getLLVMType(str->ResolvedType);
+        llvm::Value *fatVal = llvm::UndefValue::get(fatTy);
+        fatVal = m_Builder.CreateInsertValue(fatVal, ptr, {0});
+        fatVal = m_Builder.CreateInsertValue(fatVal, llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), str->Value.size()), {1});
+        return fatVal;
+    }
+    return ptr;
   }
   if (auto *chr = dynamic_cast<const CharLiteralExpr *>(expr)) {
     return llvm::ConstantInt::get(llvm::Type::getInt8Ty(m_Context), chr->Value);

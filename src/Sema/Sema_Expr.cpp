@@ -441,6 +441,12 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
   } else if (auto *Unary = dynamic_cast<UnaryExpr *>(E)) {
     return checkUnaryExpr(Unary);
   } else if (auto *Str = dynamic_cast<StringExpr *>(E)) {
+    if (m_ExpectedType && m_ExpectedType->isShape()) {
+        std::string soul = m_ExpectedType->getSoulName();
+        if (soul == "view_str" || soul == "str") {
+            return m_ExpectedType;
+        }
+    }
     return toka::Type::fromString("cstring");
   } else if (auto *ve = dynamic_cast<VariableExpr *>(E)) {
     m_AccessedVariables.insert(ve->Name); // [CLOSURE] Tracker
@@ -3969,7 +3975,8 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
           } else {
              for (size_t i = 0; i < Call->Args.size(); ++i) {
                 Call->Args[i] = foldGenericConstant(std::move(Call->Args[i]));
-                auto argTy = checkExpr(Call->Args[i].get());
+                auto expectedTy = toka::Type::fromString(invokeFn->Args[i + 1].Type);
+                auto argTy = checkExpr(Call->Args[i].get(), expectedTy);
                 std::string expectedBase = Type::stripMorphology(invokeFn->Args[i + 1].Type);
                 std::string actualBase = argTy->getSoulName();
                 if (expectedBase != actualBase && expectedBase != "unknown" && actualBase != "unknown") {
@@ -4015,7 +4022,8 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
       } else {
          for (size_t i = 0; i < Call->Args.size(); ++i) {
             Call->Args[i] = foldGenericConstant(std::move(Call->Args[i]));
-            auto argTy = checkExpr(Call->Args[i].get());
+            auto expectedTy = resolveType(fnTy->ParamTypes[i], false);
+            auto argTy = checkExpr(Call->Args[i].get(), expectedTy);
             if (!isTypeCompatible(fnTy->ParamTypes[i], argTy)) {
                 DiagnosticEngine::report(getLoc(Call->Args[i].get()), DiagID::ERR_TYPE_MISMATCH,
                                          "Argument " + std::to_string(i + 1), fnTy->ParamTypes[i]->getSoulName(), argTy->getSoulName());
@@ -4032,7 +4040,8 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
       } else {
          for (size_t i = 0; i < Call->Args.size(); ++i) {
             Call->Args[i] = foldGenericConstant(std::move(Call->Args[i]));
-            auto argTy = checkExpr(Call->Args[i].get());
+            auto expectedTy = resolveType(fnTy->ParamTypes[i], false);
+            auto argTy = checkExpr(Call->Args[i].get(), expectedTy);
             if (!isTypeCompatible(fnTy->ParamTypes[i], argTy)) {
                 DiagnosticEngine::report(getLoc(Call->Args[i].get()), DiagID::ERR_TYPE_MISMATCH,
                                          "Argument " + std::to_string(i + 1), fnTy->ParamTypes[i]->getSoulName(), argTy->getSoulName());
@@ -4641,7 +4650,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
        }
     }
 
-    auto argType = checkExpr(Call->Args[i].get());
+    auto argType = checkExpr(Call->Args[i].get(), paramType);
 
     if (IsVariadic && i >= ParamTypes.size())
       continue;
