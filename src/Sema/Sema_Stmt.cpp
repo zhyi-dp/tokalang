@@ -276,22 +276,7 @@ void Sema::checkStmt(Stmt *S) {
             if (isRef) {
                 std::string path = getPath(Memb);
                 if (!path.empty()) {
-                    if (isAddressOf && Memb->Object && Memb->Object->ResolvedType) {
-                        // Quick heuristic: If taking the address of a field, and we aren't just peeling an existing ref,
-                        // we'd need to ensure it's not a local. For strictness, if it's e.&val taking address of a value,
-                        // it should be restricted unless we parse it explicitly as a safe property. 
-                        // But since E0455 is specifically for this, we flag it.
-                        // Actually, since Memb->ResolvedType is the resulting pointer, we want the field type.
-                        // For now we trust the morphology distinction or flag it if it's not extracting an explicit ref pointer.
-                        if (Memb->Member.find('~') == std::string::npos && Memb->Member.find('^') == std::string::npos) {
-                           DiagnosticEngine::report(getLoc(E), DiagID::ERR_ESCAPE_LOCAL, path);
-                           HasError = true;
-                        } else {
-                           returnedDeps.insert(path);
-                        }
-                    } else {
-                        returnedDeps.insert(path);
-                    }
+                    returnedDeps.insert(path);
                 }
             }
         }

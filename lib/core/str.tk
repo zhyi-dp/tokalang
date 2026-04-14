@@ -23,7 +23,7 @@ pub shape view_str(
 
 impl view_str@encap {    
     pub fn clone(self) -> view_str <- self {
-        return view_str(&buf = &(self.buf), len = self.len)
+        return view_str(&buf = self.&buf, len = self.len)
     }
 }
 
