@@ -114,6 +114,33 @@ impl ViewStrSplitIterator {
     }
 }
 
+pub shape ViewStrLinesIterator(
+    split_iter#: ViewStrSplitIterator
+)
+
+impl ViewStrLinesIterator@encap {    
+    pub fn clone(self) -> ViewStrLinesIterator <- self {
+        return ViewStrLinesIterator(split_iter = self.split_iter.clone())
+    }
+}
+
+impl ViewStrLinesIterator {
+    pub fn next(self#) -> Option<view_str> {
+        auto opt = self.split_iter#.next()
+        if opt.is_none() {
+            return Option<view_str>::None
+        }
+        auto line = opt.unwrap()
+        if line.len > 0 {
+            auto c = line.at(line.len - 1).unwrap()
+            if c == 13:char { // '\r'
+                return Option<view_str>::Some(line.substr(0, line.len - 1))
+            }
+        }
+        return Option<view_str>::Some(line)
+    }
+}
+
 pub trait @StrCommon {
     pub fn buf(self) -> &[char] <- self
     pub fn len(self) -> usize
@@ -132,6 +159,7 @@ pub trait @StringOps {
     pub fn substr(self, pos: usize, length: usize) -> res: Self
     pub fn trim(self) -> res: Self
     pub fn split(self, sep: Self) -> ViewStrSplitIterator <- self
+    pub fn lines(self) -> ViewStrLinesIterator <- self
 }
 
 pub trait @Utf8Ops {
@@ -316,6 +344,16 @@ impl view_str@StringOps {
     pub fn split(self, sep: Self) -> ViewStrSplitIterator <- self {
         return ViewStrSplitIterator(&buf = self.&buf, len = self.len, pos = 0, sep = sep.clone(), finished = false)
     }
+
+    pub fn lines(self) -> ViewStrLinesIterator <- self {
+        auto nl_str = _internal_str_cast("\n")
+        auto s_iter# = self.split(nl_str)
+        return ViewStrLinesIterator(split_iter = s_iter)
+    }
+}
+
+fn _internal_str_cast(s: view_str) -> view_str {
+    return s.clone()
 }
 
 impl view_str@Utf8Ops {

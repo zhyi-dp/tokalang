@@ -45,6 +45,7 @@ fn test_view_str(vstr: view_str) -> i32 {
     check_trim("\n\t hello \n", "hello", "FAIL: trim escape chars")
 
     test_split()
+    test_lines()
 
     return 0;
 }
@@ -89,6 +90,29 @@ fn test_split() {
     auto iter6# = s6.split(get_str(","))
     assert(iter6#.next().unwrap().equals(get_str("")), "split 6.1")
     assert(iter6#.next().is_none(), "split 6.2")
+}
+
+fn test_lines() {
+    auto s1 = get_str("a\nb\nc")
+    auto iter1# = s1.lines()
+    assert(iter1#.next().unwrap().equals(get_str("a")), "lines 1.1")
+    assert(iter1#.next().unwrap().equals(get_str("b")), "lines 1.2")
+    assert(iter1#.next().unwrap().equals(get_str("c")), "lines 1.3")
+    assert(iter1#.next().is_none(), "lines 1.4")
+
+    auto s2 = get_str("a\n\nb\n\n")
+    auto iter2# = s2.lines()
+    assert(iter2#.next().unwrap().equals(get_str("a")), "lines 2.1")
+    assert(iter2#.next().unwrap().equals(get_str("")), "lines 2.2")
+    assert(iter2#.next().unwrap().equals(get_str("b")), "lines 2.3")
+    assert(iter2#.next().unwrap().equals(get_str("")), "lines 2.4")
+    assert(iter2#.next().unwrap().equals(get_str("")), "lines 2.5")
+    assert(iter2#.next().is_none(), "lines 2.6")
+
+    auto s3 = get_str("")
+    auto iter3# = s3.lines()
+    assert(iter3#.next().unwrap().equals(get_str("")), "lines 3.1")
+    assert(iter3#.next().is_none(), "lines 3.2")
 }
 
 fn check_trim(s: str, expected: str, msg: str) {
