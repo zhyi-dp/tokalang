@@ -145,7 +145,7 @@ impl<'K, 'V> HashMap<'K, 'V> {
         }
         
         if should_inc_len {
-            self.len = self.len + (1 as usize)
+            self.len = self.len + 1
         }
     }
     
