@@ -44,7 +44,51 @@ fn test_view_str(vstr: view_str) -> i32 {
     check_trim("hello world", "hello world", "FAIL: trim no whitespace")
     check_trim("\n\t hello \n", "hello", "FAIL: trim escape chars")
 
+    test_split()
+
     return 0;
+}
+
+fn get_str(s: str) -> str { return s.clone() }
+
+fn test_split() {
+    auto s1 = get_str("a,b,c")
+    auto iter1# = s1.split(get_str(","))
+    assert(iter1#.next().unwrap().equals(get_str("a")), "split 1.1")
+    assert(iter1#.next().unwrap().equals(get_str("b")), "split 1.2")
+    assert(iter1#.next().unwrap().equals(get_str("c")), "split 1.3")
+    assert(iter1#.next().is_none(), "split 1.4")
+
+    auto s2 = get_str("a::b::c")
+    auto iter2# = s2.split(get_str("::"))
+    assert(iter2#.next().unwrap().equals(get_str("a")), "split 2.1")
+    assert(iter2#.next().unwrap().equals(get_str("b")), "split 2.2")
+    assert(iter2#.next().unwrap().equals(get_str("c")), "split 2.3")
+    assert(iter2#.next().is_none(), "split 2.4")
+
+    auto s3 = get_str(",a,")
+    auto iter3# = s3.split(get_str(","))
+    assert(iter3#.next().unwrap().equals(get_str("")), "split 3.1")
+    assert(iter3#.next().unwrap().equals(get_str("a")), "split 3.2")
+    assert(iter3#.next().unwrap().equals(get_str("")), "split 3.3")
+    assert(iter3#.next().is_none(), "split 3.4")
+
+    auto s4 = get_str("a,,b")
+    auto iter4# = s4.split(get_str(","))
+    assert(iter4#.next().unwrap().equals(get_str("a")), "split 4.1")
+    assert(iter4#.next().unwrap().equals(get_str("")), "split 4.2")
+    assert(iter4#.next().unwrap().equals(get_str("b")), "split 4.3")
+    assert(iter4#.next().is_none(), "split 4.4")
+
+    auto s5 = get_str("abc")
+    auto iter5# = s5.split(get_str(","))
+    assert(iter5#.next().unwrap().equals(get_str("abc")), "split 5.1")
+    assert(iter5#.next().is_none(), "split 5.2")
+
+    auto s6 = get_str("")
+    auto iter6# = s6.split(get_str(","))
+    assert(iter6#.next().unwrap().equals(get_str("")), "split 6.1")
+    assert(iter6#.next().is_none(), "split 6.2")
 }
 
 fn check_trim(s: str, expected: str, msg: str) {

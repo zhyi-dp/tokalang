@@ -28,6 +28,92 @@ impl view_str@encap {
     }
 }
 
+pub shape ViewStrSplitIterator(
+    &buf$: [char],
+    len$: usize,
+    pos#: usize,
+    sep: view_str,
+    finished#: bool
+)
+
+impl ViewStrSplitIterator@encap {    
+    pub fn clone(self) -> ViewStrSplitIterator <- self {
+        return ViewStrSplitIterator(&buf = self.&buf, len = self.len, pos = self.pos, sep = self.sep.clone(), finished = self.finished)
+    }
+}
+
+impl ViewStrSplitIterator {
+    pub fn next(self#) -> Option<view_str> {
+        if self.finished {
+            return Option<view_str>::None
+        }
+
+        // If separator is empty, return the whole remaining string and finish
+        if self.sep.len == 0 {
+            self.finished = true
+            auto remaining = self.len - self.pos
+            unsafe {
+                auto b_addr = &(self.buf[0]) as Addr
+                auto ptr_addr = b_addr + self.pos
+                auto ret# = view_str(&buf = self.&buf, len = remaining)
+                libc_memcpy(&ret as *void, &ptr_addr as *void, 8:usize)
+                return Option<view_str>::Some(ret)
+            }
+        }
+        
+        unsafe {
+            auto i# = self.pos
+            auto max_i# = 0:usize
+            if self.len >= self.sep.len + self.pos {
+                max_i = self.len - self.sep.len
+            } else {
+                max_i = 0:usize // Force no match loop if segment is smaller than separator
+                if self.len < self.pos {
+                    // Prevent underflow if pos somehow > len
+                    max_i = 0
+                }
+            }
+            
+            auto found# = false
+            // Only loop if we have enough characters left
+            if self.len >= self.sep.len + self.pos {
+                while i <= max_i {
+                    if libc_memcmp(&(self.buf[i]) as *void, &(self.sep.buf[0]) as *void, self.sep.len) == 0 {
+                        found = true
+                        break
+                    }
+                    i = i + 1
+                }
+            }
+            
+            auto start = self.pos
+            if found {
+                // Found next segment
+                auto segment_len = i - start
+                
+                // Update iterator state
+                self.pos = i + self.sep.len
+                
+                // Construct the segment
+                auto b_addr = &(self.buf[0]) as Addr
+                auto ptr_addr = b_addr + start
+                auto ret# = view_str(&buf = self.&buf, len = segment_len)
+                libc_memcpy(&ret as *void, &ptr_addr as *void, 8:usize)
+                return Option<view_str>::Some(ret)
+            } else {
+                // No more separators, emit the last part
+                self.finished = true
+                auto segment_len = self.len - start
+                auto b_addr = &(self.buf[0]) as Addr
+                auto ptr_addr = b_addr + start
+                auto ret# = view_str(&buf = self.&buf, len = segment_len)
+                libc_memcpy(&ret as *void, &ptr_addr as *void, 8:usize)
+                return Option<view_str>::Some(ret)
+            }
+        }
+    }
+}
+
 pub trait @StrCommon {
     pub fn buf(self) -> &[char] <- self
     pub fn len(self) -> usize
@@ -45,6 +131,7 @@ pub trait @StringOps {
     pub fn contains_char(self, c: char) -> bool
     pub fn substr(self, pos: usize, length: usize) -> res: Self
     pub fn trim(self) -> res: Self
+    pub fn split(self, sep: Self) -> ViewStrSplitIterator <- self
 }
 
 pub trait @Utf8Ops {
@@ -224,6 +311,10 @@ impl view_str@StringOps {
             libc_memcpy(&ret as *void, &ptr_addr as *void, 8:usize)
             return ret
         }
+    }
+
+    pub fn split(self, sep: Self) -> ViewStrSplitIterator <- self {
+        return ViewStrSplitIterator(&buf = self.&buf, len = self.len, pos = 0, sep = sep.clone(), finished = false)
     }
 }
 
