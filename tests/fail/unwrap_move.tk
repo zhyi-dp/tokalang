@@ -1,0 +1,17 @@
+import core/result::{Result, Okay}
+import std/string::String
+import std/io::println
+
+fn test() -> Result<String, String> {
+    auto r = Result<String, String>::Ok(String::from("hello"))
+    auto v = r!
+    // EXPECT: use of moved variable
+    auto z = r
+    return Result<String, String>::Ok(v)
+}
+
+pub fn main() -> i32 { 
+    auto res = test()
+    println("{}", res.unwrap())
+    return 0 
+}

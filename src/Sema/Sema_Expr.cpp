@@ -1920,7 +1920,19 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     St->ResolvedType = res;
     return res;
   } else if (auto *Unwrap = dynamic_cast<UnwrapPropagationExpr *>(E)) {
+    bool old = m_IsConsumingEffect;
+    m_IsConsumingEffect = true;
     auto baseObj = checkExpr(Unwrap->Base.get());
+    m_IsConsumingEffect = old;
+
+    if (auto *Var = dynamic_cast<VariableExpr *>(Unwrap->Base.get())) {
+        SymbolInfo *Info = nullptr;
+        std::string actualName;
+        if (CurrentScope->findVariableWithDeref(Var->Name, Info, actualName)) {
+            CurrentScope->markMoved(actualName);
+        }
+    }
+
     if (baseObj->isUnknown()) return toka::Type::fromString("unknown");
     baseObj = resolveType(baseObj, false);
     
