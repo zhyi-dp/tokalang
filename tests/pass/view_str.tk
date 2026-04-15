@@ -120,8 +120,36 @@ fn check_trim(s: str, expected: str, msg: str) {
     assert(t.equals(expected), msg)
 }
 
+fn test_substring() {
+    auto s1 = get_str("abcdefg")
+    auto sub1 = s1.substring(0:usize, 3:usize)
+    assert(sub1.equals(get_str("abc")), "substring 1")
+
+    auto sub2 = s1.substring(2:usize, 5:usize)
+    assert(sub2.equals(get_str("cde")), "substring 2")
+
+    auto sub3 = s1.substring(2:usize, 20:usize)
+    assert(sub3.equals(get_str("cdefg")), "substring 3 - beyond bounds")
+    
+    auto sub4 = s1.substring(4:usize, 2:usize)
+    assert(sub4.equals(get_str("")), "substring 4 - reversed bounds")
+}
+
+fn test_to_i32() {
+    assert(get_str("123").to_i32().unwrap() == 123, "to_i32 1")
+    assert(get_str("-456").to_i32().unwrap() == -456, "to_i32 2")
+    assert(get_str("+789").to_i32().unwrap() == 789, "to_i32 3")
+    assert(get_str("0").to_i32().unwrap() == 0, "to_i32 4")
+    assert(get_str("-0").to_i32().unwrap() == 0, "to_i32 5")
+    assert(get_str("12a3").to_i32().is_none(), "to_i32 invalid")
+    assert(get_str("").to_i32().is_none(), "to_i32 empty")
+    assert(get_str("-").to_i32().is_none(), "to_i32 lone minus")
+}
+
 fn main() -> i32 {
     test_view_str("hello, toka!")    
+    test_substring()
+    test_to_i32()
     assert(true, "view_str tests passed successfully!")
     return 0
 }

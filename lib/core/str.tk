@@ -157,9 +157,11 @@ pub trait @StringOps {
     pub fn last_index_of(self, c: char) -> Option<usize>
     pub fn contains_char(self, c: char) -> bool
     pub fn substr(self, pos: usize, length: usize) -> res: Self
+    pub fn substring(self, start: usize, end: usize) -> res: Self
     pub fn trim(self) -> res: Self
     pub fn split(self, sep: Self) -> ViewStrSplitIterator <- self
     pub fn lines(self) -> ViewStrLinesIterator <- self
+    pub fn to_i32(self) -> Option<i32>
 }
 
 pub trait @Utf8Ops {
@@ -294,6 +296,17 @@ impl view_str@StringOps {
         }
     }
 
+    pub fn substring(self, start: usize, end: usize) -> res: view_str 
+    effects:
+        res.&buf <- self.buf
+    {
+        if start > end || start >= self.len {
+            return self.substr(0:usize, 0:usize)
+        }
+        auto length = end - start
+        return self.substr(start, length)
+    }
+
     pub fn trim(self) -> res: view_str
     effects:
         res.&buf <- self.buf
@@ -349,6 +362,33 @@ impl view_str@StringOps {
         auto nl_str = _internal_str_cast("\n")
         auto s_iter# = self.split(nl_str)
         return ViewStrLinesIterator(split_iter = s_iter)
+    }
+
+    pub fn to_i32(self) -> Option<i32> {
+        if self.len == 0 { return Option<i32>::None }
+        unsafe {
+            auto i# = 0:usize
+            auto ret#: i32 = 0
+            auto sign#: i32 = 1
+            if self.buf[0] == '-' {
+                sign = -1
+                i = 1:usize
+                if self.len == 1 { return Option<i32>::None }
+            } else if self.buf[0] == '+' {
+                i = 1:usize
+                if self.len == 1 { return Option<i32>::None }
+            }
+            while i < self.len {
+                auto c = self.buf[i]
+                if c < '0' || c > '9' {
+                    return Option<i32>::None
+                }
+                auto digit = (c as i32) - 48 // '0' is 48
+                ret = ret * 10 + digit
+                i = i + 1
+            }
+            return Option<i32>::Some(ret * sign)
+        }
     }
 }
 
