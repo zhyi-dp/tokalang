@@ -14,6 +14,7 @@
 
 import core/types::*
 import core/option::{Option}
+import core/traits::{@encap, @PartialEq}
 import core/utf8::*
 
 // A memory-safe, zero-allocation reference to a string view
@@ -25,6 +26,12 @@ pub shape view_str(
 impl view_str@encap {    
     pub fn clone(self) -> view_str <- self {
         return view_str(&buf = self.&buf, len = self.len)
+    }
+}
+
+impl view_str@PartialEq {
+    pub fn eq(self, other: view_str) -> bool {
+        return self.equals(other)
     }
 }
 

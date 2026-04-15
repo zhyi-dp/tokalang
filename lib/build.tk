@@ -80,9 +80,9 @@ pub fn run_build(proj: Executable) -> i32 {
         auto clang_path# = String::from("clang ")
         auto addr = libc_getenv("TOKA_CLANG" as *char) as Addr
         if addr != 0:Addr {
-            clang_path# = String::from(addr as *char)
+            clang_path = String::from(addr as *char)
         } else {
-            clang_path# = String::from("/usr/local/opt/llvm@20/bin/clang")
+            clang_path = String::from("/usr/local/opt/llvm@20/bin/clang")
         }
         
         auto cmd2# = String::from("")

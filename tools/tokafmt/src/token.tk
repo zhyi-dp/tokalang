@@ -1,4 +1,4 @@
-import std/string::{String}
+import core/str::{str}
 
 pub shape TokenKind(
     Unknown |
@@ -16,13 +16,13 @@ pub shape TokenKind(
 
 pub shape Token (
     kind: TokenKind,
-    lexeme: String,
+    lexeme: str,
     line: i32,
     col: i32
 )
 
 impl Token {
-    pub fn new(kind: TokenKind, lexeme: String, line: i32, col: i32) -> Token {
+    pub fn new(kind: TokenKind, lexeme: str, line: i32, col: i32) -> Token {
         return Token(
             kind = kind,
             lexeme = lexeme,

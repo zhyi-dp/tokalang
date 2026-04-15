@@ -1,16 +1,16 @@
-import std/string::{String}
+import core/str::{str}
 import src/token::{Token, TokenKind}
 import src/token as token
 
 pub shape Lexer (
-    source: String,
+    source: str,
     pos#: i32,
     line#: i32,
     col#: i32
 )
 
 impl Lexer {
-    pub fn new(source: String) -> Lexer {
+    pub fn new(source: str) -> Lexer {
         return Lexer(
             source = source,
             pos = 0,
@@ -20,20 +20,15 @@ impl Lexer {
     }
 
     fn peek(self) -> char {
-        if self.pos >= self.source.len() { return '\0' }
-        unsafe {
-            auto *b = self.source.c_str() as *[char]
-            return b[self.pos]
-        }
+        auto u_pos = self.pos as usize
+        if u_pos >= self.source.len() { return '\0' }
+        return self.source.at(u_pos).unwrap()
     }
 
     fn advance(self#) -> char {
-        if self.pos >= self.source.len() { return '\0' }
-        auto c# = '\0'
-        unsafe {
-            auto *b = self.source.c_str() as *[char]
-            c = b[self.pos]
-        }
+        auto u_pos = self.pos as usize
+        if u_pos >= self.source.len() { return '\0' }
+        auto c = self.source.at(u_pos).unwrap()
         self.pos = self.pos + 1
         if c == '\n' { // '\n'
             self.line = self.line + 1
@@ -45,11 +40,10 @@ impl Lexer {
     }
 
     fn peek_next(self) -> char {
-        if self.pos + 1 >= self.source.len() { return '\0' }
-        unsafe {
-            auto *b = self.source.c_str() as *[char]
-            return b[self.pos + 1]
-        }
+        auto next_pos = self.pos + 1
+        auto u_next_pos = next_pos as usize
+        if u_next_pos >= self.source.len() { return '\0' }
+        return self.source.at(u_next_pos).unwrap()
     }
 
     fn is_alpha(c: char) -> bool {
@@ -65,12 +59,13 @@ impl Lexer {
     }
 
     pub fn is_eof(self) -> bool {
-        return self.pos >= self.source.len()
+        auto u_pos = self.pos as usize
+        return u_pos >= self.source.len()
     }
 
     pub fn next_token(self#) -> Token {
         if self.is_eof() {
-            return Token::new(TokenKind::EOF(), String::from(""), self.line, self.col)
+            return Token::new(TokenKind::EOF(), _str_cast(""), self.line, self.col)
         }
 
         auto start_line = self.line
@@ -83,7 +78,7 @@ impl Lexer {
             while Lexer::is_whitespace(self.peek()) {
                 self#.advance()
             }
-            auto ws = self.source.substring(start_idx, self.pos)
+            auto ws = self.source.substring(start_idx as usize, self.pos as usize)
             return Token::new(TokenKind::Whitespace(), ws, start_line, start_col)
         }
 
@@ -93,7 +88,7 @@ impl Lexer {
             while self.peek() != '\0' && self.peek() != '\n' {
                 self#.advance()
             }
-            auto comm = self.source.substring(start_idx, self.pos)
+            auto comm = self.source.substring(start_idx as usize, self.pos as usize)
             return Token::new(TokenKind::Comment(), comm, start_line, start_col)
         }
 
@@ -103,11 +98,11 @@ impl Lexer {
             while Lexer::is_alpha(self.peek()) || Lexer::is_digit(self.peek()) || self.peek() == '@' { // '@' for macros
                 self#.advance()
             }
-            auto ident = self.source.substring(start_idx, self.pos)
+            auto ident = self.source.substring(start_idx as usize, self.pos as usize)
             auto kind# = TokenKind::Identifier()
             // In a full formatter we'd check against a list of keywords here.
             // For now, simple keywords match
-            if ident.eq(String::from("fn")) || ident.eq(String::from("return")) || ident.eq(String::from("auto")) || ident.eq(String::from("shape")) || ident.eq(String::from("impl")) {
+            if ident.equals("fn") || ident.equals("return") || ident.equals("auto") || ident.equals("shape") || ident.equals("impl") {
                 kind = TokenKind::Keyword()
             }
             return Token::new(kind, ident, start_line, start_col)
@@ -119,7 +114,7 @@ impl Lexer {
             while Lexer::is_digit(self.peek()) || self.peek() == '.' { // '.'
                 self#.advance()
             }
-            auto num = self.source.substring(start_idx, self.pos)
+            auto num = self.source.substring(start_idx as usize, self.pos as usize)
             return Token::new(TokenKind::Number(), num, start_line, start_col)
         }
 
@@ -136,7 +131,7 @@ impl Lexer {
             if self.peek() == '"' {
                 self#.advance() // Consume closing quote
             }
-            auto str_val = self.source.substring(start_idx, self.pos)
+            auto str_val = self.source.substring(start_idx as usize, self.pos as usize)
             return Token::new(TokenKind::StringLit(), str_val, start_line, start_col)
         }
         
@@ -151,7 +146,7 @@ impl Lexer {
             if self.peek() == '\'' {
                 self#.advance()
             }
-            auto str_val2 = self.source.substring(start_idx, self.pos)
+            auto str_val2 = self.source.substring(start_idx as usize, self.pos as usize)
             return Token::new(TokenKind::CharLit(), str_val2, start_line, start_col)
         }
 
@@ -159,7 +154,7 @@ impl Lexer {
         if c == '{' || c == '}' || c == '(' || c == ')' || c == '[' || c == ']' || c == ';' {
             auto start_idx = self.pos
             self#.advance()
-            auto delim_str = self.source.substring(start_idx, self.pos)
+            auto delim_str = self.source.substring(start_idx as usize, self.pos as usize)
             return Token::new(TokenKind::Delimiter(), delim_str, start_line, start_col)
         }
 
@@ -183,7 +178,9 @@ impl Lexer {
         } else {
             self#.advance()
         }
-        auto op = self.source.substring(start_idx_op, self.pos)
+        auto op = self.source.substring(start_idx_op as usize, self.pos as usize)
         return Token::new(TokenKind::Operator(), op, start_line, start_col)
     }
 }
+
+fn _str_cast(s: str) -> str { return s.clone() }

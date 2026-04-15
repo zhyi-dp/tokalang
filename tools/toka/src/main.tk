@@ -103,7 +103,7 @@ fn cmd_build() -> i32 {
         auto sys_clang# = String::from("/usr/local/opt/llvm@20/bin/clang")
         auto addr = libc_getenv("TOKA_CLANG" as *char) as Addr
         if addr != 0:Addr {
-            sys_clang# = String::from(addr as *char)
+            sys_clang = String::from(addr as *char)
         }
         
         auto cmd# = String::from("tokac ")

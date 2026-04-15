@@ -35,9 +35,9 @@ fn main() -> i32 {
         return 0
     }
 
-    auto lexer# = Lexer::new(content.clone())
+    auto lexer# = Lexer::new(content.as_str())
     auto printer# = Printer::new()
-    auto formatted_code = printer#.format(lexer#)
+    auto formatted_code = printer#.format(lexer)
 
     print(formatted_code)
     return 0
