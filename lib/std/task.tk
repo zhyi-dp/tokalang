@@ -39,6 +39,7 @@ shape TimerEntry(
 // ==========================================
 auto g_task_queue# = Vec<TaskPtr>(*buf=null, len=0:usize, cap=0:usize)
 auto g_timer_queue# = Vec<TimerEntry>(*buf=null, len=0:usize, cap=0:usize)
+auto g_detached_tasks# = Vec<usize>(*buf=null, len=0:usize, cap=0:usize)
 auto g_mutex_ptr#: Addr = 0:Addr
 auto g_mutex_init#: bool = false
 auto g_reactor_fd#: i32 = -1
@@ -65,12 +66,19 @@ fn unlock_queue() {
     }
 }
 
-// 这是编译器展开 spawn(expr) 时链接到的底层调动点
 pub fn __toka_spawn(*task: void) {
     if *task != null {
         // tokac 具有 suspend_never 初始执行特性，意味着它会同步运行到第一个 await
         // 在这里，task 如果存活，那么它必然已被挂载在某处（比如 Timer Queue 或者其他 Promise 的 awaiter）
         // 强行推入 g_task_queue 会导致意外的立刻双重恢复引发崩溃
+    }
+}
+
+pub fn __toka_detach_task(*task: void) {
+    if *task != null {
+        lock_queue()
+        g_detached_tasks#.push(*task as usize)
+        unlock_queue()
     }
 }
 
@@ -140,6 +148,26 @@ pub fn __toka_spawn_blocking(*task: void) {
             __toka_coro_resume(addr as *void)
             // println("[Loop] Task yielded back!")
             continue
+        }
+        unlock_queue()
+        
+        // Garbage Collector for dropped TaskHandles
+        lock_queue()
+        auto d_i# = 0:usize
+        auto keep_d# = 0:usize
+        auto d_len = g_detached_tasks.len()
+        while d_i < d_len {
+            auto detached_val = g_detached_tasks.get(d_i)
+            if __toka_coro_done(detached_val as *void) {
+                __toka_coro_destroy(detached_val as *void)
+            } else {
+                g_detached_tasks#.set(keep_d, detached_val)
+                keep_d += 1
+            }
+            d_i += 1
+        }
+        while g_detached_tasks.len() > keep_d {
+            g_detached_tasks#.pop()
         }
         unlock_queue()
         
