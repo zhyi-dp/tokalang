@@ -740,13 +740,42 @@ bool Sema::isTypeCompatible(std::shared_ptr<toka::Type> Target,
     }
   }
 
-  // Integer Promotion
+  // Numeric Widening (Lossless)
+  auto getNumericBitWidth = [](const std::string& name) -> int {
+    if (name == "i8" || name == "u8" || name == "char") return 8;
+    if (name == "i16" || name == "u16") return 16;
+    if (name == "i32" || name == "u32" || name == "f32") return 32;
+    if (name == "i64" || name == "u64" || name == "f64" || name == "usize" || name == "isize" || name == "Addr" || name == "OAddr") return 64; 
+    return 0;
+  };
+
   auto primT = std::dynamic_pointer_cast<toka::PrimitiveType>(T);
   auto primS = std::dynamic_pointer_cast<toka::PrimitiveType>(S);
   if (primT && primS) {
     if (primT->isInteger() && primS->isInteger()) {
-      return true;
+      int sW = getNumericBitWidth(primS->Name);
+      int tW = getNumericBitWidth(primT->Name);
+      bool sSigned = primS->isSignedInteger();
+      bool tSigned = primT->isSignedInteger();
+
+      if (sW > 0 && tW > 0) {
+        // Safe implicit widening conditions:
+        // 1. Target width must be strictly larger than Source width (equal width relies on identical Type matching earlier)
+        // 2. Cannot cast from Signed to Unsigned implicitly (since negative values wrap to huge positive values)
+        if (tW > sW && (!sSigned || tSigned)) {
+          return true;
+        }
+      }
     }
+    
+    if (primT->isFloatingPoint() && primS->isFloatingPoint()) {
+      int sW = getNumericBitWidth(primS->Name);
+      int tW = getNumericBitWidth(primT->Name);
+      if (sW > 0 && tW > 0 && tW > sW) {
+        return true; 
+      }
+    }
+
     // String Literal (str -> str)
     if (primS->Name == "cstring" && primT->Name == "cstring")
       return true;

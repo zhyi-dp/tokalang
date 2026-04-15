@@ -988,6 +988,8 @@ llvm::Value *CodeGen::genVariableDecl(const VariableDecl *var) {
       initVal = m_Builder.CreateLoad(type, initVal);
     } else if (initVal->getType()->isIntegerTy() && type->isIntegerTy()) {
       initVal = m_Builder.CreateIntCast(initVal, type, true);
+    } else if (initVal->getType()->isFloatingPointTy() && type->isFloatingPointTy()) {
+      initVal = m_Builder.CreateFPCast(initVal, type);
     }
   }
 

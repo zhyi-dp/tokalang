@@ -593,6 +593,17 @@ void Sema::checkStmt(Stmt *S) {
            DiagnosticEngine::report(getLoc(Var), DiagID::ERR_INIT_TYPE_MISMATCH, DeclFullTy, InitType);
            HasError = true;
         }
+      } else if (!InitType.empty() && InitTypeObj) {
+         auto declTargetTy = toka::Type::fromString(resolveType(DeclFullTy));
+         bool isPrimitiveWidening = declTargetTy->typeKind == toka::Type::Primitive && InitTypeObj->typeKind == toka::Type::Primitive;
+         if (!declTargetTy->equals(*InitTypeObj) && isPrimitiveWidening && !Var->IsShared && !Var->IsUnique) {
+             auto origLoc = Var->Init->Loc;
+             Var->Init = std::make_unique<CastExpr>(std::move(Var->Init), declTargetTy->toString());
+             Var->Init->Loc = origLoc;
+             Var->Init->ResolvedType = declTargetTy;
+             InitTypeObj = declTargetTy;
+             InitType = declTargetTy->toString();
+         }
       }
     }
 
