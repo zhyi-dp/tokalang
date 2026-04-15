@@ -45,9 +45,41 @@ impl<'K, 'V> HashMap<'K, 'V>@encap {
     }
     
     pub fn clone(self) -> HashMap<'K, 'V> {
-        // TODO: Implement proper clone. Recursion in new() caused crash.
-        // For now, this is a move, not a clone.
-        return self
+        unsafe {
+            if self.cap == 0 {
+                return HashMap<'K, 'V>::new()
+            }
+            auto k# = Vec<'K>::with_capacity(self.cap)
+            auto v# = Vec<'V>::with_capacity(self.cap)
+            auto m# = Vec<u8>::with_capacity(self.cap)
+            
+            auto i#: usize = 0
+            while i < self.len {
+                k#.push(self.keys.get(i))
+                v#.push(self.vals.get(i))
+                i += 1
+            }
+            
+            i = 0
+            while i < self.cap {
+                m#.push(self.meta.get(i))
+                i += 1
+            }
+            
+            auto map = HashMap<'K, 'V>(
+                keys = k,
+                vals = v,
+                meta = m,
+                len = self.len,
+                cap = self.cap
+            )
+            
+            k#.unsafe_forget()
+            v#.unsafe_forget()
+            m#.unsafe_forget()
+            
+            return map
+        }
     }
 }
 
@@ -269,6 +301,23 @@ pub shape HashMapIterator<'K, 'V> (
     cap: usize,
     pos#: usize
 )
+
+impl<'K, 'V> HashMapIterator<'K, 'V>@encap {
+    pub(std) *
+    fn drop(self#) {}
+    
+    pub fn clone(self) -> HashMapIterator<'K, 'V> {
+        unsafe {
+            return HashMapIterator<'K, 'V>(
+                *keys_ptr = self.*keys_ptr,
+                *vals_ptr = self.*vals_ptr,
+                *meta_ptr = self.*meta_ptr,
+                cap = self.cap,
+                pos = self.pos
+            )
+        }
+    }
+}
 
 impl<'K, 'V> HashMapIterator<'K, 'V> {
     pub fn next(self) -> MapResult<'K, 'V> {
