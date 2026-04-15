@@ -988,6 +988,11 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
           std::make_unique<PostfixExpr>(TokenType::TokenNone, std::move(expr));
       node->setLocation(opTok, m_CurrentFile);
       expr = std::move(node);
+    } else if (match(TokenType::Bang)) {
+      Token opTok = previous();
+      auto node = std::make_unique<UnwrapPropagationExpr>(std::move(expr));
+      node->setLocation(opTok, m_CurrentFile);
+      expr = std::move(node);
     } else if (allowTrailingClosure && !isEndOfStatement() && isClosureExpression()) {
       // Trailing Closure Syntax
       auto clo = parseClosureExpr();

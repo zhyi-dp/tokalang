@@ -3905,6 +3905,97 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
   return ci;
 }
 
+PhysEntity CodeGen::genUnwrapPropagationExpr(const UnwrapPropagationExpr *expr) {
+  PhysEntity baseEnt = genExpr(expr->Base.get());
+  llvm::Value *baseVal = baseEnt.load(m_Builder);
+  if (!baseVal) return nullptr;
+
+  if (!expr->Base->ResolvedType) {
+    error(expr, "Propagation expression lacks resolved type");
+    return nullptr;
+  }
+  std::string soul = expr->Base->ResolvedType->getSoulName();
+
+  llvm::StructType *baseStructTy = llvm::dyn_cast<llvm::StructType>(baseVal->getType());
+  if (!baseStructTy || baseStructTy->getNumElements() < 2) {
+    error(expr, "Invalid representation for " + soul);
+    return nullptr;
+  }
+
+  llvm::Value *tagVal = m_Builder.CreateExtractValue(baseVal, {0}, "unwrap.tag");
+  llvm::Value *isOk = m_Builder.CreateICmpEQ(tagVal, llvm::ConstantInt::get(tagVal->getType(), 1), "unwrap.is_ok");
+
+  llvm::Function *f = m_Builder.GetInsertBlock()->getParent();
+  llvm::BasicBlock *failBB = llvm::BasicBlock::Create(m_Context, "unwrap.fail", f);
+  llvm::BasicBlock *succBB = llvm::BasicBlock::Create(m_Context, "unwrap.succ", f);
+
+  m_Builder.CreateCondBr(isOk, succBB, failBB);
+
+  // -- FAIL Path --
+  m_Builder.SetInsertPoint(failBB);
+  
+  if (soul == "Option" || soul == "Maybe" || soul.find("Maybe_") == 0) {
+    llvm::Type *targetRetTy = m_CurrentCoroRetTy ? m_CurrentCoroRetTy : f->getReturnType();
+    llvm::Value *retVal = llvm::UndefValue::get(targetRetTy);
+    if (targetRetTy->isStructTy() && targetRetTy->getStructNumElements() > 0) {
+      llvm::Type *tagTy = targetRetTy->getStructElementType(0);
+      retVal = m_Builder.CreateInsertValue(retVal, llvm::ConstantInt::get(tagTy, 0), {0});
+    }
+    
+    cleanupScopes(0); 
+    
+    if (m_CurrentCoroRetTy) {
+       genCoroutineReturn(retVal);
+    } else {
+       m_Builder.CreateRet(retVal);
+    }
+  } else if (soul == "Result" || soul == "Okay" || soul.find("Okay_") == 0) {
+    llvm::Value *unionData = m_Builder.CreateExtractValue(baseVal, {1}, "unwrap.err_data");
+
+    llvm::Type *targetRetTy = m_CurrentCoroRetTy ? m_CurrentCoroRetTy : f->getReturnType();
+    llvm::Value *retVal = llvm::UndefValue::get(targetRetTy);
+    
+    if (targetRetTy->isStructTy() && targetRetTy->getStructNumElements() >= 2) {
+      llvm::Type *tagTy = targetRetTy->getStructElementType(0);
+      llvm::Value *failedTag = m_Builder.CreateIntCast(tagVal, tagTy, false);
+      retVal = m_Builder.CreateInsertValue(retVal, failedTag, {0});
+      
+      llvm::Value *srcAlloc = createEntryBlockAlloca(unionData->getType(), nullptr, "unwrap.err.src");
+      m_Builder.CreateStore(unionData, srcAlloc);
+      llvm::Type *dstUnionTy = targetRetTy->getStructElementType(1);
+      llvm::Value *castSrc = m_Builder.CreateBitCast(srcAlloc, llvm::PointerType::getUnqual(dstUnionTy));
+      llvm::Value *newUnionData = m_Builder.CreateLoad(dstUnionTy, castSrc);
+      
+      retVal = m_Builder.CreateInsertValue(retVal, newUnionData, {1});
+    }
+
+    cleanupScopes(0); 
+
+    if (m_CurrentCoroRetTy) {
+       genCoroutineReturn(retVal);
+    } else {
+       m_Builder.CreateRet(retVal);
+    }
+  }
+
+  // -- SUCCESS Path --
+  m_Builder.SetInsertPoint(succBB);
+  
+  if (!expr->ResolvedType) return nullptr;
+  
+  llvm::Type *payloadTy = getLLVMType(expr->ResolvedType);
+  if (!payloadTy) return nullptr;
+  
+  llvm::Value *unionData = m_Builder.CreateExtractValue(baseVal, {1}, "unwrap.succ_data");
+  llvm::Value *succAlloc = createEntryBlockAlloca(unionData->getType(), nullptr, "unwrap.succ.src");
+  m_Builder.CreateStore(unionData, succAlloc);
+  
+  llvm::Value *castPtr = m_Builder.CreateBitCast(succAlloc, llvm::PointerType::getUnqual(payloadTy));
+  llvm::Value *payload = m_Builder.CreateLoad(payloadTy, castPtr, "unwrap.payload");
+  
+  return PhysEntity(payload, expr->ResolvedType->toString(), payloadTy, false);
+}
+
 PhysEntity CodeGen::genPostfixExpr(const PostfixExpr *post) {
   if (post->Op == TokenType::TokenWrite) {
     return genExpr(post->LHS.get());

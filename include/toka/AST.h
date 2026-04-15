@@ -322,6 +322,22 @@ public:
   }
 };
 
+class UnwrapPropagationExpr : public Expr {
+public:
+  std::unique_ptr<Expr> Base;
+  UnwrapPropagationExpr(std::unique_ptr<Expr> base)
+      : Base(std::move(base)) {}
+  std::string toString() const override {
+    return "UnwrapProp(" + Base->toString() + ")";
+  }
+  std::unique_ptr<ASTNode> clone() const override {
+    auto n = std::make_unique<UnwrapPropagationExpr>(cloneNode(Base));
+    n->Loc = Loc;
+    n->ResolvedType = ResolvedType;
+    return n;
+  }
+};
+
 class AwaitExpr : public Expr {
 public:
   std::unique_ptr<Expr> Expression;

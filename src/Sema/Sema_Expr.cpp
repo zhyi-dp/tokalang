@@ -205,6 +205,10 @@ Sema::MorphKind Sema::getSyntacticMorphology(Expr *E) {
     return getSyntacticMorphology(Post->LHS.get());
   }
 
+  if (auto *Unwrap = dynamic_cast<UnwrapPropagationExpr *>(E)) {
+    return MorphKind::None;
+  }
+
   // Member Access: Check if Member string carries pointer sigil (e.g. .*name)
   if (auto *M = dynamic_cast<MemberExpr *>(E)) {
     if (!M->Member.empty()) {
@@ -1915,6 +1919,116 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     m_IsConsumingEffect = old;
     St->ResolvedType = res;
     return res;
+  } else if (auto *Unwrap = dynamic_cast<UnwrapPropagationExpr *>(E)) {
+    auto baseObj = checkExpr(Unwrap->Base.get());
+    if (baseObj->isUnknown()) return toka::Type::fromString("unknown");
+    baseObj = resolveType(baseObj, false);
+    
+    if (!baseObj->isShape()) {
+      error(Unwrap, "Unwrap operator '!' requires a Result or Option shape");
+      return toka::Type::fromString("unknown");
+    }
+    
+    auto shapeT = std::static_pointer_cast<toka::ShapeType>(baseObj);
+    std::string soul = shapeT->Decl ? shapeT->Decl->Name : shapeT->getSoulName();
+
+    bool isOkay = soul == "Okay" || soul.find("Okay_") == 0;
+    bool isMaybe = soul == "Maybe" || soul.find("Maybe_") == 0;
+
+    if (!isOkay && !isMaybe) {
+      error(Unwrap, "Unwrap operator '!' requires Result<T, E> or Option<T> but got: " + soul);
+      return toka::Type::fromString("unknown");
+    }
+    
+    std::shared_ptr<toka::Type> payloadT = nullptr;
+    std::shared_ptr<toka::Type> errT = nullptr;
+
+    auto endsWith = [](const std::string& str, const std::string& suffix) {
+        return str.size() >= suffix.size() && 
+               str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
+    };
+
+    if (shapeT->Decl) {
+      for (auto &M : shapeT->Decl->Members) {
+        if (M.Name == "Ok" || M.Name == "Some" || endsWith(M.Name, "::Ok") || endsWith(M.Name, "::Some")) {
+           if (!M.SubMembers.empty()) {
+             payloadT = M.SubMembers[0].ResolvedType;
+           } else {
+             payloadT = M.ResolvedType;
+           }
+        } else if (M.Name == "Err" || endsWith(M.Name, "::Err")) {
+           if (!M.SubMembers.empty()) {
+             errT = M.SubMembers[0].ResolvedType;
+           } else {
+             errT = M.ResolvedType;
+           }
+        }
+      }
+    }
+
+    if (!payloadT) {
+      error(Unwrap, "Unwrap operator '!' requires a payload type in " + soul);
+      return toka::Type::fromString("unknown");
+    }
+    
+    if (!CurrentFunction) {
+      error(Unwrap, "Unwrap operator '!' must be used inside a function");
+      return toka::Type::fromString("unknown");
+    }
+    
+    auto fnRetT = CurrentFunction->ResolvedReturnType;
+    if (!fnRetT) {
+      error(Unwrap, "Cannot determine function return type for unwrap operator");
+      return toka::Type::fromString("unknown");
+    }
+    fnRetT = resolveType(fnRetT, false);
+    
+    if (isOkay) {
+      if (!fnRetT->isShape()) {
+        error(Unwrap, "Function must return Result when unwrapping a Result with '!'");
+        return payloadT;
+      }
+      auto retShape = std::static_pointer_cast<toka::ShapeType>(fnRetT);
+      std::string fnRetSoul = retShape->Decl ? retShape->Decl->Name : retShape->getSoulName();
+      bool fnIsOkay = fnRetSoul == "Okay" || fnRetSoul.find("Okay_") == 0;
+      if (!fnIsOkay) {
+        error(Unwrap, "Function must return Result when unwrapping a Result with '!'");
+        return payloadT;
+      }
+      
+      std::shared_ptr<toka::Type> retErrT = nullptr;
+      if (retShape->Decl) {
+        for (auto &M : retShape->Decl->Members) {
+          if (M.Name == "Err" || endsWith(M.Name, "::Err")) {
+             if (!M.SubMembers.empty()) {
+               retErrT = M.SubMembers[0].ResolvedType;
+             } else {
+               retErrT = M.ResolvedType;
+             }
+          }
+        }
+      }
+      if (!errT || !retErrT) {
+        error(Unwrap, "Result types must have Err variant");
+      } else {
+        if (!isTypeCompatible(retErrT, errT)) {
+           error(Unwrap, "Function error return type '" + retErrT->toString() + "' is incompatible with unwrapped error type '" + errT->toString() + "'");
+        }
+      }
+    } else if (isMaybe) {
+      if (!fnRetT->isShape()) {
+        error(Unwrap, "Function must return Option when unwrapping an Option with '!'");
+      } else {
+        auto retShape = std::static_pointer_cast<toka::ShapeType>(fnRetT);
+        std::string fnRetSoul = retShape->Decl ? retShape->Decl->Name : retShape->getSoulName();
+        bool fnIsMaybe = fnRetSoul == "Maybe" || fnRetSoul.find("Maybe_") == 0;
+        if (!fnIsMaybe) {
+          error(Unwrap, "Function must return Option when unwrapping an Option with '!'");
+        }
+      }
+    }
+    std::cerr << "DEBUG-UNWRAP: payloadT = " << (payloadT ? payloadT->toString() : "null") << "\n";
+    return payloadT;
   } else if (auto *Post = dynamic_cast<PostfixExpr *>(E)) {
     // [Fix] Do NOT disable soul collapse.
     // If the user wants the handle, they must use explicit prefix (e.g.

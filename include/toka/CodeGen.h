@@ -239,6 +239,7 @@ private:
   PhysEntity genMethodCall(const MethodCallExpr *expr);
   PhysEntity genCallExpr(const CallExpr *expr);
   PhysEntity genPostfixExpr(const PostfixExpr *expr);
+  PhysEntity genUnwrapPropagationExpr(const UnwrapPropagationExpr *expr);
   PhysEntity genPassExpr(const PassExpr *expr);
   PhysEntity genCedeExpr(const CedeExpr *expr);
   PhysEntity genBreakExpr(const BreakExpr *expr);

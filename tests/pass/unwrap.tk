@@ -1,0 +1,48 @@
+import core/result::{Result, Okay}
+import core/option::{Option, Maybe}
+import std/string::{String}
+import std/io::println
+
+fn compute_val(fail: bool) -> Result<i32, String> {
+    if fail {
+        return Result<i32, String>::Err(String::from("failed"))
+    }
+    return Result<i32, String>::Ok(42)
+}
+
+fn test_result(fail: bool) -> Result<i32, String> {
+    auto val = compute_val(fail)!
+    return Result<i32, String>::Ok(val * 2)
+}
+
+fn compute_opt(fail: bool) -> Option<i32> {
+    if fail {
+        return Option<i32>::None()
+    }
+    return Option<i32>::Some(10)
+}
+
+fn test_option(fail: bool) -> Option<i32> {
+    auto val = compute_opt(fail)!
+    return Option<i32>::Some(val * 3)
+}
+
+pub fn main() -> i32 {
+    auto r1 = test_result(false)
+    assert(r1.is_ok(), "r1 should be Ok")
+    println("Result OK: {}", r1.unwrap())
+
+    auto r2 = test_result(true)
+    assert(r2.is_err(), "r2 should be Err")
+    println("Result ERR expected: {}", r2.unwrap_err())
+
+    auto o1 = test_option(false)
+    assert(o1.is_some(), "o1 should be Some")
+    println("Option SOME: {}", o1.unwrap())
+
+    auto o2 = test_option(true)
+    assert(o2.is_none(), "o2 should be None")
+    println("Option NONE expected")
+
+    return 0
+}

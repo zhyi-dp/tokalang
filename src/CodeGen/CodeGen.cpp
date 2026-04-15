@@ -100,6 +100,8 @@ PhysEntity CodeGen::genExpr(const Expr *expr) {
     return genCallExpr(e);
   if (auto e = dynamic_cast<const PostfixExpr *>(expr))
     return genPostfixExpr(e);
+  if (auto e = dynamic_cast<const UnwrapPropagationExpr *>(expr))
+    return genUnwrapPropagationExpr(e);
   if (auto e = dynamic_cast<const AwaitExpr *>(expr)) {
       if (!m_CurrentCoroHandle) {
           error(e, "await can only be used inside an async function");
