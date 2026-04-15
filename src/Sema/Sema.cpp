@@ -887,7 +887,7 @@ void Sema::analyzeShapes(Module &M) {
         bool invalid = false;
         std::string reason = "";
 
-        if (underlying->isBoolean() || underlying->toString() == "bool") {
+        if (underlying->isBoolean()) {
           invalid = true;
           reason = "bool";
         } else if (auto st =

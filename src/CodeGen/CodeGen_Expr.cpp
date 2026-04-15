@@ -2007,7 +2007,7 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
               litVal = llvm::ConstantInt::get(targetType, pat->LiteralVal);
             }
             return m_Builder.CreateICmpEQ(targetVal, litVal);
-          } else if (expr->Target->ResolvedType->toString() == "String" &&
+          } else if (expr->Target->ResolvedType->isStringType() &&
                      !pat->Name.empty() && pat->Name[0] == '"') {
             std::string rawLit = pat->Name.substr(1, pat->Name.size() - 2);
             auto strLit = std::make_unique<StringExpr>(rawLit);
