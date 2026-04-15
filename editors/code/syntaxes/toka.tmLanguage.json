@@ -247,6 +247,10 @@
                     "match": "#"
                 },
                 {
+                    "name": "storage.modifier.mutability.writable.toka",
+                    "match": "(?<!=)!(?!=)"
+                },
+                {
                     "name": "storage.modifier.nullable.toka",
                     "match": "\\?"
                 },
