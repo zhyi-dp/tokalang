@@ -1,7 +1,10 @@
+import std/io::println
 
 fn test_view_str(vstr: view_str) -> i32 {
     // Test 1: Full slice clone
     auto full = vstr.clone()
+    println("full: {}", full.raw_ptr())
+    println("vstr: {}", vstr.raw_ptr())
     assert(full.equals(vstr), "FAIL: clone mismatch")
 
     // Test 2: Substr start
@@ -36,7 +39,17 @@ fn test_view_str(vstr: view_str) -> i32 {
     assert(str3.unwrap() == 5:usize, "FAIL: index_of_str comma")
     assert(!vstr.index_of_str("toba").is_some(), "FAIL: index_of_str negative")
 
+    check_trim("  hello  ", "hello", "FAIL: trim both ends")
+    check_trim("   ", "", "FAIL: trim all whitespace")
+    check_trim("hello world", "hello world", "FAIL: trim no whitespace")
+    check_trim("\n\t hello \n", "hello", "FAIL: trim escape chars")
+
     return 0;
+}
+
+fn check_trim(s: str, expected: str, msg: str) {
+    auto t = s.trim()
+    assert(t.equals(expected), msg)
 }
 
 fn main() -> i32 {

@@ -14,6 +14,7 @@
 
 import core/types::*
 import core/option::{Option}
+import core/utf8::*
 
 // A memory-safe, zero-allocation reference to a string view
 pub shape view_str(
@@ -43,6 +44,15 @@ pub trait @StringOps {
     pub fn last_index_of(self, c: char) -> Option<usize>
     pub fn contains_char(self, c: char) -> bool
     pub fn substr(self, pos: usize, length: usize) -> res: Self
+    pub fn trim(self) -> res: Self
+}
+
+pub trait @Utf8Ops {
+    pub fn chars(self) -> Utf8Iterator <- self
+    pub fn char_len(self) -> usize
+    pub fn char_at(self, char_idx: usize) -> Option<Char32>
+    pub fn substr_chars(self, start_char: usize, char_length: usize) -> res: Self
+    pub fn is_valid_utf8(self) -> bool
 }
 
 impl view_str@StrCommon {
@@ -165,11 +175,136 @@ impl view_str@StringOps {
             // 2. Overwrite the internal array pointer (offset 0) unconditionally via FFI
             // This safely bypasses Toka's raw pointer immutability laws (E0406/E0443)
             libc_memcpy(&ret as *void, &ptr_addr as *void, 8:usize)
-            
             return ret
         }
     }
+
+    pub fn trim(self) -> res: view_str
+    effects:
+        res.&buf <- self.buf
+    {
+        if self.len == 0 { return self.clone() }
+        
+        auto start# = 0:usize
+        auto end# = self.len
+        
+        unsafe {
+            // Find first non-whitespace
+            while start < self.len {
+                auto c = self.buf[start]
+                if c != 32:char && c != 9:char && c != 10:char && c != 13:char {
+                    break
+                }
+                start = start + 1
+            }
+            
+            // If all whitespace
+            if start == self.len {
+                return view_str(&buf = self.&buf, len = 0)
+            }
+            
+            // Find last non-whitespace
+            while end > start {
+                auto c = self.buf[end - 1]
+                if c != 32:char && c != 9:char && c != 10:char && c != 13:char {
+                    break
+                }
+                end = end - 1
+            }
+            
+            auto actual_len = end - start
+            
+            if start == 0 && actual_len == self.len {
+                return self.clone()
+            }
+
+            auto b_addr = &(self.buf[0]) as Addr
+            auto ptr_addr = b_addr + start
+            auto ret# = view_str(&buf = self.&buf, len = actual_len)
+            libc_memcpy(&ret as *void, &ptr_addr as *void, 8:usize)
+            return ret
+        }
+    }
+}
+
+impl view_str@Utf8Ops {
+    pub fn chars(self) -> Utf8Iterator <- self {
+        return Utf8Iterator(&buf=self.&buf, len=self.len, pos=0)
+    }
+
+    pub fn char_len(self) -> usize {
+        auto iter# = self.chars()
+        auto count#: usize = 0
+        while iter#.next().is_some() {
+            count += 1
+        }
+        return count
+    }
+
+    pub fn char_at(self, char_idx: usize) -> Option<Char32> {
+        auto iter# = self.chars()
+        auto count#: usize = 0
+        while true {
+            auto opt = iter#.next()
+            if opt.is_none() {
+                return Option<Char32>::None
+            }
+            if count == char_idx {
+                return opt
+            }
+            count += 1
+        }
+        return Option<Char32>::None
+    }
+
+    pub fn substr_chars(self, start_char: usize, char_length: usize) -> res: view_str
+    effects:
+        res.&buf <- self.buf
+    {
+        auto iter# = self.chars()
+        auto count#: usize = 0
+        
+        // Skip until start_char
+        while count < start_char {
+            if iter#.next().is_none() {
+                return view_str(&buf=self.&buf, len=0)
+            }
+            count += 1
+        }
+        
+        auto byte_start = iter.current_pos()
+        count = 0
+        
+        // Take char_length
+        while count < char_length {
+            if iter#.next().is_none() {
+                break
+            }
+            count += 1
+        }
+        
+        auto byte_len = iter.current_pos() - byte_start
+        return self.substr(byte_start, byte_len)
+    }
     
+    pub fn is_valid_utf8(self) -> bool {
+        auto iter# = self.chars()
+        while true {
+            auto opt = iter#.next()
+            if opt.is_none() { break }
+            if opt.unwrap() == REPLACEMENT_CHAR { return false }
+        }
+        return true
+    }
+}
+
+impl view_str {
+    pub fn raw_ptr(self) -> *char {
+        if self.len == 0 { return null as *char }
+        unsafe {
+            return &(self.buf[0]) as *char
+        }
+    }
 }
 
 pub alias str = view_str // Slice (like C++ std::string_view)

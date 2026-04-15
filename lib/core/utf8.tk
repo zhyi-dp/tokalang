@@ -1,0 +1,117 @@
+// Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import core/types::*
+import core/option::{Option}
+import core/types::{Char32}
+
+pub shape Utf8Char(cp: Char32, bytes: usize)
+
+pub const REPLACEMENT_CHAR = 0xFFFD:Char32
+
+pub shape Utf8Iterator(
+    &buf$: [char],
+    len$: usize,
+    pos#: usize
+)
+
+impl Utf8Iterator@encap {
+    pub fn clone(self) -> Utf8Iterator <- self {
+        return Utf8Iterator(&buf=self.&buf, len=self.len, pos=self.pos)
+    }
+
+    pub fn current_pos(self) -> usize {
+        return self.pos
+    }
+}
+
+impl Utf8Iterator {
+    fn decode_char(self) -> Utf8Char {
+        if self.pos >= self.len { 
+            return Utf8Char(cp=REPLACEMENT_CHAR, bytes=1) 
+        }
+        
+        unsafe {
+            auto b0 = self.buf[self.pos] as u8
+            if b0 < 0x80 { // 1-byte ASCII (0xxxxxxx)
+                auto cp_ret: Char32 = b0
+                return Utf8Char(cp=cp_ret, bytes=1)
+            }
+            
+            auto m1 = b0 band 0xE0:u8
+            if m1 == 0xC0:u8 { // 2-byte (110xxxxx)
+                if self.pos + 1 >= self.len { return Utf8Char(cp=REPLACEMENT_CHAR, bytes=1) }
+                auto b1 = self.buf[self.pos+1] as u8
+                auto m1_1 = b1 band 0xC0:u8
+                if m1_1 != 0x80:u8 { return Utf8Char(cp=REPLACEMENT_CHAR, bytes=1) }
+                
+                auto cp1: Char32 = b0 band 0x1F:u8
+                auto cp2: Char32 = b1 band 0x3F:u8
+                auto cp = (cp1 bshl 6) bor cp2
+                if cp < 0x80 { return Utf8Char(cp=REPLACEMENT_CHAR, bytes=1) } // Reject overlong encoding
+                return Utf8Char(cp=cp, bytes=2)
+            }
+            
+            auto m2 = b0 band 0xF0:u8
+            if m2 == 0xE0:u8 { // 3-byte (1110xxxx)
+                if self.pos + 2 >= self.len { return Utf8Char(cp=REPLACEMENT_CHAR, bytes=1) }
+                auto b1 = self.buf[self.pos+1] as u8
+                auto b2 = self.buf[self.pos+2] as u8
+                auto m2_1 = b1 band 0xC0:u8
+                auto m2_2 = b2 band 0xC0:u8
+                if m2_1 != 0x80:u8 || m2_2 != 0x80:u8 { return Utf8Char(cp=REPLACEMENT_CHAR, bytes=1) }
+                
+                auto cp1: Char32 = b0 band 0x0F:u8
+                auto cp2: Char32 = b1 band 0x3F:u8
+                auto cp3: Char32 = b2 band 0x3F:u8
+                auto cp = ((cp1 bshl 12) bor (cp2 bshl 6)) bor cp3
+                if cp < 0x800 || (cp >= 0xD800 && cp <= 0xDFFF) { return Utf8Char(cp=REPLACEMENT_CHAR, bytes=1) } // Reject overlong and surrogates
+                return Utf8Char(cp=cp, bytes=3)
+            }
+            
+            auto m3 = b0 band 0xF8:u8
+            if m3 == 0xF0:u8 { // 4-byte (11110xxx)
+                if self.pos + 3 >= self.len { return Utf8Char(cp=REPLACEMENT_CHAR, bytes=1) }
+                auto b1 = self.buf[self.pos+1] as u8
+                auto b2 = self.buf[self.pos+2] as u8
+                auto b3 = self.buf[self.pos+3] as u8
+                auto m3_1 = b1 band 0xC0:u8
+                auto m3_2 = b2 band 0xC0:u8
+                auto m3_3 = b3 band 0xC0:u8
+                if m3_1 != 0x80:u8 || m3_2 != 0x80:u8 || m3_3 != 0x80:u8 { return Utf8Char(cp=REPLACEMENT_CHAR, bytes=1) }
+                
+                auto cp1: Char32 = b0 band 0x07:u8
+                auto cp2: Char32 = b1 band 0x3F:u8
+                auto cp3: Char32 = b2 band 0x3F:u8
+                auto cp4: Char32 = b3 band 0x3F:u8
+                auto cp = (((cp1 bshl 18) bor (cp2 bshl 12)) bor (cp3 bshl 6)) bor cp4
+                if cp < 0x10000 || cp > 0x10FFFF { return Utf8Char(cp=REPLACEMENT_CHAR, bytes=1) } // Reject overlong and out of bounds
+                return Utf8Char(cp=cp, bytes=4)
+            }
+            
+            // Invalid starting byte (e.g. 10xxxxxx or 11111xxx)
+            return Utf8Char(cp=REPLACEMENT_CHAR, bytes=1)
+        }
+    }
+
+    pub fn next(self#) -> Option<Char32> {
+        if self.pos >= self.len {
+            return Option<Char32>::None
+        }
+        auto result = self.decode_char()
+        self.pos += result.bytes
+        return Option<Char32>::Some(result.cp)
+    }
+}
+

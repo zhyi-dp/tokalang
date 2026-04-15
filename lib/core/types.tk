@@ -29,7 +29,7 @@ pub type OAddr = u64
 
 pub type char = i8     // encoding-neutral character, C-style
 pub type Char16 = u16  // UTF-16 code point, UCS-2(Strict BMP) only
-pub type Char32 = u32  // UTF-32 code point
+pub alias Char32 = u32  // UTF-32 code point
 pub alias Char = Char32
 /*
 pub type string  = Vec<char>    // encoding-neutral string

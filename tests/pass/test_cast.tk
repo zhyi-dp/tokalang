@@ -1,0 +1,19 @@
+import core/types::{Char32}
+
+fn main() -> i32 {
+    // Basic cast
+    auto a = 10:Char32
+    assert(a == 10:u32, "FAIL: basic Char32 cast")
+
+    // From u8
+    auto u = 20:u8
+    auto x: Char32 = u as Char32
+    assert(x == 20:u32, "FAIL: u8 to Char32 cast")
+
+    // Compound cast
+    auto a8 = 30:u8
+    auto b = (a8 as u32) as Char32
+    assert(b == 30:u32, "FAIL: compound Char32 cast")
+
+    return 0
+}

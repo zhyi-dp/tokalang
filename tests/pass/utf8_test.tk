@@ -1,0 +1,42 @@
+import std/io::println
+import core/utf8::*
+import core/str::*
+import core/option::*
+import std/string::{String}
+
+fn main() -> i32 {
+    auto s_str = String::from("Hello你好世界!")
+    auto s = s_str.as_str() // 5 (ASCII) + 4 (3-byte each) + 1 (ASCII) = 18 bytes
+    
+    if s.len() != 18:usize { return 1 }
+    
+    // Validation
+    if !s.is_valid_utf8() { return 2 }
+    
+    auto c_len = s.char_len()
+    println("char_len: {}", c_len)
+    if c_len != 10:usize { return 3 }
+    
+    auto sub = s.substr_chars(5:usize, 4:usize)
+    println("substr: {}", sub.raw_ptr())
+    auto target_str = String::from("你好世界")
+    if !sub.equals(target_str.as_str()) { return 4 }
+    
+    // index 0 -> 'H' (72)
+    // index 5 -> '你' (U+4F60 => 20320)
+    // index 6 -> '好' (U+597D => 22909)
+    auto c0 = s.char_at(0:usize)
+    if c0.is_none() { return 5 }
+    if c0.unwrap() != 72:Char32 { return 6 }
+    
+    auto cx = s.char_at(6:usize)
+    if cx.is_none() { return 7 }
+    if cx.unwrap() != 22909:Char32 { return 8 }
+    
+    // test over boundary
+    auto empty_sub = s.substr_chars(20:usize, 2:usize)
+    if empty_sub.len() != 0:usize { return 9 }
+    
+    println("UTF-8 engine tests passed perfectly.")
+    return 0
+}
