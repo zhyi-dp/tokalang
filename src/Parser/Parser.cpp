@@ -100,7 +100,8 @@ bool Parser::isEndOfStatement() {
     case TokenType::DoubleEqual:
     case TokenType::Neq:
     case TokenType::Less:
-    case TokenType::Greater:
+    // TokenType::Greater omitted intentionally: Toka statements that validly 
+    // end in '>' are terminating generics (Option<T>) and should form colons.
     case TokenType::And:
     case TokenType::Or:
     case TokenType::Dot:
@@ -147,9 +148,6 @@ std::string Parser::parseTypeString() {
     if (balance == 0 &&
         (check(TokenType::Comma) || check(TokenType::RParen) ||
          check(TokenType::Equal) || isEndOfStatement() ||
-         // [Fix] Allow implicit semicolon after generic type closure '>'
-         // e.g. alias A = B<T>\n
-         (previous().Kind == TokenType::Greater && peek().HasNewlineBefore) ||
          check(TokenType::LBrace) || check(TokenType::Greater) ||
          check(TokenType::Pipe) || check(TokenType::KwFor) ||
          check(TokenType::Dependency)))

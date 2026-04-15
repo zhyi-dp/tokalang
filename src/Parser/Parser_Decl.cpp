@@ -656,11 +656,7 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
   if (check(TokenType::LBrace)) {
     body = parseBlock();
   } else {
-    if (previous().Kind == TokenType::Greater && peek().HasNewlineBefore) {
-      // Allow implicit semicolon for generic return type or effects ending with >
-    } else {
-      expectEndOfStatement();
-    }
+    expectEndOfStatement();
   }
   auto decl = std::make_unique<FunctionDecl>(
       isPub, name.Text, std::move(args), std::move(body), retType,
@@ -847,11 +843,7 @@ std::unique_ptr<TypeAliasDecl> Parser::parseTypeAliasDecl(bool isPub) {
 
   std::string targetType = parseTypeString();
 
-  if (previous().Kind == TokenType::Greater && peek().HasNewlineBefore) {
-    // Allow implicit semicolon for generic alias
-  } else {
-    expectEndOfStatement();
-  }
+  expectEndOfStatement();
 
   auto decl = std::make_unique<TypeAliasDecl>(isPub, name.Text, targetType,
                                               isStrong, genericParams);
