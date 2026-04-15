@@ -11,7 +11,8 @@
 - 每次完成阶段性的工作并且 pass 测试全部通过之前，请提交一次 commit，然后给出中文总结，并等待新的指示
 - git commit -m 信息不能包含可能被 bash/zsh 等截断内容的符号
 - 每次commit前运行 tools/scripts/test_pass.sh， 将测试结果以 [pass 71/79]的格式放在 commit 信息的最开始
-- commit信息以重点信息表达完备为前提，不要太啰嗦，也不要太简略
+- git commit信息以重点信息表达完备为前提，不要太啰嗦，也不要太简略
+- git add 之前先删除不需要的临时文件
 - git 命令不要跟任何其他命令一起&&执行
 - 执行的命令中不要出现任何的中文
 - 如果遇到编译器代码出现大括号不匹配的问题，可以使用 tools/scripts/check_braces.py 工具辅助定位

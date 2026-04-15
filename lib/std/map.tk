@@ -23,7 +23,7 @@ impl<'K, 'V> HashMap<'K, 'V>@encap {
             auto i#: usize = 0
             while i < self.cap {
                  auto *m = self.meta.unsafe_get(i)
-                 if m == (1 as u8) {
+                 if m == 1 {
                      // Drop key
                      auto *ptr_k = self.keys.unsafe_get(i)
                      {
@@ -113,9 +113,9 @@ impl<'K, 'V> HashMap<'K, 'V> {
                 // m_ptr is the Soul (u8).
                 auto *m_ptr#: u8 = self.meta.unsafe_get(idx)
                 
-                if m_ptr == (0 as u8) {
+                if m_ptr == 0 {
                     // Empty slot found
-                    m_ptr = (1 as u8) // Mark occupied (Write to Soul)
+                    m_ptr = 1 // Mark occupied (Write to Soul)
                     
                     // Write Key
                     auto *k_ptr#: 'K = self.keys.unsafe_get(idx)
@@ -167,7 +167,7 @@ impl<'K, 'V> HashMap<'K, 'V> {
             auto moved_count# = 0
             while i < self.cap {
                 auto *m_ptr#: u8 = self.meta.unsafe_get(i)
-                if m_ptr == (1 as u8) {
+                if m_ptr == 1 {
                      moved_count += 1
                      auto *old_k_ptr#: 'K = self.keys.unsafe_get(i)
                      auto *old_v_ptr#: 'V = self.vals.unsafe_get(i)
@@ -179,8 +179,8 @@ impl<'K, 'V> HashMap<'K, 'V> {
                      
                      while true {
                          auto *nm_ptr#: u8 = new_m.unsafe_get(idx)
-                         if nm_ptr == (0 as u8) {
-                             nm_ptr = (1 as u8)
+                         if nm_ptr == 0 {
+                             nm_ptr = 1
                              auto *nk_ptr#: 'K = new_k.unsafe_get(idx)
                              nk_ptr = key
                              auto *nv_ptr#: 'V = new_v.unsafe_get(idx)
@@ -221,7 +221,7 @@ impl<'K, 'V> HashMap<'K, 'V> {
              unsafe {
                  auto *m_ptr#: u8 = self.meta.unsafe_get(idx)
                  
-                 if m_ptr == (0 as u8) {
+                 if m_ptr == 0 {
                      return Option<'V>::None
                  }
                  
@@ -280,7 +280,7 @@ impl<'K, 'V> HashMapIterator<'K, 'V> {
             
             while self.pos < self.cap {
                 // Index unhatted -> Value
-                if m_buf[self.pos] == (1 as u8) {
+                if m_buf[self.pos] == 1 {
                     auto k = k_buf[self.pos]
                     auto v = v_buf[self.pos] // Copy value
                     
