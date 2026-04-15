@@ -43,7 +43,6 @@ void CodeGen::emitAcquire(llvm::Value *sharedHandle, std::shared_ptr<Type> point
     }
   }
 
-  std::cerr << "[DEBUG] emitAcquire: " << pName << " isAtomic=" << isAtomic << "\n";
 
   llvm::Value *refPtr =
       m_Builder.CreateExtractValue(sharedHandle, 1, "sh.acq_ref_ptr");
@@ -125,7 +124,6 @@ void CodeGen::emitRelease(llvm::Value *sharedHandle, const TokaSymbol &sym, std:
     if (sym.soulTypeObj) {
       cleanName = sym.soulTypeObj->getSoulType()->getSoulName();
     }
-    std::cerr << "[DEBUG] emitRelease: dropFunc=" << sym.dropFunc << " cleanName=" << cleanName << "\n";
     emitDropCascade(data, cleanName);
   }
 
@@ -223,13 +221,11 @@ void CodeGen::emitEnvelopeRebind(llvm::Value *handleAddr, llvm::Value *rhsVal,
     m_Builder.CreateCondBr(nn, freeBB, contBB);
 
     m_Builder.SetInsertPoint(freeBB);
-    std::cerr << "[DEBUG] emitEnvelopeRebind: Rebinding Unique " << sym.typeName << " hasDrop=" << sym.hasDrop << " dropFunc=" << sym.dropFunc << "\n";
     if (sym.hasDrop) {
       std::string cleanName = "";
       if (sym.soulTypeObj) {
         cleanName = sym.soulTypeObj->getSoulType()->getSoulName();
       }
-      std::cerr << "[DEBUG] emitEnvelopeRebind: calling dropCascade with cleanName=" << cleanName << "\n";
       emitDropCascade(oldVal, cleanName);
     }
     llvm::Function *freeFn = m_Module->getFunction("free");
@@ -248,7 +244,6 @@ void CodeGen::emitEnvelopeRebind(llvm::Value *handleAddr, llvm::Value *rhsVal,
 }
 
 PhysEntity CodeGen::emitAssignment(const Expr *lhsExpr, const Expr *rhsExpr) {
-  std::cerr << "[DEBUG] emitAssignment: LHS=" << lhsExpr->toString() << "\n";
   // 1. Resolve Intent
   bool hasRebind = false;
   const Expr *targetLHS = lhsExpr;
@@ -434,7 +429,6 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
   };
 
   const BinaryExpr *bin = expr;
-  std::cerr << "[DEBUG] genBinaryExpr: Op=" << bin->Op << " LHS=" << bin->LHS->toString() << "\n";
 
   // [Phase 2] Syntactic Sugar / Operator Overloading Dispatch
   if (!bin->OverloadedMethod.empty()) {
@@ -460,22 +454,15 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
       return emitAssignment(bin->LHS.get(), bin->RHS.get());
     }
 
-    std::cerr << "[DEBUG] genBinaryExpr: Computing soulAddr for LHS...\n";
     llvm::Value *soulAddr = emitEntityAddr(bin->LHS.get());
-    std::cerr << "[DEBUG] genBinaryExpr: Computed soulAddr=" << soulAddr << "\n";
     
-    std::cerr << "[DEBUG] genBinaryExpr: Computing RHS...\n";
     PhysEntity rhsVal_ent = genExpr(bin->RHS.get());
-    std::cerr << "[DEBUG] genBinaryExpr: Loading RHS value...\n";
     llvm::Value *rhsVal = rhsVal_ent.load(m_Builder);
-    std::cerr << "[DEBUG] genBinaryExpr: Loaded RHS value=" << rhsVal << "\n";
     
     if (!soulAddr || !rhsVal) {
-      std::cerr << "[DEBUG] genBinaryExpr: soulAddr or rhsVal is null, returning nullptr\n";
       return nullptr;
     }
 
-    std::cerr << "[DEBUG] genBinaryExpr: Resolving destType\n";
     // Determine destType for Load [Fix for Opaque Pointers]
     llvm::Type *destType = nullptr;
     if (auto *ve = dynamic_cast<const VariableExpr *>(bin->LHS.get())) {
@@ -500,27 +487,20 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
       destType = rhsVal->getType(); // Fallback
     }
     
-    std::cerr << "[DEBUG] genBinaryExpr: destType resolved. Is Null: " << (destType == nullptr ? "Yes" : "No") << "\n";
 
     // Standard Compound Logic
-    std::cerr << "[DEBUG] genBinaryExpr: Creating Load instruction... soulAddr=" << soulAddr << "\n";
     llvm::Value *lhsVal = m_Builder.CreateLoad(destType, soulAddr, "lhs_val");
-    std::cerr << "[DEBUG] genBinaryExpr: Load created. val=" << lhsVal << "\n";
     
     // [Fix] If LHS is reference-like, soulAddr might be address-of-pointer.
     // However, emitEntityAddr is supposed to return the final Soul address.
     // Let's ensure we are using the correct value for the operation.
-    std::cerr << "[DEBUG] genBinaryExpr: Calling unwrapHandle...\n";
     lhsVal = unwrapHandle(lhsVal);
-    std::cerr << "[DEBUG] genBinaryExpr: unwrapHandle finished. val=" << lhsVal << "\n";
 
     llvm::Type *lhsTy = lhsVal->getType();
     llvm::Type *rhsTy = rhsVal->getType();
-    std::cerr << "[DEBUG] genBinaryExpr: Extract getType... LHS=" << lhsTy << ", RHS=" << rhsTy << "\n";
 
     // [Fix] Handle Pointer Arithmetic in Compound Assignment
     if (lhsTy->isPointerTy() && rhsTy->isIntegerTy()) {
-      std::cerr << "[DEBUG] genBinaryExpr: Pointer Arithmetic Mode\n";
       if (bin->Op == "+=" || bin->Op == "-=") {
         llvm::Type *elemTy = nullptr;
         elemTy = llvm::Type::getInt8Ty(m_Context);
@@ -539,14 +519,11 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
       }
     }
 
-    std::cerr << "[DEBUG] genBinaryExpr: Type Promotion Mode...\n";
     // [Fix] Type Promotion for Compound Assignment
     if (lhsTy != rhsTy) {
       if (lhsTy->isIntegerTy() && rhsTy->isIntegerTy()) {
-        std::cerr << "[DEBUG] genBinaryExpr: Creating CreateIntCast\n";
         rhsVal = m_Builder.CreateIntCast(rhsVal, lhsTy, false);
       } else if (lhsTy->isFloatingPointTy() && rhsTy->isFloatingPointTy()) {
-        std::cerr << "[DEBUG] genBinaryExpr: Creating CreateFPCast\n";
         rhsVal = m_Builder.CreateFPCast(rhsVal, lhsTy);
       } else {
         error(bin, "Type mismatch in compound assignment");
@@ -566,7 +543,6 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
         res = m_Builder.CreateFDiv(lhsVal, rhsVal);
     } else {
       if (bin->Op == "+=") {
-        std::cerr << "[DEBUG] genBinaryExpr: Creating CreateAdd\n";
         res = m_Builder.CreateAdd(lhsVal, rhsVal);
       } else if (bin->Op == "-=")
         res = m_Builder.CreateSub(lhsVal, rhsVal);
@@ -575,7 +551,6 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
       else if (bin->Op == "/=")
         res = m_Builder.CreateSDiv(lhsVal, rhsVal);
       else if (bin->Op == "%=") {
-        std::cerr << "DEBUG: Generating Modulo Assign %=" << std::endl;
         bool isUnsigned = false;
         if (lhsTy->isIntegerTy()) {
           if (bin->LHS && bin->LHS->ResolvedType) {
@@ -594,9 +569,7 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
       }
     }
 
-    std::cerr << "[DEBUG] genBinaryExpr: Creating CreateStore\n";
     m_Builder.CreateStore(res, soulAddr);
-    std::cerr << "[DEBUG] genBinaryExpr: CreateStore finished\n";
     return res;
   }
 
@@ -797,26 +770,22 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
   PhysEntity lhs_ent = genExpr(bin->LHS.get()).load(m_Builder);
   llvm::Value *lhs = lhs_ent.load(m_Builder);
   if (!lhs) {
-    std::cerr << "DEBUG CodeGen: genBinaryExpr aborted because lhs load failed.\n";
     return nullptr;
   }
 
   if (!m_Builder.GetInsertBlock() ||
       m_Builder.GetInsertBlock()->getTerminator()) {
-    std::cerr << "DEBUG CodeGen: genBinaryExpr aborted because lhs terminated block.\n";
     return nullptr;
   }
 
   PhysEntity rhs_ent = genExpr(bin->RHS.get()).load(m_Builder);
   llvm::Value *rhs = rhs_ent.load(m_Builder);
   if (!rhs) {
-    std::cerr << "DEBUG CodeGen: genBinaryExpr aborted because rhs load failed.\n";
     return nullptr;
   }
 
   if (!m_Builder.GetInsertBlock() ||
       m_Builder.GetInsertBlock()->getTerminator()) {
-    std::cerr << "DEBUG CodeGen: genBinaryExpr aborted because rhs terminated block.\n";
     return nullptr;
   }
 
@@ -997,7 +966,6 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
       return m_Builder.CreateGEP(elemTy, lhs, {rhs}, "ptradd");
     }
     llvm::Value *add_res = m_Builder.CreateAdd(lhs, rhs, "addtmp");
-    std::cerr << "DEBUG CodeGen: Created ADD resulting in " << (add_res ? "valid" : "null") << "\n";
     return add_res;
   }
   if (bin->Op == "-") {
@@ -1152,7 +1120,6 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
 }
 
 PhysEntity CodeGen::genUnaryExpr(const UnaryExpr *unary) {
-  std::cerr << "[DEBUG] genUnaryExpr Op=" << (int)unary->Op;
   if (dynamic_cast<const VariableExpr*>(unary->RHS.get())) {
     std::cerr << " RHS=" << dynamic_cast<const VariableExpr*>(unary->RHS.get())->Name;
   }
@@ -1321,7 +1288,6 @@ PhysEntity CodeGen::genUnaryExpr(const UnaryExpr *unary) {
     std::shared_ptr<Type> pType = nullptr;
     if (unary->RHS->ResolvedType) pType = unary->RHS->ResolvedType->getPointeeType();
     
-    std::cerr << "[DEBUG] Tilde calling emitAcquire for Variable " << unary->RHS->toString() << " with pType=" << (pType ? pType->toString() : "null") << " IsSync=" << (pType && pType->isShape() ? std::static_pointer_cast<ShapeType>(pType)->IsSync : 0) << "\n";
     
     emitAcquire(val, pType);
 
@@ -1601,7 +1567,6 @@ PhysEntity CodeGen::genVariableExpr(const VariableExpr *var) {
   }
 
   if (!soulType) {
-    std::cerr << "DEBUG CodeGen: soulType missing for " << baseName << ", defaulting to ptrTy!\n";
   }
 
   // [Fix] Shared Pointer Handle Type Correction

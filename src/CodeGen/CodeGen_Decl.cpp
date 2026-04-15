@@ -164,21 +164,17 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
   // [Fix] Prevent double generation of function bodies (e.g. from multiple
   // imports)
   if (!f->empty()) {
-    if (funcName == "__Closure_3___invoke") std::cerr << "DEBUG: __Closure_3___invoke skipped: not empty\n";
     return f;
   }
 
   if (declOnly) {
-    if (funcName == "__Closure_3___invoke") std::cerr << "DEBUG: __Closure_3___invoke skipped: declOnly\n";
     return f;
   }
 
   if (!func->Body) {
-    if (funcName == "__Closure_3___invoke") std::cerr << "DEBUG: __Closure_3___invoke skipped: no body\n";
     return f;
   }
 
-  if (funcName == "__Closure_3___invoke") std::cerr << "DEBUG: __Closure_3___invoke generating body!\n";
 
   llvm::BasicBlock *bb = llvm::BasicBlock::Create(m_Context, "entry", f);
   m_Builder.SetInsertPoint(bb);
@@ -440,8 +436,6 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
           // memory)
           return f;
         }
-        std::cerr << "FOUND SHAPE: " << typeName
-                  << " members: " << S->Members.size() << std::endl;
         // Iterate reverse
         for (auto it = S->Members.rbegin(); it != S->Members.rend(); ++it) {
           std::cerr << "  MEMBER: " << it->Name << " type: " << it->Type
@@ -1282,7 +1276,6 @@ llvm::Value *CodeGen::genDestructuringDecl(const DestructuringDecl *dest) {
 
 void CodeGen::genGlobal(const Stmt *stmt) {
   if (auto *var = dynamic_cast<const VariableDecl *>(stmt)) {
-    std::cerr << "[DEBUG] genGlobal: Starting for " << var->Name << "\n";
     llvm::Value *initVal = nullptr;
     llvm::Constant *constInit = nullptr;
     bool needsDynamicInit = false;
@@ -1324,8 +1317,6 @@ void CodeGen::genGlobal(const Stmt *stmt) {
     }
 
     if (!type) {
-      std::cerr << "DEBUG: genGlobal: Could not resolve type for '"
-                << var->Name << "' (TypeName: '" << var->TypeName << "')\n";
       type = llvm::Type::getInt32Ty(m_Context);
     }
 
@@ -2050,8 +2041,6 @@ llvm::Type *CodeGen::resolveType(const std::string &baseType, bool hasPointer) {
 
   // Check aliases first
   if (m_TypeAliases.count(baseType)) {
-    // std::cerr << "DEBUG: resolveType: Found Alias: " << baseType << " -> "
-    // << m_TypeAliases[baseType] << "\n";
     return resolveType(m_TypeAliases[baseType], hasPointer);
   }
 
@@ -2218,8 +2207,6 @@ llvm::Type *CodeGen::resolveType(const std::string &baseType, bool hasPointer) {
   else if (baseType == "unknown") {
     return nullptr;
   } else {
-    // std::cerr << "CodeGen Debug: resolveType failed for '" << baseType <<
-    // "'\n";
     return nullptr;
   }
 

@@ -119,7 +119,6 @@ PhysEntity CodeGen::genAllocExpr(const AllocExpr *ae) {
 
 void CodeGen::emitDropCascade(llvm::Value *ptrAddr, const std::string &typeName) {
   if (typeName.empty() || !ptrAddr) return;
-  std::cerr << "[DEBUG] emitDropCascade: entered for type '" << typeName << "'\n";
   
   // [NEW] Dynamic Closure (dyn fn) Drop Logic
   if (typeName.find("dyn fn(") == 0) {
@@ -170,7 +169,6 @@ void CodeGen::emitDropCascade(llvm::Value *ptrAddr, const std::string &typeName)
   if (!dropFunc.empty()) {
     llvm::Function *dFn = m_Module->getFunction(dropFunc);
     if (dFn) {
-      std::cerr << "[DEBUG] emitDropCascade: Calling destructor " << dropFunc << "\n";
       llvm::Type *elemTy = resolveType(typeName, false);
       if (elemTy) {
         llvm::Value *typedPtr = m_Builder.CreateBitCast(ptrAddr, llvm::PointerType::getUnqual(elemTy));
@@ -178,7 +176,6 @@ void CodeGen::emitDropCascade(llvm::Value *ptrAddr, const std::string &typeName)
         calledDestructor = true;
       }
     } else {
-      std::cerr << "[DEBUG] emitDropCascade: Destructor function " << dropFunc << " NOT found in module!\n";
     }
   }
 
@@ -188,7 +185,6 @@ void CodeGen::emitDropCascade(llvm::Value *ptrAddr, const std::string &typeName)
     const ShapeDecl *sh = m_Shapes[typeName];
     llvm::StructType *st = m_StructTypes[typeName];
     if (!st) {
-        std::cerr << "[DEBUG] emitDropCascade: No struct type found in m_StructTypes for '" << typeName << "'\n";
         return;
     }
 
@@ -202,10 +198,8 @@ void CodeGen::emitDropCascade(llvm::Value *ptrAddr, const std::string &typeName)
 
       int numPayloads = 0;
       for (const auto &member : sh->Members) {
-        std::cerr << "[DEBUG] Enum " << typeName << " member " << member.Name << " has Type='" << member.Type << "' subCount=" << member.SubMembers.size() << "\n";
         if (!member.Type.empty() || !member.SubMembers.empty()) numPayloads++;
       }
-      std::cerr << "[DEBUG] Enum " << typeName << " has numPayloads=" << numPayloads << "\n";
 
       if (numPayloads > 0) {
         llvm::SwitchInst *switchInst = m_Builder.CreateSwitch(tagVal, mergeBB, numPayloads);
@@ -264,7 +258,6 @@ void CodeGen::emitDropCascade(llvm::Value *ptrAddr, const std::string &typeName)
                             if (payloadTypes.size() > 1 || !variant.SubMembers.empty()) {
                                 fieldAddr = m_Builder.CreateStructGEP(payloadLayoutType, variantAddr, k, "drop_field_gep");
                             }
-                            std::cerr << "[DEBUG] emitDropCascade: Enum Case " << variant.Name << " dropping payload " << cleanType << "\n";
                             emitDropCascade(fieldAddr, cleanType);
                         }
                       }
@@ -294,7 +287,6 @@ void CodeGen::emitDropCascade(llvm::Value *ptrAddr, const std::string &typeName)
         
         // If the bare member type is a shape and not behind a pointer, cascade into it!
         if (!isPointer && m_Shapes.count(memberType)) {
-           std::cerr << "[DEBUG] emitDropCascade: Found shape field " << sh->Members[i].Name << " of type " << memberType << "\n";
            llvm::Value *typedBase = m_Builder.CreateBitCast(ptrAddr, llvm::PointerType::getUnqual(st));
            llvm::Value *fieldPtr = m_Builder.CreateStructGEP(st, typedBase, i, "drop_cascade.gep");
            emitDropCascade(fieldPtr, memberType);
@@ -1210,25 +1202,19 @@ llvm::Value *CodeGen::getEntityAddr(const std::string &name) {
 
   auto it = m_Symbols.find(baseName);
   if (it == m_Symbols.end()) {
-    std::cerr << "DEBUG CodeGen: '" << baseName << "' not in m_Symbols.\n";
     // [Fix] Closure Environment Fallback
     if (m_Symbols.count("self")) {
-      std::cerr << "DEBUG CodeGen: 'self' found in m_Symbols.\n";
       auto selfTy = m_Symbols["self"].soulTypeObj;
       if (selfTy && selfTy->isReference()) {
         auto ptrTy = std::static_pointer_cast<toka::PointerType>(selfTy);
         selfTy = ptrTy->PointeeType;
       }
       if (selfTy && selfTy->isShape() && selfTy->getSoulName().find("__Closure_") == 0) {
-        std::cerr << "DEBUG CodeGen: 'self' is closure shape " << selfTy->getSoulName() << "\n";
         auto shapeTy = std::static_pointer_cast<ShapeType>(selfTy);
         if (shapeTy->Decl) {
-          std::cerr << "DEBUG CodeGen: shapeTy has Decl with " << shapeTy->Decl->Members.size() << " members.\n";
           int count = 0;
           for (const auto& member : shapeTy->Decl->Members) {
-            std::cerr << "DEBUG CodeGen: checking member " << member.Name << "\n";
             if (member.Name == baseName) {
-              std::cerr << "DEBUG CodeGen: matched member " << baseName << "!\n";
               llvm::Value *selfAddr = getEntityAddr("self");
               if (!selfAddr) return nullptr;
               llvm::Type *structTy = getLLVMType(shapeTy);
@@ -1287,18 +1273,15 @@ llvm::Value *CodeGen::getIdentityAddr(const std::string &name) {
   // [Fix] Closure Environment Fallback for Identity (Handle)
   if (m_Symbols.count("self")) {
     auto selfTy = m_Symbols["self"].soulTypeObj;
-    std::cerr << "[DEBUG] getIdentityAddr: self base type=" << (selfTy ? selfTy->toString() : "null") << "\n";
     if (selfTy && selfTy->isReference()) {
       auto ptrTy = std::static_pointer_cast<toka::PointerType>(selfTy);
       selfTy = ptrTy->PointeeType;
     }
-    std::cerr << "[DEBUG] getIdentityAddr: self unwrapped type=" << (selfTy ? selfTy->toString() : "null") << " isShape=" << (selfTy ? selfTy->isShape() : 0) << "\n";
     if (selfTy && selfTy->isShape() && selfTy->getSoulName().find("__Closure_") == 0) {
       auto shapeTy = std::static_pointer_cast<ShapeType>(selfTy);
       if (shapeTy->Decl) {
         int count = 0;
         for (const auto& member : shapeTy->Decl->Members) {
-          std::cerr << "[DEBUG] getIdentityAddr: checking " << baseName << " vs " << member.Name << "\n";
           if (member.Name == baseName) {
             llvm::Value *selfAddr = getEntityAddr("self");
             if (!selfAddr) return nullptr;

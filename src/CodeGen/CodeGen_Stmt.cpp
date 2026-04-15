@@ -24,10 +24,8 @@ namespace toka {
 llvm::Value *CodeGen::genReturnStmt(const ReturnStmt *ret) {
   llvm::Value *retVal = nullptr;
   if (ret->ReturnValue) {
-    std::cerr << "DEBUG CodeGen: ReturnStmt has ReturnValue\n";
     retVal = genExpr(ret->ReturnValue.get()).load(m_Builder);
     if (!retVal) {
-      std::cerr << "DEBUG CodeGen: ReturnStmt evaluation yielded nullptr!\n";
     }
 
     // [Fix] Premature Drop in Return
@@ -152,7 +150,6 @@ llvm::Value *CodeGen::genReturnStmt(const ReturnStmt *ret) {
   }
 
   llvm::Function *f = m_Builder.GetInsertBlock()->getParent();
-  std::cerr << "DEBUG: genReturnStmt cleanupScopes\n";
   cleanupScopes(0);
 
   if (m_CurrentCoroHandle) {
@@ -161,7 +158,6 @@ llvm::Value *CodeGen::genReturnStmt(const ReturnStmt *ret) {
   }
 
   if (retVal) {
-    std::cerr << "DEBUG: genReturnStmt has valid retVal of type: ";
     retVal->getType()->print(llvm::errs()); llvm::errs() << "\n";
     if (retVal->getType() != f->getReturnType()) {
       if (f->getReturnType()->isVoidTy())
@@ -184,7 +180,6 @@ llvm::Value *CodeGen::genReturnStmt(const ReturnStmt *ret) {
     }
     return m_Builder.CreateRet(retVal);
   } else {
-    std::cerr << "DEBUG: genReturnStmt has NULL retVal! Falling back to 0.\n";
   }
 
   if (f->getReturnType()->isVoidTy())
@@ -276,15 +271,11 @@ void CodeGen::cleanupScopes(size_t targetDepth) {
               if (auto typeObj = m_Symbols[it->Name].soulTypeObj) {
                 if (auto st = std::dynamic_pointer_cast<ShapeType>(typeObj->getSoulType())) {
                   isAtomic = st->IsSync;
-                  std::cerr << "[DEBUG] cleanupScopes: Variable " << it->Name << " type=" << typeObj->toString() << " isAtomic=" << isAtomic << "\n";
                 } else {
-                  std::cerr << "[DEBUG] cleanupScopes: Variable " << it->Name << " type is NOT ShapeType!\n";
                 }
               } else {
-                std::cerr << "[DEBUG] cleanupScopes: Variable " << it->Name << " has NO soulTypeObj!\n";
               }
             } else {
-              std::cerr << "[DEBUG] cleanupScopes: Variable " << it->Name << " NOT found in m_Symbols!\n";
             }
 
             
@@ -434,7 +425,6 @@ void CodeGen::cleanupScopes(size_t targetDepth) {
                     }
                 }
                 
-                std::cerr << "[DEBUG] Fat slice drop extracted elemTypeName: '" << elemTypeName << "'\n";
                 
                 bool bypassDrop = (elemTypeName.find("Uninit<") == 0);
                 
@@ -478,7 +468,6 @@ void CodeGen::cleanupScopes(size_t targetDepth) {
         }
       } else if (it->HasDrop && it->Alloca) {
         std::string cleanName = it->SoulName;
-        std::cerr << "[DEBUG] cleanupScopes dropping " << it->Name << " of type " << cleanName << "\n";
         emitDropCascade(it->Alloca, cleanName);
       }
     }
