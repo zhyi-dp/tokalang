@@ -99,7 +99,7 @@ std::string Sema::resolveType(const std::string &Type, bool force) {
         if (!info.GenericParams[i].Name.empty() && info.GenericParams[i].Name[0] == '\'') {
           paramsToReplace.push_back(info.GenericParams[i].Name.substr(1));
         }
-        std::string val = args[i];
+        std::string val = (i < args.size()) ? args[i] : "unknown";
         for (const std::string &param : paramsToReplace) {
           size_t pos = 0;
           while ((pos = result.find(param, pos)) != std::string::npos) {

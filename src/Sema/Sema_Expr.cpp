@@ -4828,6 +4828,7 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
     return;
 
   std::string T = resolveType(TargetType);
+  llvm::errs() << "DEBUG-PAT: TargetType=" << TargetType << " | T=" << T << "\n";
   while (!T.empty() && (T.back() == '#' || T.back() == '?' || T.back() == '!')) {
       T.pop_back();
   }
@@ -4957,16 +4958,31 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
 
     size_t pos = variantName.find("::");
     if (pos != std::string::npos) {
-      std::string requestedShape = resolveType(variantName.substr(0, pos));
+      std::string requestedShapeCore = variantName.substr(0, pos);
+      size_t ltReq = requestedShapeCore.find("<");
+      if (ltReq != std::string::npos) requestedShapeCore = requestedShapeCore.substr(0, ltReq);
       variantName = variantName.substr(pos + 2);
+      while (TypeAliasMap.count(requestedShapeCore) && !TypeAliasMap[requestedShapeCore].IsStrong) {
+          requestedShapeCore = TypeAliasMap[requestedShapeCore].Target;
+          size_t lt = requestedShapeCore.find("<");
+          if (lt != std::string::npos) requestedShapeCore = requestedShapeCore.substr(0, lt);
+      }
       
-      bool isMatch = false;
-      if (T == requestedShape) isMatch = true;
-      if (T.find(requestedShape + "_M") == 0) isMatch = true;
-      if (T.find(requestedShape + "<") == 0) isMatch = true;
+      std::string T_base = T;
+      size_t ltT = T.find("_M"); 
+      if (ltT == std::string::npos) ltT = T.find("<");
+      if (ltT != std::string::npos) T_base = T.substr(0, ltT);
+      
+      if (TypeAliasMap.count(T_base) && !TypeAliasMap[T_base].IsStrong) {
+          T_base = TypeAliasMap[T_base].Target;
+          size_t lt = T_base.find("<");
+          if (lt != std::string::npos) T_base = T_base.substr(0, lt);
+      }
+      
+      bool isMatch = (T_base == requestedShapeCore);
       
       if (!isMatch) {
-          DiagnosticEngine::report(getLoc(Pat), DiagID::ERR_UNKNOWN_SHAPE_IN_PAT, requestedShape);
+          DiagnosticEngine::report(getLoc(Pat), DiagID::ERR_UNKNOWN_SHAPE_IN_PAT, requestedShapeCore);
           HasError = true;
       }
       shapeName = T;

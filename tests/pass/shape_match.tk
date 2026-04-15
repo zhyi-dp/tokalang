@@ -18,21 +18,21 @@ shape RawBytes [u8; 4]
 shape Point (u8, u8, u8, u8)
 
 // --- Tagged Union Test ---
-shape Result(
+shape MyResult(
     Ok(u32) = 0 | 
     Err(u32) = 1
 )
 
 fn test_match_expr(val: u32) -> u32 {
     // Explicitly specify the namespace to maintain physical transparency
-    auto res = Result::Ok(val)
+    auto res = MyResult::Ok(val)
     
     // match expression: enables value-merging logic (PHI node / result slot)
     auto outcome = match res {
-        auto Result::Ok(v) => {
+        auto MyResult::Ok(v) => {
             pass v * 2 // 'pass' is correct: it delivers a value inside the match block to 'outcome'
         }
-        auto Result::Err(e) => {
+        auto MyResult::Err(e) => {
             pass 0     // 'pass' is correct: it delivers a value inside the match block to 'outcome'
         }
     }
@@ -42,11 +42,11 @@ fn test_match_expr(val: u32) -> u32 {
 
 // --- Binding Sovereignty Test (Reference Deconstruction) ---
 fn test_binding_refs(val: u32) -> u32 {
-    auto res = Result::Ok(val)
+    auto res = MyResult::Ok(val)
     
     match res {
         // &v is a read-only binding to the Payload memory address; no copy occurs
-        auto Result::Ok(&v) => {
+        auto MyResult::Ok(&v) => {
             return v   // 'return' is required here: the match block has no receiver
         }
         _ => { 
