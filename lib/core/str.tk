@@ -135,7 +135,7 @@ impl ViewStrLinesIterator {
     pub fn next(self#) -> Option<view_str> {
         auto line = self.split_iter#.next()!
         if line.len > 0 {
-            auto c = line.at(line.len - 1).unwrap()
+            auto c = line.at(line.len - 1)!
             if c == 13:char { // '\r'
                 return Option<view_str>::Some(line.substr(0, line.len - 1))
             }
