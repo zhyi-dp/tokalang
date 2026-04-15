@@ -166,7 +166,21 @@ llvm::Value *CodeGen::genReturnStmt(const ReturnStmt *ret) {
     if (retVal->getType() != f->getReturnType()) {
       if (f->getReturnType()->isVoidTy())
         return m_Builder.CreateRetVoid();
-      retVal = m_Builder.CreateBitCast(retVal, f->getReturnType());
+      
+      llvm::Type *srcTy = retVal->getType();
+      llvm::Type *dstTy = f->getReturnType();
+      
+      if (srcTy->isIntegerTy() && dstTy->isIntegerTy()) {
+          bool isSigned = false;
+          if (ret->ReturnValue && ret->ReturnValue->ResolvedType) {
+              isSigned = ret->ReturnValue->ResolvedType->isSignedInteger();
+          }
+          retVal = m_Builder.CreateIntCast(retVal, dstTy, isSigned);
+      } else if (srcTy->isFloatingPointTy() && dstTy->isFloatingPointTy()) {
+          retVal = m_Builder.CreateFPCast(retVal, dstTy);
+      } else {
+          retVal = m_Builder.CreateBitCast(retVal, dstTy);
+      }
     }
     return m_Builder.CreateRet(retVal);
   } else {
