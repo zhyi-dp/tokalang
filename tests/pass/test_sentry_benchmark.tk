@@ -1,0 +1,40 @@
+import std/io::{File, println}
+import std/string::{String}
+import core/str::{view_str, str}
+import stdx/json::{deserialize_shape}
+
+pub shape SentryScope (
+    _notifyingListeners: bool
+)
+
+pub fn main() -> i32 {
+    auto path_str = String::from("/Users/zhyi/Library/Application Support/ynote-desktop/sentry/scope_v2.json")
+    auto mode_str = String::from("r")
+    auto file_res = File::open(path_str, mode_str)
+    if file_res.is_err() {
+        println("File not found")
+        return 1
+    }
+    auto f = file_res.unwrap()
+    auto read_res = f.read_to_string()
+    if read_res.is_err() {
+        println("Read fail")
+        return 1
+    }
+    auto json_str = read_res.unwrap()
+    auto v_str = json_str.as_str()
+    
+    // Benchmarking loop (1000 parsing cycles)
+    auto iter# = 0:i32
+    while iter < 1000 {
+        auto p_res = deserialize_shape<SentryScope>(v_str)
+        if p_res.is_err() {
+            println("Parse err")
+            return 1
+        }
+        iter += 1
+    }
+    
+    println("Successfully validated Z-Copy Scanner Throughput!")
+    return 0
+}

@@ -192,6 +192,93 @@ impl i64@FromJson {
     }
 }
 
+pub fn json_skip_value(json_in: view_str) -> JRes {
+    auto json# = json_skip_whitespace(json_in)
+    if json.len() == 0:usize { return JRes::Err(String::from("Unexpected EOF in skip")) }
+    
+    auto c = json.byte_at(0:usize)
+    if c == 123 { // '{'
+        json = json.substr(1:usize, json.len() - 1:usize)
+        while json.len() > 0:usize && json.byte_at(0:usize) != 125 { // '}'
+            json = json_skip_whitespace(json)
+            if json.len() > 0:usize && json.byte_at(0:usize) == 125 { break }
+            
+            auto skip_key = json_skip_value(json)
+            if skip_key.is_err() { return skip_key }
+            json = skip_key.unwrap()
+            
+            json = json_skip_whitespace(json)
+            if json.len() > 0:usize && json.byte_at(0:usize) == 58 {
+                json = json.substr(1:usize, json.len() - 1:usize)
+            }
+            
+            auto skip_val = json_skip_value(json)
+            if skip_val.is_err() { return skip_val }
+            json = skip_val.unwrap()
+            
+            json = json_skip_whitespace(json)
+            if json.len() > 0:usize && json.byte_at(0:usize) == 44 {
+                json = json.substr(1:usize, json.len() - 1:usize)
+            }
+        }
+        if json.len() > 0:usize { json = json.substr(1:usize, json.len() - 1:usize) }
+        return JRes::Ok(json)
+    } else if c == 91 { // '['
+        json = json.substr(1:usize, json.len() - 1:usize)
+        while json.len() > 0:usize && json.byte_at(0:usize) != 93 { // ']'
+            json = json_skip_whitespace(json)
+            if json.len() > 0:usize && json.byte_at(0:usize) == 93 { break }
+            
+            auto skip_item = json_skip_value(json)
+            if skip_item.is_err() { return skip_item }
+            json = skip_item.unwrap()
+            
+            json = json_skip_whitespace(json)
+            if json.len() > 0:usize && json.byte_at(0:usize) == 44 {
+                json = json.substr(1:usize, json.len() - 1:usize)
+            }
+        }
+        if json.len() > 0:usize { json = json.substr(1:usize, json.len() - 1:usize) }
+        return JRes::Ok(json)
+    } else if c == 34 { // '"'
+        auto i# = 1:usize
+        auto closed# = false
+        while i < json.len() {
+            auto ch = json.byte_at(i)
+            if ch == 34 {
+                closed = true
+                break
+            }
+            if ch == 92 {
+                i += 2:usize
+                continue
+            }
+            i += 1:usize
+        }
+        if !closed { return JRes::Err(String::from("Unterminated string in skip")) }
+        return JRes::Ok(json.substr(i + 1:usize, json.len() - i - 1:usize))
+    } else {
+        auto i# = 0:usize
+        while i < json.len() {
+            auto b = json.byte_at(i)
+            if b == 32 || b == 10 || b == 13 || b == 9 || b == 44 || b == 125 || b == 93 { break }
+            i += 1:usize
+        }
+        return JRes::Ok(json.substr(i, json.len() - i))
+    }
+}
+
+impl f64@FromJson {
+    pub fn parse_json(self#, json: view_str) -> JRes {
+        auto rem = json_skip_whitespace(json)
+        auto skip_res = json_skip_value(rem)
+        if skip_res.is_err() { return skip_res }
+        // Note: Currently just parses correctly from string but assigns 0.0 (dummy float parsing)
+        self = 0.0
+        return skip_res
+    }
+}
+
 impl bool@FromJson {
     pub fn parse_json(self#, json: view_str) -> Result<view_str, String> {
         auto rem = json_skip_whitespace(json)
@@ -406,8 +493,12 @@ pub fn deserialize_shape<'T>(json_str: view_str) -> Okay<'T, String> {
         }
         
         if !field_found {
-            libc_free(alloc_addr as *void)
-            return Okay<'T, String>::Err(String::from("Unknown JSON field mapping not implemented"))
+            auto skip_res = json_skip_value(res)
+            if skip_res.is_err() {
+                libc_free(alloc_addr as *void)
+                return Okay<'T, String>::Err(String::from("Failed to skip unknown field"))
+            }
+            res = skip_res.unwrap()
         }
     }
     
