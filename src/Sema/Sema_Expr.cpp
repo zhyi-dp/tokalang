@@ -161,6 +161,20 @@ std::unique_ptr<Expr> Sema::foldGenericConstant(std::unique_ptr<Expr> E) {
         return assign;
       }
     }
+  } else if (auto *Bin = dynamic_cast<BinaryExpr *>(E.get())) {
+    Bin->LHS = foldGenericConstant(std::move(Bin->LHS));
+    Bin->RHS = foldGenericConstant(std::move(Bin->RHS));
+    if (Bin->Op == "==" || Bin->Op == "!=") {
+        auto *lhsStr = dynamic_cast<StringExpr *>(Bin->LHS.get());
+        auto *rhsStr = dynamic_cast<StringExpr *>(Bin->RHS.get());
+        if (lhsStr && rhsStr) {
+            bool matches = (lhsStr->Value == rhsStr->Value);
+            bool result = (Bin->Op == "==") ? matches : !matches;
+            auto boolExpr = std::make_unique<BoolExpr>(result);
+            boolExpr->Loc = Bin->Loc;
+            return boolExpr;
+        }
+    }
   }
   return E;
 }

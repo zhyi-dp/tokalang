@@ -1,0 +1,28 @@
+import std/io::println
+import core/comptime::reflect
+
+pub shape User(
+    name: str,
+    id: i32
+)
+
+pub fn main() -> i32 {
+    unsafe {
+        auto u = User(name = "Alice", id = 42)
+        for field in reflect<User>().fields {
+            // we have field.name and field.type_name
+            if (field.name == "name") {
+                auto val: str = field.get(u)
+                println("name = {}", val.raw_ptr())
+            } else if (field.name == "id") {
+                auto val: i32 = field.get(u)
+                println("id = {}", val)
+                
+                field.set(u, 99)
+                auto check_val: i32 = field.get(u)
+                println("check id = {}", check_val)
+            }
+        }
+        return 0
+    }
+}
