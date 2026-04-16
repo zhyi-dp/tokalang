@@ -54,7 +54,7 @@
 | `shape Point(x: i32, y: i32)` | 结构体 (Struct) | 使用圆括号，字段需命名 |
 | `shape VecI32(nul *buf#: [i32], id: i32)` | 成员属性 | `nul` 关键字用于可空指针, `#` 表示可变(Mutable) |
 | `auto vec#: VecI32` |  成员的可变性继承父实例的可变性 | 此时`vec`本身是可变的，所以`*buf`就是可重绑定的，`id`是可变的，依据**指针变量**一节的规定可以推断，可变性继承链在指针的实体上被阻断|
-| `auto p = Point(x=1, y=2)` | 实例化 | 使用圆括号和命名参数初始化 |
+| `auto p = Point(x=1, y=2)` | 实例化 | 铁律：使用圆括号且**必须使用具名参数** (`name = value`) 初始化，不能使用位置顺序初始化。 |
 | `shape Pair(i32, i32)` | 元组 (Tuple) | 匿名结构体，通过 `.0`, `.1` 访问 |
 | `shape Res(Ok(T) \| Err)` | 枚举 (Enum) | `\|` 分隔变体，支持关联数据 (Tagged Union) |
 | `shape IntOrFloat(as i32 \| as f32)` | 联合 (Union) | 内存重叠，使用 `as` 关键字 |
@@ -120,6 +120,8 @@
 | `shape Point { x: i32 }` | `shape Point(x: i32)` | **铁律**：Shape 定义必须使用**圆括号** `()`。 |
 | `auto p = Point{x=1}` | `auto p = Point(x=1)` | **铁律**：初始化也必须使用**圆括号** `()`。 |
 | `println("Hello")` | `import std/io::println`<br>`println("Hello")` | `println` 不是内置关键字，必须从标准库导入。 |
+| `println("x=%d, y=%s", 1, s)` | `println("x={}, y={}", 1, s)` | **铁律**：Toka 格式化输出 (包括 `println`、字符串插值等) 严格使用前沿的 `{}` 占位语法，绝对不要使用 C 语言的 `%d`、`%s` 标志。 |
+| `auto p = User("Alice", 1)` | `auto p = User(name = "Alice", id = 1)` | **铁律**：实例化结构体（Shape）必须严格使用**具名参数 (Named Parameters)** 进行赋值结合等号 `=`，这会触发正确的隐式自动转型（如字符串字面量转 `str`）。严禁省略字段名的顺序盲传！ |
 | `x.modify()` (如果定义需要 `self#`) | `x#.modify()` | 修改自身的方法必须在调用者上加 `#`，**哪怕 x 本身是可变的**。 |
 | `*p` (想解引用) | `p` | **铁律 (Hat Principle)**：Toka 中裸名 `p` 即为灵魂 (Soul)，自动解引用。`*p` 是戴帽操作，得到指针本身 (Handle)。与 C++ 相反。 |
 | `*p = val` (想写内存) | `p = val` | **铁律**：写内存也是操作 Soul，直接用 `p`。`*p` 是操作 Handle (重绑定)。 |

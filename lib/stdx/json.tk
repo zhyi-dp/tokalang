@@ -1,0 +1,82 @@
+// lib/stdx/json.tk
+// Standard Extension for JSON Serialization using Toka Comptime Reflection
+
+import std/string::{String}
+import core/comptime::{reflect}
+import core/str::{str, view_str}
+
+pub trait @ToJson {
+    pub fn to_json(self) -> String
+}
+
+impl i32@ToJson {
+    pub fn to_json(self) -> String {
+        return String::from_int(self)
+    }
+}
+
+impl i64@ToJson {
+    pub fn to_json(self) -> String {
+        return String::from_i64(self)
+    }
+}
+
+impl f64@ToJson {
+    pub fn to_json(self) -> String {
+        return String::from_f64(self)
+    }
+}
+
+impl view_str@ToJson {
+    pub fn to_json(self) -> String {
+        auto res# = String::from_str("\"")
+        res#.push_view(self)
+        res#.push_str("\"")
+        return res
+    }
+}
+
+impl String@ToJson {
+    pub fn to_json(self) -> String {
+        auto res# = String::from_str("\"")
+        res#.push_view(self.as_str())
+        res#.push_str("\"")
+        return res
+    }
+}
+
+impl bool@ToJson {
+    pub fn to_json(self) -> String {
+        if self { return String::from_str("true") }
+        return String::from_str("false")
+    }
+}
+
+pub fn serialize_shape<'T>(obj: 'T) -> String {
+    auto res# = String::from_str("{")
+    auto first# = true
+    for f in reflect<'T>().fields {
+        if !first {
+            res#.push_str(",")
+        }
+        first = false
+        
+        // Append JSON Key
+        res#.push_str("\"")
+        auto key_name = _str_cast(f.name)
+        res#.push_view(key_name)
+        res#.push_str("\":")
+        
+        // Extract field value securely via memory offset mapping from the reference and write out JSON
+        auto val = f.get(obj) 
+        auto val_json = val.to_json()
+        res#.push_view(val_json.as_str())
+    }
+    
+    res#.push_str("}")
+    return res
+}
+
+fn _str_cast(s: str) -> str {
+    return s.clone()
+}

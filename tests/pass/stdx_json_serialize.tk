@@ -1,0 +1,40 @@
+import std/io::{println}
+import std/string::{String}
+import stdx/json::{serialize_shape, @ToJson}
+
+shape Address(
+    city: str,
+    zip: i32
+)
+
+impl Address@ToJson {
+    pub fn to_json(self) -> String {
+        return serialize_shape(self)
+    }
+}
+
+shape User(
+    name: str,
+    id: i32,
+    active: bool,
+    payment: f64,
+    addr: Address
+)
+
+impl User@ToJson {
+    pub fn to_json(self) -> String {
+        return serialize_shape(self)
+    }
+}
+
+pub fn main() -> i32 {
+    unsafe {
+        auto a = Address(city="Neo Tokyo", zip=9900)
+        auto u = User(name="Alice", id=42, active=true, payment=99.9, addr=a)
+        
+        auto json_text = u.to_json()
+        println("Output: {}", json_text.c_str())
+        
+        return 0
+    }
+}
