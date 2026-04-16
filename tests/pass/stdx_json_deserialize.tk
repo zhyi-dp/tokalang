@@ -1,0 +1,40 @@
+import std/io::{println}
+import stdx/json::{deserialize_shape}
+import core/str::{view_str}
+import std/vec::{Vec}
+import std/string::{String}
+
+pub shape Person (
+    name: str,
+    age: i32,
+    is_admin: bool,
+    tags: Vec<str>
+)
+
+pub fn main() -> i32 {
+    auto js = String::from("
+    { 
+        \"name\": \"Alice\",
+        \"age\": 35,
+        \"is_admin\": true,
+        \"tags\": [\"developer\", \"hacker\"]
+    }
+    ")
+    auto v = js.as_str()
+    
+    auto p_res = deserialize_shape<Person>(v)
+    if p_res.is_err() {
+        println("Parse Err")
+        return 1
+    }
+    
+    auto p = p_res.unwrap()
+    println("Person parsed: {}", p.age)
+    if p.age != 35 { return 1 }
+    if p.is_admin != true { return 1 }
+    if p.tags.len() != 2:usize { return 1 }
+    if p.name.len() != 5:usize { return 1 }
+    
+    println("Zero-Copy JSON Deserialization Success!")
+    return 0
+}

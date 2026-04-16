@@ -269,6 +269,14 @@ impl view_str@StringOps {
         return self.index_of(c).is_some()
     }
     
+    pub fn byte_at(self, idx: usize) -> i32 {
+        // [char] indexing compiles to memory access. Return -1 if OOB.
+        if idx >= self.len { return -1 }
+        unsafe {
+            return self.buf[idx] as i32
+        }
+    }
+    
     pub fn substr(self, pos: usize, length: usize) -> res: view_str
     effects:
         res.&buf <- self.buf
