@@ -400,8 +400,47 @@ impl f64@FromJson {
         auto rem = json_skip_whitespace(json)
         auto skip_res = json_skip_value(rem)
         if skip_res.is_err() { return skip_res }
-        // Note: Currently just parses correctly from string but assigns 0.0 (dummy float parsing)
-        self = 0.0
+        auto val_str = rem.substr(0:usize, rem.len() - skip_res.unwrap().len())
+        
+        auto dot_idx_opt = val_str.index_of('.')
+        if dot_idx_opt.is_some() {
+            auto dot_idx = dot_idx_opt.unwrap()
+            auto int_part = val_str.substr(0:usize, dot_idx)
+            auto dec_part = val_str.substr(dot_idx + 1:usize, val_str.len() - dot_idx - 1:usize)
+            
+            auto i = int_part.to_i32()
+            auto d = dec_part.to_i32()
+            
+            if i.is_some() && d.is_some() {
+                auto dec_val = d.unwrap() as f64
+                auto dec_divisor#: f64 = 1.0
+                auto j# = 0:usize
+                while j < dec_part.len() {
+                    dec_divisor = dec_divisor * 10.0
+                    j += 1:usize
+                }
+                
+                auto final_val# = (i.unwrap() as f64) + (dec_val / dec_divisor)
+                if val_str.byte_at(0:usize) == 45 { // negative
+                    // In Toka to_i32() already handles '-' for integer part if placed at start
+                    // but wait, if it was "-0", to_i32 gives 0 so we lose the sign.
+                    if i.unwrap() == 0 {
+                        final_val = -final_val
+                    }
+                }
+                self = final_val
+            } else {
+                self = 0.0
+            }
+        } else {
+            auto i = val_str.to_i32()
+            if i.is_some() {
+                self = i.unwrap() as f64
+            } else {
+                self = 0.0
+            }
+        }
+        
         return skip_res
     }
 }

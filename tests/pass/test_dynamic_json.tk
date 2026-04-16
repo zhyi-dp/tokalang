@@ -1,7 +1,62 @@
-import std/io::{println}
+import std/io
+import std/io::{println, print}
+import core/libc::{libc_printf, libc_fflush}
 import std/string::{String}
 import core/str::{str, view_str}
 import stdx/json::{JsonNode}
+
+fn put(s: String) {
+    auto fmt = String::from("%s")
+    libc_printf(fmt.c_str(), s.c_str())
+}
+
+fn print_json_node(val: JsonNode) {
+    match val {
+        NullNode(n) => { put(String::from("null")) }
+        BoolNode(b) => { 
+            if b { put(String::from("true")) } else { put(String::from("false")) }
+        }
+        NumNode(n) => { 
+            auto num_str = String::from_f64(n)
+            put(num_str) 
+        }
+        StrNode(&s) => {
+            put(String::from("\""))
+            put(s)
+            put(String::from("\""))
+        }
+        ArrayNode(arr_addr) => {
+            put(String::from("["))
+            auto *arr_ptr# = arr_addr as *Vec<JsonNode>
+            auto i# = 0:usize
+            while i < arr_ptr.len() {
+                auto item = arr_ptr.get(i)
+                print_json_node(item)
+                if i < arr_ptr.len() - 1:usize { put(String::from(", ")) }
+                i += 1:usize
+            }
+            put(String::from("]"))
+        }
+        ObjectNode(map_addr) => {
+            put(String::from("{"))
+            auto *map_ptr# = map_addr as *HashMap<String, JsonNode>
+            auto iter# = map_ptr.iter()
+            auto first# = true
+            while true {
+                auto entry_opt = iter.next()
+                if entry_opt.is_none() { break }
+                auto entry = entry_opt.unwrap()
+                if !first { put(String::from(", ")) }
+                first = false
+                put(String::from("\""))
+                put(entry.key)
+                put(String::from("\": "))
+                print_json_node(entry.val)
+            }
+            put(String::from("}"))
+        }
+    }
+}
 
 pub fn main() -> i32 {
     auto json_str = String::from("{\"name\": \"Toka\", \"version\": 1.0, \"is_fast\": true, \"scores\": [100, 99.5], \"meta\": {\"type\": null}}")
@@ -22,6 +77,25 @@ pub fn main() -> i32 {
         ObjectNode(map_addr) => {
             println("Found root object!")
             auto *map_ptr# = map_addr as *HashMap<String, JsonNode>
+            
+            println("--- Keys inside Object ---")
+            auto iter# = map_ptr.iter()
+            while true {
+                auto entry_opt = iter.next()
+                if entry_opt.is_none() { break }
+                auto entry = entry_opt.unwrap()
+                auto key = entry.key
+                auto val = entry.val
+                
+                put(key)
+                put(String::from(": "))
+                print_json_node(val)
+                put(String::from("\n"))
+                // fflush stdout (null pointer to flush all)
+                libc_fflush(null as *void)
+            }
+            println("--------------------------")
+            
             // Check keys
             if map_ptr.get(String::from("name")).is_some() {
                 println("Contains name!")
