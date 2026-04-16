@@ -2116,12 +2116,42 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
 }
 
 PhysEntity CodeGen::genIfExpr(const IfExpr *ie) {
-  // Track result via alloca if this if yields a value (determined by
-  // PassExpr)
   llvm::AllocaInst *resultAddr =
       createEntryBlockAlloca(m_Builder.getInt32Ty(), nullptr, "if_result_addr");
-  // Initialize with 0 or some default
   m_Builder.CreateStore(m_Builder.getInt32(0), resultAddr);
+
+  if (ie->IsComptime) {
+      llvm::Function *f = m_Builder.GetInsertBlock()->getParent();
+      llvm::BasicBlock *mergeBB = llvm::BasicBlock::Create(m_Context, "comptime_ifcont");
+      
+      if (ie->ComptimeTaken) {
+         if (ie->Then) {
+             m_CFStack.push_back({"", mergeBB, nullptr, resultAddr, m_ScopeStack.size()});
+             genStmt(ie->Then.get());
+             m_CFStack.pop_back();
+         }
+      } else if (ie->Else) {
+          m_CFStack.push_back({"", mergeBB, nullptr, resultAddr, m_ScopeStack.size()});
+          genStmt(ie->Else.get());
+          m_CFStack.pop_back();
+      }
+      
+      if (m_Builder.GetInsertBlock() && !m_Builder.GetInsertBlock()->getTerminator()) {
+          m_Builder.CreateBr(mergeBB);
+      }
+      
+      if (mergeBB->use_empty()) {
+          delete mergeBB;
+      } else {
+          mergeBB->insertInto(f);
+          m_Builder.SetInsertPoint(mergeBB);
+      }
+      return m_Builder.CreateLoad(m_Builder.getInt32Ty(), resultAddr, "if_result");
+  }
+
+  // Track result via alloca if this if yields a value (determined by
+  // PassExpr)
+  // Initialize with 0 or some default
 
   PhysEntity cond_ent = genExpr(ie->Condition.get()).load(m_Builder);
   llvm::Value *cond = cond_ent.load(m_Builder);

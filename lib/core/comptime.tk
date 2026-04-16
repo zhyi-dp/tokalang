@@ -41,7 +41,7 @@ pub shape TypeInfo(
 // ==========================================
 
 // 获取任意类型的元数据映射 (仅在编译期生效)
-pub fn reflect<T>() -> TypeInfo {
+pub fn reflect<'T>() -> TypeInfo {
     // [Compiler Hook] Sema 遇到此函数调用时，会生成真实的 TypeInfo 对象结构
     unsafe {
         auto dummy: TypeInfo
@@ -50,7 +50,7 @@ pub fn reflect<T>() -> TypeInfo {
 }
 
 // 判断某泛型是否是指针类型
-pub fn is_pointer<T>() -> bool {
+pub fn is_pointer<'T>() -> bool {
     // [Compiler Hook]
     return false
 }

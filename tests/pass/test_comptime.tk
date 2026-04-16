@@ -1,0 +1,23 @@
+import core/comptime::{is_pointer, compile_error}
+
+pub fn check_ptr<'T>() -> bool {
+    if is_pointer<'T>() {
+        return true
+    } else {
+        return false
+    }
+}
+
+pub fn main() -> i32 {
+    auto a = check_ptr<*i32>()
+    auto b = check_ptr<i32>()
+    
+    if !a {
+        return 1 // check_ptr<*i32> should be true
+    }
+    if b {
+        return 2 // check_ptr<i32> should be false
+    }
+    
+    return 0
+}

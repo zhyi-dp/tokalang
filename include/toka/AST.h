@@ -1026,6 +1026,8 @@ public:
   std::unique_ptr<Expr> Condition;
   std::unique_ptr<Stmt> Then;
   std::unique_ptr<Stmt> Else;
+  bool IsComptime = false;
+  bool ComptimeTaken = false;
 
   IfExpr(std::unique_ptr<Expr> cond, std::unique_ptr<Stmt> thenStmt,
          std::unique_ptr<Stmt> elseStmt)

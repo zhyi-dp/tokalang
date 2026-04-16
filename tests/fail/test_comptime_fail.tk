@@ -1,0 +1,6 @@
+import core/comptime::{compile_error}
+
+pub fn main() -> i32 {
+    compile_error("This is an expected failed test for compile_error")
+    return 0
+}

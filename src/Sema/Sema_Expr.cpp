@@ -92,6 +92,19 @@ std::unique_ptr<Expr> Sema::foldGenericConstant(std::unique_ptr<Expr> E) {
       }
       return Num;
     }
+  } else if (auto *Call = dynamic_cast<CallExpr *>(E.get())) {
+    if (Call->Callee == "core/comptime::is_pointer" || Call->Callee == "is_pointer") {
+      if (!Call->GenericArgs.empty()) {
+        std::string targetTyStr = Call->GenericArgs[0];
+        auto targetObj = toka::Type::fromString(targetTyStr);
+        auto resolvedObj = resolveType(targetObj, true);
+        bool isPtr = resolvedObj && (resolvedObj->isPointer() || resolvedObj->isRawPointer() || resolvedObj->isReference() || resolvedObj->isSmartPointer());
+        
+        auto boolExpr = std::make_unique<BoolExpr>(isPtr);
+        boolExpr->Loc = Call->Loc;
+        return boolExpr;
+      }
+    }
   }
   return E;
 }
@@ -1009,6 +1022,26 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
   } else if (auto *Bin = dynamic_cast<BinaryExpr *>(E)) {
     return checkBinaryExpr(Bin);
   } else if (auto *ie = dynamic_cast<IfExpr *>(E)) {
+
+    ie->Condition = foldGenericConstant(std::move(ie->Condition));
+    if (auto *boolLit = dynamic_cast<BoolExpr*>(ie->Condition.get())) {
+        ie->IsComptime = true;
+        ie->ComptimeTaken = boolLit->Value;
+        
+        bool isReceiver = false;
+        if (!m_ControlFlowStack.empty()) isReceiver = m_ControlFlowStack.back().IsReceiver;
+        m_ControlFlowStack.push_back({"", "void", nullptr, false, isReceiver});
+        
+        if (ie->ComptimeTaken) {
+            checkStmt(ie->Then.get());
+        } else if (ie->Else) {
+            checkStmt(ie->Else.get());
+        }
+        
+        auto retTypeObj = m_ControlFlowStack.back().ExpectedTypeObj ? m_ControlFlowStack.back().ExpectedTypeObj : toka::Type::fromString("void");
+        m_ControlFlowStack.pop_back();
+        return retTypeObj;
+    }
 
     auto condTypeObj = checkExpr(ie->Condition.get());
     std::string condType = condTypeObj->toString();
@@ -3919,6 +3952,19 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
       checkExpr(Arg.get());
     }
     return toka::Type::fromString(CallName);
+  }
+
+  // 1b. Comptime compile_error
+  if (CallName == "core/comptime::compile_error" || CallName == "compile_error") {
+      if (Call->Args.size() == 1) {
+          Call->Args[0] = foldGenericConstant(std::move(Call->Args[0]));
+          if (auto constStr = dynamic_cast<StringExpr*>(Call->Args[0].get())) {
+              error(Call, "Compile-time error: " + constStr->Value);
+              return toka::Type::fromString("void");
+          }
+      }
+      error(Call, "compile_error requires a string literal");
+      return toka::Type::fromString("void");
   }
 
   // 2. Intrinsics (println)
