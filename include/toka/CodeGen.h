@@ -249,6 +249,7 @@ private:
   PhysEntity genImplicitBoxExpr(const ImplicitBoxExpr *expr);
   PhysEntity genArrayInitExpr(const ArrayInitExpr *expr);
   PhysEntity genNewExpr(const NewExpr *expr);
+  PhysEntity genComptimeReflectExpr(const ComptimeReflectExpr *expr);
   llvm::Value *genReturnStmt(const ReturnStmt *stmt);
   llvm::Value *genBlockStmt(const BlockStmt *stmt);
   llvm::Value *genVariableDecl(const VariableDecl *stmt);

@@ -83,6 +83,13 @@ struct SymbolInfo {
   uint64_t ConstValue = 0;
   bool IsRebindable = false; // [NEW] prefix '#' or '!' rebind permission
   bool IsMorphicExempt = false; // [NEW] Track morphic exemption
+
+  // [Phase 2] Comptime Field Unroll Node Information
+  bool IsComptimeField = false;
+  std::string ComptimeFieldName = "";
+  std::string ComptimeFieldTypeStr = "";
+  uint64_t ComptimeFieldOffset = 0;
+  uint64_t ComptimeFieldSize = 0;
 };
 
 class Scope {

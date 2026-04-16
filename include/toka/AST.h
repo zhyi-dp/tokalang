@@ -886,6 +886,42 @@ public:
   }
 };
 
+class ComptimeFieldExpr : public Expr {
+public:
+  std::string FieldName;
+  std::string FieldTypeName;
+  int FieldOffset;
+  int FieldSize;
+
+  ComptimeFieldExpr(std::string name, std::string typeName, int off, int sz)
+      : FieldName(name), FieldTypeName(typeName), FieldOffset(off),
+        FieldSize(sz) {}
+
+  std::string toString() const override { return "CmpField:" + FieldName; }
+  std::unique_ptr<ASTNode> clone() const override {
+    auto n = std::make_unique<ComptimeFieldExpr>(FieldName, FieldTypeName,
+                                                 FieldOffset, FieldSize);
+    n->Loc = Loc;
+    n->ResolvedType = ResolvedType;
+    return n;
+  }
+};
+
+class ComptimeReflectExpr : public Expr {
+public:
+  std::string ReflectedTypeStr;
+  
+  ComptimeReflectExpr(std::string ty) : ReflectedTypeStr(ty) {}
+  
+  std::string toString() const override { return "CmpReflect:" + ReflectedTypeStr; }
+  std::unique_ptr<ASTNode> clone() const override {
+    auto n = std::make_unique<ComptimeReflectExpr>(ReflectedTypeStr);
+    n->Loc = Loc;
+    n->ResolvedType = ResolvedType;
+    return n;
+  }
+};
+
 class MatchExpr : public Expr {
 public:
   std::unique_ptr<Expr> Target;
@@ -1110,6 +1146,10 @@ public:
   std::unique_ptr<Stmt> Body;
   std::unique_ptr<Stmt> ElseBody;
   std::string IterElementType;
+
+  // [Phase 2] Comptime Macro Unrolling
+  bool IsComptimeUnrolled = false;
+  std::vector<std::unique_ptr<Stmt>> UnrolledBodies;
 
   ForExpr(const std::string &varName, bool isRef, bool isMut,
           std::unique_ptr<Expr> coll, std::unique_ptr<Stmt> body,

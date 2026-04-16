@@ -2376,6 +2376,16 @@ PhysEntity CodeGen::genLoopExpr(const LoopExpr *le) {
 }
 
 PhysEntity CodeGen::genForExpr(const ForExpr *fe) {
+  if (fe->IsComptimeUnrolled) {
+    for (const auto &body : fe->UnrolledBodies) {
+        m_ScopeStack.push_back({});
+        genStmt(body.get());
+        m_ScopeStack.pop_back();
+    }
+    // Dummy void return
+    return PhysEntity(llvm::Constant::getNullValue(m_Builder.getInt32Ty()), "void", m_Builder.getInt32Ty(), false);
+  }
+
   PhysEntity collVal_ent = genExpr(fe->Collection.get()).load(m_Builder);
   llvm::Value *collVal = collVal_ent.load(m_Builder);
   if (!collVal)
@@ -5075,6 +5085,90 @@ PhysEntity CodeGen::genWaitExpr(const WaitExpr *waitExpr) {
     }
     
     return PhysEntity(llvm::Constant::getNullValue(m_Builder.getInt32Ty()), "void", targetInnerTy, false);
+}
+
+PhysEntity CodeGen::genComptimeReflectExpr(const ComptimeReflectExpr *expr) {
+  std::string targetTyStr = expr->ReflectedTypeStr;
+  std::string targetSoul = toka::Type::stripPrefixes(targetTyStr);
+
+  llvm::Type *typeInfoTy = getLLVMType(toka::Type::fromString("TypeInfo"));
+  if (!typeInfoTy || !typeInfoTy->isSized()) {
+      error(expr, "TypeInfo shape not defined or opaque in current module.");
+      return {};
+  }
+  
+  if (m_Shapes.count(targetSoul) == 0) {
+      error(expr, "Cannot reflect uninstantiated or primitive shape in CodeGen: " + targetSoul);
+      return {};
+  }
+  auto *SD = m_Shapes[targetSoul];
+
+  llvm::Type *fieldInfoTy = getLLVMType(toka::Type::fromString("FieldInfo"));
+  if (!fieldInfoTy || !fieldInfoTy->isSized()) {
+      error(expr, "FieldInfo shape not defined or opaque.");
+      return {};
+  }
+  llvm::ArrayType *fieldArrayTy = llvm::ArrayType::get(fieldInfoTy, SD->Members.size());
+  llvm::Value *fieldArrayAlloc = createEntryBlockAlloca(fieldArrayTy, nullptr, "reflect_fields_" + targetSoul);
+
+  uint64_t currentOffset = 0;
+  for (size_t i = 0; i < SD->Members.size(); ++i) {
+      const auto &member = SD->Members[i];
+      llvm::Value *fieldPtr = m_Builder.CreateGEP(fieldArrayTy, fieldArrayAlloc, {m_Builder.getInt32(0), m_Builder.getInt32(i)});
+      
+      // name: str (RowFat)
+      llvm::Value *namePtr = m_Builder.CreateGlobalStringPtr(member.Name);
+      llvm::Type *fatTy = getLLVMType(toka::Type::fromString("view_str"));
+      llvm::Value *nameFat = llvm::UndefValue::get(fatTy);
+      nameFat = m_Builder.CreateInsertValue(nameFat, namePtr, {0});
+      nameFat = m_Builder.CreateInsertValue(nameFat, llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), member.Name.size()), {1});
+      m_Builder.CreateStore(nameFat, m_Builder.CreateStructGEP(fieldInfoTy, fieldPtr, 0));
+
+      // type_name: str
+      llvm::Value *tyNamePtr = m_Builder.CreateGlobalStringPtr(member.Type);
+      llvm::Value *tyNameFat = llvm::UndefValue::get(fatTy);
+      tyNameFat = m_Builder.CreateInsertValue(tyNameFat, tyNamePtr, {0});
+      tyNameFat = m_Builder.CreateInsertValue(tyNameFat, llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), member.Type.size()), {1});
+      m_Builder.CreateStore(tyNameFat, m_Builder.CreateStructGEP(fieldInfoTy, fieldPtr, 1));
+
+      // offset: usize
+      m_Builder.CreateStore(llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), currentOffset), m_Builder.CreateStructGEP(fieldInfoTy, fieldPtr, 2));
+      // size: usize
+      m_Builder.CreateStore(llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), 8), m_Builder.CreateStructGEP(fieldInfoTy, fieldPtr, 3));
+      currentOffset += 8;
+  }
+
+  // TypeInfo allocation
+  llvm::Value *typeInfoAlloc = createEntryBlockAlloca(typeInfoTy, nullptr, "reflect_typeinfo_" + targetSoul);
+
+  // set name
+  llvm::Value *namePtr = m_Builder.CreateGlobalStringPtr(targetSoul);
+  llvm::Type *fatTy = getLLVMType(toka::Type::fromString("view_str"));
+  llvm::Value *nameFat = llvm::UndefValue::get(fatTy);
+  nameFat = m_Builder.CreateInsertValue(nameFat, namePtr, {0});
+  nameFat = m_Builder.CreateInsertValue(nameFat, llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), targetSoul.size()), {1});
+  m_Builder.CreateStore(nameFat, m_Builder.CreateStructGEP(typeInfoTy, typeInfoAlloc, 0));
+
+  // set kind
+  m_Builder.CreateStore(llvm::ConstantInt::get(llvm::Type::getInt8Ty(m_Context), 0), m_Builder.CreateStructGEP(typeInfoTy, typeInfoAlloc, 1));
+
+  // set fields (RowFat<FieldInfo>)
+  llvm::Type *fatFieldInfoTy = getLLVMType(toka::Type::fromString("RowFat_M_FieldInfo"));
+  if (!fatFieldInfoTy) {
+      fatFieldInfoTy = getLLVMType(toka::Type::fromString("view_str")); // fallback if aliased
+  }
+  llvm::Value *fieldsFat = llvm::UndefValue::get(fatFieldInfoTy);
+  fieldsFat = m_Builder.CreateInsertValue(fieldsFat, m_Builder.CreateBitCast(fieldArrayAlloc, llvm::PointerType::getUnqual(fieldInfoTy)), {0});
+  fieldsFat = m_Builder.CreateInsertValue(fieldsFat, llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), SD->Members.size()), {1});
+  m_Builder.CreateStore(fieldsFat, m_Builder.CreateStructGEP(typeInfoTy, typeInfoAlloc, 2));
+
+  // set size
+  m_Builder.CreateStore(llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), currentOffset), m_Builder.CreateStructGEP(typeInfoTy, typeInfoAlloc, 3));
+  // set align
+  m_Builder.CreateStore(llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), 8), m_Builder.CreateStructGEP(typeInfoTy, typeInfoAlloc, 4));
+
+  llvm::Value *typeInfoVal = m_Builder.CreateLoad(typeInfoTy, typeInfoAlloc);
+  return PhysEntity(typeInfoVal, "TypeInfo", typeInfoTy, false);
 }
 
 PhysEntity CodeGen::genStartExpr(const StartExpr *E) {

@@ -158,6 +158,14 @@ PhysEntity CodeGen::genExpr(const Expr *expr) {
   if (auto e = dynamic_cast<const NewExpr *>(expr))
     return genNewExpr(e);
 
+  // [Phase 2] Comptime Intrinsic Fallbacks
+  if (auto e = dynamic_cast<const ComptimeReflectExpr *>(expr))
+    return genComptimeReflectExpr(e);
+  if (auto e = dynamic_cast<const ComptimeFieldExpr *>(expr)) {
+    error(e, "Compile-time field iteration variables cannot be used contextually where runtime values are expected (must be folded statically).");
+    return {};
+  }
+
   return {};
 }
 
@@ -205,8 +213,10 @@ void CodeGen::discover(const Module &ast) {
   }
 
   // Phase 1: Registration (Names only)
-  for (const auto &sh : ast.Shapes)
+  for (const auto &sh : ast.Shapes) {
     m_Shapes[sh->Name] = sh.get();
+    std::cerr << "CodeGen Phase 1 Shape: " << sh->Name << "\n";
+  }
   for (const auto &alias : ast.TypeAliases)
     m_TypeAliases[alias->Name] = alias->TargetType;
   for (const auto &func : ast.Functions)

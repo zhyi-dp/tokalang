@@ -91,6 +91,13 @@ std::unique_ptr<Expr> Sema::foldGenericConstant(std::unique_ptr<Expr> E) {
         }
       }
       return Num;
+    } else if (Info.IsComptimeField) {
+      // Setup replacement for compiled static unrolled Macro fields
+      auto Field = std::make_unique<ComptimeFieldExpr>(
+          Info.ComptimeFieldName, Info.ComptimeFieldTypeStr,
+          Info.ComptimeFieldOffset, Info.ComptimeFieldSize);
+      Field->Loc = Var->Loc;
+      return Field;
     }
   } else if (auto *Call = dynamic_cast<CallExpr *>(E.get())) {
     if (Call->Callee == "core/comptime::is_pointer" || Call->Callee == "is_pointer") {
@@ -103,6 +110,55 @@ std::unique_ptr<Expr> Sema::foldGenericConstant(std::unique_ptr<Expr> E) {
         auto boolExpr = std::make_unique<BoolExpr>(isPtr);
         boolExpr->Loc = Call->Loc;
         return boolExpr;
+      }
+    } else if (Call->Callee == "core/comptime::reflect" || Call->Callee == "reflect") {
+      if (!Call->GenericArgs.empty()) {
+          auto reflectExpr = std::make_unique<ComptimeReflectExpr>(Call->GenericArgs[0]);
+          reflectExpr->Loc = Call->Loc;
+          return reflectExpr;
+      }
+    }
+  } else if (auto *Memb = dynamic_cast<MemberExpr *>(E.get())) {
+    Memb->Object = foldGenericConstant(std::move(Memb->Object));
+    if (auto *CFE = dynamic_cast<ComptimeFieldExpr *>(Memb->Object.get())) {
+      if (Memb->Member == "name") {
+        auto str = std::make_unique<StringExpr>(CFE->FieldName);
+        str->Loc = Memb->Loc;
+        return str;
+      } else if (Memb->Member == "type_name") {
+        auto str = std::make_unique<StringExpr>(CFE->FieldTypeName);
+        str->Loc = Memb->Loc;
+        return str;
+      } else if (Memb->Member == "offset") {
+        auto num = std::make_unique<NumberExpr>(CFE->FieldOffset);
+        num->Loc = Memb->Loc;
+        return num;
+      } else if (Memb->Member == "size") {
+        auto num = std::make_unique<NumberExpr>(CFE->FieldSize);
+        num->Loc = Memb->Loc;
+        return num;
+      }
+    }
+  } else if (auto *Met = dynamic_cast<MethodCallExpr *>(E.get())) {
+    Met->Object = foldGenericConstant(std::move(Met->Object));
+    if (auto *CFE = dynamic_cast<ComptimeFieldExpr *>(Met->Object.get())) {
+      if (Met->Method == "get" && Met->Args.size() == 1) {
+        // Fold format: field.get(obj) -> obj.FieldName
+        Met->Args[0] = foldGenericConstant(std::move(Met->Args[0]));
+        auto replacement = std::make_unique<MemberExpr>(std::move(Met->Args[0]), CFE->FieldName);
+        replacement->Loc = Met->Loc;
+        return replacement;
+      } else if (Met->Method == "set" && Met->Args.size() == 2) {
+        // Fold format: field.set(obj, val) -> obj.FieldName = val
+        // Wait, MethodCallExpr doesn't model assignment natively. 
+        // Toka assignment is usually BinaryExpr("=")! Wait... if the user calls set, we need to return an assignment expression.
+        Met->Args[0] = foldGenericConstant(std::move(Met->Args[0]));
+        Met->Args[1] = foldGenericConstant(std::move(Met->Args[1]));
+        auto dest = std::make_unique<MemberExpr>(std::move(Met->Args[0]), CFE->FieldName);
+        dest->Loc = Met->Loc;
+        auto assign = std::make_unique<BinaryExpr>("=", std::move(dest), std::move(Met->Args[1]));
+        assign->Loc = Met->Loc;
+        return assign;
       }
     }
   }
@@ -317,6 +373,14 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
 
   if (auto *Null = dynamic_cast<NullExpr *>(E)) {
     return toka::Type::fromString("null");
+  }
+
+  if (auto *CE = dynamic_cast<ComptimeReflectExpr *>(E)) {
+    return toka::Type::fromString("TypeInfo");
+  }
+
+  if (auto *CFE = dynamic_cast<ComptimeFieldExpr *>(E)) {
+    return toka::Type::fromString("FieldInfo");
   }
 
   if (auto *None = dynamic_cast<NoneExpr *>(E)) {
@@ -1311,6 +1375,49 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     }
     return toka::Type::fromString(res);
   } else if (auto *fe = dynamic_cast<ForExpr *>(E)) {
+    // [Phase 2] Comptime Macro Unroll Detection
+    bool isMacroUnroll = false;
+    std::string ReflectedShapeName = "";
+    if (auto *Memb = dynamic_cast<MemberExpr *>(fe->Collection.get())) {
+      Memb->Object = foldGenericConstant(std::move(Memb->Object));
+      if (Memb->Member == "fields") {
+        if (auto *CRE = dynamic_cast<ComptimeReflectExpr *>(Memb->Object.get())) {
+          isMacroUnroll = true;
+          ReflectedShapeName = CRE->ReflectedTypeStr;
+        }
+      }
+    }
+
+    if (isMacroUnroll) {
+      fe->IsComptimeUnrolled = true;
+      auto resolvedObj = resolveType(toka::Type::fromString(ReflectedShapeName), true);
+      std::string targetSoul = resolvedObj->getSoulName();
+      if (ShapeMap.count(targetSoul)) {
+        auto *SD = ShapeMap[targetSoul];
+        uint64_t currentOffset = 0;
+        for (const auto &member : SD->Members) {
+          auto clonedBody = cloneNode(fe->Body);
+          enterScope();
+          SymbolInfo Info;
+          Info.TypeObj = toka::Type::fromString("FieldInfo");
+          Info.IsComptimeField = true;
+          Info.ComptimeFieldName = member.Name;
+          Info.ComptimeFieldTypeStr = member.Type;
+          Info.ComptimeFieldOffset = currentOffset;
+          Info.ComptimeFieldSize = 8; // Standard word approximation
+          
+          CurrentScope->define(fe->VarName, Info);
+          checkStmt(clonedBody.get());
+          fe->UnrolledBodies.push_back(std::move(clonedBody));
+          exitScope();
+          currentOffset += 8;
+        }
+      } else {
+        error(fe, "Cannot reflect uninstantiated or primitive shape: " + targetSoul);
+      }
+      return toka::Type::fromString("void");
+    }
+
     auto collTypeObj = checkExpr(fe->Collection.get());
     std::string collType = collTypeObj->toString();
     std::string elemType = "void"; // fallback
@@ -2308,6 +2415,7 @@ std::shared_ptr<toka::Type> Sema::checkMemberExpr(MemberExpr *Memb) {
   m_DisableSoulCollapse = true;
   bool savedMemberBase = m_IsMemberBase;
   m_IsMemberBase = true;
+  Memb->Object = foldGenericConstant(std::move(Memb->Object)); // [Phase 2]
   objTypeObj = checkExpr(Memb->Object.get());
   m_IsMemberBase = savedMemberBase;
   m_DisableSoulCollapse = savedDisable;
@@ -4010,18 +4118,23 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
       // Static Method
       if (MethodMap.count(ShapeName) &&
           MethodMap[ShapeName].count(VariantName)) {
-        for (auto &Arg : Call->Args) {
-          Arg = foldGenericConstant(std::move(Arg)); // [FIX]
-          checkExpr(Arg.get());
+        FunctionDecl *MetAST = nullptr;
+        if (MethodDecls.count(ShapeName) && MethodDecls[ShapeName].count(VariantName)) {
+            MetAST = MethodDecls[ShapeName][VariantName];
+        }
+
+        for (size_t i = 0; i < Call->Args.size(); ++i) {
+          Call->Args[i] = foldGenericConstant(std::move(Call->Args[i])); // [FIX]
+          std::shared_ptr<toka::Type> expectedTy = nullptr;
+          if (MetAST && i < MetAST->Args.size()) {
+              expectedTy = resolveType(toka::Type::fromString(MetAST->Args[i].Type), true);
+          }
+          checkExpr(Call->Args[i].get(), expectedTy);
         }
         auto retObj = toka::Type::fromString(MethodMap[ShapeName][VariantName]);
         auto resolvedRet = resolveType(retObj);
         
         // [FIX] Check if Static Method is async and wrap in TaskHandle
-        FunctionDecl *MetAST = nullptr;
-        if (MethodDecls.count(ShapeName) && MethodDecls[ShapeName].count(VariantName)) {
-            MetAST = MethodDecls[ShapeName][VariantName];
-        }
         if (MetAST && MetAST->Effect == EffectKind::Async) {
             std::string tName = "TaskHandle<" + resolvedRet->toString() + ">";
             return toka::Type::fromString(tName);
@@ -4046,19 +4159,24 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
             // Retry lookup
             if (MethodMap.count(ShapeName) &&
                 MethodMap[ShapeName].count(VariantName)) {
-              for (auto &Arg : Call->Args) {
-                Arg = foldGenericConstant(std::move(Arg));
-                checkExpr(Arg.get());
+              FunctionDecl *MetAST = nullptr;
+              if (MethodDecls.count(ShapeName) && MethodDecls[ShapeName].count(VariantName)) {
+                  MetAST = MethodDecls[ShapeName][VariantName];
+              }
+
+              for (size_t i = 0; i < Call->Args.size(); ++i) {
+                Call->Args[i] = foldGenericConstant(std::move(Call->Args[i]));
+                std::shared_ptr<toka::Type> expectedTy = nullptr;
+                if (MetAST && i < MetAST->Args.size()) {
+                    expectedTy = resolveType(toka::Type::fromString(MetAST->Args[i].Type), true);
+                }
+                checkExpr(Call->Args[i].get(), expectedTy);
               }
               auto retObj =
                   toka::Type::fromString(MethodMap[ShapeName][VariantName]);
               auto resolvedRet = resolveType(retObj);
               
               // [FIX] Check if Static Method is async and wrap in TaskHandle
-              FunctionDecl *MetAST = nullptr;
-              if (MethodDecls.count(ShapeName) && MethodDecls[ShapeName].count(VariantName)) {
-                  MetAST = MethodDecls[ShapeName][VariantName];
-              }
               if (MetAST && MetAST->Effect == EffectKind::Async) {
                   std::string tName = "TaskHandle<" + resolvedRet->toString() + ">";
                   return toka::Type::fromString(tName);

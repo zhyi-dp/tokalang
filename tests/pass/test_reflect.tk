@@ -1,0 +1,30 @@
+import core/comptime::{reflect, TypeInfo, FieldInfo}
+import std/io::println
+import std/string::String
+
+pub shape User(name: str, age: i32)
+
+pub fn print_user_info(u: User) {
+    println("User Fields:")
+    // Test Compile-time Macro Unrolling
+    for field in reflect<User>().fields {
+        auto name_s = String::from_str(field.name)
+        auto type_s = String::from_str(field.type_name)
+        println("- {} ({})", name_s.c_str(), type_s.c_str())
+    }
+}
+
+pub fn main() -> i32 {
+    auto name_obj = String::from("Alice")
+    auto u = User(name_obj.as_str(), 25)
+    print_user_info(u)
+
+    // Test CodeGen materialization
+    auto info = reflect<User>()
+    auto nm_str = String::from_str(info.name)
+    if nm_str.len() != 4 {
+        return 1
+    }
+
+    return 0
+}
