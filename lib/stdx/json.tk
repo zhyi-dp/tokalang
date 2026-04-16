@@ -4,9 +4,23 @@
 import std/string::{String}
 import core/comptime::{reflect}
 import core/str::{str, view_str}
+import std/map::{HashMap}
+import std/vec::{Vec}
 import core/libc::{libc_malloc, libc_free, libc_memcpy, libc_printf}
 
 pub alias JRes = Result<view_str, String>
+
+impl u8 { pub fn parse_json(self#, json: view_str) -> JRes { return JRes::Ok(json) } }
+impl u64 { pub fn parse_json(self#, json: view_str) -> JRes { return JRes::Ok(json) } }
+
+pub shape JsonNode (
+    NullNode(i32) = 0 |
+    BoolNode(bool) = 1 |
+    NumNode(f64) = 2 |
+    StrNode(String) = 3 |
+    ArrayNode(Addr) = 4 |
+    ObjectNode(Addr) = 5
+)
 
 pub trait @ToJson {
     // 采用倒灌模式，将自身的 JSON 表现直接追加到传入的共享大缓冲区中，并将所有权返回
@@ -192,6 +206,119 @@ impl i64@FromJson {
     }
 }
 
+impl JsonNode@FromJson {
+    pub fn parse_json(self#, json_in: view_str) -> JRes {
+        auto json# = json_skip_whitespace(json_in)
+        if json.len() == 0:usize { return JRes::Err(String::from("Unexpected EOF in JsonNode parse")) }
+        
+        auto c = json.byte_at(0:usize)
+        if c == 123 { // '{' --> ObjectNode
+            json = json.substr(1:usize, json.len() - 1:usize)
+            auto map = HashMap<String, JsonNode>::new()
+            
+            while json.len() > 0:usize && json.byte_at(0:usize) != 125 { // '}'
+                json = json_skip_whitespace(json)
+                if json.len() > 0:usize && json.byte_at(0:usize) == 125 { break }
+                
+                auto key_str#: String = String::from("")
+                auto skip_key = key_str#.parse_json(json)
+                if skip_key.is_err() { return skip_key }
+                json = skip_key.unwrap()
+                
+                json = json_skip_whitespace(json)
+                if json.len() > 0:usize && json.byte_at(0:usize) == 58 { // ':'
+                    json = json.substr(1:usize, json.len() - 1:usize)
+                } else {
+                    return JRes::Err(String::from("Expected ':' in object"))
+                }
+                
+                auto val_node#: JsonNode = JsonNode::NullNode(0)
+                auto skip_val = val_node#.parse_json(json)
+                if skip_val.is_err() { return skip_val }
+                json = skip_val.unwrap()
+                
+                map#.insert(key_str, val_node)
+                
+                json = json_skip_whitespace(json)
+                if json.len() > 0:usize && json.byte_at(0:usize) == 44 { // ','
+                    json = json.substr(1:usize, json.len() - 1:usize)
+                }
+            }
+            if json.len() > 0:usize { json = json.substr(1:usize, json.len() - 1:usize) }
+            auto map_ptr_addr = libc_malloc(sizeof(HashMap<String, JsonNode>)) as Addr
+            auto *map_ptr# = map_ptr_addr as *[HashMap<String, JsonNode>]
+            unsafe { map_ptr[0] = cede map }
+            self = JsonNode::ObjectNode(map_ptr_addr)
+            return JRes::Ok(json)
+        } else if c == 91 { // '[' --> ArrayNode
+            json = json.substr(1:usize, json.len() - 1:usize)
+            auto vec = Vec<JsonNode>::new()
+            
+            while json.len() > 0:usize && json.byte_at(0:usize) != 93 { // ']'
+                json = json_skip_whitespace(json)
+                if json.len() > 0:usize && json.byte_at(0:usize) == 93 { break }
+                
+                auto item_node#: JsonNode = JsonNode::NullNode(0)
+                auto skip_item = item_node#.parse_json(json)
+                if skip_item.is_err() { return skip_item }
+                json = skip_item.unwrap()
+                
+                vec#.push(item_node)
+                
+                json = json_skip_whitespace(json)
+                if json.len() > 0:usize && json.byte_at(0:usize) == 44 { // ','
+                    json = json.substr(1:usize, json.len() - 1:usize)
+                }
+            }
+            if json.len() > 0:usize { json = json.substr(1:usize, json.len() - 1:usize) }
+            auto vec_ptr_addr = libc_malloc(sizeof(Vec<JsonNode>)) as Addr
+            auto *vec_ptr# = vec_ptr_addr as *[Vec<JsonNode>]
+            unsafe { vec_ptr[0] = cede vec }
+            self = JsonNode::ArrayNode(vec_ptr_addr)
+            return JRes::Ok(json)
+        } else if c == 34 { // '"' --> StrNode
+            auto s#: String = String::from("")
+            auto p_res = s#.parse_json(json)
+            if p_res.is_err() { return p_res }
+            self = JsonNode::StrNode(s)
+            return p_res
+        } else if c == 116 { // 't' -> true
+            if json.len() >= 4:usize {
+                auto sub = json.substr(0:usize, 4:usize)
+                if sub.byte_at(0:usize) == 116 && sub.byte_at(1:usize) == 114 && sub.byte_at(2:usize) == 117 && sub.byte_at(3:usize) == 101 {
+                    self = JsonNode::BoolNode(true)
+                    return JRes::Ok(json.substr(4:usize, json.len() - 4:usize))
+                }
+            }
+            return JRes::Err(String::from("Invalid true literal"))
+        } else if c == 102 { // 'f' -> false
+            if json.len() >= 5:usize {
+                auto sub = json.substr(0:usize, 5:usize)
+                if sub.byte_at(0:usize) == 102 && sub.byte_at(1:usize) == 97 && sub.byte_at(2:usize) == 108 && sub.byte_at(3:usize) == 115 && sub.byte_at(4:usize) == 101 {
+                    self = JsonNode::BoolNode(false)
+                    return JRes::Ok(json.substr(5:usize, json.len() - 5:usize))
+                }
+            }
+            return JRes::Err(String::from("Invalid false literal"))
+        } else if c == 110 { // 'n' -> null
+            if json.len() >= 4:usize {
+                auto sub = json.substr(0:usize, 4:usize)
+                if sub.byte_at(0:usize) == 110 && sub.byte_at(1:usize) == 117 && sub.byte_at(2:usize) == 108 && sub.byte_at(3:usize) == 108 {
+                    self = JsonNode::NullNode(0)
+                    return JRes::Ok(json.substr(4:usize, json.len() - 4:usize))
+                }
+            }
+            return JRes::Err(String::from("Invalid null literal"))
+        } else {
+            auto num#: f64 = 0.0
+            auto p_res = num#.parse_json(json)
+            if p_res.is_err() { return p_res }
+            self = JsonNode::NumNode(num)
+            return p_res
+        }
+    }
+}
+
 pub fn json_skip_value(json_in: view_str) -> JRes {
     auto json# = json_skip_whitespace(json_in)
     if json.len() == 0:usize { return JRes::Err(String::from("Unexpected EOF in skip")) }
@@ -361,7 +488,7 @@ impl view_str@FromJson {
     }
 }
 
-impl<'T> Option<'T>@FromJson {
+impl<'T> Option<'T> {
     pub fn parse_json(self#, json: view_str) -> Result<view_str, String> {
         auto rem# = json_skip_whitespace(json)
         if rem.len() >= 4:usize {
@@ -387,7 +514,7 @@ impl<'T> Option<'T>@FromJson {
 }
 
 // 零拷贝数组解析 (直接存入预定义的 Shape 向量中)
-impl<'T> Vec<'T>@FromJson {
+impl<'T> Vec<'T> {
     pub fn parse_json(self#, json: view_str) -> Result<view_str, String> {
         auto res# = json_skip_whitespace(json)
         if res.len() == 0:usize || res.byte_at(0:usize) != 91 { // '['

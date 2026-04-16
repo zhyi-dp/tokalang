@@ -1,0 +1,38 @@
+import std/io::{println}
+import std/string::{String}
+import core/str::{str, view_str}
+import stdx/json::{JsonNode}
+
+pub fn main() -> i32 {
+    auto json_str = String::from("{\"name\": \"Toka\", \"version\": 1.0, \"is_fast\": true, \"scores\": [100, 99.5], \"meta\": {\"type\": null}}")
+    auto v_str = json_str.as_str()
+    
+    auto root#: JsonNode = JsonNode::NullNode(0)
+    println("Starting parse...")
+    auto parse_res = root#.parse_json(v_str)
+    println("Finished parse!")
+    
+    if parse_res.is_err() {
+        println("Parse failed")
+        return 1
+    }
+    
+    // Test match functionality over dynamic JSON Node!
+    match root {
+        ObjectNode(map_addr) => {
+            println("Found root object!")
+            auto *map_ptr# = map_addr as *HashMap<String, JsonNode>
+            // Check keys
+            if map_ptr.get(String::from("name")).is_some() {
+                println("Contains name!")
+            }
+        }
+        _ => {
+            println("Root is not object")
+            return 1
+        }
+    }
+    
+    println("Successfully parsed and explored dynamic JsonNode!")
+    return 0
+}
