@@ -1885,14 +1885,38 @@ PhysEntity toka::CodeGen::genMethodCall(const toka::MethodCallExpr *expr) {
 
   // 2. Handle Arguments
   for (size_t i = 0; i < expr->Args.size(); ++i) {
-    bool isMutable = false;
+    bool isCaptured = false;
     // Arg i maps to fd->Args[i+1]
     if (fd && i + 1 < fd->Args.size()) {
-      isMutable = fd->Args[i + 1].IsValueMutable;
+      const auto &arg = fd->Args[i + 1];
+      
+      // [NEW] Lifetime dependencies check
+      for (const auto &dep : fd->LifeDependencies) {
+        if (dep == arg.Name) {
+          isCaptured = true;
+          break;
+        }
+      }
+
+      // Capture by Struct/Array value types, or explicit Mutable Value types
+      if (!isCaptured && !arg.HasPointer && !arg.IsReference) {
+        if (arg.IsValueMutable) {
+          isCaptured = true;
+        } else {
+          llvm::Type *logicalTy = resolveType(arg.Type, false);
+          if (logicalTy && (logicalTy->isStructTy() || logicalTy->isArrayTy()))
+            isCaptured = true;
+        }
+      }
+
+      // [Fix] Unique/Shared/Rebindable Pointers MUST be passed by Reference (Capture)
+      if (arg.IsUnique || arg.IsShared || arg.IsRebindable) {
+        isCaptured = true;
+      }
     }
 
     llvm::Value *argVal = nullptr;
-    if (isMutable) {
+    if (isCaptured) {
       argVal = genAddr(expr->Args[i].get());
       if (!argVal) {
         // R-Value fallback
