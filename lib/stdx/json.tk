@@ -4,76 +4,96 @@
 import std/string::{String}
 import core/comptime::{reflect}
 import core/str::{str, view_str}
+import std/io::{println}
 
 pub trait @ToJson {
-    pub fn to_json(self) -> String
+    // 采用倒灌模式，将自身的 JSON 表现直接追加到传入的共享大缓冲区中，并将所有权返回
+    pub fn write_json(self, buf#: String) -> String
 }
 
 impl i32@ToJson {
-    pub fn to_json(self) -> String {
-        return String::from_int(self)
+    pub fn write_json(self, buf#: String) -> String {
+        auto tmp_str = String::from_int(self)
+        buf#.push_view(tmp_str.as_str())
+        return buf
     }
 }
 
 impl i64@ToJson {
-    pub fn to_json(self) -> String {
-        return String::from_i64(self)
+    pub fn write_json(self, buf#: String) -> String {
+        auto tmp_str = String::from_i64(self)
+        buf#.push_view(tmp_str.as_str())
+        return buf
     }
 }
 
 impl f64@ToJson {
-    pub fn to_json(self) -> String {
-        return String::from_f64(self)
+    pub fn write_json(self, buf#: String) -> String {
+        auto tmp_str = String::from_f64(self)
+        buf#.push_view(tmp_str.as_str())
+        return buf
     }
 }
 
 impl view_str@ToJson {
-    pub fn to_json(self) -> String {
-        auto res# = String::from_str("\"")
-        res#.push_view(self)
-        res#.push_str("\"")
-        return res
+    pub fn write_json(self, buf#: String) -> String {
+        buf#.push_str("\"")
+        buf#.push_view(self)
+        buf#.push_str("\"")
+        return buf
     }
 }
 
 impl String@ToJson {
-    pub fn to_json(self) -> String {
-        auto res# = String::from_str("\"")
-        res#.push_view(self.as_str())
-        res#.push_str("\"")
-        return res
+    pub fn write_json(self, buf#: String) -> String {
+        buf#.push_str("\"")
+        buf#.push_view(self.as_str())
+        buf#.push_str("\"")
+        return buf
     }
 }
 
 impl bool@ToJson {
-    pub fn to_json(self) -> String {
-        if self { return String::from_str("true") }
-        return String::from_str("false")
+    pub fn write_json(self, buf#: String) -> String {
+        if self { 
+            buf#.push_str("true") 
+        } else {
+            buf#.push_str("false")
+        }
+        return buf
     }
 }
 
-pub fn serialize_shape<'T>(obj: 'T) -> String {
-    auto res# = String::from_str("{")
+// Reflection-based loop unroller for structural Shapes.
+// It serializes the object `obj` deeply into the provided mutable `buf`.
+pub fn serialize_shape<'T>(obj: 'T, buf#: String) -> String {
+    buf#.push_str("{")
     auto first# = true
     for f in reflect<'T>().fields {
         if !first {
-            res#.push_str(",")
+            buf#.push_str(",")
         }
         first = false
         
         // Append JSON Key
-        res#.push_str("\"")
+        buf#.push_str("\"")
         auto key_name = _str_cast(f.name)
-        res#.push_view(key_name)
-        res#.push_str("\":")
+        
+        buf#.push_view(key_name)
+        buf#.push_str("\":")
         
         // Extract field value securely via memory offset mapping from the reference and write out JSON
         auto val = f.get(obj) 
-        auto val_json = val.to_json()
-        res#.push_view(val_json.as_str())
+        buf = val.write_json(buf)
     }
-    
-    res#.push_str("}")
+    buf#.push_str("}")
+    return buf
+}
+
+// Convenient helper method to generate a brand new String for the caller.
+pub fn to_json_string<'T>(obj: 'T) -> String {
+    auto res# = String::from_str("")
+    res = serialize_shape(obj, res)
     return res
 }
 

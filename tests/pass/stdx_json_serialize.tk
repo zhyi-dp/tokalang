@@ -1,6 +1,6 @@
 import std/io::{println}
 import std/string::{String}
-import stdx/json::{serialize_shape, @ToJson}
+import stdx/json::{serialize_shape, to_json_string, @ToJson}
 
 shape Address(
     city: str,
@@ -8,8 +8,9 @@ shape Address(
 )
 
 impl Address@ToJson {
-    pub fn to_json(self) -> String {
-        return serialize_shape(self)
+    pub fn write_json(self, buf#: String) -> String {
+        buf = serialize_shape(self, buf)
+        return buf
     }
 }
 
@@ -22,8 +23,9 @@ shape User(
 )
 
 impl User@ToJson {
-    pub fn to_json(self) -> String {
-        return serialize_shape(self)
+    pub fn write_json(self, buf#: String) -> String {
+        buf = serialize_shape(self, buf)
+        return buf
     }
 }
 
@@ -32,7 +34,8 @@ pub fn main() -> i32 {
         auto a = Address(city="Neo Tokyo", zip=9900)
         auto u = User(name="Alice", id=42, active=true, payment=99.9, addr=a)
         
-        auto json_text = u.to_json()
+        auto json_text = to_json_string(u)
+        println("Output text len: {}", json_text.len())
         println("Output: {}", json_text.c_str())
         
         return 0
