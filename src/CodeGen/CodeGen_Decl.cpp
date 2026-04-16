@@ -2297,33 +2297,20 @@ llvm::Type *CodeGen::getLLVMType(std::shared_ptr<Type> type) {
     auto ptrType = std::static_pointer_cast<PointerType>(type);
 
     if (type->isFatPointer()) {
-      llvm::Type *pointeeTy = getLLVMType(ptrType->PointeeType);
-      if (!pointeeTy || pointeeTy->isVoidTy()) pointeeTy = llvm::Type::getInt8Ty(m_Context);
-      llvm::Type *ptrTy = llvm::PointerType::getUnqual(pointeeTy);
+      // [Fix: Mutually Recursive Generics]
+      // DO NOT eagerly evaluate PointeeType layout since LLVM 15+ opaque pointers do not need it!
+      // This trivially breaks the cyclic layout sizing dependency.
+      llvm::Type *ptrTy = llvm::PointerType::getUnqual(m_Context);
       return llvm::StructType::get(m_Context, {ptrTy, llvm::Type::getInt64Ty(m_Context)});
     }
 
-    llvm::Type *pointeeTy = getLLVMType(ptrType->PointeeType);
-    if (!pointeeTy) {
-      pointeeTy = llvm::Type::getInt8Ty(m_Context);
-    }
-    if (pointeeTy->isVoidTy()) {
-      pointeeTy = llvm::Type::getInt8Ty(m_Context);
-    }
-    return llvm::PointerType::getUnqual(pointeeTy);
+    return llvm::PointerType::getUnqual(m_Context);
   }
 
   // Handle Shared Pointer (~T) -> { T*, cb* }
   if (type->typeKind == Type::SharedPtr) {
-    auto sharedType = std::static_pointer_cast<SharedPointerType>(type);
-    llvm::Type *elemTy = getLLVMType(sharedType->PointeeType);
-    if (!elemTy)
-      elemTy = llvm::Type::getInt8Ty(m_Context);
-
-    llvm::Type *ptrTy = llvm::PointerType::getUnqual(elemTy);
-    llvm::Type *refCountTy;
-    refCountTy = llvm::PointerType::getUnqual(llvm::Type::getInt32Ty(m_Context));
-
+    llvm::Type *ptrTy = llvm::PointerType::getUnqual(m_Context);
+    llvm::Type *refCountTy = llvm::PointerType::getUnqual(m_Context);
     return llvm::StructType::get(m_Context, {ptrTy, refCountTy});
   }
 
