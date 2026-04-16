@@ -1,0 +1,102 @@
+// lib/core/comptime.tk
+// Toka's Zero-Macro Compile-Time Reflection & Metaprogramming APIs.
+// This module provides interfaces that are physically evaluated 
+// and unrolled by the Toka compiler's Sema phase.
+
+import core/types::*
+
+// ==========================================
+// 1. Metadata Shapes (在编译期由 Sema 实例化的模型)
+// ==========================================
+
+pub shape TypeKind(
+    Primitive |
+    Struct |
+    Union |
+    Enum |
+    Tuple |
+    Pointer |
+    Array
+)
+
+// 表示类型内部的一个成员字段
+pub shape FieldInfo(
+    name: str,
+    type_name: str, // 对应的类型名 (用于打印诊断)
+    offset: usize, // 内存偏移量
+    size: usize // 占用字节大小
+)
+
+// 反射对象的主入口模型，描述某个泛型 T 的全貌
+pub shape TypeInfo(
+    name: str,
+    kind: TypeKind,
+    fields: RowFat<FieldInfo>, // 由编译器在幕后直接注入并在编译期保证安全的内存切片
+    size: usize,
+    align: usize
+)
+
+// ==========================================
+// 2. 核心反射入口 (由 Sema 深度拦截并硬编码替换)
+// ==========================================
+
+// 获取任意类型的元数据映射 (仅在编译期生效)
+pub fn reflect<T>() -> TypeInfo {
+    // [Compiler Hook] Sema 遇到此函数调用时，会生成真实的 TypeInfo 对象结构
+    unsafe {
+        auto dummy: TypeInfo
+        return dummy
+    }
+}
+
+// 判断某泛型是否是指针类型
+pub fn is_pointer<T>() -> bool {
+    // [Compiler Hook]
+    return false
+}
+
+// ==========================================
+// 3. 静态断言与阻断 (用于类型安全防御)
+// ==========================================
+
+// 主动抛出编译期错误，用于在泛型体内阻断非法调用
+pub fn compile_error(msg: str) {
+    // [Compiler Hook] Sema 会在此行中断，在终端打印红色的编译错误 `msg`
+}
+
+// 编译期静态断言，条件不满足时阻断编译
+pub fn assert(condition: bool, msg: str) {
+    // [Compiler Hook]
+}
+
+// ==========================================
+// 4. 面向对象的成员魔法访问 (AST 重写)
+// ==========================================
+
+impl FieldInfo {
+    // 通过 FieldInfo 实例在原对象上提取值
+    // 注意：这里的 self 不需要独占 `#`（反射元数据是只读的）
+    // obj 也不需要 `^`（因为不需要对指针重绑定，仅仅是底层访问字段属性，传 T 走隐式借用即可）
+    pub fn get<T, V>(self, obj: T) -> V {
+        // [Compiler Hook] Sema 根据 `self` 在编译期的固化信息，
+        // 将此调用整个替换为底层的加载指令：`obj.具体的字段名称`
+        unsafe {
+            auto dummy: V
+            return dummy
+        }
+    }
+
+    // 通过 FieldInfo 实例在原对象上覆盖写值
+    // 这里需要修改 obj 的内容，所以给 obj 加上 `#`（可写标记）
+    pub fn set<T, V>(self, obj#: T, val: V) {
+        // [Compiler Hook] Sema 替换为：`obj.具体的字段名称 = val`
+    }
+}
+
+// =====================================
+// === 模块使用约定 (Usage Convention) ===
+// =====================================
+// 1. `comptime::reflect<T>().fields` 返回的切片为严格的常数组。
+// 2. 当普通的 `for` 循环遍历该常数组时，Toka 会自动将其推断为
+//    `inline for`，执行完全的编译期循环展开。
+// 3. 调用 `field.get(obj)` 时，必须确保泛型 `V` 的类型与实际结构匹配。

@@ -100,15 +100,15 @@ impl Printer {
                             pending_nl_count = 1
                         }
                     }
-                } else if t.lexeme.equals(")") {
-                    if self.in_shape && self.paren_depth > 0 {
+                } else if t.lexeme.equals(")") || t.lexeme.equals("]") {
+                    if self.indent_level > 0 {
+                        self.indent_level = self.indent_level - 1
+                    }
+                    if t.lexeme.equals(")") && self.in_shape && self.paren_depth > 0 {
                         self.paren_depth = self.paren_depth - 1
                         if self.paren_depth == 0 {
-                            if self.indent_level > 0 {
-                                self.indent_level = self.indent_level - 1
-                                if !self.needs_indent && pending_nl_count == 0 {
-                                    pending_nl_count = 1
-                                }
+                            if !self.needs_indent && pending_nl_count == 0 {
+                                pending_nl_count = 1
                             }
                             self.in_shape = false
                         }
@@ -140,7 +140,7 @@ impl Printer {
             }
 
             auto is_binary_op# = false
-            if t.lexeme.equals("=") || t.lexeme.equals("==") || t.lexeme.equals("->") || t.lexeme.equals("=>") || t.lexeme.equals("+") || t.lexeme.equals("-") || t.lexeme.equals("*") || t.lexeme.equals("/") || t.lexeme.equals("<") || t.lexeme.equals(">") || t.lexeme.equals("<=") || t.lexeme.equals(">=") || t.lexeme.equals("!=") || t.lexeme.equals("&&") || t.lexeme.equals("||") || t.lexeme.equals("as") || t.lexeme.equals("|") || t.lexeme.equals("&") || t.lexeme.equals("^") || t.lexeme.equals("<<") || t.lexeme.equals(">>") {
+            if t.lexeme.equals("=") || t.lexeme.equals("==") || t.lexeme.equals("->") || t.lexeme.equals("=>") || t.lexeme.equals("+") || t.lexeme.equals("-") || t.lexeme.equals("*") || t.lexeme.equals("/") || t.lexeme.equals("<=") || t.lexeme.equals(">=") || t.lexeme.equals("!=") || t.lexeme.equals("&&") || t.lexeme.equals("||") || t.lexeme.equals("as") || t.lexeme.equals("|") || t.lexeme.equals("&") || t.lexeme.equals("^") || t.lexeme.equals("<<") || t.lexeme.equals(">>") {
                 is_binary_op = true
             }
             
@@ -231,10 +231,10 @@ impl Printer {
                         pending_nl_count = 1
                         just_forced_newline = true
                     }
-                } else if t.lexeme.equals("(") {
-                    if self.in_shape {
+                } else if t.lexeme.equals("(") || t.lexeme.equals("[") {
+                    self.indent_level = self.indent_level + 1
+                    if t.lexeme.equals("(") && self.in_shape {
                         if self.paren_depth == 0 {
-                            self.indent_level = self.indent_level + 1
                             pending_nl_count = 1
                             just_forced_newline = true
                         }

@@ -82,6 +82,23 @@ impl Lexer {
             return Token::new(TokenKind::Whitespace(), ws, start_line, start_col)
         }
 
+        // Block Comments
+        if c == '/' && self.peek_next() == '*' { // "/*"
+            auto start_idx = self.pos
+            self#.advance() // /
+            self#.advance() // *
+            while !self.is_eof() {
+                if self.peek() == '*' && self.peek_next() == '/' {
+                    self#.advance() // *
+                    self#.advance() // /
+                    break
+                }
+                self#.advance()
+            }
+            auto comm = self.source.substring(start_idx as usize, self.pos as usize)
+            return Token::new(TokenKind::Comment(), comm, start_line, start_col)
+        }
+
         // Line Comments
         if c == '/' && self.peek_next() == '/' { // "//"
             auto start_idx = self.pos
@@ -111,8 +128,16 @@ impl Lexer {
         // Number
         if Lexer::is_digit(c) {
             auto start_idx = self.pos
-            while Lexer::is_digit(self.peek()) || self.peek() == '.' { // '.'
-                self#.advance()
+            while Lexer::is_digit(self.peek()) || self.peek() == '.' || self.peek() == 'e' || self.peek() == 'E' {
+                auto p = self.peek()
+                if p == 'e' || p == 'E' {
+                    self#.advance()
+                    if self.peek() == '+' || self.peek() == '-' {
+                        self#.advance()
+                    }
+                } else {
+                    self#.advance()
+                }
             }
             auto num = self.source.substring(start_idx as usize, self.pos as usize)
             return Token::new(TokenKind::Number(), num, start_line, start_col)

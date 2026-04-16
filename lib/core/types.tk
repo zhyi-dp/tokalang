@@ -1,4 +1,4 @@
-// Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
+ // Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,7 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 
 import core/traits::{@encap}
 
@@ -27,28 +26,28 @@ pub type byte = u8
 pub type Addr = u64
 pub type OAddr = u64
 
-pub type char = i8     // encoding-neutral character, C-style
-pub type Char16 = u16  // UTF-16 code point, UCS-2(Strict BMP) only
-pub alias Char32 = u32  // UTF-32 code point
+pub type char = i8 // encoding-neutral character, C-style
+pub type Char16 = u16 // UTF-16 code point, UCS-2(Strict BMP) only
+pub alias Char32 = u32 // UTF-32 code point
 pub alias Char = Char32
 /*
-pub type string  = Vec<char>    // encoding-neutral string
-pub type String8  = Vec<byte>   // UTF-8 String
-pub type String16 = Vec<u16>    // UTF-16 String
-pub type String32 = Vec<Char32> // UTF-32 String
+pub type string = Vec < char > // encoding-neutral string
+pub type String8 = Vec < byte > // UTF-8 String
+pub type String16 = Vec < u16 > // UTF-16 String
+pub type String32 = Vec < Char32 > // UTF-32 String
 pub alias String = String8
 
 //Slice (like C++ std::string_view or Rust &cstring)
-pub type str  = view_str
-pub type Str8  = Slice<byte>
-pub type Str16 = Slice<u16>
-pub type Str32 = Slice<Char32>
+pub type str = view_str
+pub type Str8 = Slice < byte >
+pub type Str16 = Slice < u16 >
+pub type Str32 = Slice < Char32 >
 pub alias Str = Str8
-*/
 
 //A named literal (Symbolic Constant). 
 //It exists only as a compile-time value and is inlined directly by the compiler. 
 //No memory is allocated, and its address cannot be taken.
+*/
 pub const ADDR0 = 0:Addr
 
 pub const LIMITS = (
@@ -86,29 +85,40 @@ pub const LIMITS = (
         min_positive = 1.17549435e-38,
         // Machine Epsilon: Difference between 1.0 and the next representable value
         epsilon = 1.19209290e-07,
-        
+
         // Bit patterns for special values
         // Crucial for systems programming requiring direct binary manipulation
         bits = (
-            nan = 0x7fc00000,      // Not a Number
+            nan = 0x7fc00000, // Not a Number
             infinity = 0x7f800000, // +Infinity
             neg_zero = 0x80000000, // -0.0
         )
     )
 )
 
-pub shape SourceLoc(file: str, line: i32)
+pub shape SourceLoc(
+    file: str,
+    line: i32
+)
 
-pub shape RowFat<T>(
-    *buf: [T],
+pub shape RowFat<'T>(
+    *buf: ['T],
     len: usize
 )
 
-pub shape RefFat<T>(
-    &buf: [T],
+impl<'T> RowFat<'T>@encap {
+    fn drop(self#) {
+    }
+
+    pub fn clone(self) -> RowFat<'T> {
+        return RowFat<'T>(*buf = self.*buf, len = self.len)
+    }
+}
+
+pub shape RefFat<'T>(
+    &buf: ['T],
     len: usize
 )
-
 
 //impl view_str@encap {    
 //}
