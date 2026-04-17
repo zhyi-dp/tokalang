@@ -1,5 +1,5 @@
+// EXPECT_ERROR: E0459
 import std/io::println
-
 shape Point(x: i32, y: i32, z: i32)
 
 fn implicit_box_unique() {

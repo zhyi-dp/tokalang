@@ -3,10 +3,12 @@ import std/io::println
 
 fn main() -> i32 {
     auto v1 = Vec<i32>::new()
-    v1#.push(38)
+    v1#.push(11)
     println("{}", v1.len())
 
-    auto v2 = Vec<i32>(v1)
+    auto v2# = Vec<i32>(v1) //same as  auto v2# = v1
+    v2#.pop()
+    v2#.push(22)
     println("{}", v2.len())
 
     auto ^v3 = new Vec<i32>(cede v2)    

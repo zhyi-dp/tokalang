@@ -38,6 +38,7 @@ DIAG(ERR_DIRTY_REF_ESCAPE,   Error, "E0412", "Reference '{}' to unset variable '
 DIAG(ERR_INVALID_OP,         Error, "E0413", "Invalid operands for operation '{}': '{}' and '{}'")
 DIAG(ERR_TYPE_REQUIRED,      Error, "E0414", "Type annotation required for variable '{}'")
 DIAG(ERR_INFER_NULLPTR,      Error, "E0415", "Cannot infer type from 'nullptr'; explicit type annotation required (e.g., 'auto *p: Type = ...')")
+DIAG(ERR_IMPLICIT_BOX_PROHIBITED, Error, "E0459", "Implicit heap-boxing via pointer initialization is prohibited. Use explicit allocation like 'new {}(...)' stringently")
 
 // --- Sema: Shape & Structs ---
 DIAG(ERR_UNKNOWN_STRUCT,     Error, "E0416", "Unknown shape type '{}'")

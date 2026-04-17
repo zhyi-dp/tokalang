@@ -756,27 +756,7 @@ public:
   }
 };
 
-class ImplicitBoxExpr : public Expr {
-public:
-  std::unique_ptr<Expr> Initializer;
-  bool IsShared;
-  bool IsUnique;
 
-  ImplicitBoxExpr(std::unique_ptr<Expr> init, bool isShared, bool isUnique)
-      : Initializer(std::move(init)), IsShared(isShared), IsUnique(isUnique) {}
-
-  std::string toString() const override {
-    std::string prefix = IsShared ? "~" : (IsUnique ? "^" : "");
-    return prefix + "Box(" + (Initializer ? Initializer->toString() : "") + ")";
-  }
-
-  std::unique_ptr<ASTNode> clone() const override {
-    auto n = std::make_unique<ImplicitBoxExpr>(cloneNode(Initializer), IsShared, IsUnique);
-    n->Loc = Loc;
-    n->ResolvedType = ResolvedType;
-    return n;
-  }
-};
 
 class PassExpr : public Expr {
 public:

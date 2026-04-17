@@ -246,7 +246,6 @@ private:
   PhysEntity genContinueExpr(const ContinueExpr *expr);
   PhysEntity genClosureExpr(const ClosureExpr *expr);
   PhysEntity genUnsafeExpr(const UnsafeExpr *expr);
-  PhysEntity genImplicitBoxExpr(const ImplicitBoxExpr *expr);
   PhysEntity genArrayInitExpr(const ArrayInitExpr *expr);
   PhysEntity genNewExpr(const NewExpr *expr);
   PhysEntity genComptimeReflectExpr(const ComptimeReflectExpr *expr);
