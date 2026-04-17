@@ -1582,6 +1582,17 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     return toka::Type::fromString((bodyType != "void") ? bodyType : elseType);
   } else if (auto *ce = dynamic_cast<CedeExpr *>(E)) {
     auto innerTy = checkExpr(ce->Value.get());
+    
+    // [Fix] Enforce tracking move semantics for `cede` expression universally.
+    if (ce->Value) {
+      if (auto *Var = dynamic_cast<VariableExpr *>(ce->Value.get())) {
+        SymbolInfo *Info = nullptr;
+        std::string actualName;
+        if (CurrentScope->findVariableWithDeref(Var->Name, Info, actualName)) {
+            CurrentScope->markMoved(actualName);
+        }
+      }
+    }
     if (!innerTy) return nullptr;
     ce->ResolvedType = innerTy;
     return innerTy;
