@@ -168,6 +168,22 @@ impl<'T> Vec<'T> {
         }
     }
 
+    pub fn from_raw(*buf: ['T], len: usize, cap: usize) -> Vec<'T> {
+        return Vec<'T>(
+            buf=*buf,
+            len=len,
+            cap=cap
+        )
+    }
+
+    pub fn unsafe_forget(self#) {
+        unsafe {
+            self.*buf = null
+            self.cap = 0:usize
+            self.len = 0:usize
+        }
+    }
+
     pub fn unsafe_get(self, index: usize) -> *'T {
         unsafe {
             if self.*buf != null {
@@ -180,13 +196,21 @@ impl<'T> Vec<'T> {
         }
     }
 
-    pub fn unsafe_forget(self#) {
+    pub fn unsafe_as_raw(self) -> *['T] {
+        unsafe {
+            return self.*buf as *['T]
+        }
+    }
+
+    pub fn unsafe_into_raw(self#) -> *['T] {
         unsafe {
             // Nullify buffer to prevent drop from freeing it
             // This is used when ownership is manually transferred
+            auto *ptr = self.*buf as *['T]
             self.*buf = null
-            self.cap = 0
-            self.len = 0
+            self.cap = 0:usize
+            self.len = 0:usize
+            return *ptr
         }
     }
 

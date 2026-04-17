@@ -43,7 +43,7 @@ fn main() -> i32 {
     }
     
     println("Verify iterator works accurately across resized map...")
-    auto iter# = map.iter()
+    auto iter# = map#.iter()
     auto count# = 0
     while true {
         auto res = iter#.next()

@@ -1895,12 +1895,20 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
 
           if (!variant->SubMembers.empty()) {
             for (const auto &f : variant->SubMembers) {
-              fieldTypes.push_back(resolveType(f.Type, false));
+              if (f.ResolvedType) {
+                  fieldTypes.push_back(getLLVMType(f.ResolvedType));
+              } else {
+                  fieldTypes.push_back(resolveType(f.Type, false));
+              }
             }
             payloadLayoutType =
                 llvm::StructType::get(m_Context, fieldTypes, true);
           } else if (!variant->Type.empty()) {
-            payloadLayoutType = resolveType(variant->Type, false);
+            if (variant->ResolvedType) {
+                payloadLayoutType = getLLVMType(variant->ResolvedType);
+            } else {
+                payloadLayoutType = resolveType(variant->Type, false);
+            }
           }
 
           if (payloadLayoutType) {
@@ -3393,11 +3401,19 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
 
             if (!targetVar->SubMembers.empty()) {
               for (auto &f : targetVar->SubMembers) {
-                fieldTypes.push_back(resolveType(f.Type, false));
+                if (f.ResolvedType) {
+                    fieldTypes.push_back(getLLVMType(f.ResolvedType));
+                } else {
+                    fieldTypes.push_back(resolveType(f.Type, false));
+                }
               }
               payloadType = llvm::StructType::get(m_Context, fieldTypes, true);
             } else if (!targetVar->Type.empty()) {
-              payloadType = resolveType(targetVar->Type, false);
+              if (targetVar->ResolvedType) {
+                  payloadType = getLLVMType(targetVar->ResolvedType);
+              } else {
+                  payloadType = resolveType(targetVar->Type, false);
+              }
             }
 
             if (payloadType && !payloadType->isVoidTy()) {

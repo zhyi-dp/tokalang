@@ -16,7 +16,7 @@ fn main() -> i32 {
     if map.get(3).unwrap() != 300 { return 103 }
     
     // Verify Iterator
-    auto iter# = map.iter()
+    auto iter# = map#.iter()
     auto count# = 0
     auto sum_k# = 0
     auto sum_v# = 0

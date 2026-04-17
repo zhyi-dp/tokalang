@@ -18,8 +18,8 @@ pub shape JsonNode (
     BoolNode(bool) = 1 |
     NumNode(f64) = 2 |
     StrNode(String) = 3 |
-    ArrayNode(Addr) = 4 |
-    ObjectNode(Addr) = 5
+    ArrayNode(Vec<JsonNode>) = 4 |
+    ObjectNode(HashMap<String, JsonNode>) = 5
 )
 
 pub trait @ToJson {
@@ -220,24 +220,28 @@ impl JsonNode@FromJson {
                 json = json_skip_whitespace(json)
                 if json.len() > 0:usize && json.byte_at(0:usize) == 125 { break }
                 
-                auto key_str#: String = String::from("")
-                auto skip_key = key_str#.parse_json(json)
-                if skip_key.is_err() { return skip_key }
-                json = skip_key.unwrap()
+                auto key_node#: JsonNode = JsonNode::NullNode(0)
+                auto skip = key_node#.parse_json(json)
+                if skip.is_err() { return skip }
+                json = skip.unwrap()
                 
                 json = json_skip_whitespace(json)
-                if json.len() > 0:usize && json.byte_at(0:usize) == 58 { // ':'
-                    json = json.substr(1:usize, json.len() - 1:usize)
-                } else {
+                if json.len() == 0:usize || json.byte_at(0:usize) != 58 { // ':'
                     return JRes::Err(String::from("Expected ':' in object"))
                 }
+                json = json.substr(1:usize, json.len() - 1:usize)
                 
                 auto val_node#: JsonNode = JsonNode::NullNode(0)
                 auto skip_val = val_node#.parse_json(json)
                 if skip_val.is_err() { return skip_val }
                 json = skip_val.unwrap()
                 
-                map#.insert(key_str, val_node)
+                match key_node {
+                     JsonNode::StrNode(&k_str) => {
+                         map#.insert(k_str, val_node)
+                     }
+                     _ => {}
+                }
                 
                 json = json_skip_whitespace(json)
                 if json.len() > 0:usize && json.byte_at(0:usize) == 44 { // ','
@@ -245,10 +249,7 @@ impl JsonNode@FromJson {
                 }
             }
             if json.len() > 0:usize { json = json.substr(1:usize, json.len() - 1:usize) }
-            auto map_ptr_addr = libc_malloc(sizeof(HashMap<String, JsonNode>)) as Addr
-            auto *map_ptr# = map_ptr_addr as *[HashMap<String, JsonNode>]
-            unsafe { map_ptr[0] = cede map }
-            self = JsonNode::ObjectNode(map_ptr_addr)
+            self = JsonNode::ObjectNode(cede map)
             return JRes::Ok(json)
         } else if c == 91 { // '[' --> ArrayNode
             json = json.substr(1:usize, json.len() - 1:usize)
@@ -271,10 +272,7 @@ impl JsonNode@FromJson {
                 }
             }
             if json.len() > 0:usize { json = json.substr(1:usize, json.len() - 1:usize) }
-            auto vec_ptr_addr = libc_malloc(sizeof(Vec<JsonNode>)) as Addr
-            auto *vec_ptr# = vec_ptr_addr as *[Vec<JsonNode>]
-            unsafe { vec_ptr[0] = cede vec }
-            self = JsonNode::ArrayNode(vec_ptr_addr)
+            self = JsonNode::ArrayNode(cede vec)
             return JRes::Ok(json)
         } else if c == 34 { // '"' --> StrNode
             auto s#: String = String::from("")

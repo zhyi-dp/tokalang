@@ -10,6 +10,11 @@ fn put(s: String) {
     libc_printf(fmt.c_str(), s.c_str())
 }
 
+fn put_ptr(*s: String) {
+    auto fmt = String::from("%s")
+    libc_printf(fmt.c_str(), s.c_str())
+}
+
 fn print_json_node(val: JsonNode) {
     match val {
         NullNode(n) => { put(String::from("null")) }
@@ -25,33 +30,84 @@ fn print_json_node(val: JsonNode) {
             put(s)
             put(String::from("\""))
         }
-        ArrayNode(arr_addr) => {
+        ArrayNode(&arr_ptr) => {
             put(String::from("["))
-            auto *arr_ptr# = arr_addr as *Vec<JsonNode>
-            auto i# = 0:usize
-            while i < arr_ptr.len() {
-                auto item = arr_ptr.get(i)
+            auto arr_iter# = arr_ptr.iter()
+            auto first# = true
+            while true {
+                auto item_opt = arr_iter#.next()
+                if item_opt.is_none() { break }
+                auto item = item_opt.unwrap()
                 print_json_node(item)
-                if i < arr_ptr.len() - 1:usize { put(String::from(", ")) }
-                i += 1:usize
+                first = false
             }
             put(String::from("]"))
         }
-        ObjectNode(map_addr) => {
+        ObjectNode(&map_ptr) => {
             put(String::from("{"))
-            auto *map_ptr# = map_addr as *HashMap<String, JsonNode>
-            auto iter# = map_ptr.iter()
+            auto iter# = map_ptr#.iter()
             auto first# = true
             while true {
-                auto entry_opt = iter.next()
+                auto entry_opt = iter#.next()
                 if entry_opt.is_none() { break }
                 auto entry = entry_opt.unwrap()
                 if !first { put(String::from(", ")) }
                 first = false
                 put(String::from("\""))
-                put(entry.key)
+                auto *k_ptr = entry.key()
+                put_ptr(*k_ptr)
                 put(String::from("\": "))
-                print_json_node(entry.val)
+                auto *v_ptr = entry.val()
+                print_json_node_ptr(*v_ptr)
+            }
+            put(String::from("}"))
+        }
+    }
+}
+
+fn print_json_node_ptr(*val_ptr: JsonNode) {
+    match val_ptr {
+        NullNode(n) => { put(String::from("null")) }
+        BoolNode(b) => { 
+            if b { put(String::from("true")) } else { put(String::from("false")) }
+        }
+        NumNode(n) => { 
+            auto num_str = String::from_f64(n)
+            put(num_str) 
+        }
+        StrNode(&s) => {
+            put(String::from("\""))
+            put(s)
+            put(String::from("\""))
+        }
+        ArrayNode(&arr_ptr) => {
+            put(String::from("["))
+            auto arr_iter# = arr_ptr.iter()
+            auto first# = true
+            while true {
+                auto item_opt = arr_iter#.next()
+                if item_opt.is_none() { break }
+                auto item = item_opt.unwrap()
+                print_json_node(item)
+                if !first { put(String::from(", ")) }
+                first = false
+            }
+            put(String::from("]"))
+        }
+        ObjectNode(&map_ptr) => {
+            put(String::from("{"))
+            auto iter# = map_ptr#.iter()
+            auto first# = true
+            while true {
+                auto entry_opt = iter#.next()
+                if entry_opt.is_none() { break }
+                auto entry = entry_opt.unwrap()
+                if !first { put(String::from(", ")) }
+                first = false
+                put(String::from("\""))
+                put_ptr(entry.key())
+                put(String::from("\": "))
+                print_json_node_ptr(entry.val())
             }
             put(String::from("}"))
         }
@@ -74,22 +130,21 @@ pub fn main() -> i32 {
     
     // Test match functionality over dynamic JSON Node!
     match root {
-        ObjectNode(map_addr) => {
+        ObjectNode(&map_ptr) => {
             println("Found root object!")
-            auto *map_ptr# = map_addr as *HashMap<String, JsonNode>
             
             println("--- Keys inside Object ---")
-            auto iter# = map_ptr.iter()
+            auto iter# = map_ptr#.iter()
             while true {
-                auto entry_opt = iter.next()
+                auto entry_opt = iter#.next()
                 if entry_opt.is_none() { break }
                 auto entry = entry_opt.unwrap()
-                auto key = entry.key
-                auto val = entry.val
+                auto *key_p = entry.key()
+                auto *val_p = entry.val()
                 
-                put(key)
+                put_ptr(*key_p)
                 put(String::from(": "))
-                print_json_node(val)
+                print_json_node_ptr(*val_p)
                 put(String::from("\n"))
                 // fflush stdout (null pointer to flush all)
                 libc_fflush(null as *void)

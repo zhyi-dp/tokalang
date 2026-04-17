@@ -846,34 +846,36 @@ void Sema::analyzeShapes(Module &M) {
     // purely yet? Enums have members too) Actually ShapeMember is used for
     // all.
     for (auto &member : S->Members) {
-      if (member.ResolvedType)
-        continue; // Already resolved?
+      auto resolveShapeMemberType = [&](ShapeMember &m) {
+        if (m.ResolvedType)
+          return;
 
-      // Use synthesized type string to ensure morphology and permission flags
-      // are included
-      std::string fullTypeStr = Sema::synthesizePhysicalType(member);
+        std::string fullTypeStr = Sema::synthesizePhysicalType(m);
+        std::string resolvedName = resolveType(fullTypeStr);
+        m.ResolvedType = toka::Type::fromString(resolvedName);
 
-      // 3. Resolve to Canonical Name (handles imports, aliases)
-      std::string resolvedName = resolveType(fullTypeStr);
-
-      // 4. Create Type Object
-      member.ResolvedType = toka::Type::fromString(resolvedName);
-
-      // [New] Populate ShapeDecl pointer in ShapeType
-      std::shared_ptr<toka::Type> inner = member.ResolvedType;
-      // Recursively unwrap
-      while (inner->isPointer() || inner->isArray()) {
-        if (auto p = std::dynamic_pointer_cast<toka::PointerType>(inner))
-          inner = p->PointeeType;
-        else if (auto a = std::dynamic_pointer_cast<toka::ArrayType>(inner))
-          inner = a->ElementType;
-        else
-          break;
-      }
-      if (auto *st = dynamic_cast<toka::ShapeType *>(inner.get())) {
-        if (ShapeMap.count(st->Name)) {
-          st->resolve(ShapeMap[st->Name]);
+        std::shared_ptr<toka::Type> inner = m.ResolvedType;
+        while (inner->isPointer() || inner->isArray()) {
+          if (auto p = std::dynamic_pointer_cast<toka::PointerType>(inner))
+            inner = p->PointeeType;
+          else if (auto a = std::dynamic_pointer_cast<toka::ArrayType>(inner))
+            inner = a->ElementType;
+          else
+            break;
         }
+        if (auto *st = dynamic_cast<toka::ShapeType *>(inner.get())) {
+          if (ShapeMap.count(st->Name)) {
+            st->resolve(ShapeMap[st->Name]);
+          }
+        }
+      };
+
+      // Resolve the member itself (could be Struct field or Union variant)
+      resolveShapeMemberType(member);
+      
+      // Resolve SubMembers (mostly payloads for Enum variants)
+      for (auto &subMemb : member.SubMembers) {
+          resolveShapeMemberType(subMemb);
       }
 
       // 5. Basic Validation (Optional but good)

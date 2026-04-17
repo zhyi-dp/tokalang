@@ -215,28 +215,41 @@ void CodeGen::emitDropCascade(llvm::Value *ptrAddr, const std::string &typeName)
           llvm::Value *payloadArrayPtr = m_Builder.CreateStructGEP(st, ptrAddr, 1, "drop_payload.gep");
 
           std::vector<std::string> payloadTypes;
+          std::vector<std::shared_ptr<Type>> payloadTypeObjs;
           if (!variant.SubMembers.empty()) {
               for (const auto& f : variant.SubMembers) {
                   std::string pt = f.Type;
-                  if (f.ResolvedType) pt = f.ResolvedType->getSoulName();
+                  if (f.ResolvedType) pt = f.ResolvedType->toString();
                   payloadTypes.push_back(pt);
+                  payloadTypeObjs.push_back(f.ResolvedType);
               }
           } else {
               std::string pt = variant.Type;
-              if (variant.ResolvedType) pt = variant.ResolvedType->getSoulName();
-              if (pt != "void" && !pt.empty()) payloadTypes.push_back(pt);
+              if (variant.ResolvedType) pt = variant.ResolvedType->toString();
+              if (pt != "void" && !pt.empty()) {
+                  payloadTypes.push_back(pt);
+                  payloadTypeObjs.push_back(variant.ResolvedType);
+              }
           }
 
           if (!payloadTypes.empty()) {
               llvm::Type *payloadLayoutType = nullptr;
               std::vector<llvm::Type*> fieldTypes;
               if (!variant.SubMembers.empty()) {
-                  for (const auto& tyStr : payloadTypes) {
-                      fieldTypes.push_back(resolveType(tyStr, false));
+                  for (size_t k = 0; k < payloadTypes.size(); ++k) {
+                      if (payloadTypeObjs[k]) {
+                          fieldTypes.push_back(getLLVMType(payloadTypeObjs[k]));
+                      } else {
+                          fieldTypes.push_back(resolveType(payloadTypes[k], false));
+                      }
                   }
                   payloadLayoutType = llvm::StructType::get(m_Context, fieldTypes, true);
               } else {
-                  payloadLayoutType = resolveType(payloadTypes[0], false);
+                  if (payloadTypeObjs[0]) {
+                      payloadLayoutType = getLLVMType(payloadTypeObjs[0]);
+                  } else {
+                      payloadLayoutType = resolveType(payloadTypes[0], false);
+                  }
               }
 
               if (payloadLayoutType) {
