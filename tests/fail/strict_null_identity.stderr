@@ -1,0 +1,1 @@
+tests/fail/strict_null_identity.tk:19:11: error[E0409]: Cannot initialize variable of type '*Data' with value of type 'null'

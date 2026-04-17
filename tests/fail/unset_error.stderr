@@ -1,0 +1,2 @@
+tests/fail/unset_error.tk:5:14: error[E0410]: Use of unset variable or member 'x'
+tests/fail/unset_error.tk:5:14: error[E0410]: Use of unset variable or member 'x'

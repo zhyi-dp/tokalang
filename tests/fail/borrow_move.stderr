@@ -1,0 +1,1 @@
+tests/fail/borrow_move.tk:20:16: error[E0440]: Cannot move 'p' while it is borrowed

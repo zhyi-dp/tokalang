@@ -1,0 +1,1 @@
+tests/fail/import_leak_b.tk:6:5: error[E0402]: Use of undeclared identifier 'leaked_func'

@@ -1,0 +1,3 @@
+tests/fail/sema_strict.tk:19:16: error[E0413]: Invalid operands for operation '==': 'i32' and 'cstring'
+tests/fail/sema_strict.tk:27:10: error[E0451]: Variable 'y' implies pointer type '*i32' but lacks explicit sigil. Use 'auto *y' or dereference.
+tests/fail/sema_strict.tk:30:10: error[E0409]: Cannot initialize variable of type 'i32' with value of type 'cstring'

@@ -1,0 +1,1 @@
+tests/fail/assigned_for_no_pass.tk:17:32: error[E0432]: Yielding for loop must pass a value

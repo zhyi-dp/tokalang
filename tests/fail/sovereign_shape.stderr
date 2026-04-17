@@ -1,0 +1,1 @@
+tests/fail/sovereign_shape.tk:14:16: error[E0105]: Parse error: Expected '(' or '[' after shape name

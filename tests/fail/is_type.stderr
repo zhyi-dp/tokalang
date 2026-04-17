@@ -1,0 +1,1 @@
+tests/fail/is_type.tk:17:13: error[E0406]: 'Data' is a shape, not a valid pattern for 'is'

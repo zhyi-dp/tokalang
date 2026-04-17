@@ -1,0 +1,4 @@
+tests/fail/pal_stress_test_borrow_negative.tk:59:13: error[E0455]: Returning reference to local variable 'e1' is unsafe
+tests/fail/pal_stress_test_borrow_negative.tk:59:18: error[E0455]: Returning reference to local variable 'e2' is unsafe
+tests/fail/pal_stress_test_borrow_negative.tk:68:13: error[E0455]: Returning reference to local variable 'e1' is unsafe
+tests/fail/pal_stress_test_borrow_negative.tk:68:18: error[E0455]: Returning reference to local variable 'e2' is unsafe

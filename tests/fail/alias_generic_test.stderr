@@ -1,0 +1,1 @@
+tests/fail/alias_generic_test.tk:25:8: error[E0408]: Cannot convert type 'GenericNode_M_i32 (assign)' to 'StrongNode#'

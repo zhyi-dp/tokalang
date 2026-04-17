@@ -1,0 +1,2 @@
+tests/fail/pass_no_receiver.tk:18:16: error[E0436]: 'pass' used without a receiver; prefix the expression with 'auto x =' or 'alias y ='
+tests/fail/pass_no_receiver.tk:17:5: error[E0553]: Match is not exhaustive. Missing: non-enum types require a wildcard branch ('_')

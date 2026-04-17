@@ -1,0 +1,1 @@
+tests/fail/import_namespace.tk:18:5: error[E0406]: Module 'io' not found or not imported

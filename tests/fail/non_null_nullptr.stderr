@@ -1,0 +1,1 @@
+tests/fail/non_null_nullptr.tk:2:11: error[E0409]: Cannot initialize variable of type '*i32' with value of type 'null'

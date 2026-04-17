@@ -1,0 +1,1 @@
+tests/fail/unary_intermediate.tk:5:15: error[E0406]: Morphology symbols (^, *, ~, &) are only allowed at the terminal of an access chain

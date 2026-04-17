@@ -1,0 +1,1 @@
+tests/fail/fail_pal_ampersand_ambiguity.tk:15:21: error[E0105]: Parse error: Use of unary '&' on an access chain without parentheses is visually ambiguous. Either wrap in parentheses '&(a.b)' or use hat-terminal morphology 'a.&b'.

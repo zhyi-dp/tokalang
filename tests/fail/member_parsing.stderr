@@ -1,0 +1,4 @@
+tests/fail/member_parsing.tk:22:25: error[E0447]: Accessing member of nullable type 'nul ^Point' requires explicit 'is' check
+tests/fail/member_parsing.tk:22:25: error[E0447]: Accessing member of nullable type 'nul ^Point' requires explicit 'is' check
+tests/fail/member_parsing.tk:25:22: error[E0447]: Accessing member of nullable type 'Point?' requires explicit 'is' check
+tests/fail/member_parsing.tk:25:22: error[E0447]: Accessing member of nullable type 'Point?' requires explicit 'is' check

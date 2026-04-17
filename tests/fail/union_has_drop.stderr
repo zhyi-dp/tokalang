@@ -1,0 +1,5 @@
+tests/fail/union_has_drop.tk:11:7: error[E0427]: Union member 'p' has type '^i32' which manages resources (HasDrop); unions must be data-only
+tests/fail/union_has_drop.tk:11:7: note: Unions cannot track active variants to drop resources safely; consider using a raw pointer '*^i32' or 'ManuallyDrop<T>'
+tests/fail/union_has_drop.tk:21:7: error[E0445]: Shape 'SafeUnion' manages raw pointers but does not implement 'drop'
+tests/fail/union_has_drop.tk:21:7: error[E0427]: Union member 'p' has type '*Resource' which manages resources (HasDrop); unions must be data-only
+tests/fail/union_has_drop.tk:21:7: note: Unions cannot track active variants to drop resources safely; consider using a raw pointer '**Resource' or 'ManuallyDrop<T>'

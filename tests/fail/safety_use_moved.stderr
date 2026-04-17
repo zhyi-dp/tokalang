@@ -1,0 +1,2 @@
+tests/fail/safety_use_moved.tk:20:14: error[E0438]: Use of moved value: '^p'
+tests/fail/safety_use_moved.tk:20:14: error[E0438]: Use of moved value: '^p'

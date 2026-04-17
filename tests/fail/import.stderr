@@ -1,0 +1,3 @@
+:0:0: error[E0901]: File I/O Error: Could not open file: core/missing_module
+tests/fail/import.tk:14:1: error[E0403]: Module 'core/missing_module' not found
+tests/fail/import.tk:15:1: error[E0404]: Symbol 'MissingSymbol' not found in module 'std/io'

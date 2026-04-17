@@ -1,0 +1,2 @@
+tests/fail/encap_access.tk:24:15: error[E0418]: Member 'private_val' of shape 'Data' is private
+tests/fail/encap_access.tk:24:15: error[E0418]: Member 'private_val' of shape 'Data' is private

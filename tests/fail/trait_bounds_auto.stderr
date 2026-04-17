@@ -1,0 +1,3 @@
+tests/fail/trait_bounds_auto.tk:15:20: error[E0422]: Type mismatch for member '*ptr': expected '*i32', but got 'null'
+tests/fail/trait_bounds_auto.tk:16:5: error[E0606]: Type 'UnsafeData' does not satisfy trait bound '@Send' for generic parameter 'T'
+tests/fail/trait_bounds_auto.tk:8:82: error[E0421]: Member access 'ptr' on non-shape type 'i64'

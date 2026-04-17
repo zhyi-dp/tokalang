@@ -1,0 +1,1 @@
+tests/fail/union_partial_init.tk:6:14: error[E0425]: Partial initialization of Union 'BadUnion': variant 'small' size 1 is smaller than Union size 8

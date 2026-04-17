@@ -1,0 +1,2 @@
+tests/fail/generic_union_forbidden.tk:2:7: error[E0426]: Union member 'val' has restricted type 'bool' (underlying 'bool')
+tests/fail/generic_union_forbidden.tk:11:14: error[E0425]: Partial initialization of Union 'DangerousUnion_M_bool': variant 'val' size 1 is smaller than Union size 4

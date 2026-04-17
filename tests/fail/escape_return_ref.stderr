@@ -1,0 +1,4 @@
+tests/fail/escape_return_ref.tk:4:12: error[E0455]: Returning reference to local variable 'x' is unsafe
+tests/fail/escape_return_ref.tk:9:16: error[E0455]: Returning reference to local variable 'x' is unsafe
+tests/fail/escape_return_ref.tk:11:12: error[E0455]: Returning reference to local variable 'y' is unsafe
+tests/fail/escape_return_ref.tk:32:5: error[E0461]: Illegal use of permission suffixes (# or $) in everyday contexts. Modifiers are strictly limited to declarations or explicit mutable method calls.

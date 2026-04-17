@@ -1,0 +1,2 @@
+tests/fail/strict_pointer_rules.tk:7:14: error[E0451]: Variable 'p1' implies pointer type '^Point#' but lacks explicit sigil. Use 'auto ^p1' or dereference.
+tests/fail/strict_pointer_rules.tk:12:10: error[E0406]: Morphology symbols (^, *, ~, &) are only allowed at the terminal of an access chain

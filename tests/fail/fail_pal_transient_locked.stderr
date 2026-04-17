@@ -1,0 +1,2 @@
+tests/fail/fail_pal_transient_locked.tk:6:18: error[E0461]: Illegal use of permission suffixes (# or $) in everyday contexts. Modifiers are strictly limited to declarations or explicit mutable method calls.
+tests/fail/fail_pal_transient_locked.tk:11:9: error[E0442]: Cannot mutably borrow immutable entity 'buf'

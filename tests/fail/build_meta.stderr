@@ -1,0 +1,4 @@
+tests/fail/build_meta.tk:35:5: error[E0406]: println requires at least a format string
+tests/fail/build_meta.tk:37:5: error[E0406]: println requires at least a format string
+tests/fail/build_meta.tk:41:5: error[E0406]: println requires at least a format string
+tests/fail/build_meta.tk:42:5: error[E0406]: println requires at least a format string

@@ -1,0 +1,2 @@
+tests/fail/trait_signature.tk:23:8: error[E0428]: Method signature mismatch: trait defines 'must_be_pub' as pub, but implementation is private
+tests/fail/trait_signature.tk:26:12: error[E0428]: Method signature mismatch: trait defines 'must_be_priv' as private, but implementation is pub

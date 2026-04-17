@@ -1,0 +1,2 @@
+tests/fail/generic_morphic_fail.tk:2:7: error[E0604]: Cannot pass pointer type to rigid generic parameter 'T', use 'T' with single quote prefix if pointer is expected
+tests/fail/generic_morphic_fail.tk:6:16: error[E0416]: Unknown shape type 'RigidBox<^i32>'

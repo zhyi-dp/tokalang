@@ -1,0 +1,10 @@
+tests/fail/union_forbidden_types.tk:1:7: error[E0426]: Union member 'b' has restricted type 'bool' (underlying 'bool')
+tests/fail/union_forbidden_types.tk:2:7: error[E0427]: Union member 'p' has type '^i32' which manages resources (HasDrop); unions must be data-only
+tests/fail/union_forbidden_types.tk:2:7: note: Unions cannot track active variants to drop resources safely; consider using a raw pointer '*^i32' or 'ManuallyDrop<T>'
+tests/fail/union_forbidden_types.tk:3:7: error[E0427]: Union member 'p' has type '~i32' which manages resources (HasDrop); unions must be data-only
+tests/fail/union_forbidden_types.tk:3:7: note: Unions cannot track active variants to drop resources safely; consider using a raw pointer '*~i32' or 'ManuallyDrop<T>'
+tests/fail/union_forbidden_types.tk:4:7: error[E0445]: Shape 'BadRaw' manages raw pointers but does not implement 'drop'
+tests/fail/union_forbidden_types.tk:4:7: error[E0427]: Union member 'p' has type '*i32' which manages resources (HasDrop); unions must be data-only
+tests/fail/union_forbidden_types.tk:4:7: note: Unions cannot track active variants to drop resources safely; consider using a raw pointer '**i32' or 'ManuallyDrop<T>'
+tests/fail/union_forbidden_types.tk:5:7: error[E0427]: Union member 'p' has type '&i32' which manages resources (HasDrop); unions must be data-only
+tests/fail/union_forbidden_types.tk:5:7: note: Unions cannot track active variants to drop resources safely; consider using a raw pointer '*&i32' or 'ManuallyDrop<T>'

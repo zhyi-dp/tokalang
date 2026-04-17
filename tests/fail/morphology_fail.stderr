@@ -1,0 +1,17 @@
+tests/fail/morphology_fail.tk:4:11: error[E0459]: Implicit heap-boxing via pointer initialization is prohibited. Use explicit allocation like 'new i32(...)' stringently
+tests/fail/morphology_fail.tk:5:11: error[E0409]: Cannot initialize variable of type '*(Raw Pointer)' with value of type 'i32'
+tests/fail/morphology_fail.tk:8:7: error[E0406]: Cannot assign to immutable entity. Missing writable token '#' or '!'.
+tests/fail/morphology_fail.tk:8:5: error[E0443]: Cannot modify immutable entity 'r'
+tests/fail/morphology_fail.tk:8:7: error[E0448]: Pointer morphology mismatch: expected explicit 'value' (from LHS/Target), found '^' (from RHS/Source)
+tests/fail/morphology_fail.tk:8:7: error[E0408]: Cannot convert type '^p (assign)' to 'r'
+tests/fail/morphology_fail.tk:14:11: error[E0459]: Implicit heap-boxing via pointer initialization is prohibited. Use explicit allocation like 'new p(...)' stringently
+tests/fail/morphology_fail.tk:18:11: error[E0459]: Implicit heap-boxing via pointer initialization is prohibited. Use explicit allocation like 'new i32(...)' stringently
+tests/fail/morphology_fail.tk:21:11: error[E0448]: Pointer morphology mismatch: expected explicit '^' (from LHS/Target), found '*' (from RHS/Source)
+tests/fail/morphology_fail.tk:24:11: error[E0448]: Pointer morphology mismatch: expected explicit '*' (from LHS/Target), found '^' (from RHS/Source)
+tests/fail/morphology_fail.tk:30:11: error[E0448]: Pointer morphology mismatch: expected explicit '*' (from LHS/Target), found '&' (from RHS/Source)
+tests/fail/morphology_fail.tk:36:12: error[E0455]: Returning reference to local variable 'val' is unsafe
+tests/fail/morphology_fail.tk:36:5: error[E0448]: Pointer morphology mismatch: expected explicit '^' (from LHS/Target), found '&' (from RHS/Source)
+tests/fail/morphology_fail.tk:44:17: error[E0448]: Pointer morphology mismatch: expected explicit '^' (from LHS/Target), found '&' (from RHS/Source)
+tests/fail/morphology_fail.tk:46:11: error[E0459]: Implicit heap-boxing via pointer initialization is prohibited. Use explicit allocation like 'new i32(...)' stringently
+tests/fail/morphology_fail.tk:48:17: error[E0448]: Pointer morphology mismatch: expected explicit '^' (from LHS/Target), found 'value' (from RHS/Source)
+tests/fail/morphology_fail.tk:48:17: error[E0406]: Type mismatch for argument 1: expected ^i32, got u

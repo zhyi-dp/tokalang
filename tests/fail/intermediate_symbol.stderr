@@ -1,0 +1,2 @@
+tests/fail/intermediate_symbol.tk:6:9: error[E0461]: Illegal use of permission suffixes (# or $) in everyday contexts. Modifiers are strictly limited to declarations or explicit mutable method calls.
+tests/fail/intermediate_symbol.tk:6:9: error[E0406]: Permission symbols (#, ?, $) are only allowed at the terminal of an access chain, got 'self#'

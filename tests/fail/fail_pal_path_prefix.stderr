@@ -1,0 +1,1 @@
+tests/fail/fail_pal_path_prefix.tk:28:16: error[E0442]: Cannot mutably borrow immutable entity 'scene.root.left'
