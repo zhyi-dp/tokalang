@@ -4664,18 +4664,29 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
     if (Sh->Kind == ShapeKind::Struct) {
       Call->ResolvedShape = Sh;
       std::set<std::string> providedFields;
-      
+      int elisionIndex = -1;
+      Expr* elisionTarget = nullptr;
       bool hasNamed = false;
       bool hasPositional = false;
-      int elisionIndex = -1;
 
       for (size_t i = 0; i < Call->Args.size(); ++i) {
         auto *argExpr = Call->Args[i].get();
-        if (dynamic_cast<ElisionExpr *>(argExpr)) {
+        if (auto *elExpr = dynamic_cast<ElisionExpr *>(argExpr)) {
           if (elisionIndex != -1) {
             error(argExpr, DiagID::ERR_MULTIPLE_ELISION);
           }
           elisionIndex = (int)i;
+          if (elExpr->Target) {
+            elisionTarget = elExpr->Target.get();
+            auto targetType = checkExpr(elisionTarget);
+            if (targetType && targetType->getSoulName() != Sh->Name) {
+                error(elisionTarget, "Target elision must be of type '" + Sh->Name + "', but got '" + targetType->toString() + "'");
+                elisionTarget = nullptr;
+            } else if (elisionTarget && !dynamic_cast<VariableExpr*>(elisionTarget) && !dynamic_cast<MemberExpr*>(elisionTarget) && !dynamic_cast<ArrayIndexExpr*>(elisionTarget)) {
+                error(elisionTarget, "Target elision source must be a simple variable or access chain to avoid repeated side-effects");
+                elisionTarget = nullptr;
+            }
+          }
           hasPositional = true;
           continue;
         }
@@ -4710,7 +4721,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
         if ((int)i == elisionIndex) {
           for (int k = 0; k < elisionSkipCount; ++k) {
             auto &M = Sh->Members[memberIdx];
-            if (!M.DefaultValue) {
+            if (!M.DefaultValue && !elisionTarget) {
               error(Call->Args[i].get(), DiagID::ERR_MISSING_DEFAULT_FOR_ELIDED, M.Name, Sh->Name);
             }
             memberIdx++;
@@ -4735,13 +4746,31 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
 
       // Inject missing defaults or elided defaults
       std::vector<std::unique_ptr<Expr>> resolvedArgs;
-      // Note: we can't easily insert into Call->Args while iterating. So we build a new Args vector.
-      // But instead of replacing Call->Args (which might disrupt AST pointers elsewhere), we just append missing fields. 
-      // Actually, wait, positional CodeGen expects args in EXACT order of struct fields!
-      // So we must rebuild Call->Args to exactly match Sh->Members in size and order.
       for (const auto &M : Sh->Members) {
         if (!providedFields.count(M.Name)) {
-          if (M.DefaultValue) {
+          if (elisionTarget) {
+            auto clonedTarget = std::unique_ptr<Expr>(static_cast<Expr*>(elisionTarget->clone().release()));
+            auto memExpr = std::make_unique<MemberExpr>(std::move(clonedTarget), M.Name);
+            memExpr->Loc = Call->Loc;
+            
+            auto expectedType = M.ResolvedType ? M.ResolvedType : toka::Type::fromString(M.Type);
+            auto valType = checkExpr(memExpr.get(), expectedType);
+            
+            std::unique_ptr<Expr> finalExpr = std::move(memExpr);
+            if (isTypeCompatible(expectedType, valType) && !expectedType->equals(*valType)) {
+              auto origLoc = finalExpr->Loc;
+              auto castExpr = std::make_unique<CastExpr>(std::move(finalExpr), expectedType->toString());
+              castExpr->Loc = origLoc;
+              castExpr->ResolvedType = expectedType;
+              valType = expectedType;
+              finalExpr = std::move(castExpr);
+            }
+            
+            auto nameVar = std::make_unique<VariableExpr>(M.Name);
+            auto bin = std::make_unique<BinaryExpr>("=", std::move(nameVar), std::move(finalExpr));
+            resolvedArgs.push_back(std::move(bin));
+            continue;
+          } else if (M.DefaultValue) {
             auto cloned = std::unique_ptr<Expr>(static_cast<Expr *>(M.DefaultValue->clone().release()));
             auto expectedType = M.ResolvedType ? M.ResolvedType : toka::Type::fromString(M.Type);
             auto valType = checkExpr(cloned.get(), expectedType);
@@ -4754,9 +4783,14 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
               valType = expectedType;
             }
 
-            if (!isTypeCompatible(expectedType, valType)) {
-              error(Call, "Type mismatch for injected default field '" + M.Name + "': expected " +
-                             expectedType->toString() + ", got " + valType->toString());
+            bool bypassNullStruct = false;
+            if (m_InUnsafeContext && expectedType && expectedType->isRawPointer() && valType && valType->isNullType()) {
+                bypassNullStruct = true;
+            }
+
+            if (!bypassNullStruct && !isTypeCompatible(expectedType, valType)) {
+              error(Call, DiagID::ERR_MEMBER_TYPE_MISMATCH, M.Name,
+                    expectedType->toString(), valType->toString());
             }
 
             auto nameVar = std::make_unique<VariableExpr>(M.Name);
@@ -5468,6 +5502,7 @@ Sema::checkStructInit(InitStructExpr *Init, ShapeDecl *SD,
   m_LastLifeDependencies.clear();
   std::set<std::string> providedFields;
   bool hasElision = false;
+  Expr* elisionTarget = nullptr;
 
   for (size_t i = 0; i < Init->Members.size(); ++i) {
     auto &pair = Init->Members[i];
@@ -5476,6 +5511,19 @@ Sema::checkStructInit(InitStructExpr *Init, ShapeDecl *SD,
         error(Init, DiagID::ERR_ELISION_NOT_AT_END);
       }
       hasElision = true;
+      if (auto *elExpr = dynamic_cast<ElisionExpr *>(pair.second.get())) {
+        if (elExpr->Target) {
+            elisionTarget = elExpr->Target.get();
+            auto targetType = checkExpr(elisionTarget);
+            if (targetType && targetType->getSoulName() != SD->Name) {
+                error(elisionTarget, "Target elision must be of type '" + SD->Name + "', but got '" + targetType->toString() + "'");
+                elisionTarget = nullptr;
+            } else if (elisionTarget && !dynamic_cast<VariableExpr*>(elisionTarget) && !dynamic_cast<MemberExpr*>(elisionTarget) && !dynamic_cast<ArrayIndexExpr*>(elisionTarget)) {
+                error(elisionTarget, "Target elision source must be a simple variable or access chain to avoid repeated side-effects");
+                elisionTarget = nullptr;
+            }
+        }
+      }
       continue;
     }
 
@@ -5585,6 +5633,32 @@ Sema::checkStructInit(InitStructExpr *Init, ShapeDecl *SD,
       if (!hasElision) {
         error(Init, DiagID::ERR_MISSING_MEMBER, defField.Name, Init->ShapeName);
         continue;
+      }
+      
+      if (elisionTarget) {
+          auto clonedTarget = std::unique_ptr<Expr>(static_cast<Expr*>(elisionTarget->clone().release()));
+          auto memExpr = std::make_unique<MemberExpr>(std::move(clonedTarget), defField.Name);
+          memExpr->Loc = elisionTarget->Loc;
+          
+          auto memberTypeObj = defField.ResolvedType;
+          if (!memberTypeObj) memberTypeObj = toka::Type::fromString(defField.Type);
+          
+          std::shared_ptr<toka::Type> exprTypeObj = checkExpr(memExpr.get(), memberTypeObj);
+          memberMasks[defField.Name] = m_LastInitMask;
+
+          if (isTypeCompatible(memberTypeObj, exprTypeObj) && !memberTypeObj->equals(*exprTypeObj)) {
+            auto origLoc = memExpr->Loc;
+            auto castExpr = std::make_unique<CastExpr>(std::move(memExpr), memberTypeObj->toString());
+            castExpr->Loc = origLoc;
+            castExpr->ResolvedType = memberTypeObj;
+            exprTypeObj = memberTypeObj;
+            providedFields.insert(defField.Name);
+            Init->Members.push_back({defField.Name, std::move(castExpr)});
+          } else {
+            providedFields.insert(defField.Name);
+            Init->Members.push_back({defField.Name, std::move(memExpr)});
+          }
+          continue;
       }
       
       if (!defField.DefaultValue) {

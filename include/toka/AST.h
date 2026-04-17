@@ -808,12 +808,13 @@ public:
 
 class ElisionExpr : public Expr {
 public:
-  ElisionExpr() {}
+  std::unique_ptr<Expr> Target;
+  ElisionExpr(std::unique_ptr<Expr> target = nullptr) : Target(std::move(target)) {}
   std::string toString() const override {
-    return "Elision(..)";
+    return (Target ? Target->toString() : "") + "..";
   }
   std::unique_ptr<ASTNode> clone() const override {
-    auto n = std::make_unique<ElisionExpr>();
+    auto n = std::make_unique<ElisionExpr>(cloneNode(Target));
     n->Loc = Loc;
     n->ResolvedType = ResolvedType;
     return n;

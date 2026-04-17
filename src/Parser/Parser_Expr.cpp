@@ -318,6 +318,11 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
     auto node = std::make_unique<NullExpr>();
     node->setLocation(tok, m_CurrentFile);
     expr = std::move(node);
+  } else if (match(TokenType::DotDot)) {
+    Token tok = previous();
+    auto node = std::make_unique<ElisionExpr>();
+    node->setLocation(tok, m_CurrentFile);
+    expr = std::move(node);
   } else if (match(TokenType::KwNone)) {
     Token tok = previous();
     auto node = std::make_unique<NoneExpr>();
@@ -455,6 +460,22 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
       advance(); // LBrace
       std::vector<std::pair<std::string, std::unique_ptr<Expr>>> fields;
       while (!check(TokenType::RBrace) && !check(TokenType::EndOfFile)) {
+        int eqPos = -1;
+        for (int k = 0; k < 6; ++k) {
+           if (checkAt(k, TokenType::Equal)) { eqPos = k; break; }
+           if (checkAt(k, TokenType::Comma) || checkAt(k, TokenType::RBrace)) break;
+        }
+        if (eqPos == -1) {
+            auto expr = parseExpr();
+            if (dynamic_cast<ElisionExpr*>(expr.get())) {
+                fields.push_back({"..", std::move(expr)});
+            } else {
+                error(peek(), "Expected named argument 'key = value' or elision 'expr..'");
+            }
+            if (!check(TokenType::RBrace)) match(TokenType::Comma);
+            continue;
+        }
+
         std::string prefix = "";
         if (match(TokenType::Star))
           prefix = "*";
@@ -503,10 +524,20 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
       if (isNamedInit) {
         std::vector<std::pair<std::string, std::unique_ptr<Expr>>> fields;
         while (!check(TokenType::RParen) && !check(TokenType::EndOfFile)) {
-          if (match(TokenType::DotDot)) {
-            fields.push_back({"..", nullptr});
-            if (!check(TokenType::RParen)) match(TokenType::Comma);
-            continue;
+          int eqPos = -1;
+          for (int k = 0; k < 6; ++k) {
+             if (checkAt(k, TokenType::Equal)) { eqPos = k; break; }
+             if (checkAt(k, TokenType::Comma) || checkAt(k, TokenType::RParen)) break;
+          }
+          if (eqPos == -1) {
+              auto expr = parseExpr();
+              if (dynamic_cast<ElisionExpr*>(expr.get())) {
+                  fields.push_back({"..", std::move(expr)});
+              } else {
+                  error(peek(), "Expected named argument 'key = value' or elision 'expr..'");
+              }
+              if (!check(TokenType::RParen)) match(TokenType::Comma);
+              continue;
           }
 
           std::string prefix = "";
@@ -519,9 +550,6 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
           else if (match(TokenType::Ampersand))
             prefix = "&";
 
-          // Handle secondary prefixes like ? or # if they are separate tokens?
-          // Usually prefixes are attached or separate? Lexer treats ^ as Caret.
-          // If ^?next is Caret Question Identifier.
           if (match(TokenType::TokenNull))
             prefix += "?";
           if (match(TokenType::TokenWrite))
@@ -617,11 +645,22 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
         if (isNamedInit) {
           std::vector<std::pair<std::string, std::unique_ptr<Expr>>> fields;
           while (!check(TokenType::RParen) && !check(TokenType::EndOfFile)) {
-            if (match(TokenType::DotDot)) {
-              fields.push_back({"..", nullptr});
-              if (!check(TokenType::RParen)) match(TokenType::Comma);
-              continue;
+            int eqPos = -1;
+            for (int k = 0; k < 6; ++k) {
+               if (checkAt(k, TokenType::Equal)) { eqPos = k; break; }
+               if (checkAt(k, TokenType::Comma) || checkAt(k, TokenType::RParen)) break;
             }
+            if (eqPos == -1) {
+                auto expr = parseExpr();
+                if (dynamic_cast<ElisionExpr*>(expr.get())) {
+                    fields.push_back({"..", std::move(expr)});
+                } else {
+                    error(peek(), "Expected named argument 'key = value' or elision 'expr..'");
+                }
+                if (!check(TokenType::RParen)) match(TokenType::Comma);
+                continue;
+            }
+
             std::string prefix = "";
             if (match(TokenType::Star)) prefix = "*";
             else if (match(TokenType::Caret)) prefix = "^";
@@ -645,13 +684,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
           std::vector<std::unique_ptr<Expr>> args;
           if (!check(TokenType::RParen)) {
             do { 
-              if (match(TokenType::DotDot)) {
-                auto node = std::make_unique<ElisionExpr>();
-                node->setLocation(previous(), m_CurrentFile);
-                args.push_back(std::move(node));
-              } else {
-                args.push_back(parseExpr());
-              }
+              args.push_back(parseExpr());
             } while (match(TokenType::Comma));
           }
           consume(TokenType::RParen, "Expected ')'");
@@ -759,11 +792,20 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
       if (isNamed) {
         std::vector<std::pair<std::string, std::unique_ptr<Expr>>> fields;
         while (!check(TokenType::RParen) && !check(TokenType::EndOfFile)) {
-          if (match(TokenType::DotDot)) {
-            fields.push_back({"..", nullptr});
-            if (!check(TokenType::RParen))
-              match(TokenType::Comma);
-            continue;
+          int eqPos = -1;
+          for (int k = 0; k < 6; ++k) {
+             if (checkAt(k, TokenType::Equal)) { eqPos = k; break; }
+             if (checkAt(k, TokenType::Comma) || checkAt(k, TokenType::RParen)) break;
+          }
+          if (eqPos == -1) {
+              auto expr = parseExpr();
+              if (dynamic_cast<ElisionExpr*>(expr.get())) {
+                  fields.push_back({"..", std::move(expr)});
+              } else {
+                  error(peek(), "Expected named argument 'key = value' or elision 'expr..'");
+              }
+              if (!check(TokenType::RParen)) match(TokenType::Comma);
+              continue;
           }
 
           std::string prefix = "";
@@ -792,13 +834,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
         std::vector<std::unique_ptr<Expr>> args;
         if (!check(TokenType::RParen)) {
           do {
-            if (match(TokenType::DotDot)) {
-              auto node = std::make_unique<ElisionExpr>();
-              node->setLocation(previous(), m_CurrentFile);
-              args.push_back(std::move(node));
-            } else {
-              args.push_back(parseExpr());
-            }
+            args.push_back(parseExpr());
           } while (match(TokenType::Comma));
         }
         consume(TokenType::RParen, "Expected ')' after arguments");
@@ -1031,6 +1067,11 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
       auto node = std::make_unique<UnwrapPropagationExpr>(std::move(expr));
       node->setLocation(opTok, m_CurrentFile);
       expr = std::move(node);
+    } else if (match(TokenType::DotDot)) {
+      Token opTok = previous();
+      auto node = std::make_unique<ElisionExpr>(std::move(expr));
+      node->setLocation(opTok, m_CurrentFile);
+      expr = std::move(node);
     } else if (allowTrailingClosure && !isEndOfStatement() && isClosureExpression()) {
       // Trailing Closure Syntax
       auto clo = parseClosureExpr();
@@ -1107,6 +1148,22 @@ std::unique_ptr<Expr> Parser::parseAllocExpr() {
     if (check(TokenType::Identifier) && checkAt(1, TokenType::Equal)) {
       std::vector<std::pair<std::string, std::unique_ptr<Expr>>> fields;
       while (!check(TokenType::RParen) && !check(TokenType::EndOfFile)) {
+        int eqPos = -1;
+        for (int k = 0; k < 6; ++k) {
+           if (checkAt(k, TokenType::Equal)) { eqPos = k; break; }
+           if (checkAt(k, TokenType::Comma) || checkAt(k, TokenType::RParen)) break;
+        }
+        if (eqPos == -1) {
+            auto expr = parseExpr();
+            if (dynamic_cast<ElisionExpr*>(expr.get())) {
+                fields.push_back({"..", std::move(expr)});
+            } else {
+                error(peek(), "Expected named argument 'key = value' or elision 'expr..'");
+            }
+            if (!check(TokenType::RParen)) match(TokenType::Comma);
+            continue;
+        }
+
         std::string prefix = "";
         if (match(TokenType::Star))
           prefix = "*";

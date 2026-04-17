@@ -1,0 +1,24 @@
+import std/io::println
+shape Person(
+    name: cstring = "Anonymous",
+    age: i32 = 18,
+    score: f32 = 0.0 as f32
+)
+
+fn main() -> i32 {
+    auto base = Person("BaseName", 25, 100.0 as f32)
+    
+    // Positional target elision
+    auto p1 = Person(base.., 88.0 as f32)
+    println("p1: name: {}, age: {}, score: {}", p1.name, p1.age, p1.score)
+
+    // Named target elision
+    auto p2 = Person(score = 50.0 as f32, base..)
+    println("p2: name: {}, age: {}, score: {}", p2.name, p2.age, p2.score)
+
+    // Multiple target elisions should error (caught at compile time, but we test valid here)
+    if p1.name != "BaseName" || p1.age != 25 || p1.score != 88.0 as f32 { return 1 }
+    if p2.name != "BaseName" || p2.age != 25 || p2.score != 50.0 as f32 { return 1 }
+
+    return 0
+}
