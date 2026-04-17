@@ -4978,10 +4978,31 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
       std::make_shared<toka::FunctionType>(ParamTypes, ReturnType, IsVariadic);
 
   // 6. Argument Matching and Default Argument Injection
+  bool hasFunctionElision = false;
+  if (!Call->Args.empty()) {
+      if (dynamic_cast<ElisionExpr*>(Call->Args.back().get())) {
+          hasFunctionElision = true;
+          Call->Args.pop_back();
+      }
+      // Check for illegal elisions in the middle
+      for (const auto &arg : Call->Args) {
+          if (dynamic_cast<ElisionExpr*>(arg.get())) {
+              error(arg.get(), "Function call elision '..' must strictly be the last argument");
+          }
+      }
+  }
+
   size_t providedCount = Call->Args.size();
   size_t paramCount = ParamTypes.size();
 
+  if (hasFunctionElision && providedCount >= paramCount) {
+      error(Call, "Elision '..' provided but no default arguments are missing for function '" + CallName + "'");
+  }
+
   if (providedCount < paramCount) {
+    if (!hasFunctionElision && !IsVariadic) {
+        error(Call, "Missing argument " + std::to_string(providedCount + 1) + " in function call '" + CallName + "'. Use '..' to explicitly fallback to default values.");
+    }
     for (size_t i = providedCount; i < paramCount; ++i) {
       std::unique_ptr<Expr> injected = nullptr;
       const ASTNode *defValNode = nullptr;

@@ -371,6 +371,7 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
   std::vector<FunctionDecl::Arg> args;
   bool isVariadic = false;
   bool firstArg = true;
+  bool hasSeenDefault = false;
   if (!check(TokenType::RParen)) {
     do {
       if (check(TokenType::DotDotDot))
@@ -466,6 +467,9 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
 
       if (match(TokenType::Equal)) {
         arg.DefaultValue = parseExpr();
+        hasSeenDefault = true;
+      } else if (hasSeenDefault) {
+        error(previous(), "Default parameters must be contiguous and at the end of the parameter list");
       }
 
       args.push_back(std::move(arg));

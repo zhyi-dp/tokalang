@@ -11,19 +11,19 @@ fn test_val(x: i32 = 42) -> i32 { return x }
 
 fn main() -> i32 {
     // 1. Regular default arg
-    assert(test_val() == 42, "Default value failed")
+    assert(test_val(..) == 42, "Default value failed")
     assert(test_val(10) == 10, "Override value failed")
 
     // 2. __LINE__
-    auto l = get_line()
+    auto l = get_line(..)
     assert(l == 18, "Line injection failed")
 
     // 3. __FILE__
-    auto f = get_file()
+    auto f = get_file(..)
     assert(f.len() > 0, "File injection failed")
 
     // 4. __LOC__
-    auto loc = get_loc()
+    auto loc = get_loc(..)
     assert(loc.line == 26, "Loc line failed")
     assert(loc.file.len() > 0, "Loc file failed")
 
