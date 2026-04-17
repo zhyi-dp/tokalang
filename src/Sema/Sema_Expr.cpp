@@ -4663,6 +4663,23 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
     // Constructor: Params = Members, Return = ShapeName
     if (Sh->Kind == ShapeKind::Struct) {
       Call->ResolvedShape = Sh;
+
+      // [NEW] Single Argument Isomorphic Copy / Move Constructor intercept
+      if (Call->Args.size() == 1) {
+          auto *argExpr = Call->Args[0].get();
+          // We can check it temporarily (if not already checked) or checkExpr will process it
+          // But wait, the argument might not be checked yet. Let's do it cleanly:
+          auto argType = checkExpr(argExpr);
+          if (argType) {
+              std::string expectedBase = Sh->Name;
+              std::string actualBase = argType->getSoulName();
+              if (actualBase == expectedBase && actualBase != "unknown") {
+                  tryInjectAutoClone(Call->Args[0]);
+                  Call->IsIsomorphicCopy = true;
+                  return toka::Type::fromString(resolveType(Sh->Name));
+              }
+          }
+      }
       std::set<std::string> providedFields;
       int elisionIndex = -1;
       Expr* elisionTarget = nullptr;

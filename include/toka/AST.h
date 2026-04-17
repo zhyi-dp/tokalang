@@ -636,6 +636,7 @@ public:
   ExternDecl *ResolvedExtern = nullptr;
   ShapeDecl *ResolvedShape = nullptr;
   int MatchedMemberIdx = -1; // For Union variant selection
+  bool IsIsomorphicCopy = false; // [NEW] Copy/Move constructor intercept
 
   CallExpr(const std::string &callee, std::vector<std::unique_ptr<Expr>> args,
            std::vector<std::string> genericArgs = {})
@@ -661,6 +662,7 @@ public:
     n->Loc = Loc;
     n->ResolvedType = ResolvedType;
     n->ResolvedFn = nullptr; // Reset sema cache
+    n->IsIsomorphicCopy = IsIsomorphicCopy;
     return n;
   }
 };

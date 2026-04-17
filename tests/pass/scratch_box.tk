@@ -1,0 +1,11 @@
+import std/vec::Vec
+
+fn main() -> i32 {
+    auto v1 = Vec<i32>::new()
+    v1#.push(42)
+
+    auto v2 = Vec<i32>(v1)
+    auto ^v3 = new Vec<i32>(cede v2)
+    
+    return 0
+}
