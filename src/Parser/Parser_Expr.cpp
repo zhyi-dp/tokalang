@@ -503,6 +503,12 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
       if (isNamedInit) {
         std::vector<std::pair<std::string, std::unique_ptr<Expr>>> fields;
         while (!check(TokenType::RParen) && !check(TokenType::EndOfFile)) {
+          if (match(TokenType::DotDot)) {
+            fields.push_back({"..", nullptr});
+            if (!check(TokenType::RParen)) match(TokenType::Comma);
+            continue;
+          }
+
           std::string prefix = "";
           if (match(TokenType::Star))
             prefix = "*";
@@ -539,7 +545,13 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
         std::vector<std::unique_ptr<Expr>> args;
         if (!check(TokenType::RParen)) {
           do {
-            args.push_back(parseExpr());
+            if (match(TokenType::DotDot)) {
+              auto node = std::make_unique<ElisionExpr>();
+              node->setLocation(previous(), m_CurrentFile);
+              args.push_back(std::move(node));
+            } else {
+              args.push_back(parseExpr());
+            }
           } while (match(TokenType::Comma));
         }
         consume(TokenType::RParen, "Expected ')'");
@@ -605,6 +617,11 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
         if (isNamedInit) {
           std::vector<std::pair<std::string, std::unique_ptr<Expr>>> fields;
           while (!check(TokenType::RParen) && !check(TokenType::EndOfFile)) {
+            if (match(TokenType::DotDot)) {
+              fields.push_back({"..", nullptr});
+              if (!check(TokenType::RParen)) match(TokenType::Comma);
+              continue;
+            }
             std::string prefix = "";
             if (match(TokenType::Star)) prefix = "*";
             else if (match(TokenType::Caret)) prefix = "^";
@@ -627,7 +644,15 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
         } else {
           std::vector<std::unique_ptr<Expr>> args;
           if (!check(TokenType::RParen)) {
-            do { args.push_back(parseExpr()); } while (match(TokenType::Comma));
+            do { 
+              if (match(TokenType::DotDot)) {
+                auto node = std::make_unique<ElisionExpr>();
+                node->setLocation(previous(), m_CurrentFile);
+                args.push_back(std::move(node));
+              } else {
+                args.push_back(parseExpr());
+              }
+            } while (match(TokenType::Comma));
           }
           consume(TokenType::RParen, "Expected ')'");
           auto node = std::make_unique<CallExpr>(typeStr, std::move(args));
@@ -734,6 +759,13 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
       if (isNamed) {
         std::vector<std::pair<std::string, std::unique_ptr<Expr>>> fields;
         while (!check(TokenType::RParen) && !check(TokenType::EndOfFile)) {
+          if (match(TokenType::DotDot)) {
+            fields.push_back({"..", nullptr});
+            if (!check(TokenType::RParen))
+              match(TokenType::Comma);
+            continue;
+          }
+
           std::string prefix = "";
           if (match(TokenType::Star))
             prefix = "*";
@@ -760,7 +792,13 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
         std::vector<std::unique_ptr<Expr>> args;
         if (!check(TokenType::RParen)) {
           do {
-            args.push_back(parseExpr());
+            if (match(TokenType::DotDot)) {
+              auto node = std::make_unique<ElisionExpr>();
+              node->setLocation(previous(), m_CurrentFile);
+              args.push_back(std::move(node));
+            } else {
+              args.push_back(parseExpr());
+            }
           } while (match(TokenType::Comma));
         }
         consume(TokenType::RParen, "Expected ')' after arguments");

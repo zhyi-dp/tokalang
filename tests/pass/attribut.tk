@@ -13,7 +13,7 @@ shape S (
 
 impl S@encap {
     pub fn clone(self#) -> S {
-        return S(*ptr = self.*ptr, *buf = self.*buf, len = self.len, outmut = self.outmut, *rebind = self.*rebind)
+        return S(*ptr = self.*ptr, *buf = self.*buf, len = self.len, outmut = self.outmut, *rebind = self.*rebind, ..)
     }
     fn drop(self#) {
         println("drop")
@@ -37,7 +37,7 @@ fn main() -> i32 {
         auto *b# = unsafe alloc [10]i32(0)
         auto *p = unsafe alloc [10]i32(0)
         auto *r# = unsafe alloc [10]i32(0)
-        auto s = S(*ptr = *p, *buf = *b, len = 2, outmut = 4, *rebind = *r)
+        auto s = S(*ptr = *p, *buf = *b, len = 2, outmut = 4, *rebind = *r, ..)
         //auto x = s.modify() //forbidden
         //auto x = s#.modify() //forbidden
         s.outmut += 1 
@@ -53,7 +53,7 @@ fn main() -> i32 {
         auto *b# = unsafe alloc [10]i32(0)
         auto *p = unsafe alloc [10]i32(0)
         auto *r# = unsafe alloc [10]i32(0)
-        auto s# = S(*ptr = *p, *buf = *b, len = 2, outmut = 4, *rebind = *r)
+        auto s# = S(*ptr = *p, *buf = *b, len = 2, outmut = 4, *rebind = *r, ..)
         //auto x = s.modify() //forbidden
         auto x = s#.modify() //这里属于函数调用，形参要求self#，所以这里必须显式的加上#
     }

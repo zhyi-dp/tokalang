@@ -806,6 +806,20 @@ public:
   }
 };
 
+class ElisionExpr : public Expr {
+public:
+  ElisionExpr() {}
+  std::string toString() const override {
+    return "Elision(..)";
+  }
+  std::unique_ptr<ASTNode> clone() const override {
+    auto n = std::make_unique<ElisionExpr>();
+    n->Loc = Loc;
+    n->ResolvedType = ResolvedType;
+    return n;
+  }
+};
+
 class MatchArm {
 public:
   struct Pattern : public ASTNode {

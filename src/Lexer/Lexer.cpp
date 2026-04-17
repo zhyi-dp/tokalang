@@ -442,10 +442,14 @@ Token Lexer::punctuation() {
     }
     return Token{TokenType::Greater, ">", line, col};
   case '.':
-    if (peek() == '.' && peekNext() == '.') {
+    if (peek() == '.') {
+      if (peekNext() == '.') {
+        advance();
+        advance();
+        return Token{TokenType::DotDotDot, "...", line, col};
+      }
       advance();
-      advance();
-      return Token{TokenType::DotDotDot, "...", line, col};
+      return Token{TokenType::DotDot, "..", line, col};
     }
     return Token{TokenType::Dot, ".", line, col};
   // How to handle standalone # ?

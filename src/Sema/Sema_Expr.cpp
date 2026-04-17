@@ -4662,161 +4662,136 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
 
     // Constructor: Params = Members, Return = ShapeName
     if (Sh->Kind == ShapeKind::Struct) {
-      // Shape Constructor Logic (Named or Positional)
       Call->ResolvedShape = Sh;
       std::set<std::string> providedFields;
-      size_t argIdx = 0;
+      
+      bool hasNamed = false;
+      bool hasPositional = false;
+      int elisionIndex = -1;
 
-      for (auto &arg : Call->Args) {
-        std::string fieldName;
-        Expr *valExpr = arg.get();
+      for (size_t i = 0; i < Call->Args.size(); ++i) {
+        auto *argExpr = Call->Args[i].get();
+        if (dynamic_cast<ElisionExpr *>(argExpr)) {
+          if (elisionIndex != -1) {
+            error(argExpr, DiagID::ERR_MULTIPLE_ELISION);
+          }
+          elisionIndex = (int)i;
+          hasPositional = true;
+          continue;
+        }
+
         bool isNamed = false;
-
-        // Detect Named Arg: Field = Value or *Field = Value
-        if (auto *bin = dynamic_cast<BinaryExpr *>(arg.get())) {
-          if (bin->Op == "=") {
-            if (auto *var = dynamic_cast<VariableExpr *>(bin->LHS.get())) {
-              fieldName = var->Name;
-              valExpr = bin->RHS.get();
-              isNamed = true;
-            } else if (auto *un = dynamic_cast<UnaryExpr *>(bin->LHS.get())) {
-              // Handle *p = ..., ^p = ... etc.
-              if (auto *innerVar =
-                      dynamic_cast<VariableExpr *>(un->RHS.get())) {
-                fieldName = innerVar->Name;
-                valExpr = bin->RHS.get();
-                isNamed = true;
-
-                // Morphology Check for Key
-                MorphKind keyMorph = MorphKind::None;
-                if (un->Op == TokenType::Star)
-                  keyMorph = MorphKind::Raw;
-                else if (un->Op == TokenType::Caret)
-                  keyMorph = MorphKind::Unique;
-                else if (un->Op == TokenType::Tilde)
-                  keyMorph = MorphKind::Shared;
-                else if (un->Op == TokenType::Ampersand)
-                  keyMorph = MorphKind::Ref;
-
-                // Find field type in Sh
-                for (const auto &M : Sh->Members) {
-                  if (M.Name == fieldName) {
-                    MorphKind fieldMorph = MorphKind::None;
-                    if (M.ResolvedType) {
-                      if (M.ResolvedType->isRawPointer())
-                        fieldMorph = MorphKind::Raw;
-                      else if (M.ResolvedType->isUniquePtr())
-                        fieldMorph = MorphKind::Unique;
-                      else if (M.ResolvedType->isSharedPtr())
-                        fieldMorph = MorphKind::Shared;
-                      else if (M.ResolvedType->isReference())
-                        fieldMorph = MorphKind::Ref;
-                    }
-                    checkStrictMorphology(bin, fieldMorph, keyMorph, fieldName);
-                    break;
-                  }
-                }
-              }
-            }
-          }
+        if (auto *bin = dynamic_cast<BinaryExpr *>(argExpr)) {
+          if (bin->Op == "=") isNamed = true;
         }
-
-        std::string expectedTypeStr = "unknown";
-        if (isNamed) {
-          bool found = false;
-          for (auto &M : Sh->Members) {
-            // [Constitution] Initialization Exemption: Normalize field
-            // name for comparison
-            std::string normalizedFieldName = fieldName;
-            while (!normalizedFieldName.empty() &&
-                   (normalizedFieldName.back() == '#' ||
-                    normalizedFieldName.back() == '?' ||
-                    normalizedFieldName.back() == '!')) {
-              normalizedFieldName.pop_back();
-            }
-            std::string normalizedMName = M.Name;
-            while (!normalizedMName.empty() &&
-                   (normalizedMName.back() == '#' ||
-                    normalizedMName.back() == '?' ||
-                    normalizedMName.back() == '!')) {
-              normalizedMName.pop_back();
-            }
-
-            if (normalizedMName == normalizedFieldName) {
-              found = true;
-              expectedTypeStr = M.Type;
-              break;
-            }
-          }
-          if (!found)
-            error(arg.get(), "Shape '" + Sh->Name + "' has no field named '" +
-                                 fieldName + "'");
-          providedFields.insert(fieldName);
-        } else {
-          // Positional
-          if (argIdx < Sh->Members.size()) {
-            expectedTypeStr = Sh->Members[argIdx].Type;
-            providedFields.insert(Sh->Members[argIdx].Name);
-          } else {
-            error(arg.get(),
-                  "Too many arguments for struct '" + Sh->Name + "'");
-          }
-        }
-
-        // Check Type Compatibility
-        // Note: valExpr is the expression to check.
-        // We use checkExpr(valExpr) to get object.
-        auto valType = checkExpr(valExpr);
-        auto expectedType = toka::Type::fromString(expectedTypeStr);
-
-        if (!isTypeCompatible(expectedType, valType)) {
-          error(valExpr, "Type mismatch for field '" +
-                             (isNamed ? fieldName : std::to_string(argIdx)) +
-                             "': expected " + expectedType->toString() +
-                             ", got " + valType->toString());
-        }
-        argIdx++;
+        if (isNamed) hasNamed = true;
+        else hasPositional = true;
       }
 
-      // Inject missing defaults for CallExpr constructor
+      if (hasNamed) {
+        error(Call, DiagID::ERR_MIXED_INIT_MODE);
+      }
+
+      int normalArgsCount = Call->Args.size() - (elisionIndex != -1 ? 1 : 0);
+      int elisionSkipCount = 0;
+      if (elisionIndex != -1) {
+        elisionSkipCount = (int)Sh->Members.size() - normalArgsCount;
+        if (elisionSkipCount < 0) {
+          error(Call->Args[elisionIndex].get(), "Too many arguments provided, cannot elide");
+        }
+      } else {
+        if (normalArgsCount > (int)Sh->Members.size()) {
+          error(Call, "Too many arguments for struct '" + Sh->Name + "'");
+        }
+      }
+
+      size_t memberIdx = 0;
+      for (size_t i = 0; i < Call->Args.size(); ++i) {
+        if ((int)i == elisionIndex) {
+          for (int k = 0; k < elisionSkipCount; ++k) {
+            auto &M = Sh->Members[memberIdx];
+            if (!M.DefaultValue) {
+              error(Call->Args[i].get(), DiagID::ERR_MISSING_DEFAULT_FOR_ELIDED, M.Name, Sh->Name);
+            }
+            memberIdx++;
+          }
+          continue;
+        }
+
+        auto &arg = Call->Args[i];
+        if (memberIdx < Sh->Members.size()) {
+          auto &M = Sh->Members[memberIdx];
+          providedFields.insert(M.Name);
+
+          auto expectedType = M.ResolvedType ? M.ResolvedType : toka::Type::fromString(M.Type);
+          auto valType = checkExpr(arg.get());
+          if (!isTypeCompatible(expectedType, valType)) {
+            error(arg.get(), "Type mismatch for field '" + M.Name + "': expected " +
+                             expectedType->toString() + ", got " + valType->toString());
+          }
+          memberIdx++;
+        }
+      }
+
+      // Inject missing defaults or elided defaults
+      std::vector<std::unique_ptr<Expr>> resolvedArgs;
+      // Note: we can't easily insert into Call->Args while iterating. So we build a new Args vector.
+      // But instead of replacing Call->Args (which might disrupt AST pointers elsewhere), we just append missing fields. 
+      // Actually, wait, positional CodeGen expects args in EXACT order of struct fields!
+      // So we must rebuild Call->Args to exactly match Sh->Members in size and order.
       for (const auto &M : Sh->Members) {
         if (!providedFields.count(M.Name)) {
           if (M.DefaultValue) {
-            auto cloned = std::unique_ptr<Expr>(
-                static_cast<Expr *>(M.DefaultValue->clone().release()));
-            auto expectedType = M.ResolvedType ? M.ResolvedType
-                                               : toka::Type::fromString(M.Type);
+            auto cloned = std::unique_ptr<Expr>(static_cast<Expr *>(M.DefaultValue->clone().release()));
+            auto expectedType = M.ResolvedType ? M.ResolvedType : toka::Type::fromString(M.Type);
             auto valType = checkExpr(cloned.get(), expectedType);
 
-            if (isTypeCompatible(expectedType, valType) &&
-                !expectedType->equals(*valType)) {
+            if (isTypeCompatible(expectedType, valType) && !expectedType->equals(*valType)) {
               auto origLoc = cloned->Loc;
-              cloned = std::make_unique<CastExpr>(std::move(cloned),
-                                                  expectedType->toString());
+              cloned = std::make_unique<CastExpr>(std::move(cloned), expectedType->toString());
               cloned->Loc = origLoc;
               cloned->ResolvedType = expectedType;
               valType = expectedType;
             }
 
             if (!isTypeCompatible(expectedType, valType)) {
-              error(Call, "Type mismatch for injected default field '" +
-                              M.Name + "': expected " +
-                              expectedType->toString() + ", got " +
-                              valType->toString());
+              error(Call, "Type mismatch for injected default field '" + M.Name + "': expected " +
+                             expectedType->toString() + ", got " + valType->toString());
             }
 
-            // Wrap in BinaryExpr(=) to make it a named arg for CodeGen
             auto nameVar = std::make_unique<VariableExpr>(M.Name);
-            auto bin = std::make_unique<BinaryExpr>("=", std::move(nameVar),
-                                                    std::move(cloned));
-            Call->Args.push_back(std::move(bin));
-            providedFields.insert(M.Name);
+            auto bin = std::make_unique<BinaryExpr>("=", std::move(nameVar), std::move(cloned));
+            resolvedArgs.push_back(std::move(bin));
           } else {
-            error(Call, "Missing field '" + M.Name + "' in constructor for '" +
-                            Sh->Name + "'");
+            error(Call, "Missing field '" + M.Name + "' in constructor for '" + Sh->Name + "'");
+          }
+        } else {
+          // Find the parameter in original Args that was mapped to this field
+          // It was mapped by position, skipping `elisionIndex`.
+          // We can find it by traversing Call->Args again.
+          bool found = false;
+          size_t mIdx = 0;
+          for (size_t i = 0; i < Call->Args.size(); ++i) {
+            if ((int)i == elisionIndex) {
+              mIdx += elisionSkipCount;
+              continue;
+            }
+            if (Sh->Members[mIdx].Name == M.Name) {
+              // Wrap it in BinaryExpr to match CodeGen expectations for named args injection
+              auto nameVar = std::make_unique<VariableExpr>(M.Name);
+              auto bin = std::make_unique<BinaryExpr>("=", std::move(nameVar), std::move(Call->Args[i]));
+              resolvedArgs.push_back(std::move(bin));
+              found = true;
+              break;
+            }
+            mIdx++;
+          }
+          if (!found) {
+             // should never happen
           }
         }
       }
+      Call->Args = std::move(resolvedArgs);
 
       auto res = toka::Type::fromString(Sh->Name);
 
@@ -5492,8 +5467,18 @@ Sema::checkStructInit(InitStructExpr *Init, ShapeDecl *SD,
                       std::map<std::string, uint64_t> &memberMasks) {
   m_LastLifeDependencies.clear();
   std::set<std::string> providedFields;
+  bool hasElision = false;
 
-  for (auto &pair : Init->Members) {
+  for (size_t i = 0; i < Init->Members.size(); ++i) {
+    auto &pair = Init->Members[i];
+    if (pair.first == "..") {
+      if (i != Init->Members.size() - 1) {
+        error(Init, DiagID::ERR_ELISION_NOT_AT_END);
+      }
+      hasElision = true;
+      continue;
+    }
+
     if (providedFields.count(pair.first)) {
       DiagnosticEngine::report(getLoc(Init), DiagID::ERR_DUPLICATE_FIELD,
                                pair.first);
@@ -5596,13 +5581,23 @@ Sema::checkStructInit(InitStructExpr *Init, ShapeDecl *SD,
         !providedFields.count("~" + defField.Name) &&
         !providedFields.count("&" + defField.Name) &&
         !providedFields.count("^?" + defField.Name)) {
-      if (defField.DefaultValue) {
-        // Inject default value
-        auto cloned = std::unique_ptr<Expr>(
-            static_cast<Expr *>(defField.DefaultValue->clone().release()));
+      
+      if (!hasElision) {
+        error(Init, DiagID::ERR_MISSING_MEMBER, defField.Name, Init->ShapeName);
+        continue;
+      }
+      
+      if (!defField.DefaultValue) {
+        error(Init, DiagID::ERR_MISSING_DEFAULT_FOR_ELIDED, defField.Name, Init->ShapeName);
+        continue;
+      }
 
-        auto memberTypeObj = defField.ResolvedType;
-        if (!memberTypeObj)
+      // Inject default value
+      auto cloned = std::unique_ptr<Expr>(
+          static_cast<Expr *>(defField.DefaultValue->clone().release()));
+
+      auto memberTypeObj = defField.ResolvedType;
+      if (!memberTypeObj)
           memberTypeObj = toka::Type::fromString(defField.Type);
 
         std::shared_ptr<toka::Type> exprTypeObj =
@@ -5628,13 +5623,14 @@ Sema::checkStructInit(InitStructExpr *Init, ShapeDecl *SD,
           error(Init, DiagID::ERR_MEMBER_TYPE_MISMATCH, defField.Name,
                 memberTypeObj->toString(), exprTypeObj->toString());
         }
-
         providedFields.insert(defField.Name);
         Init->Members.push_back({defField.Name, std::move(cloned)});
-      } else {
-        error(Init, DiagID::ERR_MISSING_MEMBER, defField.Name, Init->ShapeName);
-      }
     }
+  }
+
+  if (hasElision) {
+    Init->Members.erase(std::remove_if(Init->Members.begin(), Init->Members.end(),
+        [](const auto& pair) { return pair.first == ".."; }), Init->Members.end());
   }
 
   // Mask Calculation

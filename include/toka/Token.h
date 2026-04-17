@@ -138,6 +138,7 @@ enum class TokenType {
   FatArrow,   // =>
   Dependency, // <-
   Pipe,       // |
+  DotDot,     // ..
   DotDotDot,  // ...
   Ampersand,  // &
 
