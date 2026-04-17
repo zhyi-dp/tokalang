@@ -1,0 +1,14 @@
+shape Data(val: i32)
+
+fn main() {
+    auto ^p = new Data(val = 10)
+    auto &ref = &p // immutable borrow
+    
+    // Error: Cannot move 'p' while it is borrowed
+    auto ^p2 = cede p
+    
+    // Use ref to keep borrow active
+    auto x = ref.val
+    
+    return 0
+}

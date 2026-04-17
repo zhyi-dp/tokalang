@@ -1,0 +1,16 @@
+shape Resource(id: i32)
+
+impl Resource {
+    fn drop(self#) {
+        // Drop logic
+    }
+}
+
+shape Container(r: Resource)
+impl Container { fn drop(self#) {} }
+
+fn main() {
+    auto c# = Container(r = Resource(id = 1))
+    auto r2: Resource
+    r2 = cede c.r 
+}

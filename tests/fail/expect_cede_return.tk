@@ -1,0 +1,11 @@
+shape Data(val: i32)
+
+fn produce_data() -> cede Data {
+    auto ^d = new Data(val = 42)
+    return d 
+}
+
+fn main() -> i32 {
+    auto ^d = produce_data()
+    return 0
+}

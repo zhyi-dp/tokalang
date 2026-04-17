@@ -3314,16 +3314,37 @@ std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
         }
         CurrentScope->markMoved(actualRHSName);
       }
-    } else if (auto *Memb = dynamic_cast<MemberExpr *>(RHSExpr)) {
+    }
+    
+    Expr *RHSScan = RHSExpr;
+    while (true) {
+        if (auto *un = dynamic_cast<UnaryExpr *>(RHSScan)) {
+            RHSScan = un->RHS.get();
+        } else if (auto *ce = dynamic_cast<CedeExpr *>(RHSScan)) {
+            RHSScan = ce->Value.get();
+        } else {
+            break;
+        }
+    }
+
+    if (auto *Memb = dynamic_cast<MemberExpr *>(RHSScan)) {
       // [Move Restriction Rule] Prohibit moving member out of shape
-      // that has drop() Rule ONLY applies if we are moving a resource
-      // (UniquePtr)
-      if (rhsType->isUniquePtr()) {
+      // that has drop() Rule applies if we are moving any resource
+      bool memberIsResource = rhsType->isUniquePtr();
+      if (!memberIsResource && rhsType->isShape()) {
+          std::string rhsSoul = toka::Type::stripMorphology(rhsType->getSoulName());
+          if (m_ShapeProps.count(rhsSoul) && m_ShapeProps[rhsSoul].HasDrop) {
+              memberIsResource = true;
+          }
+      }
+
+      if (memberIsResource) {
         auto objType = checkExpr(Memb->Object.get());
         std::shared_ptr<toka::Type> soulType = objType->getSoulType();
-        std::string soul = soulType->getSoulName();
+        std::string soul = toka::Type::stripMorphology(soulType->getSoulName());
         if (m_ShapeProps.count(soul) && m_ShapeProps[soul].HasDrop) {
           error(Bin, DiagID::ERR_MOVE_MEMBER_DROP, Memb->Member, soul);
+          HasError = true;
         }
       }
     }

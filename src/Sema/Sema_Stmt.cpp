@@ -353,18 +353,19 @@ void Sema::checkStmt(Stmt *S) {
                    << " bypass=" << bypassNullRet << "\n";
     }
 
-    if (!bypassNullRet && !isTypeCompatible(expectedRetObj, ExprTypeObj)) {
+    // Strict Ownership/Morphology Check for Return
+    if (expectedRetObj && expectedRetObj->IsCede) {
+      if (Ret->ReturnValue && !dynamic_cast<CedeExpr*>(Ret->ReturnValue.get())) {
+        DiagnosticEngine::report(getLoc(Ret), DiagID::ERR_EXPECTED_CEDE_RETURN, CurrentFunctionReturnType);
+        HasError = true;
+      }
+    }
+
+    if (!bypassNullRet && !HasError && !isTypeCompatible(expectedRetObj, ExprTypeObj)) {
       DiagnosticEngine::report(getLoc(Ret), DiagID::ERR_TYPE_MISMATCH, ExprType,
                                CurrentFunctionReturnType);
       HasError = true;
-    } else {
-      // Strict Morphology Check for Return
-      if (expectedRetObj && expectedRetObj->IsCede) {
-        if (Ret->ReturnValue && !dynamic_cast<CedeExpr*>(Ret->ReturnValue.get())) {
-          DiagnosticEngine::report(getLoc(Ret), DiagID::ERR_EXPECTED_CEDE_RETURN, CurrentFunctionReturnType);
-          HasError = true;
-        }
-      }
+    } else if (!HasError) {
 
       MorphKind targetMorph = MorphKind::None;
       if (!CurrentFunctionReturnType.empty()) {
@@ -782,16 +783,37 @@ void Sema::checkStmt(Stmt *S) {
             CurrentScope->markMoved(actName);
           }
         }
-      } else if (auto *Memb = dynamic_cast<MemberExpr *>(InitExpr)) {
+      }
+      
+      Expr *InitScan = InitExpr;
+      while (true) {
+          if (auto *un = dynamic_cast<UnaryExpr *>(InitScan)) {
+              InitScan = un->RHS.get();
+          } else if (auto *ce = dynamic_cast<CedeExpr *>(InitScan)) {
+              InitScan = ce->Value.get();
+          } else {
+              break;
+          }
+      }
+
+      if (auto *Memb = dynamic_cast<MemberExpr *>(InitScan)) {
         // [Move Restriction Rule] Prohibit moving member out of shape that
-        // has drop() Rule ONLY applies if we are moving a resource
-        // (UniquePtr)
-        if (InitTypeObj->isUniquePtr()) {
+        // has drop() Rule applies if we are moving any resource
+        bool memberIsResource = InitTypeObj->isUniquePtr();
+        if (!memberIsResource && InitTypeObj->isShape()) {
+            std::string rhsSoul = toka::Type::stripMorphology(InitTypeObj->getSoulName());
+            if (m_ShapeProps.count(rhsSoul) && m_ShapeProps[rhsSoul].HasDrop) {
+                memberIsResource = true;
+            }
+        }
+
+        if (memberIsResource) {
           auto objType = checkExpr(Memb->Object.get());
           std::shared_ptr<toka::Type> soulType = objType->getSoulType();
-          std::string soul = soulType->getSoulName();
+          std::string soul = toka::Type::stripMorphology(soulType->getSoulName());
           if (m_ShapeProps.count(soul) && m_ShapeProps[soul].HasDrop) {
             error(Var, DiagID::ERR_MOVE_MEMBER_DROP, Memb->Member, soul);
+            HasError = true;
           }
         }
       }

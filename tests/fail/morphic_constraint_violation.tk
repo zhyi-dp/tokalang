@@ -1,0 +1,12 @@
+shape Box<T>(val: T)
+
+fn take_val<T>(v: T) {
+    // T is rigid
+}
+
+fn main() {
+    auto ^p = new i32(val = 10)
+    
+    // T is rigid (isomorphic value), but cede p is ^i32
+    take_val<i32>(cede p) 
+}

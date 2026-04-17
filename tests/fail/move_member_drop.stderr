@@ -1,0 +1,1 @@
+tests/fail/move_member_drop.tk:15:8: error[E0439]: Cannot move member 'r' out of shape 'Container' because it implements 'drop'

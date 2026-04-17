@@ -1,0 +1,12 @@
+shape Data(id: i32)
+
+fn main() {
+    auto ^p = new Data(id = 1)
+    
+    for i in 0..5 {
+        // In the second iteration, p will have been moved already
+        auto ^p2 = cede p
+    }
+    
+    return 0
+}

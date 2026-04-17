@@ -1,0 +1,1 @@
+tests/fail/morphic_constraint_violation.tk:8:19: error[E0416]: Unknown shape type 'i32'

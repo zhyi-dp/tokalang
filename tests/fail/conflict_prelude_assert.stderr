@@ -1,2 +1,2 @@
-tests/fail/conflict_prelude_assert.tk:5:1: error[E0401]: Symbol 'assert' is already defined in this scope
+tests/fail/conflict_prelude_assert.tk:5:1: error[E0462]: Symbol 'assert' is already defined in this scope
 tests/fail/conflict_prelude_assert.tk:5:1: note: Symbol 'assert' conflicts with implicit import from Prelude

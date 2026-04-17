@@ -1,2 +1,2 @@
 tests/fail/guard_no_return.tk:9:50: error[E0554]: Naked destructuring of resource 'MutexLock_M_i32' is strictly forbidden to prevent silent copies and double-frees. You must use an explicit borrow '&' (e.g., '&g')
-tests/fail/guard_no_return.tk:9:5: error[E0439]: The 'else' block of a pattern matching guard must diverge (e.g., return, break)
+tests/fail/guard_no_return.tk:9:5: error[E0465]: The 'else' block of a pattern matching guard must diverge (e.g., return, break)

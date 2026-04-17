@@ -1,0 +1,2 @@
+tests/fail/expect_cede_return.tk:5:5: error[E0464]: Function returns 'cede cede Data', but return expression does not explicitly transfer ownership via 'return cede ...'
+tests/fail/expect_cede_return.tk:9:11: error[E0459]: Implicit heap-boxing via pointer initialization is prohibited. Use explicit allocation like 'new cede Data(...)' stringently
