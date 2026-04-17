@@ -4770,7 +4770,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
             auto bin = std::make_unique<BinaryExpr>("=", std::move(nameVar), std::move(finalExpr));
             resolvedArgs.push_back(std::move(bin));
             continue;
-          } else if (M.DefaultValue) {
+          } else if (elisionIndex != -1 && M.DefaultValue) {
             auto cloned = std::unique_ptr<Expr>(static_cast<Expr *>(M.DefaultValue->clone().release()));
             auto expectedType = M.ResolvedType ? M.ResolvedType : toka::Type::fromString(M.Type);
             auto valType = checkExpr(cloned.get(), expectedType);
@@ -4797,7 +4797,11 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
             auto bin = std::make_unique<BinaryExpr>("=", std::move(nameVar), std::move(cloned));
             resolvedArgs.push_back(std::move(bin));
           } else {
-            error(Call, "Missing field '" + M.Name + "' in constructor for '" + Sh->Name + "'");
+            if (elisionIndex == -1) {
+              error(Call, "Missing field '" + M.Name + "' in constructor for '" + Sh->Name + "'. Use '..' to explicitly fallback to default values.");
+            } else {
+              error(Call, "Missing field '" + M.Name + "' in constructor for '" + Sh->Name + "' (no default value)");
+            }
           }
         } else {
           // Find the parameter in original Args that was mapped to this field
@@ -5631,7 +5635,11 @@ Sema::checkStructInit(InitStructExpr *Init, ShapeDecl *SD,
         !providedFields.count("^?" + defField.Name)) {
       
       if (!hasElision) {
-        error(Init, DiagID::ERR_MISSING_MEMBER, defField.Name, Init->ShapeName);
+        if (defField.DefaultValue) {
+           error(Init, "Missing field '" + defField.Name + "' in constructor for '" + Init->ShapeName + "'. Use '..' to explicitly fallback to default values.");
+        } else {
+           error(Init, "Missing field '" + defField.Name + "' in constructor for '" + Init->ShapeName + "' (no default value)");
+        }
         continue;
       }
       
