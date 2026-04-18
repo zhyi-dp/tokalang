@@ -1,0 +1,31 @@
+import std/io::{println}
+import stdx/json::{deserialize_shape}
+import core/str::{view_str}
+import std/string::{String}
+
+shape UniTest (
+    msg: String = String(..)
+)
+
+fn main() -> i32 {
+    auto json_str = String::from("{\"msg\": \"hello\\n\\t\\\"world\\\"\\u1f68\\uD83D\\uDE80\"}")
+    auto v_str = json_str.as_str()
+    
+    auto res = deserialize_shape<UniTest>(v_str)
+    if res.is_err() {
+        println("Parse err")
+        return 1
+    }
+    
+    auto obj# = res.unwrap()
+    auto decoded_msg = obj.msg.as_str()
+    // It should be: "hello\n\t\"world\"" followed by \u1f68 then rocket (F0 9F 9A 80)
+    
+    // Check length or characters
+    if decoded_msg.byte_at(5:usize) != 10 { return 2 } // \n
+    if decoded_msg.byte_at(6:usize) != 9 { return 3 }  // \t
+    if decoded_msg.byte_at(7:usize) != 34 { return 4 } // "
+    
+    println("All unicode matches OK!")
+    return 0
+}

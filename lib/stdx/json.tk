@@ -482,6 +482,39 @@ impl bool@FromJson {
     }
 }
 
+fn json_parse_hex4(rem: view_str, start: usize) -> u32 {
+    auto cp#: u32 = 0:u32
+    auto j# = 0:usize
+    while j < 4:usize {
+        auto c = rem.byte_at(start + j)
+        auto val#: u32 = 0:u32
+        if c >= 48 && c <= 57 { val = (c - 48) as u32 }
+        else if c >= 65 && c <= 70 { val = ((c - 65) + 10) as u32 }
+        else if c >= 97 && c <= 102 { val = ((c - 97) + 10) as u32 }
+        cp = (cp * 16:u32) + val
+        j += 1:usize
+    }
+    return cp
+}
+
+fn json_push_utf8(str#: String, cp: u32) {
+    if cp <= 127:u32 {
+        str#.push_char(cp as char)
+    } else if cp <= 2047:u32 {
+        str#.push_char((192:u32 + (cp / 64:u32)) as char)
+        str#.push_char((128:u32 + (cp % 64:u32)) as char)
+    } else if cp <= 65535:u32 {
+        str#.push_char((224:u32 + (cp / 4096:u32)) as char)
+        str#.push_char((128:u32 + ((cp / 64:u32) % 64:u32)) as char)
+        str#.push_char((128:u32 + (cp % 64:u32)) as char)
+    } else {
+        str#.push_char((240:u32 + (cp / 262144:u32)) as char)
+        str#.push_char((128:u32 + ((cp / 4096:u32) % 64:u32)) as char)
+        str#.push_char((128:u32 + ((cp / 64:u32) % 64:u32)) as char)
+        str#.push_char((128:u32 + (cp % 64:u32)) as char)
+    }
+}
+
 impl String@FromJson {
     pub fn parse_json(self#, json: view_str) -> Result<view_str, String> {
         auto rem = json_skip_whitespace(json)
@@ -505,9 +538,41 @@ impl String@FromJson {
         
         if !closed { return JRes::Err(String::from("Unterminated string")) }
         
-        auto vstr = rem.substr(1:usize, i - 1:usize)
         auto new_str# = String::from_str("")
-        new_str#.push_view(vstr)
+        auto j# = 1:usize
+        while j < i {
+            auto c = rem.byte_at(j)
+            if c == 92 { // '\\'
+                j += 1:usize
+                auto ec = rem.byte_at(j)
+                if ec == 34 { new_str#.push_char(34 as char) } // '"'
+                else if ec == 92 { new_str#.push_char(92 as char) } // '\'
+                else if ec == 47 { new_str#.push_char(47 as char) } // '/'
+                else if ec == 98 { new_str#.push_char(8 as char) } // '\b'
+                else if ec == 102 { new_str#.push_char(12 as char) } // '\f'
+                else if ec == 110 { new_str#.push_char(10 as char) } // '\n'
+                else if ec == 114 { new_str#.push_char(13 as char) } // '\r'
+                else if ec == 116 { new_str#.push_char(9 as char) } // '\t'
+                else if ec == 117 { // '\u'
+                    auto cp# = json_parse_hex4(rem, j + 1:usize)
+                    j += 4:usize
+                    if cp >= 55296:u32 && cp <= 56319:u32 { // High surrogate 0xD800 - 0xDBFF
+                        if j + 2:usize < i && rem.byte_at(j+1:usize) == 92 && rem.byte_at(j+2:usize) == 117 {
+                            auto low_cp = json_parse_hex4(rem, j + 3:usize)
+                            cp = ((cp - 55296:u32) * 1024:u32) + (low_cp - 56320:u32) + 65536:u32
+                            j += 6:usize
+                        }
+                    }
+                    json_push_utf8(new_str, cp)
+                } else {
+                    new_str#.push_char(ec as char)
+                }
+            } else {
+                new_str#.push_char(c as char)
+            }
+            j += 1:usize
+        }
+        
         self = new_str
         return JRes::Ok(rem.substr(i + 1:usize, rem.len() - i - 1:usize))
     }
