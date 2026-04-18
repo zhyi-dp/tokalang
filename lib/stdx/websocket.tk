@@ -4,6 +4,7 @@ import stdx/crypto/sha1
 import stdx/crypto/base64
 import core/result::{Result}
 import core/types::Addr
+import std/io::println
 
 pub shape WsOpcode (
     CONTINUATION = 0x0 |
@@ -27,49 +28,101 @@ impl WsConnection@encap {
 }
 
 pub fn ws_accept_async(stream#: TcpStream) -> async Result<WsConnection, String> {
-        auto *buf# = unsafe alloc [4096] u8
-        auto bytes_opt = net_async_read(stream, *#buf as *u8, 4096).await
-        if bytes_opt.is_err() {
-            unsafe { unsafe free [4096] *#buf }
-            return Result<WsConnection, String>::Err(String::from("Failed WS HTTP read"))
-        }
-        auto bytes_read = bytes_opt.unwrap()
-
-        auto req_str = String::from_raw(*#buf as *u8, bytes_read)
-        unsafe { unsafe free [4096] *#buf }
+        auto req_str# = String::from("")
+        auto headers_done# = false
         
-        auto key_marker = v"Sec-WebSocket-Key: "
+        auto crlf_crlf# = String::from("")
+        crlf_crlf#.push_char(13 as char)
+        crlf_crlf#.push_char(10 as char)
+        crlf_crlf#.push_char(13 as char)
+        crlf_crlf#.push_char(10 as char)
+        
+        auto crlf_single# = String::from("")
+        crlf_single#.push_char(13 as char)
+        crlf_single#.push_char(10 as char)
+        
+        auto tries#: usize = 0
+        auto *buf# = unsafe alloc [1024] u8
+        
+        while !headers_done {
+            auto bytes_opt = net_async_read(stream, *#buf as *u8, 1024).await
+            if bytes_opt.is_err() {
+                unsafe { unsafe free [1024] *#buf }
+                return Result<WsConnection, String>::Err(String::from("Failed WS HTTP read"))
+            }
+            auto bytes_read = bytes_opt.unwrap()
+            if bytes_read == 0 {
+                unsafe { unsafe free [1024] *#buf }
+                return Result<WsConnection, String>::Err(String::from("Connection closed before headers"))
+            }
+            
+            auto temp_chunk = String::from_raw(*#buf as *u8, bytes_read)
+            req_str#.push_str(temp_chunk.c_str())
+            
+            auto rv = req_str.as_view()
+            if rv.index_of_str(crlf_crlf.as_view()).is_some() {
+                headers_done = true
+            }
+            
+            tries += 1
+            if tries > 20 {
+                unsafe { unsafe free [1024] *#buf }
+                return Result<WsConnection, String>::Err(String::from("Header too large or timeout"))
+            }
+        }
+        unsafe { unsafe free [1024] *#buf }
+        
+        auto key_marker = v"Sec-WebSocket-Key:"
+        auto key_marker_lower = v"sec-websocket-key:"
         auto req_view = req_str.as_view()
-        auto idx_opt = req_view.index_of_str(key_marker)
+        auto idx_opt# = req_view.index_of_str(key_marker)
+        if idx_opt.is_none() {
+            idx_opt = req_view.index_of_str(key_marker_lower)
+        }
+        
         if idx_opt.is_none() {
             return Result<WsConnection, String>::Err(String::from("Missing Sec-WebSocket-Key"))
         }
         auto start_idx = idx_opt.unwrap() + key_marker.len()
         
         auto rest_view = req_view.substring(start_idx, req_view.len())
-        auto crlf = v"\r\n"
-        auto end_idx_opt = rest_view.index_of_str(crlf)
+        auto end_idx_opt = rest_view.index_of_str(crlf_single.as_view())
         if end_idx_opt.is_none() {
             return Result<WsConnection, String>::Err(String::from("Malformed headers"))
         }
         
-        auto swk# = rest_view.substring(0, end_idx_opt.unwrap()).to_string()
+        auto swk# = rest_view.substring(0, end_idx_opt.unwrap()).trim().to_string()
         swk#.push_str("258EAFA5-E914-47DA-95CA-C5AB0DC85B11")
         
         auto *sha1_res# = sha1::hash(swk.c_str() as Addr, swk.len())
         auto b64_res = base64::encode((*#sha1_res as Addr), 20)
         unsafe { unsafe free [20] *#sha1_res }
         
-        auto w1 = stream#.write_view_async(v"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ").await
+        auto w1 = stream#.write_view_async(v"HTTP/1.1 101 Switching Protocols").await
         if w1.is_err() { return Result<WsConnection, String>::Err(String::from("Handshake write failed")) }
+        
+        stream#.write_view_async(crlf_single.as_view()).await
+        
+        auto w1a = stream#.write_view_async(v"Upgrade: websocket").await
+        if w1a.is_err() { return Result<WsConnection, String>::Err(String::from("Handshake write failed")) }
+        
+        stream#.write_view_async(crlf_single.as_view()).await
+        
+        auto w1b = stream#.write_view_async(v"Connection: Upgrade").await
+        if w1b.is_err() { return Result<WsConnection, String>::Err(String::from("Handshake write failed")) }
+        
+        stream#.write_view_async(crlf_single.as_view()).await
+        
+        auto w1c = stream#.write_view_async(v"Sec-WebSocket-Accept: ").await
+        if w1c.is_err() { return Result<WsConnection, String>::Err(String::from("Handshake write failed")) }
         
         auto w2 = stream#.write_string_async(b64_res).await
         if w2.is_err() { return Result<WsConnection, String>::Err(String::from("Handshake write failed")) }
         
-        auto w3 = stream#.write_view_async(v"\r\n\r\n").await
+        auto w3 = stream#.write_view_async(crlf_crlf.as_view()).await
         if w3.is_err() { return Result<WsConnection, String>::Err(String::from("Handshake write failed")) }
         
-        return Result<WsConnection, String>::Ok(WsConnection(stream=stream.clone(), is_client=false))
+        return Result<WsConnection, String>::Ok(WsConnection(stream=stream, is_client=false))
     }
 
 impl WsConnection {

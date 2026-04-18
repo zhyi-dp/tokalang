@@ -49,8 +49,23 @@ fn client_task() -> async i32 {
     
     auto stream# = stream_res.unwrap()
     
-    auto req = v"GET / HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n"
-    auto wr_r = stream#.write_view_async(req).await
+    auto crlf_single# = String::from("")
+    crlf_single#.push_char(13 as char)
+    crlf_single#.push_char(10 as char)
+    
+    auto req# = String::from("GET / HTTP/1.1")
+    req#.push_str(crlf_single.c_str())
+    req#.push_str("Host: localhost")
+    req#.push_str(crlf_single.c_str())
+    req#.push_str("Upgrade: websocket")
+    req#.push_str(crlf_single.c_str())
+    req#.push_str("Connection: Upgrade")
+    req#.push_str(crlf_single.c_str())
+    req#.push_str("Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==")
+    req#.push_str(crlf_single.c_str())
+    req#.push_str(crlf_single.c_str())
+    
+    auto wr_r = stream#.write_view_async(req.as_view()).await
     
     // Read response handshake
     auto *buf# = unsafe alloc [4096] u8
