@@ -1,0 +1,76 @@
+import std/io::{println}
+import std/net::{TcpListener, TcpStream, Ipv4Addr, SocketAddrV4}
+import std/string::{String}
+import core/libc
+import std/sys/os as sys
+import core/types
+import core/result::{Result}
+import std/thread::{thread_spawn, JoinHandle}
+
+extern fn sleep(seconds: i32) -> i32
+
+fn run_server(port: u16) -> i32 {
+    unsafe {
+        auto ip = Ipv4Addr::new(127:u8, 0:u8, 0:u8, 1:u8)
+        auto addr = SocketAddrV4::new(ip, port)
+        auto listener_res = TcpListener::bind(addr)
+        if listener_res.is_err() { return 1 }
+        auto listener# = listener_res.unwrap()
+        
+        auto stream_res = listener#.accept()
+        if stream_res.is_err() { return 1 }
+        auto stream# = stream_res.unwrap()
+        
+        // Send data in chunks to force multiple reads on client
+        auto msg1 = String::from("Hello")
+        stream#.write_string(msg1)
+        sleep(1)
+        auto msg2 = String::from("World")
+        stream#.write_string(msg2)
+        
+        return 0
+    }
+}
+
+fn main() -> i32 {
+    unsafe {
+        auto port = 9123:u16
+        auto server_thread# = thread_spawn<i32>({ => 
+            return cede run_server(port)
+        })
+        
+        sleep(1)
+        
+        auto ip = Ipv4Addr::new(127:u8, 0:u8, 0:u8, 1:u8)
+        auto addr = SocketAddrV4::new(ip, port)
+        auto connect_res = TcpStream::connect(addr)
+        if connect_res.is_err() { return 1 }
+        auto stream# = connect_res.unwrap()
+        
+        auto buf: [u8; 10] = [0:u8; 10]
+        auto *buf_ptr# = &buf[0] as *u8
+        
+        // This should block/loop until all 10 bytes are read
+        auto read_res = stream#.read_exact(*buf_ptr, 10:usize)
+        if read_res.is_err() {
+            println("read_exact failed")
+            return 1
+        }
+        
+        auto n = read_res.unwrap()
+        if n != 10:usize {
+            return 1
+        }
+        
+        // Verify content
+        if buf[0] != 'H' as u8 || buf[5] != 'W' as u8 {
+            println("Data mismatch")
+            return 1
+        }
+        
+        println("net_read_exact test passed!")
+        stream#.close()
+        server_thread#.join()
+        return 0
+    }
+}

@@ -140,6 +140,26 @@ impl TcpStream {
             return Result<usize, String>::Ok(n as usize)
         }
     }
+
+    pub fn read_exact(self#, *buf: u8, len: usize) -> Result<usize, String> {
+        auto total# = 0:usize
+        while total < len {
+            auto *current_ptr = (*buf as Addr + total as u64) as *u8
+            auto res = self#.read(*current_ptr, len - total)
+            match res {
+                auto Okay::Ok(n) => {
+                    if n == 0:usize {
+                        return Result<usize, String>::Err(String::from("Unexpected EOF during read_exact"))
+                    }
+                    total = total + n
+                }
+                auto Okay::Err(&e) => {
+                    return Result<usize, String>::Err(e.clone())
+                }
+            }
+        }
+        return Result<usize, String>::Ok(total)
+    }
     
     pub fn write(self#, *buf: u8, len: usize) -> Result<usize, String> {
         unsafe {
@@ -169,6 +189,30 @@ impl TcpStream {
     pub fn write_string_async(self#, s: String) -> async Result<usize, String> {
         auto *ptr = s.c_str() as *u8
         return self#.write_async(*ptr, s.len() as usize).await
+    }
+
+    pub fn read_async(self#, *buf: u8, len: usize) -> async Result<usize, String> {
+        return net_async_read(self, *buf, len).await
+    }
+
+    pub fn read_exact_async(self#, *buf: u8, len: usize) -> async Result<usize, String> {
+        auto total# = 0:usize
+        while total < len {
+            auto *current_ptr = (*buf as Addr + total as u64) as *u8
+            auto res = self#.read_async(*current_ptr, len - total).await
+            match res {
+                auto Okay::Ok(n) => {
+                    if n == 0:usize {
+                        return Result<usize, String>::Err(String::from("Unexpected EOF during read_exact_async"))
+                    }
+                    total = total + n
+                }
+                auto Okay::Err(&e) => {
+                    return Result<usize, String>::Err(e.clone())
+                }
+            }
+        }
+        return Result<usize, String>::Ok(total)
     }
 
     pub fn close(self#) {
