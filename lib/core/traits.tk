@@ -26,5 +26,10 @@ pub trait @PartialEq {
     pub fn eq(self, other: Self) -> bool
 }
 
+
 pub trait @Send {}
 pub trait @Sync {}
+
+pub trait @delegate<T> {
+    pub fn target(self) -> T
+}

@@ -28,7 +28,7 @@ pub fn join(base: String, sub: String) -> String {
         }
     }
     
-    auto sub_start# = 0
+    auto sub_start#: usize = 0
     if sub.len() > 0 {
         if sub.at(0) == 47:char {
             sub_start = 1
@@ -47,16 +47,17 @@ pub fn join(base: String, sub: String) -> String {
 }
 
 pub fn extension(path: String) -> String {
+
     auto idx = path.find_char(46:char) // '.'
     if idx == -1 {
         return String::from("")
     }
     
     // Find last dot
-    auto last_dot# = idx
-    auto i# = idx + 1
-    while i < path.len() {
-        if path.at(i) == 46:char {
+    auto last_dot# = idx as i64
+    auto i#: i64 = (idx + 1) as i64
+    while i < path.len() as i64 {
+        if path.at(i as usize) == 46:char {
             last_dot = i
         }
         i = i + 1
@@ -71,16 +72,16 @@ pub fn extension(path: String) -> String {
 }
 
 pub fn basename(path: String) -> String {
-    auto last_slash# = -1
-    auto i# = 0
+    auto last_slash#: i64 = -1
+    auto i#: usize = 0
     while i < path.len() {
         if path.at(i) == 47:char { // '/'
-            last_slash = i
+            last_slash = i as i64
         }
         i = i + 1
     }
     
-    if last_slash == -1 {
+    if last_slash == -1:i64 {
         return String::from(path.c_str())
     }
     
@@ -93,16 +94,16 @@ pub fn basename(path: String) -> String {
 }
 
 pub fn dirname(path: String) -> String {
-    auto last_slash# = -1
-    auto i# = 0
+    auto last_slash#: i64 = -1
+    auto i#: usize = 0
     while i < path.len() {
         if path.at(i) == 47:char { // '/'
-            last_slash = i
+            last_slash = i as i64
         }
         i = i + 1
     }
     
-    if last_slash == -1 {
+    if last_slash == -1:i64 {
         return String::from(".")
     }
     
@@ -112,7 +113,7 @@ pub fn dirname(path: String) -> String {
     
     unsafe {
         auto *p = path.c_str()
-        return String::from_with_len(*p, last_slash)
+        return String::from_with_len(*p, last_slash as usize)
     }
 }
 

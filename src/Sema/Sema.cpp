@@ -581,8 +581,9 @@ void Sema::registerImpl(ImplDecl *Impl) {
           MethodMap[resolvedTypeName][Method->Name] = Method->ReturnType;
           MethodDecls[resolvedTypeName][Method->Name] = Method.get();
         } else {
-          // [Fix] Optional methods for 'encap'
-          if (Impl->TraitName == "encap" || Impl->TraitName == "@encap") {
+          // [Fix] Optional methods for intrinsic interfaces
+          if (Impl->TraitName == "encap" || Impl->TraitName == "@encap" || 
+              Impl->TraitName == "delegate" || Impl->TraitName == "@delegate") {
             continue;
           }
 

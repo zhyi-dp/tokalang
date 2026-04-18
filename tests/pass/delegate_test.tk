@@ -1,0 +1,23 @@
+import std/string::{String}
+
+pub fn main() -> i32 {
+    auto s# = String::from("")
+    s#.push_str("Hello Delegate!")
+    
+    // Test the delegate trait fallback explicitly
+    // byte_at is defined on view_str, not String.
+    // If the intrinsic works, this will automatically resolve to s.target().byte_at(0)
+    // let is deprecated in Toka, use auto
+    auto first_char = s.byte_at(0)
+    
+    if first_char != 'H' as i32 {
+        return 1
+    }
+    
+    // length() is also on view_str!
+    if s.len() != 15 {
+        return 2
+    }
+    
+    return 0
+}

@@ -980,6 +980,7 @@ std::unique_ptr<TraitDecl> Parser::parseTrait(bool isPub) {
     // Optional @ prefix
   }
   Token name = consume(TokenType::Identifier, "Expected trait name");
+  std::vector<GenericParam> genericParams = parseGenericParams();
   consume(TokenType::LBrace, "Expected '{'");
 
   std::vector<std::unique_ptr<FunctionDecl>> methods;
@@ -995,7 +996,7 @@ std::unique_ptr<TraitDecl> Parser::parseTrait(bool isPub) {
     }
   }
   consume(TokenType::RBrace, "Expected '}'");
-  return std::make_unique<TraitDecl>(isPub, name.Text, std::move(methods));
+  return std::make_unique<TraitDecl>(isPub, name.Text, std::move(methods), std::move(genericParams));
 }
 
 } // namespace toka

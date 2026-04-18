@@ -2035,6 +2035,25 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       return toka::Type::fromString(MethodMap[encapType][Met->Method]);
     }
 
+    // Check with @delegate suffix as fallback (Intrinsic Method Proxying)
+    std::string delegateKey = soulType + "@delegate";
+    if (ImplMap.count(delegateKey) && ImplMap[delegateKey].count("target")) {
+      FunctionDecl* targetMethod = ImplMap[delegateKey]["target"];
+      std::string targetReturnTypeStr = targetMethod->ReturnType;
+      auto targetTypeObj = toka::Type::fromString(targetReturnTypeStr);
+      std::string targetSoul = targetTypeObj->getSoulName();
+      
+      if (MethodMap.count(targetSoul) && MethodMap[targetSoul].count(Met->Method)) {
+          // Mutate the AST: baseObj.method(...) -> baseObj.target().method(...)
+          auto targetCall = std::make_unique<MethodCallExpr>(std::move(Met->Object), "target", std::vector<std::unique_ptr<Expr>>());
+          targetCall->Loc = Met->Loc;
+          Met->Object = std::move(targetCall);
+          
+          // Re-evaluate to run full argument, permission, and concurrency checking on the target method
+          return checkExpr(E);
+      }
+    }
+
     // Check if it's a reference to a struct
     if (ObjType.size() > 1 && ObjType[0] == '^') {
       std::string Pointee = ObjType.substr(1);
