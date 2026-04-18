@@ -625,17 +625,14 @@ impl<'T> Option<'T> {
             }
         }
         
-        auto inner_addr = libc_malloc(4096:usize) as Addr
-        auto *inner# = inner_addr as *'T
-        
-        auto parse_res = inner#.parse_json(rem)
-        if parse_res.is_err() { 
-            libc_free(inner_addr as *void)
-            return parse_res 
+        unsafe {
+            auto ^inner_buf = new [1]Uninit<'T>()
+            auto *inner#: 'T = (*inner_buf + 0:usize) as *'T
+            
+            auto rem_str = inner#.parse_json(rem)!
+            self = Option<'T>::Some(inner)
+            return JRes::Ok(rem_str)
         }
-        self = Option<'T>::Some(inner)
-        libc_free(inner_addr as *void)
-        return parse_res
     }
 }
 
@@ -665,18 +662,14 @@ impl<'T> Vec<'T> {
             }
             first = false
             
-            auto item_addr = libc_malloc(4096:usize) as Addr
-            auto *item# = item_addr as *'T
-            
-            auto parse_res = item#.parse_json(res)
-            if parse_res.is_err() { 
-                libc_free(item_addr as *void)
-                return JRes::Err("Failed to parse array element") 
+            unsafe {
+                auto ^item_buf = new [1]Uninit<'T>()
+                auto *item#: 'T = (*item_buf + 0:usize) as *'T
+                
+                res = item#.parse_json(res)!
+                
+                self#.push(item)
             }
-            res = parse_res.unwrap()
-            
-            self#.push(item)
-            libc_free(item_addr as *void)
         }
         return JRes::Ok(res)
     }
