@@ -41,7 +41,7 @@ fn main() -> i32 {
     
     auto i# = 0
     while i < content.len() {
-        auto c = content.at(i)
+        auto c = content.at(i).unwrap()
         auto idx = c as i32
         if idx >= 0 && idx < 256 {
             auto u_idx = idx as usize

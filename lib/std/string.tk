@@ -234,10 +234,14 @@ impl String {
         return self.*buf as *char
     }
 
-    pub fn as_str(self) -> str {
+    pub fn as_str(self) -> view_str {
         unsafe {
             return view_str(&buf = self.*buf as &[char], len = self.len)
         }
+    }
+
+    pub fn as_view(self) -> view_str {
+        return self.as_str()
     }
     
     // === Mutation ===
@@ -404,9 +408,6 @@ impl String {
         return self.as_str().count_char(c)
     }
 
-    pub fn at(self, index: usize) -> char {
-        return self.as_str().at(index).unwrap_or(0:char)
-    }
 
     pub fn find_char(self, c: char) -> i32 {
         auto opt = self.as_str().index_of(c)

@@ -15,7 +15,7 @@ fn main() -> i32 {
     
     // Test at
     auto target = 101 as char // 'e'
-    if s.at(1) != target {
+    if s.at(1).unwrap() != target {
          println("At failed")
          return 2
     }

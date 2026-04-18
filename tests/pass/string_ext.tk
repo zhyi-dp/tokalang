@@ -5,7 +5,7 @@ fn main() -> i32 {
     auto s = String::from("Hello Toka World!")
     
     // Test at
-    auto c = s.at(6)
+    auto c = s.at(6).unwrap()
     println("at(6): {}", c as i32) // 'T' is 84
     if c != 84:char { return 1 }
     

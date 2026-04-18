@@ -22,7 +22,7 @@ import core/types::{char, Addr}
 pub fn join(base: String, sub: String) -> String {
     auto res# = String::from(base.c_str())
     if res.len() > 0 {
-        auto last = res.at(res.len() - 1)
+        auto last = res.at(res.len() - 1).unwrap()
         if last != 47:char { // '/'
             res#.push_char(47:char)
         }
@@ -30,7 +30,7 @@ pub fn join(base: String, sub: String) -> String {
     
     auto sub_start#: usize = 0
     if sub.len() > 0 {
-        if sub.at(0) == 47:char {
+        if sub.at(0).unwrap() == 47:char {
             sub_start = 1
         }
     }
@@ -57,7 +57,7 @@ pub fn extension(path: String) -> String {
     auto last_dot# = idx as i64
     auto i#: i64 = (idx + 1) as i64
     while i < path.len() as i64 {
-        if path.at(i as usize) == 46:char {
+        if path.at(i as usize).unwrap() == 46:char {
             last_dot = i
         }
         i = i + 1
@@ -75,7 +75,7 @@ pub fn basename(path: String) -> String {
     auto last_slash#: i64 = -1
     auto i#: usize = 0
     while i < path.len() {
-        if path.at(i) == 47:char { // '/'
+        if path.at(i).unwrap() == 47:char { // '/'
             last_slash = i as i64
         }
         i = i + 1
@@ -97,7 +97,7 @@ pub fn dirname(path: String) -> String {
     auto last_slash#: i64 = -1
     auto i#: usize = 0
     while i < path.len() {
-        if path.at(i) == 47:char { // '/'
+        if path.at(i).unwrap() == 47:char { // '/'
             last_slash = i as i64
         }
         i = i + 1
@@ -119,7 +119,7 @@ pub fn dirname(path: String) -> String {
 
 pub fn is_absolute(path: String) -> bool {
     if path.len() > 0 {
-        if path.at(0) == 47:char { return true } // '/'
+        if path.at(0).unwrap() == 47:char { return true } // '/'
     }
     return false
 }
@@ -162,7 +162,7 @@ pub fn with_extension(path: String, ext: String) -> String {
     
     // Skip leading dot in ext if present
     auto ext_start# = 0
-    if ext.at(0) == 46:char {
+    if ext.at(0).unwrap() == 46:char {
         ext_start = 1
     }
     
