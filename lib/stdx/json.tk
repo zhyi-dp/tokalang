@@ -238,7 +238,7 @@ impl JsonNode@FromJson {
                 
                 match key_node {
                      JsonNode::StrNode(&k_str) => {
-                         map#.insert(k_str, val_node)
+                         map#.insert(k_str.clone(), cede val_node)
                      }
                      _ => {}
                 }
@@ -264,7 +264,7 @@ impl JsonNode@FromJson {
                 if skip_item.is_err() { return skip_item }
                 json = skip_item.unwrap()
                 
-                vec#.push(item_node)
+                vec#.push(cede item_node)
                 
                 json = json_skip_whitespace(json)
                 if json.len() > 0:usize && json.byte_at(0:usize) == 44 { // ','
@@ -650,7 +650,7 @@ pub fn deserialize_shape<'T>(json_str: view_str) -> Okay<'T, String> {
                 }
                 res = val_res.unwrap()
                 
-                f.set(obj, val)
+                f.set(obj, cede val)
                 
                 continue
             }
