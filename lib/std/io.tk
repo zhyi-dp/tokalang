@@ -226,6 +226,12 @@ pub fn print(s: String) {
     out.write(s)
 }
 
+pub fn print_line(s: String) {
+    auto out = stdout()
+    out.write(s)
+    out.write(String::from("\n"))
+}
+
 // === File Utilities ===
 
 pub fn exists(path: String) -> bool {

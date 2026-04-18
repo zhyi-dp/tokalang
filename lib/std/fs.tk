@@ -14,7 +14,7 @@
 import std/sys/os as sys
 import std/string::{String}
 import core/types::{Addr, ADDR0}
-import std/io
+import std/io::{File, IoStringResult}
 import core/result::{Result}
 import core/option::{Option}
 
@@ -146,4 +146,36 @@ pub fn metadata(path: String) -> Result<Metadata, String> {
         sys::stat_free_impl(handle)
         return FsResult::Ok(m)
     }
+}
+
+pub fn read_to_string(path: String) -> IoStringResult {
+    auto f_res = File::open(path, String::from("r"))
+    if f_res.is_err() {
+        return IoStringResult::Err(String::from("Failed to open file for reading"))
+    }
+    
+    // Note: To bypass the compiler code gen bug during generic reflection on Encaps, 
+    // it's essential we explicitly invoke close or let drop handle it.
+    auto f# = f_res.unwrap()
+    auto s_res = f#.read_to_string()
+    f#.close()
+    
+    return s_res
+}
+
+pub fn write_string(path: String, content: String) -> Result<bool, String> {
+    auto f_res = File::open(path, String::from("w"))
+    if f_res.is_err() {
+        return Result<bool, String>::Err(String::from("Failed to open file for writing"))
+    }
+    
+    auto f# = f_res.unwrap()
+    auto write_len = f#.write(content)
+    f#.close()
+    
+    if write_len != content.len() as usize {
+        return Result<bool, String>::Err(String::from("Failed to write all content to file"))
+    }
+    
+    return Result<bool, String>::Ok(true)
 }
