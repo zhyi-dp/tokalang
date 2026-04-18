@@ -38,8 +38,7 @@ pub fn ws_accept_async(stream#: TcpStream) -> async Result<WsConnection, String>
         auto req_str = String::from_raw(*#buf as *u8, bytes_read)
         unsafe { unsafe free [4096] *#buf }
         
-        auto key_marker_tmp = String::from("Sec-WebSocket-Key: ")
-        auto key_marker = key_marker_tmp.as_view()
+        auto key_marker = v"Sec-WebSocket-Key: "
         auto req_view = req_str.as_view()
         auto idx_opt = req_view.index_of_str(key_marker)
         if idx_opt.is_none() {
@@ -48,8 +47,7 @@ pub fn ws_accept_async(stream#: TcpStream) -> async Result<WsConnection, String>
         auto start_idx = idx_opt.unwrap() + key_marker.len()
         
         auto rest_view = req_view.substring(start_idx, req_view.len())
-        auto crlf_tmp = String::from("\r\n")
-        auto crlf = crlf_tmp.as_view()
+        auto crlf = v"\r\n"
         auto end_idx_opt = rest_view.index_of_str(crlf)
         if end_idx_opt.is_none() {
             return Result<WsConnection, String>::Err(String::from("Malformed headers"))
@@ -62,17 +60,14 @@ pub fn ws_accept_async(stream#: TcpStream) -> async Result<WsConnection, String>
         auto b64_res = base64::encode((*#sha1_res as Addr), 20)
         unsafe { unsafe free [20] *#sha1_res }
         
-        auto resp# = String::from("HTTP/1.1 101 Switching Protocols\r\n")
-        resp#.push_str("Upgrade: websocket\r\n")
-        resp#.push_str("Connection: Upgrade\r\n")
-        resp#.push_str("Sec-WebSocket-Accept: ")
-        resp#.push_str(b64_res.c_str())
-        resp#.push_str("\r\n\r\n")
+        auto w1 = stream#.write_view_async(v"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ").await
+        if w1.is_err() { return Result<WsConnection, String>::Err(String::from("Handshake write failed")) }
         
-        auto write_r = stream#.write_string_async(resp).await
-        if write_r.is_err() {
-            return Result<WsConnection, String>::Err(String::from("Handshake write failed"))
-        }
+        auto w2 = stream#.write_string_async(b64_res).await
+        if w2.is_err() { return Result<WsConnection, String>::Err(String::from("Handshake write failed")) }
+        
+        auto w3 = stream#.write_view_async(v"\r\n\r\n").await
+        if w3.is_err() { return Result<WsConnection, String>::Err(String::from("Handshake write failed")) }
         
         return Result<WsConnection, String>::Ok(WsConnection(stream=stream.clone(), is_client=false))
     }
@@ -184,7 +179,7 @@ impl WsConnection {
         return Result<String, String>::Ok(ret_str)
     }
 
-    pub fn write_text_async(self#, s: String) -> async Result<usize, String> {
+    pub fn write_text_async(self#, s: view_str) -> async Result<usize, String> {
         auto p_len = s.len()
         
         // Write header
@@ -214,7 +209,7 @@ impl WsConnection {
         }
         
         // Write unmasked payload
-        auto wr_p = self.stream#.write_string_async(s).await
+        auto wr_p = self.stream#.write_view_async(s).await
         if wr_p.is_err() {
             return Result<usize, String>::Err(String::from("WS payload write fail"))
         }

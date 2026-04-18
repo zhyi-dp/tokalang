@@ -31,10 +31,10 @@ fn server_task(server#: TcpListener) -> async i32 {
     assert(msg.eq(String::from("Hello, Toka WS!")), "Message mismatch!")
     
     // Echo back
-    auto wr_res = ws_conn#.write_text_async(String::from("Echo: ")).await
+    auto wr_res = ws_conn#.write_text_async(v"Echo: ").await
     if wr_res.is_err() { return 4 }
     
-    auto wr2 = ws_conn#.write_text_async(msg).await
+    auto wr2 = ws_conn#.write_text_async(msg.as_view()).await
     if wr2.is_err() { return 5 }
     
     return 0
@@ -49,8 +49,8 @@ fn client_task() -> async i32 {
     
     auto stream# = stream_res.unwrap()
     
-    auto req = String::from("GET / HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n")
-    auto wr_r = stream#.write_string_async(req).await
+    auto req = v"GET / HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n"
+    auto wr_r = stream#.write_view_async(req).await
     
     // Read response handshake
     auto *buf# = unsafe alloc [4096] u8
@@ -58,8 +58,8 @@ fn client_task() -> async i32 {
     unsafe { unsafe free [4096] *#buf }
     
     // Write a masked text frame (Payload: "Hello, Toka WS!") (15 bytes)
-    auto p_str = String::from("Hello, Toka WS!")
-    auto p_len = p_str.len() as usize
+    auto p_str = v"Hello, Toka WS!"
+    auto p_len = p_str.len()
     
     auto *f_buf# = unsafe alloc [32] u8
     unsafe {
@@ -76,7 +76,7 @@ fn client_task() -> async i32 {
     auto m0 = 0x01:i32; auto m1 = 0x02:i32; auto m2 = 0x03:i32; auto m3 = 0x04:i32
     
     auto *temp_buf# = unsafe alloc [32] u8
-    libc_memcpy((*#temp_buf as *void), (p_str.c_str() as *void), p_len)
+    libc_memcpy((*#temp_buf as *void), (p_str.raw_ptr() as *void), p_len)
     
     unsafe {
         while i < p_len {

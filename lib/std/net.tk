@@ -191,6 +191,16 @@ impl TcpStream {
         return self#.write_async(*ptr, s.len() as usize).await
     }
 
+    pub fn write_view(self#, v: view_str) -> Result<usize, String> {
+        auto *ptr = v.raw_ptr() as *u8
+        return self#.write(*ptr, v.len())
+    }
+
+    pub fn write_view_async(self#, v: view_str) -> async Result<usize, String> {
+        auto *ptr = v.raw_ptr() as *u8
+        return self#.write_async(*ptr, v.len()).await
+    }
+
     pub fn read_async(self#, *buf: u8, len: usize) -> async Result<usize, String> {
         return net_async_read(self, *buf, len).await
     }
