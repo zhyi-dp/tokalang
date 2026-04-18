@@ -68,7 +68,7 @@ pub fn now() -> Time {
 impl Instant {
     pub fn now() -> Instant {
         unsafe {
-            auto tv_addr = libc_malloc(16:usize) as Addr
+            auto tv_addr = libc_malloc(16) as Addr
             libc_gettimeofday(tv_addr as *void, null)
             
             auto *p_sec = tv_addr as *[i64]

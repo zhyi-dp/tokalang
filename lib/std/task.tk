@@ -37,9 +37,9 @@ shape TimerEntry(
 // ==========================================
 // 全局就绪任务队列 (基于底层内联 pthread_mutex + Vec)
 // ==========================================
-auto g_task_queue# = Vec<TaskPtr>(*buf=null, len=0:usize, cap=0:usize)
-auto g_timer_queue# = Vec<TimerEntry>(*buf=null, len=0:usize, cap=0:usize)
-auto g_detached_tasks# = Vec<usize>(*buf=null, len=0:usize, cap=0:usize)
+auto g_task_queue# = Vec<TaskPtr>(*buf=null, len=0, cap=0)
+auto g_timer_queue# = Vec<TimerEntry>(*buf=null, len=0, cap=0)
+auto g_detached_tasks# = Vec<usize>(*buf=null, len=0, cap=0)
 auto g_mutex_ptr#: Addr = 0:Addr
 auto g_mutex_init#: bool = false
 auto g_reactor_fd#: i32 = -1
@@ -53,7 +53,7 @@ pub fn get_reactor_fd() -> i32 {
 
 fn lock_queue() {
     if !g_mutex_init {
-        g_mutex_ptr = (libc_malloc(64:usize) as *byte) as Addr
+        g_mutex_ptr = (libc_malloc(64) as *byte) as Addr
         libc_pthread_mutex_init(g_mutex_ptr, 0:Addr)
         g_mutex_init = true
     }
@@ -103,14 +103,14 @@ pub fn __toka_spawn_blocking(*task: void) {
         auto timer_q_len = g_timer_queue.len()
         unlock_queue()
 
-        if __toka_coro_done(*task) && task_q_len == 0:usize && timer_q_len == 0:usize {
+        if __toka_coro_done(*task) && task_q_len == 0 && timer_q_len == 0 {
             break
         }
         
         lock_queue()
         auto now = current_time_ms()
-        auto keep_len# = 0:usize
-        auto j# = 0:usize
+        auto keep_len#: usize = 0
+        auto j#: usize = 0
         auto initial_timer_len = g_timer_queue.len()
         
         // Timer Queue 检查并释放到期的挂起协程到 Task Queue
@@ -132,10 +132,10 @@ pub fn __toka_spawn_blocking(*task: void) {
         }
         
         // 尝试从就绪队列消费协程
-        if g_task_queue.len() > 0:usize {
+        if g_task_queue.len() > 0 {
             auto tl = g_task_queue.len()
             auto popped = g_task_queue.get(0)
-            auto k# = 1:usize
+            auto k#: usize = 1
             while k < tl {
                 g_task_queue#.set(k - 1, g_task_queue.get(k))
                 k += 1
@@ -153,8 +153,8 @@ pub fn __toka_spawn_blocking(*task: void) {
         
         // Garbage Collector for dropped TaskHandles
         lock_queue()
-        auto d_i# = 0:usize
-        auto keep_d# = 0:usize
+        auto d_i#: usize = 0
+        auto keep_d#: usize = 0
         auto d_len = g_detached_tasks.len()
         while d_i < d_len {
             auto detached_val = g_detached_tasks.get(d_i)
@@ -179,9 +179,9 @@ pub fn __toka_spawn_blocking(*task: void) {
         auto timeout_ms# = 100 // default max delay
         lock_queue()
         auto timer_len = g_timer_queue.len()
-        if timer_len > 0:usize {
+        if timer_len > 0 {
             auto min_expire# = g_timer_queue.get(0).expire_at
-            auto i# = 1:usize
+            auto i#: usize = 1
             while i < timer_len {
                 auto exp = g_timer_queue.get(i).expire_at
                 if exp < min_expire { min_expire = exp }
@@ -199,7 +199,7 @@ pub fn __toka_spawn_blocking(*task: void) {
 
         // Block on the reactor
         unsafe {
-            auto *events# = libc_malloc(512:usize) as *Addr
+            auto *events# = libc_malloc(512) as *Addr
             if *events as usize != 0 {
                 auto n = sys::reactor_wait_impl(g_reactor_fd, timeout_ms, *events, 64)
                 

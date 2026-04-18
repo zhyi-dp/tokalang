@@ -161,7 +161,7 @@ impl String {
     }
 
     pub fn from_str(s: str) -> String {
-        if s.len() == 0:usize { return String::from("") }
+        if s.len() == 0 { return String::from("") }
         unsafe {
             return String::from_with_len(&(s.buf()[0]), s.len() as i32)
         }
@@ -300,7 +300,7 @@ impl String {
     }
 
     pub fn push_buf(self#, *buf: u8, count: usize) -> i32 {
-        if count == 0:usize { return 1 }
+        if count == 0 { return 1 }
         unsafe {
             auto needed = self.len + (count as i32)
             if needed >= self.cap {

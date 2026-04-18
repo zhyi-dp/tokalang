@@ -31,8 +31,8 @@ impl Counter {
 
 pub shape Vec<'T> (
     nul *#buf#: ['T] = null as *['T],
-    len#: usize = 0:usize,
-    cap#: usize = 0:usize
+    len#: usize = 0,
+    cap#: usize = 0
 )
 
 // Explictly bypass raw-pointer structural block by declaring Vec is Send/Sync when its payload is
@@ -179,8 +179,8 @@ impl<'T> Vec<'T> {
     pub fn unsafe_forget(self#) {
         unsafe {
             self.*buf = null
-            self.cap = 0:usize
-            self.len = 0:usize
+            self.cap = 0
+            self.len = 0
         }
     }
 
@@ -208,8 +208,8 @@ impl<'T> Vec<'T> {
             // This is used when ownership is manually transferred
             auto *ptr = self.*buf as *['T]
             self.*buf = null
-            self.cap = 0:usize
-            self.len = 0:usize
+            self.cap = 0
+            self.len = 0
             return *ptr
         }
     }
@@ -292,8 +292,8 @@ impl<'T> Vec<'T> {
 
 pub shape VecIterator<'T> (
     nul *#buf#: ['T] = null as *['T],
-    len#: usize = 0:usize,
-    pos#: usize = 0:usize
+    len#: usize = 0,
+    pos#: usize = 0
 )
 
 impl<'T> VecIterator<'T>@encap {

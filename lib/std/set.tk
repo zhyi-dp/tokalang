@@ -38,6 +38,6 @@ impl<'T> HashSet<'T> {
     }
 
     pub fn is_empty(self) -> bool {
-        return self.map.len() == 0:usize
+        return self.map.len() == 0
     }
 }

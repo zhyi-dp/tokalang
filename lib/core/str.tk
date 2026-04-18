@@ -63,18 +63,18 @@ impl ViewStrSplitIterator {
                 auto b_addr = &(self.buf[0]) as Addr
                 auto ptr_addr = b_addr + self.pos
                 auto ret# = view_str(&buf = self.&buf, len = remaining)
-                libc_memcpy(&ret as *void, &ptr_addr as *void, 8:usize)
+                libc_memcpy(&ret as *void, &ptr_addr as *void, 8)
                 return Option<view_str>::Some(ret)
             }
         }
         
         unsafe {
             auto i# = self.pos
-            auto max_i# = 0:usize
+            auto max_i#: usize = 0
             if self.len >= self.sep.len + self.pos {
                 max_i = self.len - self.sep.len
             } else {
-                max_i = 0:usize // Force no match loop if segment is smaller than separator
+                max_i = 0 // Force no match loop if segment is smaller than separator
                 if self.len < self.pos {
                     // Prevent underflow if pos somehow > len
                     max_i = 0
@@ -105,7 +105,7 @@ impl ViewStrSplitIterator {
                 auto b_addr = &(self.buf[0]) as Addr
                 auto ptr_addr = b_addr + start
                 auto ret# = view_str(&buf = self.&buf, len = segment_len)
-                libc_memcpy(&ret as *void, &ptr_addr as *void, 8:usize)
+                libc_memcpy(&ret as *void, &ptr_addr as *void, 8)
                 return Option<view_str>::Some(ret)
             } else {
                 // No more separators, emit the last part
@@ -114,7 +114,7 @@ impl ViewStrSplitIterator {
                 auto b_addr = &(self.buf[0]) as Addr
                 auto ptr_addr = b_addr + start
                 auto ret# = view_str(&buf = self.&buf, len = segment_len)
-                libc_memcpy(&ret as *void, &ptr_addr as *void, 8:usize)
+                libc_memcpy(&ret as *void, &ptr_addr as *void, 8)
                 return Option<view_str>::Some(ret)
             }
         }
@@ -219,7 +219,7 @@ impl view_str@StrCommon {
         if needle.len == 0 { return Option<usize>::Some(0) }
         if needle.len > self.len { return Option<usize>::None }
         unsafe {
-            auto i# = 0:usize
+            auto i#: usize = 0
             auto max_i = self.len - needle.len
             while i <= max_i {
                 if libc_memcmp(&(self.buf[i]) as *void, &(needle.buf[0]) as *void, needle.len) == 0 {
@@ -244,7 +244,7 @@ impl view_str@StringOps {
     pub fn index_of(self, c: char) -> Option<usize> {
         if self.len == 0 { return Option<usize>::None }
         unsafe {
-            auto i# = 0:usize
+            auto i#: usize = 0
             while i < self.len {
                 if self.buf[i] == c { return Option<usize>::Some(i) }
                 i = i + 1
@@ -302,7 +302,7 @@ impl view_str@StringOps {
             
             // 2. Overwrite the internal array pointer (offset 0) unconditionally via FFI
             // This safely bypasses Toka's raw pointer immutability laws (E0406/E0443)
-            libc_memcpy(&ret as *void, &ptr_addr as *void, 8:usize)
+            libc_memcpy(&ret as *void, &ptr_addr as *void, 8)
             return ret
         }
     }
@@ -312,7 +312,7 @@ impl view_str@StringOps {
         res.&buf <- self.buf
     {
         if start > end || start >= self.len {
-            return self.substr(0:usize, 0:usize)
+            return self.substr(0, 0)
         }
         auto length = end - start
         return self.substr(start, length)
@@ -324,7 +324,7 @@ impl view_str@StringOps {
     {
         if self.len == 0 { return self.clone() }
         
-        auto start# = 0:usize
+        auto start#: usize = 0
         auto end# = self.len
         
         unsafe {
@@ -360,7 +360,7 @@ impl view_str@StringOps {
             auto b_addr = &(self.buf[0]) as Addr
             auto ptr_addr = b_addr + start
             auto ret# = view_str(&buf = self.&buf, len = actual_len)
-            libc_memcpy(&ret as *void, &ptr_addr as *void, 8:usize)
+            libc_memcpy(&ret as *void, &ptr_addr as *void, 8)
             return ret
         }
     }
@@ -378,15 +378,15 @@ impl view_str@StringOps {
     pub fn to_i32(self) -> Option<i32> {
         if self.len == 0 { return Option<i32>::None }
         unsafe {
-            auto i# = 0:usize
+            auto i#: usize = 0
             auto ret#: i32 = 0
             auto sign#: i32 = 1
             if self.buf[0] == '-' {
                 sign = -1
-                i = 1:usize
+                i = 1
                 if self.len == 1 { return Option<i32>::None }
             } else if self.buf[0] == '+' {
-                i = 1:usize
+                i = 1
                 if self.len == 1 { return Option<i32>::None }
             }
             while i < self.len {

@@ -12,8 +12,8 @@ pub shape HashMap<'K, 'V> (
     keys#: Vec<'K> = Vec<'K>(..),
     vals#: Vec<'V> = Vec<'V>(..),
     meta#: Vec<u8> = Vec<u8>(..), // 0=Empty, 1=Occupied
-    len#: usize = 0:usize,
-    cap#: usize = 0:usize
+    len#: usize = 0,
+    cap#: usize = 0
 )
 
 impl<'K, 'V> HashMap<'K, 'V>@encap {
@@ -188,14 +188,14 @@ impl<'K, 'V> HashMap<'K, 'V> {
             auto new_m# = Vec<u8>::with_capacity(new_cap) // Empty buffer
             
             // Populate meta with 0 up to new_cap
-            auto j# = 0:usize
+            auto j#: usize = 0
             while j < new_cap {
                 new_m#.push(0)
                 j += 1
             }
             
             // Re-hash and move elements
-            auto i# = 0:usize
+            auto i#: usize = 0
             auto moved_count# = 0
             while i < self.cap {
                 auto *m_ptr#: u8 = self.meta.unsafe_get(i)
@@ -280,7 +280,7 @@ impl<'K, 'V> HashMap<'K, 'V> {
              *vals_ptr = self.vals.unsafe_as_raw(),
              *meta_ptr = self.meta.unsafe_as_raw(),
              cap  = self.cap,
-             pos  = 0:usize
+             pos  = 0
         )
     }
 }

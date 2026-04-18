@@ -80,7 +80,7 @@ pub fn path_exists(path: Addr) -> bool {
 
 pub fn stat_impl(path: Addr) -> Addr {
     unsafe {
-        auto *buf# = libc_malloc(144:usize) // 144 bytes for struct stat
+        auto *buf# = libc_malloc(144) // 144 bytes for struct stat
         // buf is the soul (void), *buf is the handle (*void)
         // To check for null, we compare the handle
         if *buf == (0:Addr as *void) {
@@ -147,7 +147,7 @@ pub fn getcwd_impl() -> String {
     unsafe {
         // Real implementation using getcwd
         auto *buf = libc_malloc(1024) as *char
-        auto res_addr = libc_getcwd(*buf, 1024:usize)
+        auto res_addr = libc_getcwd(*buf, 1024)
         if res_addr == ADDR0 {
              libc_free(*buf as *void)
              return String::from("")
@@ -286,15 +286,15 @@ pub fn reactor_add_write_impl(reactor_fd: i32, fd: i32, coro_handle: Addr) -> bo
         auto base = *ev as usize
         auto *p_ident# = base as *u64
         p_ident = fd as u64
-        auto *p_filter# = (base + 8:usize) as *i16
+        auto *p_filter# = (base + 8) as *i16
         p_filter = -2:i16
-        auto *p_flags# = (base + 10:usize) as *u16
+        auto *p_flags# = (base + 10) as *u16
         p_flags = 21:u16
-        auto *p_fflags# = (base + 12:usize) as *u32
+        auto *p_fflags# = (base + 12) as *u32
         p_fflags = 0:u32
-        auto *p_data# = (base + 16:usize) as *i64
+        auto *p_data# = (base + 16) as *i64
         p_data = 0
-        auto *p_udata# = (base + 24:usize) as *Addr
+        auto *p_udata# = (base + 24) as *Addr
         p_udata = coro_handle
         
         auto res = kevent(reactor_fd, *ev as *void, 1, 0:Addr as *void, 0, 0:Addr as *void)
@@ -424,23 +424,23 @@ pub fn reactor_add_read_impl(reactor_fd: i32, fd: i32, coro_handle: Addr) -> boo
         p_ident = fd as u64
         
         // filter = EVFILT_READ (-1)
-        auto *p_filter# = (base + 8:usize) as *i16
+        auto *p_filter# = (base + 8) as *i16
         p_filter = -1:i16
         
         // flags = EV_ADD (1) | EV_ONESHOT (16) | EV_ENABLE (4) = 21 (0x15)
-        auto *p_flags# = (base + 10:usize) as *u16
+        auto *p_flags# = (base + 10) as *u16
         p_flags = 21:u16
         
         // fflags = 0
-        auto *p_fflags# = (base + 12:usize) as *u32
+        auto *p_fflags# = (base + 12) as *u32
         p_fflags = 0:u32
         
         // data = 0
-        auto *p_data# = (base + 16:usize) as *i64
+        auto *p_data# = (base + 16) as *i64
         p_data = 0
         
         // udata = coro_handle
-        auto *p_udata# = (base + 24:usize) as *Addr
+        auto *p_udata# = (base + 24) as *Addr
         p_udata = coro_handle
         
         auto res = kevent(reactor_fd, *ev as *void, 1, 0:Addr as *void, 0, 0:Addr as *void)
@@ -463,23 +463,23 @@ pub fn reactor_add_write_impl(reactor_fd: i32, fd: i32, coro_handle: Addr) -> bo
         p_ident = fd as u64
         
         // filter = EVFILT_WRITE (-2)
-        auto *p_filter# = (base + 8:usize) as *i16
+        auto *p_filter# = (base + 8) as *i16
         p_filter = -2:i16
         
         // flags = EV_ADD (1) | EV_ONESHOT (16) | EV_ENABLE (4) = 21 (0x15)
-        auto *p_flags# = (base + 10:usize) as *u16
+        auto *p_flags# = (base + 10) as *u16
         p_flags = 21:u16
         
         // fflags = 0
-        auto *p_fflags# = (base + 12:usize) as *u32
+        auto *p_fflags# = (base + 12) as *u32
         p_fflags = 0:u32
         
         // data = 0
-        auto *p_data# = (base + 16:usize) as *i64
+        auto *p_data# = (base + 16) as *i64
         p_data = 0
         
         // udata = coro_handle
-        auto *p_udata# = (base + 24:usize) as *Addr
+        auto *p_udata# = (base + 24) as *Addr
         p_udata = coro_handle
         
         auto res = kevent(reactor_fd, *ev as *void, 1, 0:Addr as *void, 0, 0:Addr as *void)
@@ -495,7 +495,7 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
             return -1
         }
         
-        auto *ts_ptr# = libc_malloc(16:usize) as *void
+        auto *ts_ptr# = libc_malloc(16) as *void
         if *ts_ptr as usize == 0 {
             libc_free(*events)
             return -1
@@ -510,7 +510,7 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
         auto ts_base = *ts_ptr as usize
         auto *tv_sec# = ts_base as *i64
         tv_sec = (safe_timeout_ms / 1000) as i64
-        auto *tv_nsec# = (ts_base + 8:usize) as *i64
+        auto *tv_nsec# = (ts_base + 8) as *i64
         tv_nsec = ((safe_timeout_ms % 1000) * 1000000) as i64
         
         auto n = kevent(reactor_fd, 0:Addr as *void, 0, *events, max, *ts_ptr)
@@ -519,7 +519,7 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
         auto i# = 0
         while i < n {
             auto ev_base = *events as usize + ((32 * i) as usize)
-            auto *p_udata = (ev_base + 24:usize) as *Addr
+            auto *p_udata = (ev_base + 24) as *Addr
             auto h = p_udata // value
             auto *dest# = (*out_events as usize + ((8 * i) as usize)) as *Addr
             dest = h

@@ -21,13 +21,13 @@ pub fn args_impl() -> i32 {
             return 0
         }
         auto count# = 0
-        auto i# = 0:usize
+        auto i#: usize = 0
         while i < len as usize {
             auto *p = (*buf as usize + i) as *char
             if p == (0 as char) {
                 count += 1
             }
-            i += 1:usize
+            i += 1
         }
         libc_free(*buf as *void)
         return count
@@ -49,8 +49,8 @@ pub fn get_arg_impl(index: i32) -> String {
         }
         
         auto count# = 0
-        auto i# = 0:usize
-        auto start# = 0:usize
+        auto i#: usize = 0
+        auto start#: usize = 0
         
         while i < len as usize {
             auto *p = (*buf as usize + i) as *char
@@ -62,9 +62,9 @@ pub fn get_arg_impl(index: i32) -> String {
                     return s
                 }
                 count += 1
-                start = i + 1:usize
+                start = i + 1
             }
-            i += 1:usize
+            i += 1
         }
         libc_free(*buf as *void)
         return String::from("")
@@ -122,7 +122,7 @@ pub fn path_exists(path: Addr) -> bool {
 
 pub fn stat_impl(path: Addr) -> Addr {
     unsafe {
-        auto *buf# = libc_malloc(144:usize) // 144 bytes for struct stat
+        auto *buf# = libc_malloc(144) // 144 bytes for struct stat
         // buf is the soul (void), *buf is the handle (*void)
         // To check for null, we compare the handle
         if *buf == (0:Addr as *void) {
@@ -189,7 +189,7 @@ pub fn getcwd_impl() -> String {
     unsafe {
         // Real implementation using getcwd
         auto *buf = libc_malloc(1024) as *char
-        auto res_addr = libc_getcwd(*buf, 1024:usize)
+        auto res_addr = libc_getcwd(*buf, 1024)
         if res_addr == ADDR0 {
              libc_free(*buf as *void)
              return String::from("")
@@ -303,11 +303,11 @@ fn fill_sockaddr_in(*addr_buf: char, ip: usize, port: i32) -> bool {
         p_addr = ip as u32
         
         // Offset 8..16: Zero
-        auto i# = 8:usize
-        while i < 16:usize {
+        auto i#: usize = 8
+        while i < 16 {
             auto *p_z# = (*base_ptr as usize + i) as *char
             p_z = 0 as char
-            i += 1:usize
+            i += 1
         }
         return true
     }
@@ -471,7 +471,7 @@ pub fn reactor_add_read_impl(reactor_fd: i32, fd: i32, coro_handle: Addr) -> boo
         p_events = 1073741825:u32
         
         // data.ptr = coro_handle
-        auto *p_data# = (base + 4:usize) as *Addr
+        auto *p_data# = (base + 4) as *Addr
         p_data = coro_handle  
         
         // 1 = EPOLL_CTL_ADD, 3 = EPOLL_CTL_MOD
@@ -499,7 +499,7 @@ pub fn reactor_add_write_impl(reactor_fd: i32, fd: i32, coro_handle: Addr) -> bo
         p_events = 1073741828:u32
         
         // data.ptr = coro_handle
-        auto *p_data# = (base + 4:usize) as *Addr
+        auto *p_data# = (base + 4) as *Addr
         p_data = coro_handle  
         
         // 1 = EPOLL_CTL_ADD, 3 = EPOLL_CTL_MOD
@@ -526,7 +526,7 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
         auto i# = 0
         while i < n {
             auto ev_base = *events as usize + ((12 * i) as usize)
-            auto *p_data = (ev_base + 4:usize) as *Addr
+            auto *p_data = (ev_base + 4) as *Addr
             auto h = p_data // value
             auto *dest# = (*out_events as usize + ((8 * i) as usize)) as *Addr
             dest = h
