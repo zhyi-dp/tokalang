@@ -1,0 +1,233 @@
+import std/string::{String}
+import std/net::{TcpStream, net_async_read}
+import stdx/crypto/sha1
+import stdx/crypto/base64
+import core/result::{Result}
+import core/types::Addr
+
+pub shape WsOpcode (
+    CONTINUATION = 0x0 |
+    TEXT = 0x1 |
+    BINARY = 0x2 |
+    CLOSE = 0x8 |
+    PING = 0x9 |
+    PONG = 0xA |
+    UNKNOWN = 0x99
+)
+
+pub shape WsConnection (
+    stream: TcpStream,
+    is_client: bool
+)
+
+impl WsConnection@encap {
+    pub stream
+    pub is_client
+    fn drop(self#) {} 
+}
+
+pub fn ws_accept_async(stream#: TcpStream) -> async Result<WsConnection, String> {
+        auto *buf# = unsafe alloc [4096] u8
+        auto bytes_opt = net_async_read(stream, *#buf as *u8, 4096).await
+        if bytes_opt.is_err() {
+            unsafe { unsafe free [4096] *#buf }
+            return Result<WsConnection, String>::Err(String::from("Failed WS HTTP read"))
+        }
+        auto bytes_read = bytes_opt.unwrap()
+
+        auto req_str# = String::from("")
+        auto i#: usize = 0
+        unsafe {
+            while i < bytes_read {
+                unsafe { req_str#.push_char(buf[i] as char) }
+                i += 1
+            }
+            unsafe free [4096] *#buf
+        }
+        
+        auto key_marker = String::from("Sec-WebSocket-Key: ")
+        auto idx = req_str.find_str(key_marker)
+        if idx < 0 {
+            return Result<WsConnection, String>::Err(String::from("Missing Sec-WebSocket-Key"))
+        }
+        auto start_idx = idx + (key_marker.len() as i32)
+        
+        auto rest = req_str.substring(start_idx, req_str.len() as i32)
+        auto crlf = String::from("\r\n")
+        auto end_idx = rest.find_str(crlf)
+        if end_idx < 0 {
+            return Result<WsConnection, String>::Err(String::from("Malformed headers"))
+        }
+        
+        auto swk# = rest.substring(0, end_idx)
+        swk#.push_str("258EAFA5-E914-47DA-95CA-C5AB0DC85B11")
+        
+        auto *sha1_res# = sha1::hash(swk.c_str() as Addr, swk.len())
+        auto b64_res = base64::encode((*#sha1_res as Addr), 20)
+        unsafe { unsafe free [20] *#sha1_res }
+        
+        auto resp# = String::from("HTTP/1.1 101 Switching Protocols\r\n")
+        resp#.push_str("Upgrade: websocket\r\n")
+        resp#.push_str("Connection: Upgrade\r\n")
+        resp#.push_str("Sec-WebSocket-Accept: ")
+        resp#.push_str(b64_res.c_str())
+        resp#.push_str("\r\n\r\n")
+        
+        auto write_r = stream#.write_string_async(resp).await
+        if write_r.is_err() {
+            return Result<WsConnection, String>::Err(String::from("Handshake write failed"))
+        }
+        
+        return Result<WsConnection, String>::Ok(WsConnection(stream=stream.clone(), is_client=false))
+    }
+
+impl WsConnection {
+    pub fn read_text_async(self#) -> async Result<String, String> {
+        // Read 2 bytes framing header
+        auto *head# = unsafe alloc [2] u8
+        auto r1 = net_async_read(self.stream, *#head as *u8, 2).await
+        if r1.is_err() {
+            unsafe { unsafe free [2] *#head }
+            return Result<String, String>::Err(String::from("Failed to read WS header"))
+        }
+        
+        auto b0#: u8 = 0:u8
+        auto b1#: u8 = 0:u8
+        unsafe {
+            b0 = head[0]
+            b1 = head[1]
+            unsafe free [2] *#head
+        }
+
+        auto fin = (b0 & 0x80:u8) != 0:u8
+        auto opcode = b0 & 0x0F:u8
+        auto masked = (b1 & 0x80:u8) != 0:u8
+        
+        auto payload_len# = (b1 & 0x7F:u8) as usize
+        
+        if payload_len == 126 {
+            auto *ext# = unsafe alloc [2] u8
+            auto r_ext = net_async_read(self.stream, *#ext as *u8, 2).await
+            if r_ext.is_err() {
+                unsafe { unsafe free [2] *#ext }
+                return Result<String, String>::Err(String::from("Failed to read WS ext len"))
+            }
+            unsafe { payload_len = ((ext[0] as usize) << 8) | (ext[1] as usize) }
+            unsafe { unsafe free [2] *#ext }
+        } else if payload_len == 127 {
+            auto *ext8# = unsafe alloc [8] u8
+            auto r_ext8 = net_async_read(self.stream, *#ext8 as *u8, 8).await
+            if r_ext8.is_err() {
+                unsafe { unsafe free [8] *#ext8 }
+                return Result<String, String>::Err(String::from("Failed to read WS ext len 8"))
+            }
+            // For simplicity in Toka memory logic, let's assume it fits in usize
+            unsafe { payload_len = ((ext8[4] as usize) << 24) | ((ext8[5] as usize) << 16) | ((ext8[6] as usize) << 8) | (ext8[7] as usize) }
+            unsafe { unsafe free [8] *#ext8 }
+        }
+
+        auto *mask_key# = unsafe alloc [4] u8
+        unsafe {
+            mask_key[0] = 0:u8; mask_key[1] = 0:u8; mask_key[2] = 0:u8; mask_key[3] = 0:u8
+        }
+        
+        if masked {
+            auto *m# = unsafe alloc [4] u8
+            auto rm = net_async_read(self.stream, *#m as *u8, 4).await
+            if rm.is_err() {
+                unsafe { unsafe free [4] *#m }
+                unsafe { unsafe free [4] *#mask_key }
+                return Result<String, String>::Err(String::from("Failed to read WS mask"))
+            }
+            unsafe { mask_key[0] = m[0]; mask_key[1] = m[1]; mask_key[2] = m[2]; mask_key[3] = m[3] }
+            unsafe { unsafe free [4] *#m }
+        }
+
+        if payload_len == 0 {
+            unsafe { unsafe free [4] *#mask_key }
+            return Result<String, String>::Ok(String::from(""))
+        }
+
+        auto *payload# = unsafe alloc [payload_len] u8
+        
+        // Fully read remainder buffer
+        auto total_read#: usize = 0
+        unsafe {
+            while total_read < payload_len {
+                auto to_rd = payload_len - total_read
+                auto rd_addr = ((*#payload as usize) + total_read) as Addr
+                auto *rd_ptr# = rd_addr as *[0]u8
+                auto r_p = net_async_read(self.stream, *#rd_ptr as *u8, to_rd).await
+                if r_p.is_err() {
+                    unsafe free [payload_len] *#payload
+                    return Result<String, String>::Err(String::from("Payload read failed mid-way"))
+                }
+                auto nr = r_p.unwrap()
+                if nr == 0 {
+                    unsafe free [payload_len] *#payload
+                    return Result<String, String>::Err(String::from("Peer closed during payload"))
+                }
+                total_read += nr
+            }
+        }
+        
+        auto ret_str# = String::from("")
+        auto i#: usize = 0
+        unsafe {
+            while i < payload_len {
+                auto b#: i32 = 0
+                unsafe {
+                    auto p_b# = payload[i]
+                    if masked {
+                        p_b = p_b ^ mask_key[i % 4]
+                    }
+                    b = p_b as i32
+                }
+                ret_str#.push_char(b as char)
+                i += 1
+            }
+            unsafe free [payload_len] *#payload
+        }
+
+        return Result<String, String>::Ok(ret_str)
+    }
+
+    pub fn write_text_async(self#, s: String) -> async Result<usize, String> {
+        auto p_len = s.len()
+        
+        // Write header
+        auto *head# = unsafe alloc [10] u8
+        unsafe { head[0] = 0x81:u8 } // FIN + TEXT
+        
+        auto head_len#: usize = 2
+        
+        if p_len < 126 {
+            unsafe { head[1] = p_len as u8 } // unmasked
+        } else if p_len < 65536 {
+            unsafe {
+                head[1] = 126:u8
+                head[2] = ((p_len >> 8) & 0xFF) as u8
+                head[3] = (p_len & 0xFF) as u8
+            }
+            head_len = 4
+        } else {
+            unsafe { unsafe free [10] *#head }
+            return Result<usize, String>::Err(String::from("Too large for test WS text writer"))
+        }
+        
+        auto wr_h = self.stream#.write_async(*#head as *u8, head_len).await
+        unsafe { unsafe free [10] *#head }
+        if wr_h.is_err() {
+            return Result<usize, String>::Err(String::from("WS header write fail"))
+        }
+        
+        // Write unmasked payload
+        auto wr_p = self.stream#.write_string_async(s).await
+        if wr_p.is_err() {
+            return Result<usize, String>::Err(String::from("WS payload write fail"))
+        }
+        
+        return Result<usize, String>::Ok(p_len)
+    }
+
+}

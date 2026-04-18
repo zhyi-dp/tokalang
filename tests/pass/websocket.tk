@@ -1,0 +1,144 @@
+import std/net::{TcpListener, SocketAddrV4, Ipv4Addr, TcpStream, net_async_accept, net_async_read}
+import std/task::{block_on, sleep_async}
+import std/io::println
+import std/string::String
+import core/result::Result
+import core/libc
+import stdx/websocket::{WsConnection, ws_accept_async}
+
+fn server_task(server#: TcpListener) -> async i32 {
+    auto accept_res = net_async_accept(server).await
+    if accept_res.is_err() {
+        return 1
+    }
+    auto stream# = accept_res.unwrap()
+    
+    // Upgrade
+    auto ws_conn_res = ws_accept_async(stream).await
+    if ws_conn_res.is_err() {
+        return 2
+    }
+    
+    auto ws_conn# = ws_conn_res.unwrap()
+    
+    // Read text message
+    auto msg_res = ws_conn#.read_text_async().await
+    if msg_res.is_err() {
+        return 3
+    }
+    auto msg = msg_res.unwrap()
+    
+    assert(msg.eq(String::from("Hello, Toka WS!")), "Message mismatch!")
+    
+    // Echo back
+    auto wr_res = ws_conn#.write_text_async(String::from("Echo: ")).await
+    if wr_res.is_err() { return 4 }
+    
+    auto wr2 = ws_conn#.write_text_async(msg).await
+    if wr2.is_err() { return 5 }
+    
+    return 0
+}
+
+fn client_task() -> async i32 {
+    sleep_async(200).await
+    auto addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 9031)
+    
+    auto stream_res = TcpStream::connect(addr)
+    if stream_res.is_err() { return 11 }
+    
+    auto stream# = stream_res.unwrap()
+    
+    auto req = String::from("GET / HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n")
+    auto wr_r = stream#.write_string_async(req).await
+    
+    // Read response handshake
+    auto *buf# = unsafe alloc [4096] u8
+    auto r1 = net_async_read(stream, *#buf as *u8, 4096).await
+    unsafe { unsafe free [4096] *#buf }
+    
+    // Write a masked text frame (Payload: "Hello, Toka WS!") (15 bytes)
+    auto p_str = String::from("Hello, Toka WS!")
+    auto p_len = p_str.len() as usize
+    
+    auto *f_buf# = unsafe alloc [32] u8
+    unsafe {
+        f_buf[0] = 0x81:u8
+        auto m_bit = 128:usize
+        auto val = m_bit | p_len
+        f_buf[1] = val as u8 // Masked, length 15
+        f_buf[2] = 0x01:u8 // Mask Key[0]
+        f_buf[3] = 0x02:u8 // Mask Key[1]
+        f_buf[4] = 0x03:u8 // Mask Key[2]
+        f_buf[5] = 0x04:u8 // Mask Key[3]
+    }
+    auto i#: usize = 0
+    auto m0 = 0x01:i32; auto m1 = 0x02:i32; auto m2 = 0x03:i32; auto m3 = 0x04:i32
+    
+    auto *temp_buf# = unsafe alloc [32] u8
+    libc_memcpy((*#temp_buf as *void), (p_str.c_str() as *void), p_len)
+    
+    unsafe {
+        while i < p_len {
+            unsafe {
+                auto original = temp_buf[i] as i32
+                auto idx2 = i % 4:usize
+                auto m_val# = 0:i32
+                if idx2 == 0:usize { m_val = m0 }
+                else if idx2 == 1:usize { m_val = m1 }
+                else if idx2 == 2:usize { m_val = m2 }
+                else { m_val = m3 }
+                auto masked = original ^ m_val
+                f_buf[6 + i] = masked as u8
+            }
+            i += 1
+        }
+    }
+    
+    unsafe { unsafe free [32] *#temp_buf }
+    auto fw = stream#.write_async(*#f_buf as *u8, 6 + p_len).await
+    unsafe { unsafe free [32] *#f_buf }
+    if fw.is_err() { return 12 }
+    
+    // Read back echoed unmasked frames
+    auto *r_buf# = unsafe alloc [1024] u8
+    auto rb = net_async_read(stream, *#r_buf as *u8, 1024).await
+    if rb.is_err() {
+        unsafe { unsafe free [1024] *#r_buf }
+        return 13
+    }
+    unsafe { unsafe free [1024] *#r_buf }
+    
+    println("WS E2E Client Success!")
+    return 0
+}
+
+// Global test entry
+fn entry_point(listener_arg: TcpListener) -> async i32 {
+    server_task(listener_arg).start
+    auto c_res = client_task().await
+    return c_res
+}
+
+pub fn main() -> i32 {
+    auto addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 9031)
+    
+    auto listen_res = TcpListener::bind(addr)
+    if listen_res.is_err() { 
+        println("Listen bound failed!")
+        return 20 
+    }
+    auto listener# = listen_res.unwrap()
+    
+    // Start entry point
+    auto entry = entry_point(listener).start
+    auto status = block_on<i32>(entry)
+    
+    if status == 0 {
+        println("All WebSocket E2E tasks passed!")
+    } else {
+        println("Failed WS tests!")
+    }
+    
+    return status
+}
