@@ -53,7 +53,7 @@ impl f64@ToJson {
 
 fn json_write_escaped_string(s: view_str, buf#: String) {
     buf#.push_str("\"")
-    auto i# = 0:usize
+    auto i#: usize = 0
     while i < s.len() {
         auto c = s.byte_at(i)
         if c == 34 { buf#.push_str("\\\"") } // '"'
@@ -66,7 +66,7 @@ fn json_write_escaped_string(s: view_str, buf#: String) {
         else {
             buf#.push_char(c as char)
         }
-        i += 1:usize
+        i += 1
     }
     buf#.push_str("\"")
 }
@@ -144,11 +144,11 @@ pub trait @FromJson {
 // 辅助跳过空白字符
 fn json_skip_whitespace(json: view_str) -> view_str {
     auto res# = json
-    while res.len() > 0:usize {
-        auto c = res.byte_at(0:usize)
+    while res.len() > 0 {
+        auto c = res.byte_at(0)
         // space=32, \t=9, \n=10, \r=13
         if c == 32 || c == 9 || c == 10 || c == 13 {
-            res = res.substr(1:usize, res.len() - 1:usize)
+            res = res.substr(1, res.len() - 1)
         } else {
             break
         }
@@ -159,13 +159,13 @@ fn json_skip_whitespace(json: view_str) -> view_str {
 impl i32@FromJson {
     pub fn parse_json(self#, json: view_str) -> JRes {
         auto rem# = json_skip_whitespace(json)
-        if rem.len() == 0:usize { return JRes::Err("EOF waiting for i32") }
+        if rem.len() == 0 { return JRes::Err("EOF waiting for i32") }
         
-        auto i# = 0:usize
+        auto i#: usize = 0
         auto neg# = false
-        if rem.byte_at(0:usize) == 45 { // '-'
+        if rem.byte_at(0) == 45 { // '-'
             neg = true
-            i = 1:usize
+            i = 1
         }
         
         auto val#: i32 = 0
@@ -175,7 +175,7 @@ impl i32@FromJson {
             if c >= 48 && c <= 57 { // '0' to '9'
                 val = val * 10 + (c - 48)
                 found_digit = true
-                i += 1:usize
+                i += 1
             } else {
                 break
             }
@@ -192,13 +192,13 @@ impl i32@FromJson {
 impl i64@FromJson {
     pub fn parse_json(self#, json: view_str) -> JRes {
         auto rem# = json_skip_whitespace(json)
-        if rem.len() == 0:usize { return JRes::Err("EOF waiting for i64") }
+        if rem.len() == 0 { return JRes::Err("EOF waiting for i64") }
         
-        auto i# = 0:usize
+        auto i#: usize = 0
         auto neg# = false
-        if rem.byte_at(0:usize) == 45 { // '-'
+        if rem.byte_at(0) == 45 { // '-'
             neg = true
-            i = 1:usize
+            i = 1
         }
         
         auto val#: i64 = 0:i64
@@ -208,7 +208,7 @@ impl i64@FromJson {
             if c >= 48 && c <= 57 { // '0' to '9'
                 val = val * 10:i64 + ((c - 48) as i64)
                 found_digit = true
-                i += 1:usize
+                i += 1
             } else {
                 break
             }
@@ -224,35 +224,35 @@ impl i64@FromJson {
 
 impl JsonNode@FromJson {
     pub fn parse_json(self#, json_in: view_str) -> JRes {
-        return self#._parse(json_in, 0:usize)
+        return self#._parse(json_in, 0)
     }
     
     fn _parse(self#, json_in: view_str, depth: usize) -> JRes {
-        if depth > 128:usize { return JRes::Err("Depth limit exceeded") }
+        if depth > 128 { return JRes::Err("Depth limit exceeded") }
         
         auto json# = json_skip_whitespace(json_in)
-        if json.len() == 0:usize { return JRes::Err("Unexpected EOF in JsonNode parse") }
+        if json.len() == 0 { return JRes::Err("Unexpected EOF in JsonNode parse") }
         
-        auto c = json.byte_at(0:usize)
+        auto c = json.byte_at(0)
         if c == 123 { // '{' --> ObjectNode
-            json = json.substr(1:usize, json.len() - 1:usize)
+            json = json.substr(1, json.len() - 1)
             auto map = HashMap<String, JsonNode>::new()
             
-            while json.len() > 0:usize && json.byte_at(0:usize) != 125 { // '}'
+            while json.len() > 0 && json.byte_at(0) != 125 { // '}'
                 json = json_skip_whitespace(json)
-                if json.len() > 0:usize && json.byte_at(0:usize) == 125 { break }
+                if json.len() > 0 && json.byte_at(0) == 125 { break }
                 
                 auto key_node#: JsonNode = JsonNode::NullNode(0)
-                json = key_node#._parse(json, depth + 1:usize)!
+                json = key_node#._parse(json, depth + 1)!
                 
                 json = json_skip_whitespace(json)
-                if json.len() == 0:usize || json.byte_at(0:usize) != 58 { // ':'
+                if json.len() == 0 || json.byte_at(0) != 58 { // ':'
                     return JRes::Err("Expected ':' in object")
                 }
-                json = json.substr(1:usize, json.len() - 1:usize)
+                json = json.substr(1, json.len() - 1)
                 
                 auto val_node#: JsonNode = JsonNode::NullNode(0)
-                json = val_node#._parse(json, depth + 1:usize)!
+                json = val_node#._parse(json, depth + 1)!
                 
                 match key_node {
                      JsonNode::StrNode(&k_str) => {
@@ -262,32 +262,32 @@ impl JsonNode@FromJson {
                 }
                 
                 json = json_skip_whitespace(json)
-                if json.len() > 0:usize && json.byte_at(0:usize) == 44 { // ','
-                    json = json.substr(1:usize, json.len() - 1:usize)
+                if json.len() > 0 && json.byte_at(0) == 44 { // ','
+                    json = json.substr(1, json.len() - 1)
                 }
             }
-            if json.len() > 0:usize { json = json.substr(1:usize, json.len() - 1:usize) }
+            if json.len() > 0 { json = json.substr(1, json.len() - 1) }
             self = JsonNode::ObjectNode(cede map)
             return JRes::Ok(json)
         } else if c == 91 { // '[' --> ArrayNode
-            json = json.substr(1:usize, json.len() - 1:usize)
+            json = json.substr(1, json.len() - 1)
             auto vec = Vec<JsonNode>::new()
             
-            while json.len() > 0:usize && json.byte_at(0:usize) != 93 { // ']'
+            while json.len() > 0 && json.byte_at(0) != 93 { // ']'
                 json = json_skip_whitespace(json)
-                if json.len() > 0:usize && json.byte_at(0:usize) == 93 { break }
+                if json.len() > 0 && json.byte_at(0) == 93 { break }
                 
                 auto item_node#: JsonNode = JsonNode::NullNode(0)
-                json = item_node#._parse(json, depth + 1:usize)!
+                json = item_node#._parse(json, depth + 1)!
                 
                 vec#.push(cede item_node)
                 
                 json = json_skip_whitespace(json)
-                if json.len() > 0:usize && json.byte_at(0:usize) == 44 { // ','
-                    json = json.substr(1:usize, json.len() - 1:usize)
+                if json.len() > 0 && json.byte_at(0) == 44 { // ','
+                    json = json.substr(1, json.len() - 1)
                 }
             }
-            if json.len() > 0:usize { json = json.substr(1:usize, json.len() - 1:usize) }
+            if json.len() > 0 { json = json.substr(1, json.len() - 1) }
             self = JsonNode::ArrayNode(cede vec)
             return JRes::Ok(json)
         } else if c == 34 { // '"' --> StrNode
@@ -296,29 +296,29 @@ impl JsonNode@FromJson {
             self = JsonNode::StrNode(s)
             return JRes::Ok(rem)
         } else if c == 116 { // 't' -> true
-            if json.len() >= 4:usize {
-                auto sub = json.substr(0:usize, 4:usize)
-                if sub.byte_at(0:usize) == 116 && sub.byte_at(1:usize) == 114 && sub.byte_at(2:usize) == 117 && sub.byte_at(3:usize) == 101 {
+            if json.len() >= 4 {
+                auto sub = json.substr(0, 4)
+                if sub.byte_at(0) == 116 && sub.byte_at(1) == 114 && sub.byte_at(2) == 117 && sub.byte_at(3) == 101 {
                     self = JsonNode::BoolNode(true)
-                    return JRes::Ok(json.substr(4:usize, json.len() - 4:usize))
+                    return JRes::Ok(json.substr(4, json.len() - 4))
                 }
             }
             return JRes::Err("Invalid true literal")
         } else if c == 102 { // 'f' -> false
-            if json.len() >= 5:usize {
-                auto sub = json.substr(0:usize, 5:usize)
-                if sub.byte_at(0:usize) == 102 && sub.byte_at(1:usize) == 97 && sub.byte_at(2:usize) == 108 && sub.byte_at(3:usize) == 115 && sub.byte_at(4:usize) == 101 {
+            if json.len() >= 5 {
+                auto sub = json.substr(0, 5)
+                if sub.byte_at(0) == 102 && sub.byte_at(1) == 97 && sub.byte_at(2) == 108 && sub.byte_at(3) == 115 && sub.byte_at(4) == 101 {
                     self = JsonNode::BoolNode(false)
-                    return JRes::Ok(json.substr(5:usize, json.len() - 5:usize))
+                    return JRes::Ok(json.substr(5, json.len() - 5))
                 }
             }
             return JRes::Err("Invalid false literal")
         } else if c == 110 { // 'n' -> null
-            if json.len() >= 4:usize {
-                auto sub = json.substr(0:usize, 4:usize)
-                if sub.byte_at(0:usize) == 110 && sub.byte_at(1:usize) == 117 && sub.byte_at(2:usize) == 108 && sub.byte_at(3:usize) == 108 {
+            if json.len() >= 4 {
+                auto sub = json.substr(0, 4)
+                if sub.byte_at(0) == 110 && sub.byte_at(1) == 117 && sub.byte_at(2) == 108 && sub.byte_at(3) == 108 {
                     self = JsonNode::NullNode(0)
-                    return JRes::Ok(json.substr(4:usize, json.len() - 4:usize))
+                    return JRes::Ok(json.substr(4, json.len() - 4))
                 }
             }
             return JRes::Err("Invalid null literal")
@@ -332,54 +332,54 @@ impl JsonNode@FromJson {
 }
 
 pub fn json_skip_value(json_in: view_str) -> JRes {
-    return _json_skip_value(json_in, 0:usize)
+    return _json_skip_value(json_in, 0)
 }
 
 fn _json_skip_value(json_in: view_str, depth: usize) -> JRes {
-    if depth > 128:usize { return JRes::Err("Depth limit exceeded") }
+    if depth > 128 { return JRes::Err("Depth limit exceeded") }
     auto json# = json_skip_whitespace(json_in)
-    if json.len() == 0:usize { return JRes::Err("Unexpected EOF in skip") }
+    if json.len() == 0 { return JRes::Err("Unexpected EOF in skip") }
     
-    auto c = json.byte_at(0:usize)
+    auto c = json.byte_at(0)
     if c == 123 { // '{'
-        json = json.substr(1:usize, json.len() - 1:usize)
-        while json.len() > 0:usize && json.byte_at(0:usize) != 125 { // '}'
+        json = json.substr(1, json.len() - 1)
+        while json.len() > 0 && json.byte_at(0) != 125 { // '}'
             json = json_skip_whitespace(json)
-            if json.len() > 0:usize && json.byte_at(0:usize) == 125 { break }
+            if json.len() > 0 && json.byte_at(0) == 125 { break }
             
-            json = _json_skip_value(json, depth + 1:usize)!
+            json = _json_skip_value(json, depth + 1)!
             
             json = json_skip_whitespace(json)
-            if json.len() > 0:usize && json.byte_at(0:usize) == 58 {
-                json = json.substr(1:usize, json.len() - 1:usize)
+            if json.len() > 0 && json.byte_at(0) == 58 {
+                json = json.substr(1, json.len() - 1)
             }
             
-            json = _json_skip_value(json, depth + 1:usize)!
+            json = _json_skip_value(json, depth + 1)!
             
             json = json_skip_whitespace(json)
-            if json.len() > 0:usize && json.byte_at(0:usize) == 44 {
-                json = json.substr(1:usize, json.len() - 1:usize)
+            if json.len() > 0 && json.byte_at(0) == 44 {
+                json = json.substr(1, json.len() - 1)
             }
         }
-        if json.len() > 0:usize { json = json.substr(1:usize, json.len() - 1:usize) }
+        if json.len() > 0 { json = json.substr(1, json.len() - 1) }
         return JRes::Ok(json)
     } else if c == 91 { // '['
-        json = json.substr(1:usize, json.len() - 1:usize)
-        while json.len() > 0:usize && json.byte_at(0:usize) != 93 { // ']'
+        json = json.substr(1, json.len() - 1)
+        while json.len() > 0 && json.byte_at(0) != 93 { // ']'
             json = json_skip_whitespace(json)
-            if json.len() > 0:usize && json.byte_at(0:usize) == 93 { break }
+            if json.len() > 0 && json.byte_at(0) == 93 { break }
             
-            json = _json_skip_value(json, depth + 1:usize)!
+            json = _json_skip_value(json, depth + 1)!
             
             json = json_skip_whitespace(json)
-            if json.len() > 0:usize && json.byte_at(0:usize) == 44 {
-                json = json.substr(1:usize, json.len() - 1:usize)
+            if json.len() > 0 && json.byte_at(0) == 44 {
+                json = json.substr(1, json.len() - 1)
             }
         }
-        if json.len() > 0:usize { json = json.substr(1:usize, json.len() - 1:usize) }
+        if json.len() > 0 { json = json.substr(1, json.len() - 1) }
         return JRes::Ok(json)
     } else if c == 34 { // '"'
-        auto i# = 1:usize
+        auto i#: usize = 1
         auto closed# = false
         while i < json.len() {
             auto ch = json.byte_at(i)
@@ -388,19 +388,19 @@ fn _json_skip_value(json_in: view_str, depth: usize) -> JRes {
                 break
             }
             if ch == 92 {
-                i += 2:usize
+                i += 2
                 continue
             }
-            i += 1:usize
+            i += 1
         }
         if !closed { return JRes::Err("Unterminated string in skip") }
-        return JRes::Ok(json.substr(i + 1:usize, json.len() - i - 1:usize))
+        return JRes::Ok(json.substr(i + 1, json.len() - i - 1))
     } else {
-        auto i# = 0:usize
+        auto i#: usize = 0
         while i < json.len() {
             auto b = json.byte_at(i)
             if b == 32 || b == 10 || b == 13 || b == 9 || b == 44 || b == 125 || b == 93 { break }
-            i += 1:usize
+            i += 1
         }
         return JRes::Ok(json.substr(i, json.len() - i))
     }
@@ -410,51 +410,51 @@ impl f64@FromJson {
     pub fn parse_json(self#, json: view_str) -> JRes {
         auto rem = json_skip_whitespace(json)
         auto skip_res = json_skip_value(rem)!
-        auto val_str = rem.substr(0:usize, rem.len() - skip_res.len())
+        auto val_str = rem.substr(0, rem.len() - skip_res.len())
         
-        auto i# = 0:usize
+        auto i#: usize = 0
         auto n = val_str.len()
         auto result#: f64 = 0.0
         auto sign#: f64 = 1.0
         
         if i < n && val_str.byte_at(i) == 45 { // '-'
             sign = -1.0
-            i += 1:usize
+            i += 1
         } else if i < n && val_str.byte_at(i) == 43 { // '+'
-            i += 1:usize
+            i += 1
         }
         
         // Integer part
         while i < n && val_str.byte_at(i) >= 48 && val_str.byte_at(i) <= 57 {
             result = result * 10.0 + ((val_str.byte_at(i) - 48) as f64)
-            i += 1:usize
+            i += 1
         }
         
         // Fractional part
         if i < n && val_str.byte_at(i) == 46 { // '.'
-            i += 1:usize
+            i += 1
             auto frac#: f64 = 0.1
             while i < n && val_str.byte_at(i) >= 48 && val_str.byte_at(i) <= 57 {
                 result = result + ((val_str.byte_at(i) - 48) as f64) * frac
                 frac = frac * 0.1
-                i += 1:usize
+                i += 1
             }
         }
         
         // Exponent part
         if i < n && (val_str.byte_at(i) == 101 || val_str.byte_at(i) == 69) { // 'e' or 'E'
-            i += 1:usize
+            i += 1
             auto exp_sign#: f64 = 1.0
             if i < n && val_str.byte_at(i) == 45 { // '-'
                 exp_sign = -1.0
-                i += 1:usize
+                i += 1
             } else if i < n && val_str.byte_at(i) == 43 { // '+'
-                i += 1:usize
+                i += 1
             }
             auto exp#: f64 = 0.0
             while i < n && val_str.byte_at(i) >= 48 && val_str.byte_at(i) <= 57 {
                 exp = exp * 10.0 + ((val_str.byte_at(i) - 48) as f64)
-                i += 1:usize
+                i += 1
             }
             if exp != 0.0 {
                 auto factor = libc_pow(10.0, exp * exp_sign)
@@ -470,19 +470,19 @@ impl f64@FromJson {
 impl bool@FromJson {
     pub fn parse_json(self#, json: view_str) -> JRes {
         auto rem = json_skip_whitespace(json)
-        if rem.len() >= 4:usize {
-            if rem.byte_at(0:usize) == 116 && rem.byte_at(1:usize) == 114 && 
-               rem.byte_at(2:usize) == 117 && rem.byte_at(3:usize) == 101 { // "true"
+        if rem.len() >= 4 {
+            if rem.byte_at(0) == 116 && rem.byte_at(1) == 114 && 
+               rem.byte_at(2) == 117 && rem.byte_at(3) == 101 { // "true"
                 self = true
-                return JRes::Ok(rem.substr(4:usize, rem.len() - 4:usize))
+                return JRes::Ok(rem.substr(4, rem.len() - 4))
             }
         }
-        if rem.len() >= 5:usize {
-            if rem.byte_at(0:usize) == 102 && rem.byte_at(1:usize) == 97 && 
-               rem.byte_at(2:usize) == 108 && rem.byte_at(3:usize) == 115 && 
-               rem.byte_at(4:usize) == 101 { // "false"
+        if rem.len() >= 5 {
+            if rem.byte_at(0) == 102 && rem.byte_at(1) == 97 && 
+               rem.byte_at(2) == 108 && rem.byte_at(3) == 115 && 
+               rem.byte_at(4) == 101 { // "false"
                 self = false
-                return JRes::Ok(rem.substr(5:usize, rem.len() - 5:usize))
+                return JRes::Ok(rem.substr(5, rem.len() - 5))
             }
         }
         return JRes::Err("Invalid bool format")
@@ -491,15 +491,15 @@ impl bool@FromJson {
 
 fn json_parse_hex4(rem: view_str, start: usize) -> u32 {
     auto cp#: u32 = 0:u32
-    auto j# = 0:usize
-    while j < 4:usize {
+    auto j#: usize = 0
+    while j < 4 {
         auto c = rem.byte_at(start + j)
         auto val#: u32 = 0:u32
         if c >= 48 && c <= 57 { val = (c - 48) as u32 }
         else if c >= 65 && c <= 70 { val = ((c - 65) + 10) as u32 }
         else if c >= 97 && c <= 102 { val = ((c - 97) + 10) as u32 }
         cp = (cp * 16:u32) + val
-        j += 1:usize
+        j += 1
     }
     return cp
 }
@@ -525,11 +525,11 @@ fn json_push_utf8(str#: String, cp: u32) {
 impl String@FromJson {
     pub fn parse_json(self#, json: view_str) -> JRes {
         auto rem = json_skip_whitespace(json)
-        if rem.len() == 0:usize || rem.byte_at(0:usize) != 34 { // '"'
+        if rem.len() == 0 || rem.byte_at(0) != 34 { // '"'
             return JRes::Err("Expected string")
         }
         
-        auto i# = 1:usize
+        auto i#: usize = 1
         auto closed# = false
         while i < rem.len() {
             auto c = rem.byte_at(i)
@@ -537,20 +537,20 @@ impl String@FromJson {
                 closed = true
                 break
             } else if c == 92 { // '\\'
-                i += 2:usize // skip escape
+                i += 2 // skip escape
                 continue
             }
-            i += 1:usize
+            i += 1
         }
         
         if !closed { return JRes::Err("Unterminated string") }
         
         auto new_str# = String::from_str("")
-        auto j# = 1:usize
+        auto j#: usize = 1
         while j < i {
             auto c = rem.byte_at(j)
             if c == 92 { // '\\'
-                j += 1:usize
+                j += 1
                 auto ec = rem.byte_at(j)
                 if ec == 34 { new_str#.push_char(34 as char) } // '"'
                 else if ec == 92 { new_str#.push_char(92 as char) } // '\'
@@ -561,13 +561,13 @@ impl String@FromJson {
                 else if ec == 114 { new_str#.push_char(13 as char) } // '\r'
                 else if ec == 116 { new_str#.push_char(9 as char) } // '\t'
                 else if ec == 117 { // '\u'
-                    auto cp# = json_parse_hex4(rem, j + 1:usize)
-                    j += 4:usize
+                    auto cp# = json_parse_hex4(rem, j + 1)
+                    j += 4
                     if cp >= 55296:u32 && cp <= 56319:u32 { // High surrogate 0xD800 - 0xDBFF
-                        if j + 2:usize < i && rem.byte_at(j+1:usize) == 92 && rem.byte_at(j+2:usize) == 117 {
-                            auto low_cp = json_parse_hex4(rem, j + 3:usize)
+                        if j + 2 < i && rem.byte_at(j+1) == 92 && rem.byte_at(j+2) == 117 {
+                            auto low_cp = json_parse_hex4(rem, j + 3)
                             cp = ((cp - 55296:u32) * 1024:u32) + (low_cp - 56320:u32) + 65536:u32
-                            j += 6:usize
+                            j += 6
                         }
                     }
                     json_push_utf8(new_str, cp)
@@ -577,11 +577,11 @@ impl String@FromJson {
             } else {
                 new_str#.push_char(c as char)
             }
-            j += 1:usize
+            j += 1
         }
         
         self = new_str
-        return JRes::Ok(rem.substr(i + 1:usize, rem.len() - i - 1:usize))
+        return JRes::Ok(rem.substr(i + 1, rem.len() - i - 1))
     }
 }
 
@@ -589,11 +589,11 @@ impl String@FromJson {
 impl view_str@FromJson {
     pub fn parse_json(self#, json: view_str) -> JRes {
         auto rem = json_skip_whitespace(json)
-        if rem.len() == 0:usize || rem.byte_at(0:usize) != 34 { // '"'
+        if rem.len() == 0 || rem.byte_at(0) != 34 { // '"'
             return JRes::Err("Expected string")
         }
         
-        auto i# = 1:usize
+        auto i#: usize = 1
         auto closed# = false
         while i < rem.len() {
             auto c = rem.byte_at(i)
@@ -601,33 +601,33 @@ impl view_str@FromJson {
                 closed = true
                 break
             } else if c == 92 { // '\\'
-                i += 2:usize // skip escape
+                i += 2 // skip escape
                 continue
             }
-            i += 1:usize
+            i += 1
         }
         
         if !closed { return JRes::Err("Unterminated string") }
         
-        self = rem.substr(1:usize, i - 1:usize)
-        return JRes::Ok(rem.substr(i + 1:usize, rem.len() - i - 1:usize))
+        self = rem.substr(1, i - 1)
+        return JRes::Ok(rem.substr(i + 1, rem.len() - i - 1))
     }
 }
 
 impl<'T> Option<'T> {
     pub fn parse_json(self#, json: view_str) -> JRes {
         auto rem# = json_skip_whitespace(json)
-        if rem.len() >= 4:usize {
-            if rem.byte_at(0:usize) == 110 && rem.byte_at(1:usize) == 117 && 
-               rem.byte_at(2:usize) == 108 && rem.byte_at(3:usize) == 108 { // "null"
+        if rem.len() >= 4 {
+            if rem.byte_at(0) == 110 && rem.byte_at(1) == 117 && 
+               rem.byte_at(2) == 108 && rem.byte_at(3) == 108 { // "null"
                 self = Option<'T>::None
-                return JRes::Ok(rem.substr(4:usize, rem.len() - 4:usize))
+                return JRes::Ok(rem.substr(4, rem.len() - 4))
             }
         }
         
         unsafe {
             auto ^inner_buf = new [1]Uninit<'T>()
-            auto *inner#: 'T = (*inner_buf + 0:usize) as *'T
+            auto *inner#: 'T = (*inner_buf + 0) as *'T
             
             auto rem_str = inner#.parse_json(rem)!
             self = Option<'T>::Some(inner)
@@ -640,31 +640,31 @@ impl<'T> Option<'T> {
 impl<'T> Vec<'T> {
     pub fn parse_json(self#, json: view_str) -> JRes {
         auto res# = json_skip_whitespace(json)
-        if res.len() == 0:usize || res.byte_at(0:usize) != 91 { // '['
+        if res.len() == 0 || res.byte_at(0) != 91 { // '['
             return JRes::Err("Expected [ for Array")
         }
-        res = res.substr(1:usize, res.len() - 1:usize)
+        res = res.substr(1, res.len() - 1)
         self = Vec<'T>::new() // Init vector
         
         auto first# = true
         while true {
             res = json_skip_whitespace(res)
-            if res.len() > 0:usize && res.byte_at(0:usize) == 93 { // ']'
-                res = res.substr(1:usize, res.len() - 1:usize)
+            if res.len() > 0 && res.byte_at(0) == 93 { // ']'
+                res = res.substr(1, res.len() - 1)
                 break
             }
             if !first {
-                if res.len() == 0:usize || res.byte_at(0:usize) != 44 { // ','
+                if res.len() == 0 || res.byte_at(0) != 44 { // ','
                     return JRes::Err("Expected , in array")
                 }
-                res = res.substr(1:usize, res.len() - 1:usize)
+                res = res.substr(1, res.len() - 1)
                 res = json_skip_whitespace(res)
             }
             first = false
             
             unsafe {
                 auto ^item_buf = new [1]Uninit<'T>()
-                auto *item#: 'T = (*item_buf + 0:usize) as *'T
+                auto *item#: 'T = (*item_buf + 0) as *'T
                 
                 res = item#.parse_json(res)!
                 
@@ -677,39 +677,39 @@ impl<'T> Vec<'T> {
 
 pub fn deserialize_shape<'T>(json_str: view_str) -> Okay<'T, str> {
     auto res# = json_skip_whitespace(json_str)
-    if res.len() == 0:usize || res.byte_at(0:usize) != 123 { // '{'
+    if res.len() == 0 || res.byte_at(0) != 123 { // '{'
         return Okay<'T, str>::Err("Expected { to start object")
     }
     
-    res = res.substr(1:usize, res.len() - 1:usize)
+    res = res.substr(1, res.len() - 1)
     auto obj#: 'T = 'T(..)
     
     auto first# = true
     while true {
         res = json_skip_whitespace(res)
-        if res.len() > 0:usize && res.byte_at(0:usize) == 125 { // '}'
-            res = res.substr(1:usize, res.len() - 1:usize)
+        if res.len() > 0 && res.byte_at(0) == 125 { // '}'
+            res = res.substr(1, res.len() - 1)
             break
         }
         
         if !first {
-            if res.len() == 0:usize || res.byte_at(0:usize) != 44 { // ','
+            if res.len() == 0 || res.byte_at(0) != 44 { // ','
                 return Okay<'T, str>::Err("Expected ,")
             }
-            res = res.substr(1:usize, res.len() - 1:usize)
+            res = res.substr(1, res.len() - 1)
         }
         first = false
         
         res = json_skip_whitespace(res)
-        auto key_view# = res.substr(0:usize, 0:usize)
+        auto key_view# = res.substr(0, 0)
         res = key_view#.parse_json(res)!
         
         // Match colon
         res = json_skip_whitespace(res)
-        if res.len() == 0:usize || res.byte_at(0:usize) != 58 { // ':'
+        if res.len() == 0 || res.byte_at(0) != 58 { // ':'
             return Okay<'T, str>::Err("Expected : after key")
         }
-        res = res.substr(1:usize, res.len() - 1:usize)
+        res = res.substr(1, res.len() - 1)
         
         auto field_found# = false
         for f in reflect<'T>().fields {
