@@ -1960,6 +1960,18 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
           }
         }
 
+        // [Rule] Prevent Implicit Resource Copy during Auto-Deref
+        if (!FD->Args.empty() && FD->Args[0].Name == "self") {
+            bool selfIsValue = !FD->Args[0].HasPointer && !FD->Args[0].IsReference && 
+                               !FD->Args[0].IsUnique && !FD->Args[0].IsShared;
+            bool receiverIsIndirection = ObjTypeObj->isPointer() || ObjTypeObj->isReference() || ObjTypeObj->isSmartPointer();
+            if (selfIsValue && receiverIsIndirection) {
+                if (m_ShapeProps.count(soulType) && m_ShapeProps[soulType].HasDrop) {
+                    error(Met, DiagID::ERR_IMPLICIT_RESOURCE_COPY, soulType, Met->Method);
+                }
+            }
+        }
+
         // [Rule] Borrowing check for Method Call
         std::string objPath = getStringifyPath(Met->Object.get());
         if (!objPath.empty()) {
