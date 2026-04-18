@@ -600,8 +600,7 @@ pub fn deserialize_shape<'T>(json_str: view_str) -> Okay<'T, String> {
     }
     
     res = res.substr(1:usize, res.len() - 1:usize)
-    auto alloc_addr = libc_malloc(4096:usize) as Addr
-    auto *obj# = alloc_addr as *'T
+    auto obj#: 'T = 'T(..)
     
     auto first# = true
     while true {
@@ -613,7 +612,6 @@ pub fn deserialize_shape<'T>(json_str: view_str) -> Okay<'T, String> {
         
         if !first {
             if res.len() == 0:usize || res.byte_at(0:usize) != 44 { // ','
-                libc_free(alloc_addr as *void)
                 return Okay<'T, String>::Err(String::from("Expected ,"))
             }
             res = res.substr(1:usize, res.len() - 1:usize)
@@ -624,7 +622,6 @@ pub fn deserialize_shape<'T>(json_str: view_str) -> Okay<'T, String> {
         auto key_view# = res.substr(0:usize, 0:usize)
         auto key_res = key_view#.parse_json(res)
         if key_res.is_err() { 
-            libc_free(alloc_addr as *void)
             return Okay<'T, String>::Err(String::from("Failed to parse object key")) 
         }
         res = key_res.unwrap()
@@ -632,7 +629,6 @@ pub fn deserialize_shape<'T>(json_str: view_str) -> Okay<'T, String> {
         // Match colon
         res = json_skip_whitespace(res)
         if res.len() == 0:usize || res.byte_at(0:usize) != 58 { // ':'
-            libc_free(alloc_addr as *void)
             return Okay<'T, String>::Err(String::from("Expected : after key"))
         }
         res = res.substr(1:usize, res.len() - 1:usize)
@@ -645,7 +641,6 @@ pub fn deserialize_shape<'T>(json_str: view_str) -> Okay<'T, String> {
                 auto val# = f.get(obj)
                 auto val_res = val#.parse_json(res)
                 if val_res.is_err() { 
-                    libc_free(alloc_addr as *void)
                     return Okay<'T, String>::Err(String::from("Failed to parse field")) 
                 }
                 res = val_res.unwrap()
@@ -659,7 +654,6 @@ pub fn deserialize_shape<'T>(json_str: view_str) -> Okay<'T, String> {
         if !field_found {
             auto skip_res = json_skip_value(res)
             if skip_res.is_err() {
-                libc_free(alloc_addr as *void)
                 return Okay<'T, String>::Err(String::from("Failed to skip unknown field"))
             }
             res = skip_res.unwrap()
@@ -667,9 +661,6 @@ pub fn deserialize_shape<'T>(json_str: view_str) -> Okay<'T, String> {
     }
     
     // Return obj directly!
-    // Toka implicitly copies the reference's underlying value,
-    // thereby bypassing the need for explicit * allocations or sigils!
-    auto res_obj = Okay<'T, String>::Ok(obj)
-    libc_free(alloc_addr as *void)
+    auto res_obj = Okay<'T, String>::Ok(cede obj)
     return res_obj
 }

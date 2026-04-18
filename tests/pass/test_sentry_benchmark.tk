@@ -4,7 +4,7 @@ import core/str::{view_str, str}
 import stdx/json::{deserialize_shape}
 
 pub shape SentryScope (
-    _notifyingListeners: bool
+    _notifyingListeners: bool = false
 )
 
 pub fn main() -> i32 {

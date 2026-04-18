@@ -9,11 +9,11 @@ import core/libc::{libc_printf, libc_fflush}
 // HashMap using SOA (Structure of Arrays)
 // keys[i], vals[i], meta[i] correspond to the same slot.
 pub shape HashMap<'K, 'V> (
-    keys#: Vec<'K>,
-    vals#: Vec<'V>,
-    meta#: Vec<u8>, // 0=Empty, 1=Occupied
-    len: usize,
-    cap: usize
+    keys#: Vec<'K> = Vec<'K>(..),
+    vals#: Vec<'V> = Vec<'V>(..),
+    meta#: Vec<u8> = Vec<u8>(..), // 0=Empty, 1=Occupied
+    len#: usize = 0:usize,
+    cap#: usize = 0:usize
 )
 
 impl<'K, 'V> HashMap<'K, 'V>@encap {

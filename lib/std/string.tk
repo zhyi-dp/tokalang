@@ -26,9 +26,9 @@ import core/str::{view_str, str}
 // ------------------------------------------------------
 
 pub shape String (
-    nul *buf#: [char],
-    len: i32,
-    cap: i32
+    nul *buf#: [char] = null as *[char],
+    len#: i32 = 0,
+    cap#: i32 = 0
 )
 
 impl String@encap {

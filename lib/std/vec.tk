@@ -30,9 +30,9 @@ impl Counter {
 // Module-level factory functions removed. using static methods.
 
 pub shape Vec<'T> (
-    nul *#buf#: ['T],
-    len: usize,
-    cap: usize
+    nul *#buf#: ['T] = null as *['T],
+    len#: usize = 0:usize,
+    cap#: usize = 0:usize
 )
 
 // Explictly bypass raw-pointer structural block by declaring Vec is Send/Sync when its payload is
@@ -291,9 +291,9 @@ impl<'T> Vec<'T> {
 }
 
 pub shape VecIterator<'T> (
-    nul *#buf# : ['T],
-    len : usize,
-    pos# : usize
+    nul *#buf#: ['T] = null as *['T],
+    len#: usize = 0:usize,
+    pos#: usize = 0:usize
 )
 
 impl<'T> VecIterator<'T>@encap {
