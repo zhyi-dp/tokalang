@@ -6,7 +6,7 @@ import core/comptime::{reflect}
 import core/str::{str, view_str}
 import std/map::{HashMap}
 import std/vec::{Vec}
-import core/libc::{libc_malloc, libc_free, libc_memcpy, libc_printf}
+import core/libc::{libc_malloc, libc_free, libc_memcpy, libc_printf, libc_pow}
 
 pub alias JRes = Result<view_str, String>
 
@@ -400,45 +400,62 @@ impl f64@FromJson {
         if skip_res.is_err() { return skip_res }
         auto val_str = rem.substr(0:usize, rem.len() - skip_res.unwrap().len())
         
-        auto dot_idx_opt = val_str.index_of('.')
-        if dot_idx_opt.is_some() {
-            auto dot_idx = dot_idx_opt.unwrap()
-            auto int_part = val_str.substr(0:usize, dot_idx)
-            auto dec_part = val_str.substr(dot_idx + 1:usize, val_str.len() - dot_idx - 1:usize)
-            
-            auto i = int_part.to_i32()
-            auto d = dec_part.to_i32()
-            
-            if i.is_some() && d.is_some() {
-                auto dec_val = d.unwrap() as f64
-                auto dec_divisor#: f64 = 1.0
-                auto j# = 0:usize
-                while j < dec_part.len() {
-                    dec_divisor = dec_divisor * 10.0
-                    j += 1:usize
-                }
-                
-                auto final_val# = (i.unwrap() as f64) + (dec_val / dec_divisor)
-                if val_str.byte_at(0:usize) == 45 { // negative
-                    // In Toka to_i32() already handles '-' for integer part if placed at start
-                    // but wait, if it was "-0", to_i32 gives 0 so we lose the sign.
-                    if i.unwrap() == 0 {
-                        final_val = -final_val
-                    }
-                }
-                self = final_val
-            } else {
-                self = 0.0
+        auto i# = 0:usize
+        auto n = val_str.len()
+        auto result#: f64 = 0.0
+        auto sign#: f64 = 1.0
+        
+        if i < n && val_str.byte_at(i) == 45 { // '-'
+            sign = -1.0
+            i += 1:usize
+        } else if i < n && val_str.byte_at(i) == 43 { // '+'
+            i += 1:usize
+        }
+        
+        // Integer part
+        while i < n && val_str.byte_at(i) >= 48 && val_str.byte_at(i) <= 57 {
+            result = result * 10.0 + ((val_str.byte_at(i) - 48) as f64)
+            i += 1:usize
+        }
+        
+        // Fractional part
+        if i < n && val_str.byte_at(i) == 46 { // '.'
+            i += 1:usize
+            auto frac#: f64 = 0.0
+            auto divisor#: f64 = 1.0
+            while i < n && val_str.byte_at(i) >= 48 && val_str.byte_at(i) <= 57 {
+                frac = frac * 10.0 + ((val_str.byte_at(i) - 48) as f64)
+                divisor = divisor * 10.0
+                i += 1:usize
             }
-        } else {
-            auto i = val_str.to_i32()
-            if i.is_some() {
-                self = i.unwrap() as f64
+            result = result + (frac / divisor)
+        }
+        
+        // Exponential part
+        if i < n && (val_str.byte_at(i) == 101 || val_str.byte_at(i) == 69) { // 'e' or 'E'
+            i += 1:usize
+            auto exp_val#: f64 = 0.0
+            auto exp_sign#: f64 = 1.0
+            if i < n && val_str.byte_at(i) == 45 { // '-'
+                exp_sign = -1.0
+                i += 1:usize
+            } else if i < n && val_str.byte_at(i) == 43 { // '+'
+                i += 1:usize
+            }
+            while i < n && val_str.byte_at(i) >= 48 && val_str.byte_at(i) <= 57 {
+                exp_val = exp_val * 10.0 + ((val_str.byte_at(i) - 48) as f64)
+                i += 1:usize
+            }
+            
+            auto factor = libc_pow(10.0, exp_val)
+            if exp_sign < 0.0 {
+                result = result / factor
             } else {
-                self = 0.0
+                result = result * factor
             }
         }
         
+        self = sign * result
         return skip_res
     }
 }

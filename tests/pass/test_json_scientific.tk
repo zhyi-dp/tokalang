@@ -1,0 +1,43 @@
+import std/io::{println}
+import stdx/json::{deserialize_shape}
+import core/str::{view_str}
+import std/string::{String}
+
+shape SciTest (
+    a: f64 = 0.0,
+    b: f64 = 0.0,
+    c: f64 = 0.0,
+    d: f64 = 0.0
+)
+
+fn main() -> i32 {
+    // 1.2e-4, 3E10, -0.0, -4.56e2
+    auto json_str = String::from("{\"a\": 1.2e-4, \"b\": 3E10, \"c\": -0.0, \"d\": -4.56e2}")
+    auto v_str = json_str.as_str()
+    
+    auto res = deserialize_shape<SciTest>(v_str)
+    if res.is_err() {
+        println("Parse err")
+        return 1
+    }
+    
+    auto obj = res.unwrap()
+    auto eps = 0.00000001
+    
+    auto diff_a# = obj.a - 0.00012
+    if diff_a < 0.0 { diff_a = -diff_a }
+    if diff_a > eps { return 1 }
+    
+    auto diff_b# = obj.b - 30000000000.0
+    if diff_b < 0.0 { diff_b = -diff_b }
+    if diff_b > eps { return 2 }
+    
+    if obj.c != 0.0 { return 3 } // -0.0 == 0.0
+    
+    auto diff_d# = obj.d + 456.0
+    if diff_d < 0.0 { diff_d = -diff_d }
+    if diff_d > eps { return 4 }
+
+    println("All float matches OK!")
+    return 0
+}

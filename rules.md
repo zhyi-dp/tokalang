@@ -10,7 +10,7 @@
 - 执行.ll 文件：lli x.ll
 - 每次完成阶段性的工作并且 pass 测试全部通过之前，请提交一次 commit，然后给出中文总结，并等待新的指示
 - git commit -m 信息不能包含可能被 bash/zsh 等截断内容的符号
-- 每次commit前运行 tools/scripts/test_pass.sh， 将测试结果以 [pass 71/79]的格式放在 commit 信息的最开始
+- 每次commit前运行 tools/scripts/test_pass.sh， 将测试结果以 [pass 71/79]的格式放在 commit 信息的最开始，如果全部 pass，可以简写为[pass]
 - git commit信息以重点信息表达完备为前提，不要太啰嗦，也不要太简略
 - git add 之前先删除不需要的临时文件
 - git 命令不要跟任何其他命令一起&&执行
