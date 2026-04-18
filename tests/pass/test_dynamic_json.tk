@@ -120,7 +120,7 @@ pub fn main() -> i32 {
     
     auto root#: JsonNode = JsonNode::NullNode(0)
     println("Starting parse...")
-    auto parse_res = root#.parse_json(v_str)
+    auto parse_res = root#.parse_json(v_str, 0:usize)
     println("Finished parse!")
     
     if parse_res.is_err() {

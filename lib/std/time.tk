@@ -24,6 +24,14 @@ pub shape Time (
 )
 
 /**
+ * Represents a monotonic timer for measuring duration.
+ * Maintains state as precision milliseconds.
+ */
+pub shape Instant (
+    ms: i64
+)
+
+/**
  * Represents a broken-down calendar time.
  * Matches macOS (Darwin) struct tm layout.
  */
@@ -54,6 +62,29 @@ impl DateTime@encap {
 pub fn now() -> Time {
     unsafe {
         return Time(seconds = libc_time(null))
+    }
+}
+
+impl Instant {
+    pub fn now() -> Instant {
+        unsafe {
+            auto tv_addr = libc_malloc(16:usize) as Addr
+            libc_gettimeofday(tv_addr as *void, null)
+            
+            auto *p_sec = tv_addr as *[i64]
+            auto tv_sec = p_sec[0]
+            
+            auto *p_usec = tv_addr as *[i32]
+            auto tv_usec = p_usec[2]
+            
+            libc_free(tv_addr as *void)
+            return Instant(ms = (tv_sec * 1000:i64) + ((tv_usec as i64) / 1000:i64))
+        }
+    }
+    
+    pub fn elapsed_ms(self) -> i64 {
+        auto current = Instant::now()
+        return current.ms - self.ms
     }
 }
 
