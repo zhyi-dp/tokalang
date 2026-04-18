@@ -1,0 +1,32 @@
+import std/io::{println}
+import stdx/json::{JsonNode}
+import std/string::{String}
+import core/str::{view_str}
+
+fn main() -> i32 {
+    auto string_buf# = String::from_str("")
+    auto i# = 0:usize
+    
+    // Generate 200 depth array
+    while i < 200:usize {
+        string_buf#.push_str("[")
+        i += 1:usize
+    }
+    string_buf#.push_str("1")
+    i = 0:usize
+    while i < 200:usize {
+        string_buf#.push_str("]")
+        i += 1:usize
+    }
+    
+    auto root#: JsonNode = JsonNode::NullNode(0)
+    auto parse_res = root#.parse_json(string_buf.as_str())
+    
+    if parse_res.is_err() {
+        println("Successfully defended against deep recursion!")
+        return 0
+    }
+    
+    println("Failed to prevent depth overflow!")
+    return 1
+}
