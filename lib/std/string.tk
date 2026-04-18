@@ -132,7 +132,7 @@ impl String {
     pub fn from(*s: char) -> String {
         unsafe {
             auto l = libc_strlen(*s)
-            auto *p# = libc_malloc((l + 1) as usize) as *[char]
+            auto *p# = unsafe alloc [l + 1] char as *[char]
             libc_memcpy(*p as *void, *s as *void, l)
             p[l] = 0 as char
             
@@ -148,7 +148,7 @@ impl String {
     pub fn from_with_len(*s: char, len: i32) -> String {
         unsafe {
             auto l = len
-            auto *p# = libc_malloc((l + 1) as usize) as *[char]
+            auto *p# = unsafe alloc [l + 1] char as *[char]
             libc_memcpy(*p as *void, *s as *void, l as usize)
             p[l] = 0 as char
             
@@ -180,7 +180,7 @@ impl String {
             
             libc_write(2, "DEBUG: from_take strlen done\n" as *u8, 29)
             
-            auto *p# = libc_malloc((l + 1) as usize) as *[char]
+            auto *p# = unsafe alloc [l + 1] char as *[char]
             libc_memcpy(*p as *void, *s as *void, l)
             p[l] = 0 as char
             
@@ -204,7 +204,7 @@ impl String {
     pub fn from_int(val: i32) -> String {
         unsafe {
             // Max i32 chars is 11 (-2147483648) + null
-            auto *buf# = libc_malloc(16) as *[char]
+            auto *buf# = unsafe alloc [16] char as *[char]
             libc_sprintf(*buf as *char, "%d", val)
             auto len = libc_strlen(*buf as *char)
             
@@ -218,7 +218,7 @@ impl String {
 
     pub fn from_i64(val: i64) -> String {
         unsafe {
-            auto *buf# = libc_malloc(32) as *[char]
+            auto *buf# = unsafe alloc [32] char as *[char]
             libc_sprintf(*buf as *char, "%lld", val)
             auto len = libc_strlen(*buf as *char)
             return String(*buf = *buf, len = len as i32, cap = 32)
@@ -227,7 +227,7 @@ impl String {
     
     pub fn from_f64(val: f64) -> String {
          unsafe {
-            auto *buf# = libc_malloc(32) as *[char]
+            auto *buf# = unsafe alloc [32] char as *[char]
             libc_sprintf(*buf as *char, "%.6f", val)
             auto len = libc_strlen(*buf as *char)
             return String(*buf = *buf, len = len as i32, cap = 32)
@@ -263,9 +263,15 @@ impl String {
             
             if needed >= self.cap {
                 auto new_cap = (self.cap * 2) + (slen as i32) + 1
-                auto *tmp = libc_realloc(self.*buf as *void, new_cap as usize) as *[char]
+                
+                auto *tmp = unsafe alloc [new_cap] char
                 if *tmp == null { return 0 }
+                if self.*buf != null {
+                    libc_memcpy(*tmp as *void, self.*buf as *void, self.len)
+                    // unsafe free [self.cap as usize] self.*#buf
+                }
                 self.*buf = *tmp
+
                 self.cap = new_cap
             }
             
@@ -285,9 +291,15 @@ impl String {
             
             if needed >= self.cap {
                 auto new_cap = (self.cap * 2) + (slen as i32) + 1
-                auto *tmp = libc_realloc(self.*buf as *void, new_cap as usize) as *[char]
+                
+                auto *tmp = unsafe alloc [new_cap] char
                 if *tmp == null { return 0 }
+                if self.*buf != null {
+                    libc_memcpy(*tmp as *void, self.*buf as *void, self.len)
+                    // unsafe free [self.cap as usize] self.*#buf
+                }
                 self.*buf = *tmp
+
                 self.cap = new_cap
             }
             
@@ -305,9 +317,15 @@ impl String {
             auto needed = self.len + (count as i32)
             if needed >= self.cap {
                 auto new_cap = (self.cap * 2) + (count as i32) + 1
-                auto *tmp = libc_realloc(self.*buf as *void, new_cap as usize) as *[char]
+                
+                auto *tmp = unsafe alloc [new_cap] char
                 if *tmp == null { return 0 }
+                if self.*buf != null {
+                    libc_memcpy(*tmp as *void, self.*buf as *void, self.len)
+                    // unsafe free [self.cap as usize] self.*#buf
+                }
                 self.*buf = *tmp
+
                 self.cap = new_cap
             }
             auto *dst# = (self.*buf as usize + self.len as usize) as *[char]
@@ -325,9 +343,15 @@ impl String {
             
             if needed >= self.cap {
                 auto new_cap = (self.cap * 2) + 2
-                auto *tmp = libc_realloc(self.*buf as *void, new_cap as usize) as *[char]
+                
+                auto *tmp = unsafe alloc [new_cap] char
                 if *tmp == null { return 0 }
+                if self.*buf != null {
+                    libc_memcpy(*tmp as *void, self.*buf as *void, self.len)
+                    // unsafe free [self.cap as usize] self.*#buf
+                }
                 self.*buf = *tmp
+
                 self.cap = new_cap
             }
             

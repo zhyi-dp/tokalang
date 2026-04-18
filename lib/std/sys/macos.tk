@@ -80,7 +80,7 @@ pub fn path_exists(path: Addr) -> bool {
 
 pub fn stat_impl(path: Addr) -> Addr {
     unsafe {
-        auto *buf# = libc_malloc(144) // 144 bytes for struct stat
+        auto *buf# = unsafe alloc [144] byte // 144 bytes for struct stat
         // buf is the soul (void), *buf is the handle (*void)
         // To check for null, we compare the handle
         if *buf == (0:Addr as *void) {
@@ -146,7 +146,7 @@ pub fn stat_is_file_impl(mode: u32) -> bool {
 pub fn getcwd_impl() -> String {
     unsafe {
         // Real implementation using getcwd
-        auto *buf = libc_malloc(1024) as *char
+        auto *buf = unsafe alloc [1024] byte as *char
         auto res_addr = libc_getcwd(*buf, 1024)
         if res_addr == ADDR0 {
              libc_free(*buf as *void)
@@ -218,7 +218,7 @@ pub fn net_socket_impl() -> i32 {
 
 pub fn net_setsockopt_reuse_impl(fd: i32) -> i32 {
     unsafe {
-        auto *opt# = libc_malloc(4) as *[i32]
+        auto *opt# = unsafe alloc [4] byte as *[i32]
         opt[0] = 1
         auto res = libc_setsockopt(fd, 65535, 4, *opt as *void, 4)
         libc_free(*opt as *void)
@@ -263,8 +263,8 @@ pub fn get_errno_impl() -> i32 {
 
 pub fn net_getsockopt_error_impl(fd: i32) -> i32 {
     unsafe {
-        auto pval = libc_malloc(4) as Addr
-        auto pvlen = libc_malloc(4) as Addr
+        auto pval = unsafe alloc [4] byte as Addr
+        auto pvlen = unsafe alloc [4] byte as Addr
         auto *val# = pval as *i32
         auto *vlen# = pvlen as *u32
         val = 0
@@ -280,7 +280,7 @@ pub fn net_getsockopt_error_impl(fd: i32) -> i32 {
 
 pub fn reactor_add_write_impl(reactor_fd: i32, fd: i32, coro_handle: Addr) -> bool {
     unsafe {
-        auto *ev# = libc_malloc(32) as *char
+        auto *ev# = unsafe alloc [32] byte as *char
         if *ev as usize == 0 { return false }
         
         auto base = *ev as usize
@@ -306,7 +306,7 @@ pub fn reactor_add_write_impl(reactor_fd: i32, fd: i32, coro_handle: Addr) -> bo
 pub fn net_bind_impl(fd: i32, ip: u32, port: u16) -> i32 {
     unsafe {
         // Allocate 32 bytes to be safe
-        auto *addr_buf# = libc_malloc(32) as *char
+        auto *addr_buf# = unsafe alloc [32] byte as *char
         
         if *addr_buf as usize == 0 {
              return -1
@@ -333,7 +333,7 @@ pub fn net_listen_impl(fd: i32) -> i32 {
 
 pub fn net_connect_impl(fd: i32, ip: u32, port: u16) -> i32 {
     unsafe {
-        auto *addr_buf# = libc_malloc(32) as *char
+        auto *addr_buf# = unsafe alloc [32] byte as *char
         
         if *addr_buf as usize == 0 {
              return -2
@@ -354,9 +354,9 @@ pub fn net_connect_impl(fd: i32, ip: u32, port: u16) -> i32 {
 pub fn net_accept_impl(fd: i32) -> i32 {
     unsafe {
         // We ignore the peer address for now in this impl
-        auto *addr_len_ptr# = libc_malloc(4) as *[u32]
+        auto *addr_len_ptr# = unsafe alloc [4] byte as *[u32]
         addr_len_ptr[0] = 16
-        auto *addr_buf# = libc_malloc(16) as *void
+        auto *addr_buf# = unsafe alloc [16] byte as *void
         
         auto res = libc_accept(fd, *addr_buf, *addr_len_ptr as *u32)
         
@@ -412,7 +412,7 @@ pub fn reactor_create_impl() -> i32 {
 
 pub fn reactor_add_read_impl(reactor_fd: i32, fd: i32, coro_handle: Addr) -> bool {
     unsafe {
-        auto *ev# = libc_malloc(32) as *char
+        auto *ev# = unsafe alloc [32] byte as *char
         if *ev as usize == 0 {
              return false
         }
@@ -451,7 +451,7 @@ pub fn reactor_add_read_impl(reactor_fd: i32, fd: i32, coro_handle: Addr) -> boo
 
 pub fn reactor_add_write_impl(reactor_fd: i32, fd: i32, coro_handle: Addr) -> bool {
     unsafe {
-        auto *ev# = libc_malloc(32) as *char
+        auto *ev# = unsafe alloc [32] byte as *char
         if *ev as usize == 0 {
              return false
         }
@@ -490,12 +490,12 @@ pub fn reactor_add_write_impl(reactor_fd: i32, fd: i32, coro_handle: Addr) -> bo
 
 pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, max: i32) -> i32 {
     unsafe {
-        auto *events# = libc_malloc((32 * max) as usize) as *void
+        auto *events# = unsafe alloc [32 * max] byte as *void
         if *events as usize == 0 {
             return -1
         }
         
-        auto *ts_ptr# = libc_malloc(16) as *void
+        auto *ts_ptr# = unsafe alloc [16] byte as *void
         if *ts_ptr as usize == 0 {
             libc_free(*events)
             return -1
