@@ -1,0 +1,18 @@
+import stdx/crypto/sha1::hash
+import stdx/crypto/base64::encode
+import std/io::println
+import std/string::String
+
+pub fn main() -> i32 {
+    // Standard WebSocket example handshake test
+    auto origin = String::from("dGhlIHNhbXBsZSBub25jZQ==258EAFA5-E914-47DA-95CA-C5AB0DC85B11")
+    auto *sha1_res# = hash(origin.c_str() as Addr, origin.len())
+    auto b64_res = encode((*#sha1_res as Addr), 20)
+    
+    println("WS Hash: {}", b64_res.c_str())
+    assert(b64_res.eq(String::from("s3pPLMBiTxaQ9kYGzzhZRbK+xOo=")), "Failed SHA-1 + B64 WS sequence!")
+    unsafe free [20] *#sha1_res
+
+    println("All SHA1 tests passed!")
+    return 0
+}

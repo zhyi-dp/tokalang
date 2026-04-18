@@ -1,0 +1,44 @@
+import std/string::String
+
+pub fn encode(data_addr: Addr, len: usize) -> String {
+    auto res# = String::from("")
+    // Ensure string captures lifecycle correctly, avoiding leaking.
+    auto b64_chars = String::from("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
+    auto *chars = b64_chars.c_str() as *[char]
+
+    auto i#: usize = 0
+    unsafe {
+        auto *data = data_addr as *[u8]
+        while i < len {
+            auto octet_a = data[i] as u32
+            auto octet_b# = 0: u32
+            auto octet_c# = 0: u32
+
+            auto r = len - i
+            
+            if r > 1 { octet_b = data[i + 1] as u32 }
+            if r > 2 { octet_c = data[i + 2] as u32 }
+
+            auto triple = (octet_a << 16) | (octet_b << 8) | octet_c
+
+            res#.push_char(chars[(triple >> 18) & 0x3F])
+            res#.push_char(chars[(triple >> 12) & 0x3F])
+            
+            if r > 1 {
+                res#.push_char(chars[(triple >> 6) & 0x3F])
+            } else {
+                res#.push_char('=' as char)
+            }
+            
+            if r > 2 {
+                res#.push_char(chars[triple & 0x3F])
+            } else {
+                res#.push_char('=' as char)
+            }
+
+            i = i + 3
+        }
+    }
+
+    return res
+}
