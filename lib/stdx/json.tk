@@ -243,9 +243,7 @@ impl JsonNode@FromJson {
                 if json.len() > 0:usize && json.byte_at(0:usize) == 125 { break }
                 
                 auto key_node#: JsonNode = JsonNode::NullNode(0)
-                auto skip = key_node#._parse(json, depth + 1:usize)
-                if skip.is_err() { return skip }
-                json = skip.unwrap()
+                json = key_node#._parse(json, depth + 1:usize)!
                 
                 json = json_skip_whitespace(json)
                 if json.len() == 0:usize || json.byte_at(0:usize) != 58 { // ':'
@@ -254,9 +252,7 @@ impl JsonNode@FromJson {
                 json = json.substr(1:usize, json.len() - 1:usize)
                 
                 auto val_node#: JsonNode = JsonNode::NullNode(0)
-                auto skip_val = val_node#._parse(json, depth + 1:usize)
-                if skip_val.is_err() { return skip_val }
-                json = skip_val.unwrap()
+                json = val_node#._parse(json, depth + 1:usize)!
                 
                 match key_node {
                      JsonNode::StrNode(&k_str) => {
@@ -282,9 +278,7 @@ impl JsonNode@FromJson {
                 if json.len() > 0:usize && json.byte_at(0:usize) == 93 { break }
                 
                 auto item_node#: JsonNode = JsonNode::NullNode(0)
-                auto skip_item = item_node#._parse(json, depth + 1:usize)
-                if skip_item.is_err() { return skip_item }
-                json = skip_item.unwrap()
+                json = item_node#._parse(json, depth + 1:usize)!
                 
                 vec#.push(cede item_node)
                 
@@ -298,10 +292,9 @@ impl JsonNode@FromJson {
             return JRes::Ok(json)
         } else if c == 34 { // '"' --> StrNode
             auto s#: String = String::from("")
-            auto p_res = s#.parse_json(json)
-            if p_res.is_err() { return p_res }
+            auto rem = s#.parse_json(json)!
             self = JsonNode::StrNode(s)
-            return p_res
+            return JRes::Ok(rem)
         } else if c == 116 { // 't' -> true
             if json.len() >= 4:usize {
                 auto sub = json.substr(0:usize, 4:usize)
@@ -331,10 +324,9 @@ impl JsonNode@FromJson {
             return JRes::Err("Invalid null literal")
         } else {
             auto num#: f64 = 0.0
-            auto p_res = num#.parse_json(json)
-            if p_res.is_err() { return p_res }
+            auto rem = num#.parse_json(json)!
             self = JsonNode::NumNode(num)
-            return p_res
+            return JRes::Ok(rem)
         }
     }
 }
@@ -355,18 +347,14 @@ fn _json_skip_value(json_in: view_str, depth: usize) -> JRes {
             json = json_skip_whitespace(json)
             if json.len() > 0:usize && json.byte_at(0:usize) == 125 { break }
             
-            auto skip_key = _json_skip_value(json, depth + 1:usize)
-            if skip_key.is_err() { return skip_key }
-            json = skip_key.unwrap()
+            json = _json_skip_value(json, depth + 1:usize)!
             
             json = json_skip_whitespace(json)
             if json.len() > 0:usize && json.byte_at(0:usize) == 58 {
                 json = json.substr(1:usize, json.len() - 1:usize)
             }
             
-            auto skip_val = _json_skip_value(json, depth + 1:usize)
-            if skip_val.is_err() { return skip_val }
-            json = skip_val.unwrap()
+            json = _json_skip_value(json, depth + 1:usize)!
             
             json = json_skip_whitespace(json)
             if json.len() > 0:usize && json.byte_at(0:usize) == 44 {
@@ -381,9 +369,7 @@ fn _json_skip_value(json_in: view_str, depth: usize) -> JRes {
             json = json_skip_whitespace(json)
             if json.len() > 0:usize && json.byte_at(0:usize) == 93 { break }
             
-            auto skip_item = _json_skip_value(json, depth + 1:usize)
-            if skip_item.is_err() { return skip_item }
-            json = skip_item.unwrap()
+            json = _json_skip_value(json, depth + 1:usize)!
             
             json = json_skip_whitespace(json)
             if json.len() > 0:usize && json.byte_at(0:usize) == 44 {
@@ -423,9 +409,8 @@ fn _json_skip_value(json_in: view_str, depth: usize) -> JRes {
 impl f64@FromJson {
     pub fn parse_json(self#, json: view_str) -> JRes {
         auto rem = json_skip_whitespace(json)
-        auto skip_res = json_skip_value(rem)
-        if skip_res.is_err() { return skip_res }
-        auto val_str = rem.substr(0:usize, rem.len() - skip_res.unwrap().len())
+        auto skip_res = json_skip_value(rem)!
+        auto val_str = rem.substr(0:usize, rem.len() - skip_res.len())
         
         auto i# = 0:usize
         auto n = val_str.len()
@@ -448,20 +433,17 @@ impl f64@FromJson {
         // Fractional part
         if i < n && val_str.byte_at(i) == 46 { // '.'
             i += 1:usize
-            auto frac#: f64 = 0.0
-            auto divisor#: f64 = 1.0
+            auto frac#: f64 = 0.1
             while i < n && val_str.byte_at(i) >= 48 && val_str.byte_at(i) <= 57 {
-                frac = frac * 10.0 + ((val_str.byte_at(i) - 48) as f64)
-                divisor = divisor * 10.0
+                result = result + ((val_str.byte_at(i) - 48) as f64) * frac
+                frac = frac * 0.1
                 i += 1:usize
             }
-            result = result + (frac / divisor)
         }
         
-        // Exponential part
+        // Exponent part
         if i < n && (val_str.byte_at(i) == 101 || val_str.byte_at(i) == 69) { // 'e' or 'E'
             i += 1:usize
-            auto exp_val#: f64 = 0.0
             auto exp_sign#: f64 = 1.0
             if i < n && val_str.byte_at(i) == 45 { // '-'
                 exp_sign = -1.0
@@ -469,21 +451,19 @@ impl f64@FromJson {
             } else if i < n && val_str.byte_at(i) == 43 { // '+'
                 i += 1:usize
             }
+            auto exp#: f64 = 0.0
             while i < n && val_str.byte_at(i) >= 48 && val_str.byte_at(i) <= 57 {
-                exp_val = exp_val * 10.0 + ((val_str.byte_at(i) - 48) as f64)
+                exp = exp * 10.0 + ((val_str.byte_at(i) - 48) as f64)
                 i += 1:usize
             }
-            
-            auto factor = libc_pow(10.0, exp_val)
-            if exp_sign < 0.0 {
-                result = result / factor
-            } else {
+            if exp != 0.0 {
+                auto factor = libc_pow(10.0, exp * exp_sign)
                 result = result * factor
             }
         }
         
         self = sign * result
-        return skip_res
+        return JRes::Ok(skip_res)
     }
 }
 
@@ -729,11 +709,7 @@ pub fn deserialize_shape<'T>(json_str: view_str) -> Okay<'T, str> {
         
         res = json_skip_whitespace(res)
         auto key_view# = res.substr(0:usize, 0:usize)
-        auto key_res = key_view#.parse_json(res)
-        if key_res.is_err() { 
-            return Okay<'T, str>::Err("Failed to parse object key") 
-        }
-        res = key_res.unwrap()
+        res = key_view#.parse_json(res)!
         
         // Match colon
         res = json_skip_whitespace(res)
@@ -748,11 +724,7 @@ pub fn deserialize_shape<'T>(json_str: view_str) -> Okay<'T, str> {
             if key_view == tgt_name_str {
                 field_found = true
                 auto val# = f.get(obj)
-                auto val_res = val#.parse_json(res)
-                if val_res.is_err() { 
-                    return Okay<'T, str>::Err("Failed to parse field") 
-                }
-                res = val_res.unwrap()
+                res = val#.parse_json(res)!
                 
                 f.set(obj, cede val)
                 
@@ -761,11 +733,7 @@ pub fn deserialize_shape<'T>(json_str: view_str) -> Okay<'T, str> {
         }
         
         if !field_found {
-            auto skip_res = json_skip_value(res)
-            if skip_res.is_err() {
-                return Okay<'T, str>::Err("Failed to skip unknown field")
-            }
-            res = skip_res.unwrap()
+            res = json_skip_value(res)!
         }
     }
     
