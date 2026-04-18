@@ -35,31 +35,27 @@ pub fn ws_accept_async(stream#: TcpStream) -> async Result<WsConnection, String>
         }
         auto bytes_read = bytes_opt.unwrap()
 
-        auto req_str# = String::from("")
-        auto i#: usize = 0
-        unsafe {
-            while i < bytes_read {
-                unsafe { req_str#.push_char(buf[i] as char) }
-                i += 1
-            }
-            unsafe free [4096] *#buf
-        }
+        auto req_str = String::from_raw(*#buf as *u8, bytes_read)
+        unsafe { unsafe free [4096] *#buf }
         
-        auto key_marker = String::from("Sec-WebSocket-Key: ")
-        auto idx = req_str.find_str(key_marker)
-        if idx < 0 {
+        auto key_marker_tmp = String::from("Sec-WebSocket-Key: ")
+        auto key_marker = key_marker_tmp.as_view()
+        auto req_view = req_str.as_view()
+        auto idx_opt = req_view.index_of_str(key_marker)
+        if idx_opt.is_none() {
             return Result<WsConnection, String>::Err(String::from("Missing Sec-WebSocket-Key"))
         }
-        auto start_idx = idx + (key_marker.len() as i32)
+        auto start_idx = idx_opt.unwrap() + key_marker.len()
         
-        auto rest = req_str.substring(start_idx, req_str.len() as i32)
-        auto crlf = String::from("\r\n")
-        auto end_idx = rest.find_str(crlf)
-        if end_idx < 0 {
+        auto rest_view = req_view.substring(start_idx, req_view.len())
+        auto crlf_tmp = String::from("\r\n")
+        auto crlf = crlf_tmp.as_view()
+        auto end_idx_opt = rest_view.index_of_str(crlf)
+        if end_idx_opt.is_none() {
             return Result<WsConnection, String>::Err(String::from("Malformed headers"))
         }
         
-        auto swk# = rest.substring(0, end_idx)
+        auto swk# = rest_view.substring(0, end_idx_opt.unwrap()).to_string()
         swk#.push_str("258EAFA5-E914-47DA-95CA-C5AB0DC85B11")
         
         auto *sha1_res# = sha1::hash(swk.c_str() as Addr, swk.len())
@@ -171,22 +167,18 @@ impl WsConnection {
             }
         }
         
-        auto ret_str# = String::from("")
-        auto i#: usize = 0
-        unsafe {
-            while i < payload_len {
-                auto b#: i32 = 0
-                unsafe {
-                    auto p_b# = payload[i]
-                    if masked {
-                        p_b = p_b ^ mask_key[i % 4]
-                    }
-                    b = p_b as i32
-                }
-                ret_str#.push_char(b as char)
-                i += 1
+        if masked {
+            auto j#: usize = 0
+            while j < payload_len {
+                unsafe { payload[j] = payload[j] ^ mask_key[j % 4] }
+                j += 1
             }
+        }
+        
+        auto ret_str = String::from_raw(*#payload as *u8, payload_len)
+        unsafe {
             unsafe free [payload_len] *#payload
+            unsafe free [4] *#mask_key
         }
 
         return Result<String, String>::Ok(ret_str)

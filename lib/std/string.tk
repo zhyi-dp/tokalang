@@ -163,6 +163,17 @@ impl String {
         }
     }
 
+    pub fn from_raw(*s: u8, len: usize) -> String {
+        unsafe {
+            auto l = len
+            auto *p# = unsafe alloc [l + 1] char as *[char]
+            libc_memcpy(*p as *void, *s as *void, l)
+            p[l] = 0 as char
+            
+            return String(*buf = *p, len = l, cap = l + 1)
+        }
+    }
+
     pub fn from_str(s: str) -> String {
         if s.len() == 0 { return String::from("") }
         unsafe {
