@@ -155,6 +155,11 @@ Token Lexer::nextToken() {
     t = Token{TokenType::EndOfFile, "", m_Line, m_Column};
   } else if (isDigit(peek())) {
     t = number();
+  } else if (peek() == 'v' && peekNext() == '"') {
+    uint32_t startCol = m_Column;
+    advance(); // v
+    t = viewString();
+    t.Column = startCol;
   } else if (isAlpha(peek())) {
     t = identifier();
   } else {
@@ -622,6 +627,35 @@ Token Lexer::string() {
     advance(); // Consume closing
 
   return Token{TokenType::String, text, m_Line, m_Column};
+}
+
+Token Lexer::viewString() {
+  // Opening 'v' already consumed.
+  // Next should be '"'
+  if (peek() == '"') advance();
+  
+  std::string text = "";
+  while (peek() != '"' && peek() != '\0') {
+    char c = advance();
+    // Support same escape sequences as regular string
+    if (c == '\\') {
+      char next = advance();
+      switch (next) {
+      case 'n': text += '\n'; break;
+      case 't': text += '\t'; break;
+      case '\\': text += '\\'; break;
+      case '"': text += '"'; break;
+      default: text += next; break; 
+      }
+    } else {
+      text += c;
+    }
+  }
+
+  if (peek() == '"')
+    advance();
+
+  return Token{TokenType::ViewString, text, m_Line, m_Column};
 }
 
 } // namespace toka

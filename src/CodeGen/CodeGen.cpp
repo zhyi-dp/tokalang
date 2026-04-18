@@ -44,6 +44,7 @@ PhysEntity CodeGen::genExpr(const Expr *expr) {
       dynamic_cast<const NullExpr *>(expr) ||
       dynamic_cast<const NoneExpr *>(expr) ||
       dynamic_cast<const StringExpr *>(expr) ||
+      dynamic_cast<const ViewStringExpr *>(expr) ||
       dynamic_cast<const CharLiteralExpr *>(expr)) {
     return genLiteralExpr(expr);
   }

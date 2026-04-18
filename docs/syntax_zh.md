@@ -130,6 +130,7 @@
 | `auto p = Point{x=1}` | `auto p = Point(x=1)` | **铁律**：初始化也必须使用**圆括号** `()`。 |
 | `println("Hello")` | `import std/io::println`<br>`println("Hello")` | `println` 不是内置关键字，必须从标准库导入。 |
 | `println("x=%d, y=%s", 1, s)` | `println("x={}, y={}", 1, s)` | **铁律**：Toka 格式化输出 (包括 `println`、字符串插值等) 严格使用前沿的 `{}` 占位语法，绝对不要使用 C 语言的 `%d`、`%s` 标志。 |
+| `auto s: view_str = "abc"` | `auto s = v"abc"` | **视角字串铁律**：普通 `"[文本]"` 推导为 `*char`。若需要携带长度的胖形态 **`view_str`**，请务必使用带 **`v` 前缀** 的字面量 `v"..."`。此外，`println` 已经内建对 `view_str` 和 `String` 的全面特化支持，可完美安全地打印其文本内容及任意无 `\0` 结尾的结构切片（再也不会输出 `?Struct?`）。 |
 | `auto p = User("Alice", 1)` | `auto p = User(name = "Alice", id = 1)` | **强烈建议**：实例化结构体（Shape）时，尽量使用**具名参数 (Named Parameters)** 进行赋值，这会触发最可靠的隐式转型且保证字段增删时的安全。如果确定按位置顺序初始化，务必对齐所有类型（或在末尾配合 `..` 使用默认值），参数较多时极不推荐顺序盲传。 |
 | `x.modify()` (如果定义需要 `self#`) | `x#.modify()` | 修改自身的方法必须在调用者上加 `#`，**哪怕 x 本身是可变的**。 |
 | `*p` (想解引用) | `p` | **铁律 (Hat Principle)**：Toka 中裸名 `p` 即为灵魂 (Soul)，自动解引用。`*p` 是戴帽操作，得到指针本身 (Handle)。与 C++ 相反。 |

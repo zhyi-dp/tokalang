@@ -543,6 +543,9 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
         }
     }
     return toka::Type::fromString("cstring");
+  } else if (auto *VStr = dynamic_cast<ViewStringExpr *>(E)) {
+      auto t = toka::Type::fromString("view_str");
+      return resolveType(t);
   } else if (auto *ve = dynamic_cast<VariableExpr *>(E)) {
     m_AccessedVariables.insert(ve->Name); // [CLOSURE] Tracker
 

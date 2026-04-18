@@ -1,0 +1,22 @@
+import std/io::println
+import core/str::view_str
+
+fn main() -> i32 {
+    auto s = v"Hello Toka"
+    println("{}", s)
+    
+    if s.len() != 10:usize {
+        return 1
+    }
+    
+    // Check if it's really a view_str by passing to a function expecting it
+    check_view(s)
+    
+    return 0
+}
+
+fn check_view(v: view_str) {
+    if v.len() > 0:usize {
+        println("Checked view_str successfully")
+    }
+}

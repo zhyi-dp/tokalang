@@ -344,6 +344,11 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
     auto node = std::make_unique<StringExpr>(tok.Text);
     node->setLocation(tok, m_CurrentFile);
     expr = std::move(node);
+  } else if (match(TokenType::ViewString)) {
+    Token tok = previous();
+    auto node = std::make_unique<ViewStringExpr>(tok.Text);
+    node->setLocation(tok, m_CurrentFile);
+    expr = std::move(node);
   } else if (match(TokenType::CharLiteral)) {
     Token tok = previous();
     char val = 0;
@@ -861,11 +866,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
           return nullptr;
         }
 
-        auto obj = std::make_unique<VariableExpr>(name.Text + genericSuffix);
-        obj->setLocation(name, m_CurrentFile);
-        expr = std::make_unique<MemberExpr>(std::move(obj), member.Text, false,
-                                            true);
-        expr->setLocation(name, m_CurrentFile);
+        std::string fullCallee = name.Text + genericSuffix + "::" + member.Text;
 
         if (match(TokenType::LParen)) {
           // Function Call on Member
@@ -876,44 +877,26 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
             } while (match(TokenType::Comma));
           }
           consume(TokenType::RParen, "Expected ')' after arguments");
-          // Static method call e.g. Box<T>::new()
-          // We treat "Box<T>::new" as function name??
-          // AST says CallExpr(Callee). Callee is string.
-          // GenericArgs? If static method itself is generic?
-          // Box<T>::method<U>() Here we are inside Scope Resolution block.
-          // MemberExpr handles "Box<T>::new".
-          // But MemberExpr is "Object . Member". Object is
-          // "Box<T>"(VariableExpr). We return specialized CallExpr for static
-          // call? Line 561 original: CallExpr(name + "::" + member, args). With
-          // generic suffix: CallExpr(name + suffix + "::" + member, args). Does
-          // this support method-level generics? No logic here supports
-          // `method<U>`. If we want `Type::method<U>()`, we need `parseExpr` to
-          // handle it? Suffix loop handles `.member`. This block handles `::`
-          // immediately after identifier. So `Type::method` is handled here. If
-          // `method` has generics, we aren't parsing them here! We consumed
-          // `member` (identifier). We immediately check LParen. We miss `<U>`
-          // here! But that's a separate issue. For now, preserve existing
-          // behavior + suffix.
-
-          auto node = std::make_unique<CallExpr>(
-              name.Text + genericSuffix + "::" + member.Text, std::move(args));
-          // Note: Static method calls on generic types don't support explicit
-          // method generics yet in this parser logic
+          
+          auto node = std::make_unique<CallExpr>(fullCallee, std::move(args));
           node->setLocation(name, m_CurrentFile);
           expr = std::move(node);
-          return expr;
+        } else {
+          auto obj = std::make_unique<VariableExpr>(name.Text + genericSuffix);
+          obj->setLocation(name, m_CurrentFile);
+          auto node = std::make_unique<MemberExpr>(std::move(obj), member.Text, false,
+                                              true);
+          node->setLocation(name, m_CurrentFile);
+          expr = std::move(node);
         }
-        return expr;
+      } else {
+        auto var = std::make_unique<VariableExpr>(name.Text + genericSuffix);
+        var->setLocation(name, m_CurrentFile);
+        var->IsValueMutable = name.HasWrite;
+        var->IsValueNullable = name.HasNull;
+        var->IsValueBlocked = name.IsBlocked;
+        expr = std::move(var);
       }
-
-      auto var = std::make_unique<VariableExpr>(name.Text + genericSuffix);
-      var->setLocation(name, m_CurrentFile);
-      // var->IsMutable = name.HasWrite; // Deprecated
-      // var->IsNullable = name.HasNull; // Deprecated
-      var->IsValueMutable = name.HasWrite;
-      var->IsValueNullable = name.HasNull;
-      var->IsValueBlocked = name.IsBlocked;
-      expr = std::move(var);
     }
   } else if (match(TokenType::Dot)) {
     // Check if it's .a to .z for implicit closure parameter

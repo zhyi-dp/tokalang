@@ -1647,13 +1647,30 @@ PhysEntity CodeGen::genLiteralExpr(const Expr *expr) {
   if (auto *str = dynamic_cast<const StringExpr *>(expr)) {
     llvm::Value *ptr = m_Builder.CreateGlobalString(str->Value);
     if (str->ResolvedType && str->ResolvedType->isShape()) {
-        llvm::Type *fatTy = getLLVMType(str->ResolvedType);
-        llvm::Value *fatVal = llvm::UndefValue::get(fatTy);
-        fatVal = m_Builder.CreateInsertValue(fatVal, ptr, {0});
-        fatVal = m_Builder.CreateInsertValue(fatVal, llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), str->Value.size()), {1});
-        return fatVal;
+      llvm::Type *fatTy = getLLVMType(str->ResolvedType);
+      llvm::Value *fatVal = llvm::UndefValue::get(fatTy);
+      fatVal = m_Builder.CreateInsertValue(fatVal, ptr, {0});
+      fatVal = m_Builder.CreateInsertValue(
+          fatVal,
+          llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context),
+                                 str->Value.size()),
+          {1});
+      return fatVal;
     }
     return ptr;
+  }
+  if (auto *vstr = dynamic_cast<const ViewStringExpr *>(expr)) {
+    llvm::Value *ptr = m_Builder.CreateGlobalString(vstr->Value);
+    if (!vstr->ResolvedType) return nullptr;
+    llvm::Type *fatTy = getLLVMType(vstr->ResolvedType);
+    llvm::Value *fatVal = llvm::UndefValue::get(fatTy);
+    fatVal = m_Builder.CreateInsertValue(fatVal, ptr, {0});
+    fatVal = m_Builder.CreateInsertValue(
+        fatVal,
+        llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context),
+                               vstr->Value.size()),
+        {1});
+    return fatVal;
   }
   if (auto *chr = dynamic_cast<const CharLiteralExpr *>(expr)) {
     return llvm::ConstantInt::get(llvm::Type::getInt8Ty(m_Context), chr->Value);
@@ -3169,17 +3186,32 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
           } else if (ty->isFloatTy()) {
             spec = "%f";
             pVal = m_Builder.CreateFPExt(val, m_Builder.getDoubleTy());
-          } else if (semanticType == "*char" || semanticType == "cstring" ||
-                     semanticType == "String") {
-            // Explicit check for String type (including String struct if we
-            // support it)
+          } else if (semanticType == "*char" || semanticType == "cstring") {
             spec = "%s";
-            // If it's *char (Pointer to i8), printf %s works.
-            // If it's String struct, we might need to extract data pointer?
-            // But currently String is likely passed as *char from c_str()
-            // or similar. If it is String struct, pVal is struct value.
-            // printf cannot take struct. But val_ent.load() loads the
-            // value.
+          } else if ((semanticType == "view_str" || semanticType == "str" ||
+                      semanticType == "String") &&
+                     ty->isStructTy() && ty->getStructNumElements() >= 2) {
+            // Fat String handling: { ptr, len, ... }
+            // Extract ptr (index 0) and len (index 1) safely
+            llvm::Value *ptr = m_Builder.CreateExtractValue(val, 0);
+            llvm::Value *len = m_Builder.CreateExtractValue(val, 1);
+
+            // printf %.*s expects i32 for length. Cap at INT32_MAX to prevent
+            // negative truncation on huge strings (fixes UB & layout risks)
+            llvm::Value *maxLen =
+                llvm::ConstantInt::get(m_Builder.getInt64Ty(), 2147483647);
+            llvm::Value *isTooBig = m_Builder.CreateICmpSGT(len, maxLen);
+            llvm::Value *safeLen = m_Builder.CreateSelect(isTooBig, maxLen, len);
+
+            llvm::Value *len32 =
+                m_Builder.CreateTrunc(safeLen, m_Builder.getInt32Ty());
+
+            std::vector<llvm::Value *> pArgs;
+            pArgs.push_back(m_Builder.CreateGlobalString("%.*s"));
+            pArgs.push_back(len32);
+            pArgs.push_back(ptr);
+            m_Builder.CreateCall(printfFunc, pArgs);
+            spec = ""; // Handled, skip default printf
           } else if (ty->isPointerTy()) {
             // Fallback for pointers
             spec = "%p";

@@ -1,0 +1,2 @@
+import std/io::println
+fn main() -> i32 { println("hello"); return 0 }

@@ -40,6 +40,7 @@ private:
   Token identifier();
   Token number();
   Token string();
+  Token viewString();
   Token charLiteral();
   Token punctuation();
 

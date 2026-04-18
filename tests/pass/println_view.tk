@@ -1,0 +1,16 @@
+import std/io::println
+import std/string::{String}
+
+fn main() -> i32 {
+    auto s = v"hello toka"
+    println("View: {}", s)
+    
+    auto sub = s.substring(0, 5)
+    println("Slice: {}", sub)
+    
+    auto ss = String::from("world")
+    println("String: {}", ss)
+    
+    println("Mixed: {} and {}", s, ss)
+    return 0
+}

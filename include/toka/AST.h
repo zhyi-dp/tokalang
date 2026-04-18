@@ -219,6 +219,19 @@ public:
   }
 };
 
+class ViewStringExpr : public Expr {
+public:
+  std::string Value;
+  ViewStringExpr(const std::string &val) : Value(val) {}
+  std::string toString() const override { return "ViewString(\"" + Value + "\")"; }
+  std::unique_ptr<ASTNode> clone() const override {
+    auto n = std::make_unique<ViewStringExpr>(Value);
+    n->Loc = Loc;
+    n->ResolvedType = ResolvedType;
+    return n;
+  }
+};
+
 class CharLiteralExpr : public Expr {
 public:
   char Value;
