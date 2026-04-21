@@ -194,6 +194,9 @@ impl String {
             libc_memcpy(*p as *void, *s as *void, l)
             p[l] = 0 as char
             
+            // Seal the memory leak: free the input pointer as promised
+            libc_free(*s as *void)
+            
             return String(
                 *buf = *p,
                 len = l,
