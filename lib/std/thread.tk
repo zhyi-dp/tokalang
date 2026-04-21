@@ -113,12 +113,14 @@ impl<'T: @Send> JoinHandle<'T> {
     /// Waits for the thread to finish and returns its yielded value or an Error if the OS join fails.
     pub fn join(self#) -> Result<'T, Error> {
         auto tid = self.id
-        self.id = 0:Addr // Clear ownership safely post-join (or before aborting) to bypass Sema self-shadowing!
-        
         if tid == 0:Addr {
-            auto msg# = String::from("thread was already joined or detached")
+            auto msg = String::from("Cannot join a thread that has already been detached or joined")
             return Result<'T, Error>::Err(Error::new(1, msg))
         }
+        
+        // Relinquish ownership from the handle to prevent double join or drop detach
+        self.id = 0:Addr
+        
         unsafe {
             // Allocate 8-byte pointer block to receive the pthread_join result
             auto *retval_ptr# = (libc_malloc(8 as usize) as *Addr)

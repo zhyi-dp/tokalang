@@ -231,7 +231,7 @@ impl String {
     pub fn from_f64(val: f64) -> String {
          unsafe {
             auto *buf# = unsafe alloc [32] char as *[char]
-            libc_sprintf(*buf as *char, "%.6f", val)
+            libc_sprintf(*buf as *char, "%g", val)
             auto len = libc_strlen(*buf as *char)
             return String(*buf = *buf, len = len, cap = 32)
         }
