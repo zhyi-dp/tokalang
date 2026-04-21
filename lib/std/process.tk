@@ -7,6 +7,16 @@ import core/types::{Addr, ADDR0, char, usize}
 
 pub shape Child(pid: i32)
 
+impl Child@encap {
+    pub pid
+    fn drop(self#) {
+        // Usually waitpid should be called explicitly, 
+        // to avoid silent blocking drops, we leave this as a no-op observation.
+    }
+    
+    pub fn clone(self) = delete
+}
+
 impl Child {
     pub fn wait_exit(self#) -> i32 {
         unsafe {

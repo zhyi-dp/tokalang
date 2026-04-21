@@ -44,6 +44,20 @@ pub shape ReadDir (
     finished#: bool
 )
 
+impl ReadDir@encap {
+    pub handle
+    pub finished
+    
+    fn drop(self#) {
+        if !self.finished {
+            call_closedir(self.handle)
+            self.finished = true
+        }
+    }
+    
+    pub fn clone(self) = delete
+}
+
 impl ReadDir {
     pub fn next(self) -> String {
         unsafe {
