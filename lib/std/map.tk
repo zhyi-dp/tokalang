@@ -27,13 +27,13 @@ impl<'K, 'V> HashMap<'K, 'V>@encap {
                      // Drop key
                      auto *ptr_k = self.keys.unsafe_get(i)
                      {
-                         auto k = ptr_k // Copy/Move out
+                         auto k = cede ptr_k // Copy/Move out
                      }
                      
                      // Drop val
                      auto *ptr_v = self.vals.unsafe_get(i)
                      {
-                         auto v = ptr_v
+                         auto v = cede ptr_v
                      }
                  }
                  i += 1
@@ -136,38 +136,22 @@ impl<'K, 'V> HashMap<'K, 'V> {
         // Optimization: capacity is power of 2, use mask
         auto idx# = (key.hash() as usize) band (capacity - 1)
         auto start_idx = idx
-        auto should_inc_len# = false
+        auto found_slot#: usize = 0
+        auto is_new# = false
         
         while true {
             unsafe {
-                // Check meta
-                // auto *m_ptr# declares *m_ptr as the Handle (Ptr to u8).
-                // m_ptr is the Soul (u8).
                 auto *m_ptr#: u8 = self.meta.unsafe_get(idx)
-                
                 if m_ptr == 0 {
-                    // Empty slot found
-                    m_ptr = 1 // Mark occupied (Write to Soul)
-                    
-                    // Write Key
-                    auto *k_ptr#: 'K = self.keys.unsafe_get(idx)
-                    k_ptr = key // Write key to Soul
-                    
-                    // Write Val
-                    // Write Val
-                    auto *v_ptr#: 'V = self.vals.unsafe_get(idx)
-                    v_ptr = val // Write val to Soul
-                    
-                    should_inc_len = true
+                    found_slot = idx
+                    is_new = true
                     break
                 }
                 
                 // Occupied. Check Key match.
                 auto *k_ptr#: 'K = self.keys.unsafe_get(idx)
                 if k_ptr.eq(key) {
-                    // Overwrite Val
-                    auto *v_ptr#: 'V = self.vals.unsafe_get(idx)
-                    v_ptr = val
+                    found_slot = idx
                     break
                 }
             }
@@ -176,8 +160,16 @@ impl<'K, 'V> HashMap<'K, 'V> {
             if idx == start_idx { break }
         }
         
-        if should_inc_len {
-            self.len = self.len + 1
+        unsafe {
+            if is_new {
+                auto *m_ptr#: u8 = self.meta.unsafe_get(found_slot)
+                m_ptr = 1
+                auto *k_ptr#: 'K = self.keys.unsafe_get(found_slot)
+                k_ptr = cede key
+                self.len = self.len + 1
+            }
+            auto *v_ptr#: 'V = self.vals.unsafe_get(found_slot)
+            v_ptr = cede val
         }
     }
     
@@ -203,8 +195,8 @@ impl<'K, 'V> HashMap<'K, 'V> {
                      moved_count += 1
                      auto *old_k_ptr#: 'K = self.keys.unsafe_get(i)
                      auto *old_v_ptr#: 'V = self.vals.unsafe_get(i)
-                     auto key = old_k_ptr // Move semantics
-                     auto val = old_v_ptr
+                     auto key = cede old_k_ptr 
+                     auto val = cede old_v_ptr
                      
                      auto idx# = (key.hash() as usize) band (new_cap - 1)
                      auto start_idx = idx
@@ -214,9 +206,9 @@ impl<'K, 'V> HashMap<'K, 'V> {
                          if nm_ptr == 0 {
                              nm_ptr = 1
                              auto *nk_ptr#: 'K = new_k.unsafe_get(idx)
-                             nk_ptr = key
+                             nk_ptr = cede key
                              auto *nv_ptr#: 'V = new_v.unsafe_get(idx)
-                             nv_ptr = val
+                             nv_ptr = cede val
                              break
                          }
                          idx = (idx + 1) band (new_cap - 1)
