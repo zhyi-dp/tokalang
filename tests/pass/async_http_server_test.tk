@@ -28,7 +28,7 @@ fn handle_request(req#: HttpRequest) -> HttpResponse {
 
 fn process_client(stream: TcpStream) -> async i32 {
     unsafe {
-        auto stream# = stream
+        auto stream# = cede stream
         auto buf: [char; 1024] = [0 as char; 1024]
         auto *buf_ptr# = &buf[0] as *u8
         

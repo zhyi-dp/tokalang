@@ -656,8 +656,13 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
     }
   }
 
+  bool isDeleted = false; // [NEW] Track = delete
   std::unique_ptr<BlockStmt> body = nullptr;
-  if (check(TokenType::LBrace)) {
+  if (match(TokenType::Equal)) {
+    consume(TokenType::KwDelete, "Expected 'delete' after '=' for deleted function");
+    isDeleted = true;
+    expectEndOfStatement();
+  } else if (check(TokenType::LBrace)) {
     body = parseBlock();
   } else {
     expectEndOfStatement();
@@ -665,6 +670,7 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
   auto decl = std::make_unique<FunctionDecl>(
       isPub, name.Text, std::move(args), std::move(body), retType,
       genericParams, std::move(lifeDeps), effect);
+  decl->IsDeleted = isDeleted; // [NEW] Attach to Node
   decl->IsVariadic = isVariadic;
   decl->MemberDependencies = std::move(memberDeps);
   decl->setLocation(name, m_CurrentFile);

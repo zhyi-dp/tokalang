@@ -30,6 +30,9 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
   if (!func->GenericParams.empty())
     return nullptr;
 
+  if (func->IsDeleted)
+    return nullptr;
+
   std::string funcName = overrideName.empty() ? func->Name : overrideName;
 
   // [Fix] Context Guard: Save/Restore symbol table to prevent corruption during

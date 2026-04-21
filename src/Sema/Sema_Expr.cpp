@@ -1905,6 +1905,16 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
           MethodDecls[soulType].count(Met->Method)) {
         FunctionDecl *FD = MethodDecls[soulType][Met->Method];
         
+        if (FD->IsDeleted) {
+          if (Met->IsCompilerInternal && Met->Method == "clone") {
+            error(Met, "Cannot implicitly copy value of type '" + soulType + "' because its 'clone' method is explicitly deleted (= delete)");
+          } else {
+            error(Met, "Cannot call explicitly deleted method '" + Met->Method + "' on type '" + soulType + "'");
+          }
+          HasError = true;
+          return toka::Type::fromString("unknown");
+        }
+
         // [Effect] Concurrency Check for Method Call
         if (FD->Effect != EffectKind::None && !m_IsConsumingEffect && !m_IsPrecomputingCaptures) {
           error(Met, DiagID::ERR_DANGLING_EFFECT, Met->Method);
@@ -4672,6 +4682,12 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
   }
 
   if (Fn) {
+    if (Fn->IsDeleted) {
+      error(Call, "Cannot call explicitly deleted function '" + Fn->Name + "'");
+      HasError = true;
+      return toka::Type::fromString("unknown");
+    }
+
     Call->ResolvedFn = Fn;
     for (auto &arg : Fn->Args) {
       ParamTypes.push_back(

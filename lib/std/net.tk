@@ -64,10 +64,7 @@ impl TcpStream@encap {
         }
     }
     
-    pub fn clone(self) -> TcpStream {
-        // Move semantics preferred, returning dummy closed stream
-        return TcpStream(fd = -1, closed = true)
-    }
+    pub fn clone(self) = delete
 }
 
 impl TcpStream {
@@ -257,9 +254,7 @@ impl TcpListener@encap {
         }
     }
     
-    pub fn clone(self) -> TcpListener {
-        return TcpListener(fd = -1, closed = true)
-    }
+    pub fn clone(self) = delete
 }
 
 impl TcpListener {

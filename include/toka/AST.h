@@ -1530,6 +1530,7 @@ public:
   std::unique_ptr<BlockStmt> Body;
 
   bool IsVariadic = false;
+  bool IsDeleted = false; // [NEW] e.g., `= delete` function
   std::vector<GenericParam> GenericParams; // [NEW] e.g. <T>
 
   FunctionDecl(bool isPub, const std::string &name, std::vector<Arg> args,
@@ -1564,6 +1565,7 @@ public:
                                             GenericParams, LifeDependencies, Effect);
     n->MemberDependencies = MemberDependencies;
     n->IsVariadic = IsVariadic;
+    n->IsDeleted = IsDeleted;
     n->Loc = Loc;
     n->ResolvedReturnType = ResolvedReturnType;
     // FunctionDecl is NOT an Expr, does not have ResolvedType?
