@@ -146,4 +146,30 @@ std::string_view SourceManager::getBufferData(SourceLocation Loc) const {
   return It->Content;
 }
 
+std::string SourceManager::getLineData(SourceLocation Loc) const {
+  return getLineData(getFullSourceLoc(Loc));
+}
+
+std::string SourceManager::getLineData(FullSourceLoc FullLoc) const {
+  if (FullLoc.Line == 0) return "";
+  for (const auto &File : Files) {
+    if (File.FileName == FullLoc.FileName) {
+      if (FullLoc.Line - 1 < File.LineStartOffsets.size()) {
+        uint32_t startOffset = File.LineStartOffsets[FullLoc.Line - 1];
+        uint32_t endOffset = File.Content.size();
+        if (FullLoc.Line < File.LineStartOffsets.size()) {
+          endOffset = File.LineStartOffsets[FullLoc.Line] - 1; // Exclude \n
+        } else {
+          // It's the last line, strip trailing \n if present
+          if (endOffset > startOffset && File.Content[endOffset - 1] == '\n') {
+            endOffset--;
+          }
+        }
+        return File.Content.substr(startOffset, endOffset - startOffset);
+      }
+    }
+  }
+  return "";
+}
+
 } // namespace toka

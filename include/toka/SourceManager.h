@@ -59,6 +59,12 @@ public:
 
   /// Get the raw buffer content for the file containing Loc.
   std::string_view getBufferData(SourceLocation Loc) const;
+
+  /// Extract the exact text of the line containing the given SourceLocation.
+  std::string getLineData(SourceLocation Loc) const;
+  
+  /// Extract the exact text of the line associated with the given FullSourceLoc.
+  std::string getLineData(FullSourceLoc FullLoc) const;
 };
 
 } // namespace toka

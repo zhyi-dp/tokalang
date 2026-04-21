@@ -66,32 +66,28 @@ void DiagnosticEngine::reportImpl(DiagLoc loc, DiagID id,
                                   const std::string &message) {
   DiagLevel level = getLevel(id);
 
-  // Update stats
   if (level == DiagLevel::Error) {
     ErrorCount++;
   }
 
-  // Color codes
   const char *color = "";
   const char *reset = "\033[0m";
 
   if (level == DiagLevel::Error) {
     color = "\033[1;31m"; // Red Bold
-    std::cerr << loc.File << ":" << loc.Line << ":" << loc.Col << ": " << color
-              << "error[" << getCode(id) << "]" << reset << ": " << message
-              << "\n";
+    std::cerr << color << "error[" << getCode(id) << "]" << reset << ": "
+              << message << "\n";
   } else if (level == DiagLevel::Warning) {
     color = "\033[1;33m"; // Yellow Bold
-    std::cerr << loc.File << ":" << loc.Line << ":" << loc.Col << ": " << color
-              << "warning[" << getCode(id) << "]" << reset << ": " << message
-              << "\n";
+    std::cerr << color << "warning[" << getCode(id) << "]" << reset << ": "
+              << message << "\n";
   } else {
     color = "\033[1;36m"; // Cyan Bold
-    std::cerr << loc.File << ":" << loc.Line << ":" << loc.Col << ": " << color
-              << "note" << reset << ": " << message << "\n";
+    std::cerr << color << "note" << reset << ": " << message << "\n";
   }
 
-  // Kill Switch
+  std::cerr << " --> " << loc.File << ":" << loc.Line << ":" << loc.Col << "\n";
+
   if (ErrorCount > 20) {
     std::cerr
         << "\033[1;31mfatal:\033[0m too many errors emitted, stopping now.\n";
@@ -104,7 +100,30 @@ void DiagnosticEngine::reportImpl(SourceLocation loc, DiagID id,
   if (SrcMgr) {
     FullSourceLoc Full = SrcMgr->getFullSourceLoc(loc);
     DiagLoc DL{Full.FileName, (int)Full.Line, (int)Full.Column};
+    
+    // Print the basic header first
     reportImpl(DL, id, message);
+    
+    // Print rich snippet if available
+    std::string lineData = SrcMgr->getLineData(Full);
+    if (!lineData.empty()) {
+      std::string lineNumStr = std::to_string(Full.Line);
+      std::string padding(lineNumStr.length() + 1, ' ');
+      
+      const char *blue = "\033[1;34m";
+      const char *reset = "\033[0m";
+      const char *caretColor = getLevel(id) == DiagLevel::Warning ? "\033[1;33m" : "\033[1;31m";
+      if (getLevel(id) == DiagLevel::Note) caretColor = "\033[1;36m";
+      
+      std::cerr << padding << blue << "|" << reset << "\n";
+      std::cerr << " " << lineNumStr << " " << blue << "|" << reset << " " << lineData << "\n";
+      std::cerr << padding << blue << "|" << reset << " ";
+      if (Full.Column > 0) {
+        std::cerr << std::string(Full.Column - 1, ' ');
+      }
+      std::cerr << caretColor << "^" << reset << "\n\n";
+    }
+    
   } else {
     DiagLoc DL{"<unknown>", 0, 0};
     reportImpl(DL, id,
