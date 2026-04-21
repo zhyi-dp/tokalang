@@ -3,6 +3,7 @@ import std/io::println
 shape TStruct<T>(val: T)
 
 impl<T> TStruct<T> @encap {
+    pub fn clone(self) = delete
     fn drop(self#) {
         println("drop TStruct")
     }

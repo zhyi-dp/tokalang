@@ -18,6 +18,7 @@ shape Data (
 )
 
 impl Data@encap {
+    pub fn clone(self) = delete
     fn drop(self#) {
         println("Dropping Data, val={}", self.val)
     }

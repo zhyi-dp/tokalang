@@ -160,4 +160,6 @@ impl<'T: @Send> JoinHandle<'T>@encap {
             self.id = 0:Addr
         }
     }
+    
+    pub fn clone(self) = delete
 }

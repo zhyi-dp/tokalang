@@ -25,6 +25,8 @@ impl WsConnection@encap {
     pub stream
     pub is_client
     fn drop(self#) {} 
+    
+    pub fn clone(self) = delete
 }
 
 pub fn ws_accept_async(stream#: TcpStream) -> async Result<WsConnection, String> {

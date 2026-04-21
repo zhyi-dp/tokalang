@@ -110,16 +110,6 @@ impl<'T: @Send> Sender<'T> {
         return Result<(), Error>::Ok(())
     }
 
-    pub fn clone(self) -> Sender<'T> {
-        auto lguard_res = self.channel.state.lock()
-        if lguard_res.is_err() {
-            return Sender<'T>(~channel = self.~channel)
-        }
-        auto lguard# = lguard_res.unwrap()
-        auto *q# = lguard.get_ref()
-        q.senders = q.senders + 1
-        return Sender<'T>(~channel = self.~channel)
-    }
 }
 
 impl<'T: @Send> Receiver<'T> {
@@ -157,6 +147,17 @@ impl<'T: @Send> Sender<'T>@encap {
             self.channel.cond_not_empty.notify_all()
         }
     }
+    
+    pub fn clone(self) -> Sender<'T> {
+        auto lguard_res = self.channel.state.lock()
+        if lguard_res.is_err() {
+            return Sender<'T>(~channel = self.~channel)
+        }
+        auto lguard# = lguard_res.unwrap()
+        auto *q# = lguard.get_ref()
+        q.senders = q.senders + 1
+        return Sender<'T>(~channel = self.~channel)
+    }
 }
 
 impl<'T: @Send> Receiver<'T>@encap {
@@ -173,4 +174,6 @@ impl<'T: @Send> Receiver<'T>@encap {
             self.channel.cond_not_full.notify_all()
         }
     }
+    
+    pub fn clone(self) = delete
 }

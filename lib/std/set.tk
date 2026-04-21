@@ -13,6 +13,12 @@ impl<'T> HashSet<'T>@encap {
     fn drop(self#) {
         // Map drops automatically
     }
+    
+    pub fn clone(self) -> HashSet<'T> {
+        return HashSet<'T>(
+            map = self.map.clone()
+        )
+    }
 }
 
 impl<'T> HashSet<'T> {

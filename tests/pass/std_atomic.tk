@@ -33,8 +33,6 @@ pub fn main() -> i32 {
     auto ~c9 = ~counter
     auto ~c10 = ~counter
     
-    // We will collect 10 join handles
-    auto arr = Vec<JoinHandle<i32>>::new()
 
     auto t1# = thread_spawn<i32>({ [cede c1] =>
         auto i# = 0

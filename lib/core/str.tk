@@ -27,6 +27,8 @@ impl view_str@encap {
     pub fn clone(self) -> view_str <- self {
         return view_str(&buf = self.&buf, len = self.len)
     }
+    
+    fn drop(self#) {}
 }
 
 impl view_str@PartialEq {
@@ -47,6 +49,8 @@ impl ViewStrSplitIterator@encap {
     pub fn clone(self) -> ViewStrSplitIterator <- self {
         return ViewStrSplitIterator(&buf = self.&buf, len = self.len, pos = self.pos, sep = self.sep.clone(), finished = self.finished)
     }
+    
+    fn drop(self#) {}
 }
 
 impl ViewStrSplitIterator {
@@ -129,6 +133,8 @@ impl ViewStrLinesIterator@encap {
     pub fn clone(self) -> ViewStrLinesIterator <- self {
         return ViewStrLinesIterator(split_iter = self.split_iter.clone())
     }
+    
+    fn drop(self#) {}
 }
 
 impl ViewStrLinesIterator {

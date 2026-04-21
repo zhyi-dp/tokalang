@@ -22,10 +22,6 @@ impl<T> TaskHandle<T>@encap {
         }
     }
     
-    pub fn clone(self) -> TaskHandle<T> {
-        // Return dummy handle to satisfy auto-clone of resource managers
-        unsafe {
-            return TaskHandle<T>(*coro_handle=null)
-        }
-    }
+    // Explicitly deleted to ensure TaskHandle is strictly Move-Only and cannot be implicitly copied
+    pub fn clone(self) = delete
 }

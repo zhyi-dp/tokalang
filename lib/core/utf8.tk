@@ -34,6 +34,8 @@ impl Utf8Iterator@encap {
     pub fn current_pos(self) -> usize {
         return self.pos
     }
+    
+    fn drop(self#) {}
 }
 
 impl Utf8Iterator {

@@ -6,7 +6,8 @@ shape HandlerEnv (
 
 impl HandlerEnv@encap {
    pub count
-   fn drop(self#) {
+   pub fn clone(self) = delete
+    fn drop(self#) {
        libc::libc_printf("Dropping handler env! count=%d\n", self.count)
    }
 }

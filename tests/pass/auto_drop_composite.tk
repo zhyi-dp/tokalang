@@ -20,6 +20,7 @@ shape Resource (
 )
 
 impl Resource @encap {
+    pub fn clone(self) = delete
     fn drop(self#) {
         println("Dropping Resource")
     }

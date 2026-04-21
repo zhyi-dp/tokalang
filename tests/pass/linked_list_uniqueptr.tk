@@ -14,6 +14,8 @@ impl Node@encap {
     fn drop(self#) {
         println("dropping {}", self.val)
     }
+    
+    pub fn clone(self) = delete
 }
 
 pub fn main() -> i32 {

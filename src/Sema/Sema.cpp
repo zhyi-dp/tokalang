@@ -582,8 +582,7 @@ void Sema::registerImpl(ImplDecl *Impl) {
           MethodDecls[resolvedTypeName][Method->Name] = Method.get();
         } else {
           // [Fix] Optional methods for intrinsic interfaces
-          if (Impl->TraitName == "encap" || Impl->TraitName == "@encap" || 
-              Impl->TraitName == "delegate" || Impl->TraitName == "@delegate") {
+          if (Impl->TraitName == "delegate" || Impl->TraitName == "@delegate") {
             continue;
           }
 
@@ -963,8 +962,16 @@ void Sema::analyzeShapes(Module &M) {
           std::make_unique<FunctionDecl>(false, "drop", std::move(args),
                                          std::make_unique<BlockStmt>(), "void");
 
+      std::vector<FunctionDecl::Arg> cloneArgs;
+      cloneArgs.push_back({"self", "Self"});
+      auto cloneFn = 
+          std::make_unique<FunctionDecl>(true, "clone", std::move(cloneArgs),
+                                         nullptr, "Self");
+      cloneFn->IsDeleted = true;
+
       std::vector<std::unique_ptr<FunctionDecl>> methods;
       methods.push_back(std::move(dropFn));
+      methods.push_back(std::move(cloneFn));
 
       auto impl =
           std::make_unique<ImplDecl>(S->Name, std::move(methods), "encap");

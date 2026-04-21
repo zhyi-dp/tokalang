@@ -11,6 +11,8 @@ impl Data@encap {
     fn drop(self#) {
     println("auto drop")
     }
+    
+    pub fn clone(self) = delete
 }
 
 fn main() -> i32 {
