@@ -1,0 +1,34 @@
+import std/serde/json::{to_json, deserialize_shape}
+import std/string::{String}
+import std/io::{println}
+
+pub shape User (
+    id: i32 = 0,
+    name: String = String::from(""),
+    active: bool = false
+)
+
+pub fn main() -> i32 {
+    auto u1 = User(id = 123, name = String::from("Alice"), active = true)
+    
+    // Test Serialization
+    auto json_str = to_json(u1)
+    println("Serialized: {}", json_str.as_view())
+    
+    // Verify content (fields might be in any order but reflect preserves definition order usually)
+    assert(json_str.contains_char(':'), "JSON should contain colon")
+    
+    // Test Deserialization
+    auto u2_res = deserialize_shape<User>(json_str.as_view())
+    assert(u2_res.is_ok(), "Deserialization failed")
+    
+    auto u2 = u2_res.unwrap()
+    println("Deserialized: id={}, name={}, active={}", u2.id, u2.name.as_view(), u2.active)
+    
+    assert(u2.id == 123, "ID mismatch")
+    assert(u2.name.eq(String::from("Alice")), "Name mismatch")
+    assert(u2.active == true, "Active mismatch")
+    
+    println("JSON Serde tests passed!")
+    return 0
+}

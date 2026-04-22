@@ -1,7 +1,7 @@
 import std/io::{File, println}
 import std/string::{String}
 import core/str::{view_str, str}
-import stdx/json::{deserialize_shape}
+import std/serde/json::{deserialize_shape}
 
 pub shape SentryScope (
     _notifyingListeners: bool = false

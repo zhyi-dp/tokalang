@@ -30,6 +30,7 @@ pub trait @Float {
     pub fn abs(self) -> self
     pub fn floor(self) -> self
     pub fn ceil(self) -> self
+    pub fn pow(self, exp: self) -> self
 }
 
 // --- Implementation for f64 ---
@@ -47,6 +48,7 @@ impl f64@Float {
     pub fn abs(self) -> f64 { unsafe { return libc::libc_fabs(self) } }
     pub fn floor(self) -> f64 { unsafe { return libc::libc_floor(self) } }
     pub fn ceil(self) -> f64 { unsafe { return libc::libc_ceil(self) } }
+    pub fn pow(self, exp: f64) -> f64 { unsafe { return libc::libc_pow(self, exp) } }
 }
 
 // --- Implementation for f32 ---
@@ -64,6 +66,7 @@ impl f32@Float {
     pub fn abs(self) -> f32 { unsafe { return libc::libc_fabsf(self) } }
     pub fn floor(self) -> f32 { unsafe { return libc::libc_floorf(self) } }
     pub fn ceil(self) -> f32 { unsafe { return libc::libc_ceilf(self) } }
+    pub fn pow(self, exp: f32) -> f32 { unsafe { return libc::libc_powf(self, exp) } }
 }
 
 // --- Unified Global API ---
@@ -79,6 +82,7 @@ pub fn log<T>(x: T) -> T { return x.log() }
 pub fn exp<T>(x: T) -> T { return x.exp() }
 pub fn floor<T>(x: T) -> T { return x.floor() }
 pub fn ceil<T>(x: T) -> T { return x.ceil() }
+pub fn pow<T>(x: T, y: T) -> T { return x.pow(y) }
 
 // --- Generic Utilities ---
 

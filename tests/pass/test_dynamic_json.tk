@@ -3,7 +3,7 @@ import std/io::{println, print}
 import core/libc::{libc_printf, libc_fflush}
 import std/string::{String}
 import core/str::{str, view_str}
-import stdx/json::{JsonNode}
+import std/serde/json::{JsonNode}
 
 fn put(s: String) {
     auto fmt = String::from("%s")
@@ -120,7 +120,7 @@ pub fn main() -> i32 {
     
     auto root#: JsonNode = JsonNode::NullNode(0)
     println("Starting parse...")
-    auto parse_res = root#.parse_json(v_str, 0:usize)
+    auto parse_res = root#.parse_json_internal(v_str, 0:usize)
     println("Finished parse!")
     
     if parse_res.is_err() {

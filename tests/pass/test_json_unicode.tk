@@ -1,5 +1,5 @@
 import std/io::{println}
-import stdx/json::{deserialize_shape}
+import std/serde/json::{deserialize_shape}
 import core/str::{view_str}
 import std/string::{String}
 
