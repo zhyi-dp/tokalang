@@ -53,10 +53,10 @@ impl Sha256 {
         // Initialize first 16 words from data block
         auto i1# = 0
         while i1 < 16 {
-            auto b0 = u32(self.data[i1 * 4]) & 0xff
-            auto b1 = u32(self.data[i1 * 4 + 1]) & 0xff
-            auto b2 = u32(self.data[i1 * 4 + 2]) & 0xff
-            auto b3 = u32(self.data[i1 * 4 + 3]) & 0xff
+            auto b0 = u32(self.data[i1 * 4])
+            auto b1 = u32(self.data[i1 * 4 + 1])
+            auto b2 = u32(self.data[i1 * 4 + 2])
+            auto b3 = u32(self.data[i1 * 4 + 3])
             w[i1] = (b0 << 24) | (b1 << 16) | (b2 << 8) | b3
             i1 = i1 + 1
         }
@@ -202,12 +202,7 @@ impl Sha256 {
         
         self#.process_block(&k)
         
-        auto hash#: [u8; 32] = [
-            0:u8, 0:u8, 0:u8, 0:u8, 0:u8, 0:u8, 0:u8, 0:u8,
-            0:u8, 0:u8, 0:u8, 0:u8, 0:u8, 0:u8, 0:u8, 0:u8,
-            0:u8, 0:u8, 0:u8, 0:u8, 0:u8, 0:u8, 0:u8, 0:u8,
-            0:u8, 0:u8, 0:u8, 0:u8, 0:u8, 0:u8, 0:u8, 0:u8
-        ]
+        auto hash#: [u8; 32] = [0; 32]
         auto j# = 0
         while j < 8 {
             hash[j * 4] = u8(self.state[j] >> 24)
@@ -227,7 +222,7 @@ impl Sha256 {
         auto i# = 0
         while i < 32 {
             auto b = hash[i]
-            auto high = (b >> 4) & 0x0f
+            auto high = b >> 4
             auto low = b & 0x0f
             res#.push_char(hex_char(high))
             res#.push_char(hex_char(low))

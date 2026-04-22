@@ -1011,21 +1011,30 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
     return m_Builder.CreateSRem(lhs, rhs, "srem");
   }
 
+  bool isSigned = true;
+  if (bin->LHS && bin->LHS->ResolvedType) {
+      isSigned = bin->LHS->ResolvedType->isSignedInteger();
+  }
+
   if (bin->Op == "<") {
     lhs = unwrapHandle(lhs);
     rhs = unwrapHandle(rhs);
-    return m_Builder.CreateICmpSLT(lhs, rhs, "lt_tmp");
+    if (isSigned) return m_Builder.CreateICmpSLT(lhs, rhs, "lt_tmp");
+    else return m_Builder.CreateICmpULT(lhs, rhs, "lt_tmp");
   }
   if (bin->Op == ">") {
     lhs = unwrapHandle(lhs);
     rhs = unwrapHandle(rhs);
-    return m_Builder.CreateICmpSGT(lhs, rhs, "gt_tmp");
+    if (isSigned) return m_Builder.CreateICmpSGT(lhs, rhs, "gt_tmp");
+    else return m_Builder.CreateICmpUGT(lhs, rhs, "gt_tmp");
   }
   if (bin->Op == "<=") {
-    return m_Builder.CreateICmpSLE(lhs, rhs, "le_tmp");
+    if (isSigned) return m_Builder.CreateICmpSLE(lhs, rhs, "le_tmp");
+    else return m_Builder.CreateICmpULE(lhs, rhs, "le_tmp");
   }
   if (bin->Op == ">=") {
-    return m_Builder.CreateICmpSGE(lhs, rhs, "ge_tmp");
+    if (isSigned) return m_Builder.CreateICmpSGE(lhs, rhs, "ge_tmp");
+    else return m_Builder.CreateICmpUGE(lhs, rhs, "ge_tmp");
   }
   if (bin->Op == "==" || bin->Op == "!=") {
     // 1. Unwrap Single-Element Structs (Strong Types)
@@ -1406,11 +1415,10 @@ PhysEntity CodeGen::genCastExpr(const CastExpr *cast) {
   }
   if (srcType->isIntegerTy() && targetType->isIntegerTy()) {
     bool isSigned = false;
-    if (cast->ResolvedType) {
-      isSigned = cast->ResolvedType->isSignedInteger();
+    if (cast->Expression && cast->Expression->ResolvedType) {
+      isSigned = cast->Expression->ResolvedType->isSignedInteger();
     } else {
-      // Fallback: check target type string if ResolvedType is missing
-      isSigned = (cast->TargetType.size() > 0 && cast->TargetType[0] == 'i');
+      isSigned = false;
     }
     return PhysEntity(m_Builder.CreateIntCast(val, targetType, isSigned),
                       cast->TargetType, targetType, false);
@@ -1626,6 +1634,12 @@ PhysEntity CodeGen::genVariableExpr(const VariableExpr *var) {
 
 PhysEntity CodeGen::genLiteralExpr(const Expr *expr) {
   if (auto *num = dynamic_cast<const NumberExpr *>(expr)) {
+    if (expr->ResolvedType && expr->ResolvedType->isInteger()) {
+      llvm::Type *targetTy = getLLVMType(expr->ResolvedType);
+      if (targetTy && targetTy->isIntegerTy()) {
+        return llvm::ConstantInt::get(targetTy, num->Value);
+      }
+    }
     if (num->Value > 2147483647) {
       return llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context),
                                     num->Value);
@@ -2971,7 +2985,11 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
       return nullptr;
     if (val->getType() != targetTy) {
       if (val->getType()->isIntegerTy() && targetTy->isIntegerTy()) {
-        return m_Builder.CreateIntCast(val, targetTy, true);
+        bool isSigned = false;
+        if (call->Args[0] && call->Args[0]->ResolvedType) {
+            isSigned = call->Args[0]->ResolvedType->isSignedInteger();
+        }
+        return m_Builder.CreateIntCast(val, targetTy, isSigned);
       } else if (val->getType()->isPointerTy() && targetTy->isIntegerTy()) {
         return m_Builder.CreatePtrToInt(val, targetTy);
       } else if (val->getType()->isIntegerTy() && targetTy->isPointerTy()) {
@@ -4785,6 +4803,7 @@ PhysEntity CodeGen::genRepeatedArrayExpr(const RepeatedArrayExpr *expr) {
     return nullptr;
   }
   llvm::Type *elemTy = val->getType();
+
   llvm::ArrayType *arrTy = llvm::ArrayType::get(elemTy, count);
   if (auto *c = llvm::dyn_cast<llvm::Constant>(val)) {
     std::vector<llvm::Constant *> elements(count, c);
@@ -5041,7 +5060,7 @@ PhysEntity CodeGen::genComptimeReflectExpr(const ComptimeReflectExpr *expr) {
       llvm::Value *fieldPtr = m_Builder.CreateGEP(fieldArrayTy, fieldArrayAlloc, {m_Builder.getInt32(0), m_Builder.getInt32(i)});
       
       // name: str (RowFat)
-      llvm::Value *namePtr = m_Builder.CreateGlobalStringPtr(member.Name);
+      llvm::Value *namePtr = m_Builder.CreateGlobalString(member.Name);
       llvm::Type *fatTy = getLLVMType(toka::Type::fromString("view_str"));
       llvm::Value *nameFat = llvm::UndefValue::get(fatTy);
       nameFat = m_Builder.CreateInsertValue(nameFat, namePtr, {0});
@@ -5049,7 +5068,7 @@ PhysEntity CodeGen::genComptimeReflectExpr(const ComptimeReflectExpr *expr) {
       m_Builder.CreateStore(nameFat, m_Builder.CreateStructGEP(fieldInfoTy, fieldPtr, 0));
 
       // type_name: str
-      llvm::Value *tyNamePtr = m_Builder.CreateGlobalStringPtr(member.Type);
+      llvm::Value *tyNamePtr = m_Builder.CreateGlobalString(member.Type);
       llvm::Value *tyNameFat = llvm::UndefValue::get(fatTy);
       tyNameFat = m_Builder.CreateInsertValue(tyNameFat, tyNamePtr, {0});
       tyNameFat = m_Builder.CreateInsertValue(tyNameFat, llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), member.Type.size()), {1});
@@ -5066,7 +5085,7 @@ PhysEntity CodeGen::genComptimeReflectExpr(const ComptimeReflectExpr *expr) {
   llvm::Value *typeInfoAlloc = createEntryBlockAlloca(typeInfoTy, nullptr, "reflect_typeinfo_" + targetSoul);
 
   // set name
-  llvm::Value *namePtr = m_Builder.CreateGlobalStringPtr(targetSoul);
+  llvm::Value *namePtr = m_Builder.CreateGlobalString(targetSoul);
   llvm::Type *fatTy = getLLVMType(toka::Type::fromString("view_str"));
   llvm::Value *nameFat = llvm::UndefValue::get(fatTy);
   nameFat = m_Builder.CreateInsertValue(nameFat, namePtr, {0});

@@ -440,8 +440,9 @@ void Sema::checkStmt(Stmt *S) {
       if (Var->IsReference)
         m_AllowUnsetUsage = true;
       m_ControlFlowStack.push_back({Var->Name, "void", nullptr, false, true});
+      std::shared_ptr<toka::Type> declTargetTy = nullptr;
       if (!Var->TypeName.empty() && Var->TypeName != "auto") {
-        auto declTargetTy = resolveType(toka::Type::fromString(Var->TypeName), false);
+        declTargetTy = resolveType(toka::Type::fromString(Var->TypeName), false);
         if (declTargetTy && (declTargetTy->typeKind == toka::Type::Function || declTargetTy->typeKind == toka::Type::DynFn)) {
            if (auto clo = dynamic_cast<ClosureExpr*>(Var->Init.get())) {
               std::vector<std::shared_ptr<Type>> paramTypes;
@@ -469,7 +470,7 @@ void Sema::checkStmt(Stmt *S) {
           m_ExpectedWritability = Var->IsValueMutable;
       }
       m_LastBorrowSource = ""; // [NEW] Clear stale borrow source
-      InitTypeObj = checkExpr(Var->Init.get());
+      InitTypeObj = checkExpr(Var->Init.get(), declTargetTy);
       m_ExpectedWritability = oldExpectedWritability;
       InitType = InitTypeObj->toString();
       m_AllowUnsetUsage = false;

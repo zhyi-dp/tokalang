@@ -401,6 +401,9 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
   }
 
   if (auto *Num = dynamic_cast<NumberExpr *>(E)) {
+    if (m_ExpectedType && m_ExpectedType->isInteger()) {
+      return m_ExpectedType;
+    }
     if (Num->Value > 9223372036854775807ULL)
       return toka::Type::fromString("u64");
     if (Num->Value > 2147483647)
@@ -2294,7 +2297,11 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     }
     return std::make_shared<toka::TupleType>(std::move(elements));
   } else if (auto *Repeat = dynamic_cast<RepeatedArrayExpr *>(E)) {
-    auto elemType = checkExpr(Repeat->Value.get());
+    std::shared_ptr<toka::Type> expectedElemType = nullptr;
+    if (m_ExpectedType && m_ExpectedType->isArray()) {
+      expectedElemType = m_ExpectedType->getArrayElementType();
+    }
+    auto elemType = checkExpr(Repeat->Value.get(), expectedElemType);
 
     // [FIX] Substitution for Count
     Repeat->Count = foldGenericConstant(std::move(Repeat->Count));
@@ -2321,9 +2328,16 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
   } else if (auto *ArrLit = dynamic_cast<ArrayExpr *>(E)) {
     // Infer from first element
     if (!ArrLit->Elements.empty()) {
+      std::shared_ptr<toka::Type> expectedElemType = nullptr;
+      if (m_ExpectedType && m_ExpectedType->isArray()) {
+        expectedElemType = m_ExpectedType->getArrayElementType();
+      }
       ArrLit->Elements[0] =
           foldGenericConstant(std::move(ArrLit->Elements[0])); // [FIX]
-      auto ElemTyObj = checkExpr(ArrLit->Elements[0].get());
+      auto ElemTyObj = checkExpr(ArrLit->Elements[0].get(), expectedElemType);
+      for (size_t i = 1; i < ArrLit->Elements.size(); ++i) {
+        checkExpr(ArrLit->Elements[i].get(), ElemTyObj);
+      }
       std::string ElemTy = ElemTyObj->toString();
       return toka::Type::fromString(
           "[" + ElemTy + ";" + std::to_string(ArrLit->Elements.size()) + "]");
