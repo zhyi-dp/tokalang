@@ -38,10 +38,17 @@ fn main() -> i32 {
                                 libc_printf("Cleanup Rmdir failed, errno: %d\n", e)
                                 
                                 if e == 66 { // ENOTEMPTY
-                                    println("Cleaning dir content...")
-                                    auto iter# = fs::read_dir(dirname.clone())
-                                    auto entry# = iter.next()
-                                    while entry.len() > 0 {
+                                    auto iter_res = fs::read_dir(dirname.clone())
+                                    if iter_res.is_err() {
+                                        println("Error reading dir: {}", iter_res.unwrap_err())
+                                        return 1
+                                    }
+                                    auto iter# = iter_res.unwrap()
+                                    while true {
+                                        auto entry_opt = iter#.next()
+                                        if entry_opt.is_none() { break }
+                                        auto entry = entry_opt.unwrap()
+                                        
                                         auto is_dot = libc_strcmp(entry.c_str(), ".") == 0
                                         auto is_dotdot = libc_strcmp(entry.c_str(), "..") == 0
                                         
@@ -58,7 +65,6 @@ fn main() -> i32 {
                                                  }
                                             }
                                         }
-                                        entry = iter.next()
                                     }
                                     iter#.close()
                                     
@@ -124,8 +130,7 @@ fn main() -> i32 {
         }
 
         // 3. Create Dir
-        println("Creating dir: {}", dirname.clone())
-        // println("Dirname c_str: {}", dirname.c_str() as usize) 
+        println("Creating dir: {}", dirname.clone().c_str())
         if !fs::create_dir(dirname.clone()) {
             println("Failed to create dir: {}", dirname.clone())
             // errno 17 = EEXIST

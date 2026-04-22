@@ -13,165 +13,202 @@
 // limitations under the License.
 
 import std/string::{String}
-import core/types::{char, Addr}
+import core/types::{char, Addr, usize}
+import core/option::{Option}
 
 /**
- * Path Utilities
+ * A structure representing a filesystem path.
+ */
+pub shape Path (
+    inner: String
+)
+
+impl Path {
+    pub fn new(s: String) -> Path {
+        return Path(inner = s)
+    }
+
+    pub fn to_string(self) -> String {
+        return self.inner.clone()
+    }
+
+    pub fn is_absolute(self) -> bool {
+        if self.inner.len() > 0 {
+            if self.inner.at(0).unwrap() == 47:char { return true } // '/'
+        }
+        return false
+    }
+
+    pub fn join(self, sub: String) -> Path {
+        auto res# = self.inner.clone()
+        if res.len() > 0 {
+            auto last = res.at(res.len() - 1).unwrap()
+            if last != 47:char { // '/'
+                res#.push_char(47:char)
+            }
+        }
+        
+        auto sub_start#: usize = 0
+        if sub.len() > 0 {
+            if sub.at(0).unwrap() == 47:char {
+                sub_start = 1
+            }
+        }
+        
+        unsafe {
+            auto *p = sub.c_str()
+            auto addr = *p as Addr
+            auto *sub_p = (addr + sub_start as Addr) as *char
+            res#.push_str(*sub_p)
+        }
+        
+        return Path(inner = res)
+    }
+
+    pub fn extension(self) -> String {
+        auto idx = self.inner.find_char(46:char) // '.'
+        if idx == -1 {
+            return String::from("")
+        }
+        
+        auto last_dot# = idx as i64
+        auto i#: i64 = (idx + 1) as i64
+        while i < self.inner.len() as i64 {
+            if self.inner.at(i as usize).unwrap() == 46:char {
+                last_dot = i
+            }
+            i = i + 1
+        }
+        
+        unsafe {
+            auto *p = self.inner.c_str()
+            auto addr = *p as Addr
+            auto *sub_p = (addr + (last_dot + 1) as Addr) as *char
+            return String::from(*sub_p)
+        }
+    }
+
+    pub fn basename(self) -> String {
+        auto last_slash#: i64 = -1
+        auto i#: usize = 0
+        while i < self.inner.len() {
+            if self.inner.at(i).unwrap() == 47:char { // '/'
+                last_slash = i as i64
+            }
+            i = i + 1
+        }
+        
+        if last_slash == -1:i64 {
+            return self.inner.clone()
+        }
+        
+        unsafe {
+            auto *p = self.inner.c_str()
+            auto addr = *p as Addr
+            auto *sub_p = (addr + (last_slash + 1) as Addr) as *char
+            return String::from(*sub_p)
+        }
+    }
+
+    pub fn dirname(self) -> String {
+        auto last_slash#: i64 = -1
+        auto i#: usize = 0
+        while i < self.inner.len() {
+            if self.inner.at(i).unwrap() == 47:char { // '/'
+                last_slash = i as i64
+            }
+            i = i + 1
+        }
+        
+        if last_slash == -1:i64 {
+            return String::from(".")
+        }
+        
+        if last_slash == 0 {
+            return String::from("/")
+        }
+        
+        unsafe {
+            auto *p = self.inner.c_str()
+            return String::from_with_len(*p, last_slash as usize)
+        }
+    }
+
+    pub fn file_stem(self) -> String {
+        auto base = self.basename()
+        auto ext_idx = base.find_char(46:char) // '.'
+        if ext_idx == -1 {
+            return base
+        }
+        if ext_idx == 0 {
+            return base // ".hidden"
+        }
+        
+        unsafe {
+            return String::from_with_len(base.c_str(), ext_idx)
+        }
+    }
+
+    pub fn with_extension(self, ext: String) -> Path {
+        auto stem_path_str# = self.inner.clone()
+        
+        auto ext_idx = self.inner.find_char(46:char)
+        if ext_idx != -1 {
+            unsafe {
+                stem_path_str = String::from_with_len(self.inner.c_str(), ext_idx)
+            }
+        }
+        
+        auto res# = stem_path_str
+        if ext.len() == 0 {
+            return Path(inner = res)
+        }
+        
+        res#.push_char(46:char)
+        auto ext_start# = 0
+        if ext.at(0).unwrap() == 46:char {
+            ext_start = 1
+        }
+        
+        unsafe {
+            auto *p = ext.c_str()
+            auto addr = *p as Addr
+            auto *sub_p = (addr + ext_start as Addr) as *char
+            res#.push_str(*sub_p)
+        }
+        
+        return Path(inner = res)
+    }
+}
+
+/**
+ * Global Helper Functions (for backward compatibility)
  */
 
 pub fn join(base: String, sub: String) -> String {
-    auto res# = String::from(base.c_str())
-    if res.len() > 0 {
-        auto last = res.at(res.len() - 1).unwrap()
-        if last != 47:char { // '/'
-            res#.push_char(47:char)
-        }
-    }
-    
-    auto sub_start#: usize = 0
-    if sub.len() > 0 {
-        if sub.at(0).unwrap() == 47:char {
-            sub_start = 1
-        }
-    }
-    
-    // Manual sub-string append
-    unsafe {
-        auto *p = sub.c_str()
-        auto addr = *p as Addr
-        auto *sub_p = (addr + sub_start as Addr) as *char
-        res#.push_str(*sub_p)
-    }
-    
-    return res
+    return Path::new(base).join(sub).to_string()
 }
 
 pub fn extension(path: String) -> String {
-
-    auto idx = path.find_char(46:char) // '.'
-    if idx == -1 {
-        return String::from("")
-    }
-    
-    // Find last dot
-    auto last_dot# = idx as i64
-    auto i#: i64 = (idx + 1) as i64
-    while i < path.len() as i64 {
-        if path.at(i as usize).unwrap() == 46:char {
-            last_dot = i
-        }
-        i = i + 1
-    }
-    
-    unsafe {
-        auto *p = path.c_str()
-        auto addr = *p as Addr
-        auto *sub_p = (addr + (last_dot + 1) as Addr) as *char
-        return String::from(*sub_p)
-    }
+    return Path::new(path).extension()
 }
 
 pub fn basename(path: String) -> String {
-    auto last_slash#: i64 = -1
-    auto i#: usize = 0
-    while i < path.len() {
-        if path.at(i).unwrap() == 47:char { // '/'
-            last_slash = i as i64
-        }
-        i = i + 1
-    }
-    
-    if last_slash == -1:i64 {
-        return String::from(path.c_str())
-    }
-    
-    unsafe {
-        auto *p = path.c_str()
-        auto addr = *p as Addr
-        auto *sub_p = (addr + (last_slash + 1) as Addr) as *char
-        return String::from(*sub_p)
-    }
+    return Path::new(path).basename()
 }
 
 pub fn dirname(path: String) -> String {
-    auto last_slash#: i64 = -1
-    auto i#: usize = 0
-    while i < path.len() {
-        if path.at(i).unwrap() == 47:char { // '/'
-            last_slash = i as i64
-        }
-        i = i + 1
-    }
-    
-    if last_slash == -1:i64 {
-        return String::from(".")
-    }
-    
-    if last_slash == 0 {
-        return String::from("/")
-    }
-    
-    unsafe {
-        auto *p = path.c_str()
-        return String::from_with_len(*p, last_slash as usize)
-    }
+    return Path::new(path).dirname()
 }
 
 pub fn is_absolute(path: String) -> bool {
-    if path.len() > 0 {
-        if path.at(0).unwrap() == 47:char { return true } // '/'
-    }
-    return false
+    return Path::new(path).is_absolute()
 }
 
 pub fn file_stem(path: String) -> String {
-    auto base = basename(path)
-    auto ext_idx = base.find_char(46:char) // '.'
-    if ext_idx == -1 {
-        return base
-    }
-    if ext_idx == 0 {
-        return base // ".hidden"
-    }
-    
-    unsafe {
-        return String::from_with_len(base.c_str(), ext_idx)
-    }
+    return Path::new(path).file_stem()
 }
 
 pub fn with_extension(path: String, ext: String) -> String {
-    auto stem_path# = path
-    
-    // Remove existing extension if any
-    auto ext_idx = path.find_char(46:char)
-    if ext_idx != -1 {
-        unsafe {
-            stem_path = String::from_with_len(path.c_str(), ext_idx)
-        }
-    }
-    
-    // Append new
-    auto res# = stem_path
-    
-    // Check if ext is empty
-    if ext.len() == 0 {
-        return res
-    }
-    
-    res#.push_char(46:char)
-    
-    // Skip leading dot in ext if present
-    auto ext_start# = 0
-    if ext.at(0).unwrap() == 46:char {
-        ext_start = 1
-    }
-    
-    unsafe {
-        auto *p = ext.c_str()
-        auto addr = *p as Addr
-        auto *sub_p = (addr + ext_start as Addr) as *char
-        res#.push_str(*sub_p)
-    }
-    
-    return res
+    return Path::new(path).with_extension(ext).to_string()
 }

@@ -14,107 +14,82 @@
 import std/sys/os as sys
 import std/string::{String}
 import core/types::{Addr, ADDR0}
-import std/io::{File, IoStringResult}
+import std/io::{File, IoStringResult, println}
 import core/result::{Result}
 import core/option::{Option}
 
-// Helpers to workaround potential scope visibility issue in impl blocks
-fn call_readdir(h: Addr) -> String {
-    return sys::readdir_impl(h as Addr)
-}
-
-fn call_closedir(h: Addr) {
-    sys::closedir_impl(h as Addr)
-}
-
-fn call_opendir(path: String) -> Addr {
-    return sys::opendir_impl(path.c_str() as Addr)
-}
-
-fn call_mkdir(path_addr: Addr) -> bool {
-    return sys::mkdir_impl(path_addr)
-}
-
-fn call_rmdir(path: String) -> bool {
-    return sys::rmdir_impl(path.c_str() as Addr)
-}
-
+/**
+ * Directory Iterator
+ */
 pub shape ReadDir (
     handle: Addr,
     finished#: bool
 )
 
-impl ReadDir@encap {
-    pub handle
-    pub finished
-    
-    fn drop(self#) {
-        if !self.finished {
-            call_closedir(self.handle)
-            self.finished = true
-        }
-    }
-    
-    pub fn clone(self) = delete
-}
+
 
 impl ReadDir {
-    pub fn next(self) -> String {
-        unsafe {
-            if self.finished {
-                return String::from("")
+    /**
+     * Returns the next directory entry name.
+     */
+    pub fn next(self#) -> Option<String> {
+        while !self.finished {
+            auto name_opt = sys::readdir_impl(self.handle)
+            if name_opt.is_none() {
+                self.finished = true
+                sys::closedir_impl(self.handle)
+                return Option<String>::None
             }
             
-            auto name = call_readdir(self.handle)
-            if name.len() == 0 {
-                self.finished = true
-                call_closedir(self.handle)
-                return String::from("")
+            auto name = name_opt.unwrap()
+            if name != String::from(".") && name != String::from("..") {
+                return Option<String>::Some(name)
             }
-            return name
         }
+        return Option<String>::None
     }
     
     pub fn close(self#) {
-        unsafe {
-            if self.finished == false {
-                call_closedir(self.handle)
-                self.finished = true
-            }
+        if !self.finished {
+            sys::closedir_impl(self.handle)
+            self.finished = true
         }
     }
 }
 
-pub fn read_dir(path: String) -> ReadDir {
-    unsafe {
-        auto h = call_opendir(path)
-        if h == (0:Addr) {
-            // Return finished iterator on failure
-            return ReadDir(handle = h, finished = true)
-        }
-        return ReadDir(
-            handle = h,
-            finished = false
-        )
+/**
+ * Returns an iterator over the entries in a directory.
+ */
+pub fn read_dir(path: String) -> Result<ReadDir, String> {
+    auto h = sys::opendir_impl(path.c_str() as Addr)
+    if h == ADDR0 {
+        return Result<ReadDir, String>::Err(String::from("Failed to open directory"))
     }
+    return Result<ReadDir, String>::Ok(ReadDir(
+        handle = h,
+        finished = false
+    ))
 }
 
+/**
+ * Creates a new, empty directory at the provided path.
+ */
 pub fn create_dir(path: String) -> bool {
-    return call_mkdir(path.c_str() as Addr)
+    return sys::mkdir_impl(path.c_str() as Addr)
 }
 
+/**
+ * Removes an empty directory.
+ */
 pub fn remove_dir(path: String) -> bool {
-    return call_rmdir(path)
+    return sys::rmdir_impl(path.c_str() as Addr)
 }
 
-fn call_exists(path: String) -> bool {
-    return sys::path_exists(path.c_str() as Addr)
-}
-
+/**
+ * Returns true if the path exists on disk and is a file or directory.
+ */
 pub fn exists(path: String) -> bool {
-    unsafe {
-        return call_exists(path)
-    }
+    return sys::path_exists(path.c_str() as Addr)
 }
 
 pub shape Metadata(
@@ -136,40 +111,36 @@ impl Metadata {
          return self.len
      }
      
-     // Returns unix timestamp in seconds
      pub fn modified(self) -> i64 {
          return self.modified
      }
 }
 
-alias FsResult = Result<Metadata, String>
-
 pub fn metadata(path: String) -> Result<Metadata, String> {
-    unsafe {
-        auto handle = sys::stat_impl(path.c_str() as Addr)
-        if handle == 0:Addr {
-            return FsResult::Err(String::from("Path not found"))
-        }
-        
-        auto m = Metadata(
-            len = sys::stat_get_size_impl(handle),
-            mode = sys::stat_get_mode_impl(handle),
-            modified = sys::stat_get_mtime_impl(handle)
-        )
-        
-        sys::stat_free_impl(handle)
-        return FsResult::Ok(m)
+    auto handle = sys::stat_impl(path.c_str() as Addr)
+    if handle == ADDR0 {
+        return Result<Metadata, String>::Err(String::from("Path not found"))
     }
+    
+    auto m = Metadata(
+        len = sys::stat_get_size_impl(handle),
+        mode = sys::stat_get_mode_impl(handle),
+        modified = sys::stat_get_mtime_impl(handle)
+    )
+    
+    sys::stat_free_impl(handle)
+    return Result<Metadata, String>::Ok(m)
 }
 
+/**
+ * Read the entire contents of a file into a string.
+ */
 pub fn read_to_string(path: String) -> IoStringResult {
     auto f_res = File::open(path, String::from("r"))
     if f_res.is_err() {
         return IoStringResult::Err(String::from("Failed to open file for reading"))
     }
     
-    // Note: To bypass the compiler code gen bug during generic reflection on Encaps, 
-    // it's essential we explicitly invoke close or let drop handle it.
     auto f# = f_res.unwrap()
     auto s_res = f#.read_to_string()
     f#.close()
@@ -177,6 +148,9 @@ pub fn read_to_string(path: String) -> IoStringResult {
     return s_res
 }
 
+/**
+ * Write a slice as the entire contents of a file.
+ */
 pub fn write_string(path: String, content: String) -> Result<bool, String> {
     auto f_res = File::open(path, String::from("w"))
     if f_res.is_err() {

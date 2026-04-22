@@ -1,0 +1,51 @@
+import std/fs
+import std/path::{Path}
+import std/io::{println}
+
+pub fn main() -> i32 {
+    // Test Metadata
+    auto meta_res = fs::metadata(String::from("lib/std/fs.tk"))
+    if meta_res.is_err() {
+        println("Error getting metadata: {}", meta_res.unwrap_err())
+        return 1
+    }
+    auto meta = meta_res.unwrap()
+    println("fs.tk size: {}", meta.len())
+    assert(meta.len() > 0, "fs.tk should not be empty")
+    assert(meta.is_file(), "fs.tk should be a file")
+    
+    // Test ReadDir
+    auto dir_res = fs::read_dir(String::from("lib/std"))
+    if dir_res.is_err() {
+        println("Error reading dir: {}", dir_res.unwrap_err())
+        return 1
+    }
+    
+    auto dir_iter# = dir_res.unwrap()
+    auto found_fs# = false
+    while true {
+        auto entry_opt = dir_iter#.next()
+        if entry_opt.is_none() { break }
+        auto name = entry_opt.unwrap()
+        println("DEBUG: entry={}", name)
+        if name == String::from("fs.tk") {
+            found_fs = true
+        }
+    }
+    assert(found_fs, "fs.tk not found in lib/std")
+    
+    // Test Path
+    auto p = Path::new(String::from("/usr/bin"))
+    auto p2 = p.join(String::from("toka"))
+    println("Joined path: {}", p2.to_string())
+    assert(p2.to_string() == String::from("/usr/bin/toka"), "Path join failed")
+    assert(p2.basename() == String::from("toka"), "Path basename failed")
+    assert(p2.dirname() == String::from("/usr/bin"), "Path dirname failed")
+    
+    auto p3 = p2.with_extension(String::from("exe"))
+    println("With extension: {}", p3.to_string())
+    assert(p3.to_string() == String::from("/usr/bin/toka.exe"), "Path with_extension failed")
+    
+    println("FS and Path modern tests passed!")
+    return 0
+}

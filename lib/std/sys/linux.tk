@@ -79,18 +79,17 @@ pub fn opendir_impl(path: Addr) -> Addr {
     }
 }
 
-pub fn readdir_impl(dir_handle: Addr) -> String {
+pub fn readdir_impl(dir_handle: Addr) -> Option<String> {
     unsafe {
         auto entry = libc_readdir(dir_handle) // returns Addr
         if entry == ADDR0 {
-            return String::from("") 
+            return Option<String>::None
         }
         
-        // Calculate offset to d_name (offset 21)
-        // d_name is at offset 21
-        auto *name_ptr = ((entry as u64 + 21) as Addr) as *char
+        // Offset 19 is common for Linux 64-bit struct dirent
+        auto *name_ptr = (entry as usize + 19) as *char
         
-        return String::from(*name_ptr)
+        return Option<String>::Some(String::from(*name_ptr))
     }
 }
 
