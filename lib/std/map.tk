@@ -283,11 +283,36 @@ pub shape Entry<'K, 'V> (
 )
 
 impl<'K, 'V> Entry<'K, 'V> {
-    pub fn key(self) -> *'K { return self.*key }
+    pub fn parse_json(self#, json: view_str) -> Result<view_str, str> {
+        return Result<view_str, str>::Err("Cannot json-parse internal iterator state")
+    }
+
+    pub fn key(self) -> *'K { return self.*key } 
     pub fn val(self) -> *'V { return self.*val }
 }
 
-alias MapResult<'K, 'V> = Option<Entry<'K, 'V>>
+pub shape EntryRef<'K, 'V> (
+    &key: 'K,
+    &val: 'V
+)
+
+impl<'K, 'V> EntryRef<'K, 'V> {
+    pub fn parse_json(self#, json: view_str) -> Result<view_str, str> {
+        return Result<view_str, str>::Err("Cannot json-parse internal iterator state")
+    }
+
+    pub fn key(self) -> &'K 
+    effects: return <- self {
+        return self.&key
+    }
+    
+    pub fn val(self) -> &'V 
+    effects: return <- self {
+        return self.&val
+    }
+}
+
+pub alias MapResult<'K, 'V> = Option<Entry<'K, 'V>>
 
 pub shape HashMapIterator<'K, 'V> (
     *keys_ptr: ['K],
@@ -313,7 +338,7 @@ impl<'K, 'V> HashMapIterator<'K, 'V>@encap {
 }
 
 impl<'K, 'V> HashMapIterator<'K, 'V> {
-    pub fn next(self#) -> MapResult<'K, 'V> {
+    pub fn next(self#) -> Option<Entry<'K, 'V>> {
         unsafe {
             auto *m_buf = self.*meta_ptr as *[u8]
             auto *k_buf = self.*keys_ptr as *['K]
@@ -323,7 +348,7 @@ impl<'K, 'V> HashMapIterator<'K, 'V> {
                 if m_buf[self.pos] == 1 {
                     auto p = self.pos
                     self.pos += 1
-                    return MapResult<'K, 'V>::Some(Entry<'K, 'V>(
+                    return Option<Entry<'K, 'V>>::Some(Entry<'K, 'V>(
                         key=*k_buf[p],
                         val=*v_buf[p]
                     ))
@@ -331,6 +356,27 @@ impl<'K, 'V> HashMapIterator<'K, 'V> {
                 self.pos += 1
             }
         }
-        return MapResult<'K, 'V>::None
+        return Option<Entry<'K, 'V>>::None
+    }
+
+    pub fn next_ref(self#) -> Option<EntryRef<'K, 'V>> {
+        unsafe {
+            auto *m_buf = self.*meta_ptr as *[u8]
+            auto *k_buf = self.*keys_ptr as *['K]
+            auto *v_buf = self.*vals_ptr as *['V]
+            
+            while self.pos < self.cap {
+                if m_buf[self.pos] == 1 {
+                    auto p = self.pos
+                    self.pos += 1
+                    return Option<EntryRef<'K, 'V>>::Some(EntryRef<'K, 'V>(
+                        &key=&k_buf[p],
+                        &val=&v_buf[p]
+                    ))
+                }
+                self.pos += 1
+            }
+        }
+        return Option<EntryRef<'K, 'V>>::None
     }
 }

@@ -1,7 +1,7 @@
 // Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
 
 import core/types::{usize}
-import std/map::{HashMap}
+import std/map::{HashMap, HashMapIterator, Entry, EntryRef}
 import core/traits::{@Hash, @PartialEq, @encap}
 import core/option::{Option}
 
@@ -45,5 +45,31 @@ impl<'T> HashSet<'T> {
 
     pub fn is_empty(self) -> bool {
         return self.map.len() == 0
+    }
+
+    pub fn iter(self#) -> HashSetIterator<'T> {
+        return HashSetIterator<'T>(
+            map_iter = self.map#.iter()
+        )
+    }
+}
+
+pub shape HashSetIterator<'T> (
+    map_iter#: HashMapIterator<'T, bool>
+)
+
+impl<'T> HashSetIterator<'T> {
+    pub fn next(self#) -> Option<'T> {
+        match self.map_iter#.next() {
+            auto Option<Entry<'T, bool>>::Some(entry) => return Option<'T>::Some(*entry.key())
+            auto Option<Entry<'T, bool>>::None => return Option<'T>::None
+        }
+    }
+
+    pub fn next_ref(self#) -> Option<&'T> {
+        match self.map_iter#.next_ref() {
+            auto Option<EntryRef<'T, bool>>::Some(entry) => return Option<&'T>::Some(entry.key())
+            auto Option<EntryRef<'T, bool>>::None => return Option<&'T>::None
+        }
     }
 }
