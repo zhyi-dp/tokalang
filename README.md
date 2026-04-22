@@ -5,8 +5,15 @@
 Toka is a systems programming language created by YiZhonghua in 2025. It is designed to be **secure**, **efficient**, and **syntactically concise**, aiming to resolve the traditional safety-productivity trade-off through its innovative **Attribute Token System**.
 
 ## 🌟 Core Philosophy: Attribute Tokens
-
 Toka eliminates hidden memory states by making properties explicit through orthogonal suffix tokens. This allows you to read the "shape" of memory usage at a glance.
+
+## 🛡️ Proven Safety: The PAL Checker
+
+Behind Toka's syntactic simplicity lies the engine that makes it all possible: the **PAL (Pointer Aliasing & Lifecycle) Checker**.
+
+Unlike systems that rely on explicitly written, verbose lifetime annotations (e.g. `<'a>`), Toka achieves robust memory safety through a fully automated, lexically-bounded static analysis engine. 
+*   **Formal Verification Completed**: The theoretical foundation, mathematical soundness proofs, and academic papers documenting the PAL Checker have been successfully completed. 
+*   **Zero-Cost Abstraction**: The PAL Checker enforces exclusive mutability (the Single-Hat principle) tracking aliases at compile-time without adding any runtime overhead—mitigating dangling pointers, double-frees, and data races silently.
 
 ### 🚀 Key Innovations
 
@@ -113,6 +120,16 @@ Toka compiler and its standard library officially support:
 - **macOS** (x86_64 / arm64) natively via `kqueue` reactor.
 - **Linux** (x86_64) native execution via `epoll` reactor.
 
+### Quick Install (Recommended)
+
+To install Toka natively (including the core compiler `tokac`, native package manager `toka`, and the standard library), simply run:
+
+```bash
+curl -fsSL https://tokalang.dev/install.sh | bash
+```
+
+The script will automatically grab the latest stable release for your platform and inject the required `PATH` and `TOKA_LIB` variables into your shell profile.
+
 ### Prerequisites
 - **C++17** compatible compiler (Clang/GCC)
 - **CMake** 3.15+
@@ -140,52 +157,62 @@ Currently, `tokac` compiles `.tk` source files into LLVM IR (`.ll`). You can exe
 
 ## 📄 Example
 
-**Traits & ADTs:**
+### 1. Safe Asynchronous I/O & Error Propagation
+Toka shines in high-concurrency environments, blending explicit mutability (`#`) with elegant error handling (`!`).
+
+```rust
+import std/io::println
+import std/net::TcpStream
+import stdx/websocket::ws_accept_async
+import core/result::Result
+
+// The `#` denotes stream mutability, and `!` handles runtime errors seamlessly.
+fn handle_connection(stream#: TcpStream) -> async Result<(), String> {
+    auto ws_conn# = ws_accept_async(stream).await!
+    println("Server: [New Client Connected]")
+    
+    while true {
+        auto msg = ws_conn#.read_text_async().await!
+        if msg.len() == 0 {
+            println("Server: Peer gracefully closed payload")
+            break
+        }
+        println("Received: {}", msg)
+        ws_conn#.write_text_async(msg.as_view()).await!
+    }
+    
+    // The connection is automatically cleaned up and dropped via lexical RAII
+    return Result<(), String>::Ok(())
+}
+```
+
+### 2. Algebraic Data Types & Pattern Matching
+
 ```rust
 import std/io::println
 
-trait @Shape {
-    fn area(self) -> i32
-}
-
-shape Rect (w: i32, h: i32)
-
-impl Rect@Shape {
-    fn area(self) -> i32 {
-        return self.w * self.h
-    }
-}
-
+// Structural Shape and ADT Variants
 shape State (
     Running |
     Stopped(i32)
 )
 
-fn main() {
-    auto r = Rect(w = 10, h = 20)
-    auto a = r.area()
-    
+fn main() -> i32 {
     auto s = State::Stopped(404)
-    match s {
-        auto Stopped(code) => println("Stopped with {}", code),
-        _ => println("Running...")
-    }
-}
-
-fn null_safety() {
-    auto p^? = null // Identity is Nullable (variable-side `?`)
     
-    // 1. Safe Narrowing via 'is'
-    if p is {
-        println("Not Null: {}", p^)
-    } else {
-        println("Is Null")
+    match s {
+        auto Stopped(code) => println("System stopped with code: {}", code),
+        _ => println("System is running normally...")
+    }
+    
+    // Explicit null safety ('nul' keyword) and guard unwrap
+    auto nul ^ptr = null
+    guard ^ptr {
+        // Safe access within guard block
+        println("Valid pointer handled.")
     }
 
-    // 2. Direct Assertion (Panics if null)
-    // Suffix '??' unwraps a nullable pointer or Option/Result value
-    auto must_ptr^ = p^??        
-    auto val = some_opt_val??
+    return 0
 }
 ```
 
@@ -193,19 +220,19 @@ fn null_safety() {
 
 Toka is a modern systems programming language built on the shoulders of giants. It was born not to reinvent the wheel, but to explore the optimal balance between **high performance** and **developer experience**, building upon the wisdom of its predecessors.
 
-We respectfully acknowledge the following pioneers whose design philosophies have shaped the core identity of Toka:
+We respectfully acknowledge the following pioneers whose design philosophies have fundamentally shaped the core identity of Toka. We aim to present their contributions transparently and fairly, without hiding our lineages:
 
-### 1. C++ (Modern C++)
-**Core Inspiration: Smart Pointers & RAII (The Origin)**
-Toka's memory management mechanism is a direct descendant of Modern C++ (C++11/14+).
+### 1. C & C++ (Modern C++)
+**Core Inspiration: Systems Control, Smart Pointers & RAII**
+Toka's memory management mechanism is a direct descendant of Modern C++ (C++11/14+), while maintaining the absolute bare-metal predictability of C.
 * **Syntactic Smart Pointers**: Toka bakes the semantics of `std::unique_ptr` and `std::shared_ptr` directly into its **core grammar**. By using prefix symbols `^T` (Unique) and `~T` (Shared), developers enjoy full RAII semantics without verbose template code. This makes RAII the default, zero-visual-cost pattern.
-* **Low-Level Control**: Toka retains Raw Pointers (`*T`) and precise control over memory layout, adhering to the C++ philosophy of "Zero-overhead abstraction."
+* **Low-Level Control**: Toka retains Raw Pointers (`*T`) and precise control over memory layout, adhering to the C philosophy of direct hardware symbiosis and "Zero-overhead abstraction."
 
 ### 2. Rust
-**Core Inspiration: The Borrowing Discipline**
-Toka adopts key insights from Rust regarding memory safety but makes different trade-offs in its implementation path.
-* **Borrowing Rules**: We have adopted the strict **"Read-Write Mutex" borrowing rules** (within a scope, allowing either multiple immutable references or a single mutable reference) to prevent data races at compile time.
-* **Simplified Mental Model**: Unlike Rust, Toka **deliberately discards explicit lifetime annotations** (e.g., `<'a>`). We prefer managing object lifetimes through smart pointer ownership transfer and lexical scope analysis, significantly lowering the learning curve for systems programming.
+**Core Inspiration: The Borrowing Discipline & Memory Safety**
+Rust revolutionized system programming by proving that memory safety without garbage collection is achievable. Toka adopts key insights from Rust regarding memory safety but makes different, deliberate trade-offs in its implementation path to solve the developer-experience cliff.
+* **Borrowing Rules**: We have faithfully adopted the strict **"Read-Write Mutex" borrowing rules** (within a scope, allowing either multiple immutable references or a single mutable reference) to permanently eradicate data races and memory leaks at compile time.
+* **Simplified Mental Model**: Unlike Rust, Toka **deliberately discards explicit lifetime annotations** (e.g., `<'a>`). Instead of forcing the developer to annotate the compiler's constraint graphs, we push the heavy lifting to the background using compiler-side **PAL (Pointer Aliasing & Lifecycle)** heuristics and object-oriented lexical scope resolution.
 
 ### 3. Haskell / ML Family
 **Core Inspiration: Typeclasses & Orthogonality**
@@ -221,6 +248,10 @@ To address "The Billion Dollar Mistake," Toka adopts the **Explicit Null Safety*
 ### 5. Python
 **Core Inspiration: Readability & Productivity**
 Toka strives to bring the developer experience of scripting languages to systems programming. We admire Python's **minimalist syntax** and "Less is More" philosophy, aiming to make systems code as readable and approachable as high-level scripts.
+
+### 6. Extended Gratitude & Convergent Evolution
+Programming language design is an endless exploration across a vast universe of ideas. Due to constraints, we cannot exhaustively list the origin of every single feature (for instance, Toka's `async/await` model echoes C#, and its pragmatic module system shares philosophies with Go and Zig). 
+If certain structural mechanisms in Toka happen to exhibit "Convergent Evolution" with other brilliant languages, or if we have inadvertently missed explicitly citing a specific reference, please trust that it is never a deliberate omission. Toka embraces the collective wisdom of the entire open-source community and maintains the utmost reverence for all pioneers who have pushed the boundaries of computer science forward.
 
 ---
 
