@@ -139,8 +139,7 @@ void Sema::registerGlobals(Module &M) {
                                    Alias->GenericParams};
     TypeAliasMap[Alias->Name] = {Alias->TargetType, Alias->IsStrong,
                                  Alias->GenericParams};
-    std::cerr << "Registered Alias: " << Alias->Name
-              << " Strong=" << Alias->IsStrong << "\n";
+
     // [NEW] Define locally in scope
     CurrentScope->define(Alias->Name, {toka::Type::fromString(Alias->Name)});
   }

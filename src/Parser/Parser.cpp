@@ -213,8 +213,7 @@ std::unique_ptr<Module> Parser::parseModule() {
   }
 
   while (peek().Kind != TokenType::EndOfFile) {
-    std::cerr << "Parsing Top Level: " << peek().toString() << " at line "
-              << peek().Line << "\n";
+
     bool isPub = false;
     if (match(TokenType::KwPub)) {
       isPub = true;

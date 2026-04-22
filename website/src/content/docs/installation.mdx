@@ -15,6 +15,22 @@ curl -fsSL https://tokalang.dev/install.sh | bash
 
 This script will automatically detect your OS and CPU architecture, download the latest stable release to `~/.toka/`, and append the executables to your `PATH` and `TOKA_LIB` variables.
 
+## Quick Start (Hello World)
+
+Once installed, you can copy the following code to instantly experience Toka:
+
+```bash
+# 1. Quickly write a classic Hello World file
+echo 'import std/io::{println}
+
+fn main() {
+    println("Hello, Toka World!")
+}' > hello.tk
+
+# 2. Compile and run automatically in one click!
+toka run hello.tk
+```
+
 ## Build From Source
 
 If you wish to contribute to the compiler, or run Toka on an officially unsupported platform, you can easily build the toolchain from source.

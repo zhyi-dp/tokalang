@@ -144,6 +144,39 @@ fn cmd_build() -> i32 {
     }
 }
 
+
+fn cmd_run_single(file: String) -> i32 {
+    unsafe {
+        auto sys_clang# = String::from("/usr/local/opt/llvm@20/bin/clang")
+        auto addr = libc_getenv("TOKA_CLANG" as *char) as Addr
+        if addr != 0:Addr {
+            sys_clang = String::from(addr as *char)
+        }
+        
+        auto cmd# = String::from("tokac -q ")
+        auto toka_lib = libc_getenv("TOKA_LIB" as *char) as Addr
+        if toka_lib != 0:Addr {
+            cmd#.push_str("-I ")
+            cmd#.push_str(toka_lib as *char)
+            cmd#.push_str(" ")
+        } else {
+            cmd#.push_str("-I /usr/local/lib/toka ")
+        }
+        
+        cmd#.push_str(file.c_str())
+        cmd#.push_str(" -o .toka_single.ll && ")
+        cmd#.push_str(sys_clang.c_str())
+        cmd#.push_str(" .toka_single.ll -isysroot $(xcrun --show-sdk-path) -o .toka_single_exe && ./.toka_single_exe")
+
+        auto res = libc_system(cmd.c_str())
+        if res != 0 {
+            libc_printf("Error executing %s\n" as *char, file.c_str())
+        }
+        libc_system("rm -f .toka_single.ll .toka_single_exe" as *char)
+        return res
+    }
+}
+
 fn cmd_run() -> i32 {
     auto res = cmd_build()
     if res != 0 { return res }
@@ -200,6 +233,9 @@ fn main() -> i32 {
     }
     
     if cmd.eq(String::from("run")) {
+        if argc > 2 + shift {
+            return cmd_run_single(env::get_arg(2 + shift))
+        }
         return cmd_run()
     }
     

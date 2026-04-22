@@ -36,6 +36,10 @@
 #include "llvm/Passes/StandardInstrumentations.h"
 #include <sstream>
 
+#include "llvm/Support/FileSystem.h"
+
+bool quietMode = false;
+
 void parseSource(const std::string &filename,
                  std::vector<std::unique_ptr<toka::Module>> &astModules,
                  std::set<std::string> &visited,
@@ -117,7 +121,7 @@ void parseSource(const std::string &filename,
     return;
   }
 
-  llvm::errs() << "Parsing " << resolvedPath << "...\n";
+  if (!quietMode) llvm::errs() << "Parsing " << resolvedPath << "...\n";
 
   toka::SourceLocation startLoc = sm.loadFile(resolvedPath);
   if (startLoc.isInvalid()) {
@@ -164,6 +168,7 @@ int main(int argc, char **argv) {
   std::vector<std::string> inputFiles;
   std::map<std::string, std::string> pkgMap;
   bool disableBorrowCheck = false;
+  std::string outputFile = "";
   for (int i = 1; i < argc; ++i) {
     std::string arg = argv[i];
     if (arg == "-I") {
@@ -194,6 +199,15 @@ int main(int argc, char **argv) {
         llvm::errs() << "--pkg requires an argument\n";
         return 1;
       }
+    } else if (arg == "-q" || arg == "--quiet") {
+      quietMode = true;
+    } else if (arg == "-o") {
+      if (i + 1 < argc) {
+        outputFile = argv[++i];
+      } else {
+        llvm::errs() << "-o requires an argument\n";
+        return 1;
+      }
     } else if (arg.rfind("-", 0) == 0) {
       // Ignore other flags for now or report error
     } else {
@@ -220,7 +234,7 @@ int main(int argc, char **argv) {
   if (astModules.empty())
     return 1;
 
-  llvm::errs() << "Parse Successful. Running Semantic Analysis...\n";
+  if (!quietMode) llvm::errs() << "Parse Successful. Running Semantic Analysis...\n";
 
   toka::Sema sema;
   sema.setBorrowCheckEnabled(!disableBorrowCheck);
@@ -230,35 +244,35 @@ int main(int argc, char **argv) {
     }
   }
 
-  fprintf(stderr, "Sema Successful. Merging and Generating IR...\n");
+  if (!quietMode) fprintf(stderr, "Sema Successful. Merging and Generating IR...\n");
   fflush(stderr);
 
-  fprintf(stderr, "Initializing LLVM Context...\n");
+  if (!quietMode) fprintf(stderr, "Initializing LLVM Context...\n");
   fflush(stderr);
   llvm::LLVMContext context;
-  fprintf(stderr, "Instantiating CodeGen for module: %s\n", argv[1]);
+  if (!quietMode) fprintf(stderr, "Instantiating CodeGen for module: %s\n", argv[1]);
   fflush(stderr);
   toka::CodeGen codegen(context, argv[1]);
-  fprintf(stderr, "CodeGen instantiated.\n");
+  if (!quietMode) fprintf(stderr, "CodeGen instantiated.\n");
   fflush(stderr);
 
   std::unique_ptr<toka::Module> genericModule = sema.extractGenericRegistry();
   
-  fprintf(stderr, "Pass 1: Discovery (Registration)...\n");
+  if (!quietMode) fprintf(stderr, "Pass 1: Discovery (Registration)...\n");
   fflush(stderr);
   for (const auto &ast : astModules) {
     codegen.discover(*ast);
   }
   if (genericModule) codegen.discover(*genericModule);
 
-  fprintf(stderr, "Pass 2: Resolution (Signatures)...\n");
+  if (!quietMode) fprintf(stderr, "Pass 2: Resolution (Signatures)...\n");
   fflush(stderr);
   for (const auto &ast : astModules) {
     codegen.resolveSignatures(*ast);
   }
   if (genericModule) codegen.resolveSignatures(*genericModule);
 
-  fprintf(stderr, "Pass 3: Generation (Emission)...\n");
+  if (!quietMode) fprintf(stderr, "Pass 3: Generation (Emission)...\n");
   fflush(stderr);
   for (const auto &ast : astModules) {
     codegen.generate(*ast);
@@ -271,7 +285,7 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  fprintf(stderr, "Pass 4: Optimization (Coroutines & O2)...\n");
+  if (!quietMode) fprintf(stderr, "Pass 4: Optimization (Coroutines & O2)...\n");
   fflush(stderr);
 
   llvm::LoopAnalysisManager LAM;
@@ -302,7 +316,19 @@ int main(int argc, char **argv) {
   llvm::ModulePassManager MPM = PB.buildO0DefaultPipeline(llvm::OptimizationLevel::O0);
   MPM.run(*codegen.getModule(), MAM);
 
-  codegen.print(llvm::outs());
+  
+  if (outputFile.empty()) {
+    codegen.print(llvm::outs());
+  } else {
+    std::error_code EC;
+    llvm::raw_fd_ostream dest(outputFile, EC, llvm::sys::fs::OF_None);
+    if (EC) {
+      llvm::errs() << "Could not open file: " << EC.message() << "\n";
+      return 1;
+    }
+    codegen.print(dest);
+  }
+
 
   return 0;
 }

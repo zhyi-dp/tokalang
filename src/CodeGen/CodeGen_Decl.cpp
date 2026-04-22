@@ -2462,8 +2462,6 @@ void CodeGen::fillSymbolMetadata(TokaSymbol &sym, std::shared_ptr<Type> typeObj,
     sym.soulType = allocaElemTy;
 
   if (typeObj) {
-    llvm::errs() << "fillSymbolMetadata [typeObj=" << typeObj->toString() 
-                 << "] -> indirectionLevel=" << sym.indirectionLevel 
                  << " soulTypePtr=" << sym.soulType << "\\n";
   }
 

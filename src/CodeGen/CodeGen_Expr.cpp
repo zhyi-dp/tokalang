@@ -1628,7 +1628,6 @@ PhysEntity CodeGen::genVariableExpr(const VariableExpr *var) {
     }
   }
 
-  if(soulType) llvm::errs() << "genVariableExpr soulType: " << *soulType << "\n";
   return PhysEntity(soulAddr, typeName, soulType, true);
 }
 
@@ -3666,8 +3665,6 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
                }
                auto *strExpr = dynamic_cast<const StringExpr *>(call->Args[i].get());
                
-               llvm::errs() << "[SYNTHESIS] target is view_str. isNakedCString=" << isNakedCString 
-                            << ", strExpr=" << (strExpr != nullptr) 
                             << ", isPointerTy=" << (val && val->getType()->isPointerTy()) << "\n";
                             
                if (isNakedCString && !strExpr) {

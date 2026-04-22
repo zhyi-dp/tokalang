@@ -15,6 +15,22 @@ curl -fsSL https://tokalang.dev/install.sh | bash
 
 安装脚本会自动识别您的操作系统与硬件架构，拉取最新版编译器、包管理工具及标准库组合包至 `~/.toka/`，并极其贴心地将 `PATH` 与 `TOKA_LIB` 环境变量自动注入您的配置文件。
 
+## 快速体验 (Hello World)
+
+安装完成后，您可以直接复制以下代码一键体验 Toka 的魅力：
+
+```bash
+# 1. 快速写入一个经典的 Hello World 文件
+echo 'import std/io::{println}
+
+fn main() {
+    println("Hello, Toka World!")
+}' > hello.tk
+
+# 2. 一键编译并自动执行！
+toka run hello.tk
+```
+
 ## 从源码构建 (进阶)
 
 如果您打算在 Windows 等非原生支持的环境上强行编译，或者希望参与 Toka 语言底层的 C++ 核心开发，您可以从头构建整个环境。

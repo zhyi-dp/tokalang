@@ -113,108 +113,13 @@ We are actively building the compiler self-hosting capabilities.
         - [x] Memory Management
         - [x] Core Types (`String`, `Vec`, `Option`, `Result`)
 
-## 🛠 Build & Usage
+## 📚 Documentation & Installation
 
-### Target Platforms
-Toka compiler and its standard library officially support:
-- **macOS** (x86_64 / arm64) natively via `kqueue` reactor.
-- **Linux** (x86_64) native execution via `epoll` reactor.
+For the latest **Installation Guides**, **Tutorials**, **Code Examples**, and **API References**, please visit the official Toka language website:
 
-### Quick Install (Recommended)
+👉 **[tokalang.dev](https://tokalang.dev)**
 
-To install Toka natively (including the core compiler `tokac`, native package manager `toka`, and the standard library), simply run:
-
-```bash
-curl -fsSL https://tokalang.dev/install.sh | bash
-```
-
-The script will automatically grab the latest stable release for your platform and inject the required `PATH` and `TOKA_LIB` variables into your shell profile.
-
-### Prerequisites
-- **C++17** compatible compiler (Clang/GCC)
-- **CMake** 3.15+
-- **LLVM 20** (Libraries and Headers, required for Opaque Pointers and modern Coroutine Intrinsics)
-
-### Building the Compiler
-```bash
-# 1. Create build directory
-mkdir -p build && cd build
-
-# 2. Configure with CMake
-cmake ..
-
-# 3. Build
-make
-```
-
-### Running Toka Programs
-Currently, `tokac` compiles `.tk` source files into LLVM IR (`.ll`). You can execute them using the LLVM Interpreter (`lli`) or compile them further with `clang`.
-
-**One-liner to compile and run:**
-```bash
-./build/bin/tokac tests/test_trait.tk > output.ll && lli output.ll
-```
-
-## 📄 Example
-
-### 1. Safe Asynchronous I/O & Error Propagation
-Toka shines in high-concurrency environments, blending explicit mutability (`#`) with elegant error handling (`!`).
-
-```rust
-import std/io::println
-import std/net::TcpStream
-import stdx/websocket::ws_accept_async
-import core/result::Result
-
-// The `#` denotes stream mutability, and `!` handles runtime errors seamlessly.
-fn handle_connection(stream#: TcpStream) -> async Result<(), String> {
-    auto ws_conn# = ws_accept_async(stream).await!
-    println("Server: [New Client Connected]")
-    
-    while true {
-        auto msg = ws_conn#.read_text_async().await!
-        if msg.len() == 0 {
-            println("Server: Peer gracefully closed payload")
-            break
-        }
-        println("Received: {}", msg)
-        ws_conn#.write_text_async(msg.as_view()).await!
-    }
-    
-    // The connection is automatically cleaned up and dropped via lexical RAII
-    return Result<(), String>::Ok(())
-}
-```
-
-### 2. Algebraic Data Types & Pattern Matching
-
-```rust
-import std/io::println
-
-// Structural Shape and ADT Variants
-shape State (
-    Running |
-    Stopped(i32)
-)
-
-fn main() -> i32 {
-    auto s = State::Stopped(404)
-    
-    match s {
-        auto Stopped(code) => println("System stopped with code: {}", code),
-        _ => println("System is running normally...")
-    }
-    
-    // Explicit null safety ('nul' keyword) and guard unwrap
-    auto nul ^ptr = null
-    guard ^ptr {
-        // Safe access within guard block
-        println("Valid pointer handled.")
-    }
-
-    return 0
-}
-```
+> Note: To ensure documentation consistency and prevent outdated information, all usage instructions, examples, and deep-dive technical articles have been centralized on our official website.
 
 ## Inspirations & Lineage
 
