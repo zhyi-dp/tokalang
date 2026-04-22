@@ -143,6 +143,8 @@ pub fn stat_is_file_impl(mode: u32) -> bool {
 
 // === Environment ===
 
+import core/option::{Option}
+
 pub fn getcwd_impl() -> String {
     unsafe {
         // Real implementation using getcwd
@@ -162,17 +164,17 @@ pub fn chdir_impl(path: Addr) -> bool {
     }
 }
 
-pub fn getenv_impl(name: String) -> String {
+pub fn getenv_impl(name: String) -> Option<String> {
     unsafe {
         // libc_getenv returns *char (Borrowed)
         auto *val = libc_getenv(name.c_str())
         
         if *val == null {
-            return String::from("")
+            return Option<String>::None
         }
         
         // Copy from borrowed pointer
-        return String::from(*val)
+        return Option<String>::Some(String::from(*val))
     }
 }
 
