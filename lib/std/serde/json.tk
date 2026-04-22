@@ -2,11 +2,12 @@
 // Standard Serialization for JSON using Toka Comptime Reflection
 
 import std/string::{String}
-import core/comptime::{reflect}
 import core/str::{str, view_str}
 import std/map::{HashMap}
 import std/vec::{Vec}
 import std/math
+import core/libc::{libc_memset}
+import core/comptime::{reflect}
 
 // Result type for parsing: Ok(remaining_json) or Err(error_message)
 pub alias JsonRes = Result<view_str, str>
@@ -25,6 +26,13 @@ pub shape JsonNode (
 pub trait @ToJson {
     // Append JSON representation to the buffer and return the updated buffer
     pub fn write_json(self, buf#: String) -> String
+}
+
+impl<'T: @ToJson> &'T@ToJson {
+    pub fn write_json(self, buf#: String) -> String {
+        // [Compiler Magic] This will call the write_json on the soul
+        return self.write_json(buf)
+    }
 }
 
 impl i32@ToJson {
@@ -109,9 +117,77 @@ pub fn serialize_shape<'T>(obj: 'T, buf#: String) -> String {
     return buf
 }
 
-pub fn to_json<'T>(obj: 'T) -> String {
+impl<'T: @ToJson> Vec<'T>@ToJson {
+    pub fn write_json(self, buf#: String) -> String {
+        buf#.push_str("[")
+        auto first# = true
+        auto i#: usize = 0
+        while i < self.len() {
+            if !first { buf#.push_str(",") }
+            first = false
+            buf = self.at(i).write_json(buf)
+            i = i + 1
+        }
+        buf#.push_str("]")
+        return buf
+    }
+}
+
+impl<'K: @ToJson, 'V: @ToJson> HashMap<'K, 'V>@ToJson {
+    pub fn write_json(self, buf#: String) -> String {
+        buf#.push_str("{")
+        auto first# = true
+        auto iter# = self.iter()
+        while true {
+            auto opt = iter#.next_ref()
+            if opt.is_none() { break }
+            auto entry = opt.unwrap()
+            
+            if !first { buf#.push_str(",") }
+            first = false
+            
+            buf = entry.key().write_json(buf)
+            buf#.push_str(":")
+            buf = entry.val().write_json(buf)
+        }
+        buf#.push_str("}")
+        return buf
+    }
+}
+
+impl<'T: @ToJson> Option<'T>@ToJson {
+    pub fn write_json(self, buf#: String) -> String {
+        match self {
+            auto Option<'T>::Some(&val) => return val.write_json(buf)
+            _ => {
+                buf#.push_str("null")
+                return buf
+            }
+        }
+    }
+}
+
+impl<'T: @ToJson, 'E: @ToJson> Result<'T, 'E>@ToJson {
+    pub fn write_json(self, buf#: String) -> String {
+        buf#.push_str("{\"")
+        match self {
+            auto Result<'T, 'E>::Ok(&val) => {
+                buf#.push_str("Ok\":")
+                buf = val.write_json(buf)
+            }
+            auto Result<'T, 'E>::Err(&e) => {
+                buf#.push_str("Err\":")
+                buf = e.write_json(buf)
+            }
+        }
+        buf#.push_str("}")
+        return buf
+    }
+}
+
+pub fn to_json<'T: @ToJson>(obj: 'T) -> String {
     auto res# = String::from("")
-    res = serialize_shape(obj, res)
+    res = obj.write_json(res)
     return res
 }
 
@@ -371,6 +447,100 @@ impl view_str@FromJson {
     }
 }
 
+impl<'T: @FromJson> Option<'T>@FromJson {
+    pub fn parse_json(self#, json: view_str) -> JsonRes {
+        auto rem# = json_skip_whitespace(json)
+        if rem.starts_with(v"null") {
+            self = Option<'T>::None
+            return JsonRes::Ok(rem.substr(4, rem.len() - 4))
+        }
+        
+        unsafe {
+            auto ^buf = new [1]Uninit<'T>()
+            libc_memset(*buf as *void, 0, sizeof('T))
+            auto *val#: 'T = (*buf + 0) as *'T
+            rem = val#.parse_json(rem)!
+            self = Option<'T>::Some(cede val)
+            return JsonRes::Ok(rem)
+        }
+    }
+}
+
+impl<'T: @FromJson, 'E: @FromJson> Result<'T, 'E>@FromJson {
+    pub fn parse_json(self#, json: view_str) -> JsonRes {
+        auto rem# = json_skip_whitespace(json)
+        if rem.len() == 0 || rem.byte_at(0) != 123 { return JsonRes::Err("Expected { for Result") }
+        rem = rem.substr(1, rem.len() - 1)
+        rem = json_skip_whitespace(rem)
+        
+        auto key# = v""
+        rem = key#.parse_json(rem)!
+        rem = json_skip_whitespace(rem)
+        if rem.len() == 0 || rem.byte_at(0) != 58 { return JsonRes::Err("Expected : for Result") }
+        rem = rem.substr(1, rem.len() - 1)
+        
+        unsafe {
+            if key.equals(v"Ok") {
+                auto ^buf = new [1]Uninit<'T>()
+                libc_memset(*buf as *void, 0, sizeof('T))
+                auto *val#: 'T = (*buf + 0) as *'T
+                rem = val#.parse_json(rem)!
+                self = Result<'T, 'E>::Ok(cede val)
+            } else if key.equals(v"Err") {
+                auto ^buf = new [1]Uninit<'E>()
+                libc_memset(*buf as *void, 0, sizeof('E))
+                auto *e#: 'E = (*buf + 0) as *'E
+                rem = e#.parse_json(rem)!
+                self = Result<'T, 'E>::Err(cede e)
+            } else {
+                return JsonRes::Err("Invalid key for Result")
+            }
+        }
+        
+        rem = json_skip_whitespace(rem)
+        if rem.len() == 0 || rem.byte_at(0) != 125 { return JsonRes::Err("Expected } for Result") }
+        return JsonRes::Ok(rem.substr(1, rem.len() - 1))
+    }
+}
+
+impl<'K: @FromJson, 'V: @FromJson> HashMap<'K, 'V>@FromJson {
+    pub fn parse_json(self#, json: view_str) -> JsonRes {
+        auto res# = json_skip_whitespace(json)
+        if res.len() == 0 || res.byte_at(0) != 123 { return JsonRes::Err("Expected { for HashMap") }
+        res = res.substr(1, res.len() - 1)
+        self = HashMap<'K, 'V>::new()
+        auto first# = true
+        while true {
+            res = json_skip_whitespace(res)
+            if res.len() > 0 && res.byte_at(0) == 125 { res = res.substr(1, res.len() - 1); break }
+            if !first {
+                if res.len() == 0 || res.byte_at(0) != 44 { return JsonRes::Err("Expected ,") }
+                res = res.substr(1, res.len() - 1)
+                res = json_skip_whitespace(res)
+            }
+            first = false
+            
+            unsafe {
+                auto ^k_buf = new [1]Uninit<'K>()
+                libc_memset(*k_buf as *void, 0, sizeof('K))
+                auto *key#: 'K = (*k_buf + 0) as *'K
+                res = key#.parse_json(res)!
+                
+                res = json_skip_whitespace(res)
+                if res.len() == 0 || res.byte_at(0) != 58 { return JsonRes::Err("Expected :") }
+                res = res.substr(1, res.len() - 1)
+                
+                auto ^v_buf = new [1]Uninit<'V>()
+                libc_memset(*v_buf as *void, 0, sizeof('V))
+                auto *val#: 'V = (*v_buf + 0) as *'V
+                res = val#.parse_json(res)!
+                
+                self#.insert(cede key, cede val)
+            }
+        }
+        return JsonRes::Ok(res)
+    }
+}
 impl<'T: @FromJson> Vec<'T>@FromJson {
     pub fn parse_json(self#, json: view_str) -> JsonRes {
         auto res# = json_skip_whitespace(json)
@@ -389,38 +559,40 @@ impl<'T: @FromJson> Vec<'T>@FromJson {
             first = false
             unsafe {
                 auto ^item_buf = new [1]Uninit<'T>()
+                libc_memset(*item_buf as *void, 0, sizeof('T))
                 auto *item#: 'T = (*item_buf + 0) as *'T
                 res = item#.parse_json(res)!
-                self#.push(item)
+                self#.push(cede item)
             }
         }
         return JsonRes::Ok(res)
     }
 }
 
-pub fn deserialize_shape<'T>(json_str: view_str) -> Okay<'T, str> {
+pub fn deserialize_shape<'T>(json_str: view_str) -> Okay<'T, view_str> {
     auto res# = json_skip_whitespace(json_str)
-    if res.len() == 0 || res.byte_at(0) != 123 { return Okay<'T, str>::Err("Expected {") }
+    if res.len() == 0 || res.byte_at(0) != 123 { return Okay<'T, view_str>::Err("Expected {") }
     res = res.substr(1, res.len() - 1)
-    auto obj#: 'T = 'T(..)
+    
+    auto obj# = 'T(..)
     auto first# = true
     while true {
         res = json_skip_whitespace(res)
         if res.len() > 0 && res.byte_at(0) == 125 { res = res.substr(1, res.len() - 1); break }
         if !first {
-            if res.len() == 0 || res.byte_at(0) != 44 { return Okay<'T, str>::Err("Expected ,") }
+            if res.len() == 0 || res.byte_at(0) != 44 { return Okay<'T, view_str>::Err("Expected ,") }
             res = res.substr(1, res.len() - 1)
         }
         first = false
         res = json_skip_whitespace(res)
-        auto key_view# = res.substr(0, 0)
+        auto key_view# = v""
         res = key_view#.parse_json(res)!
         res = json_skip_whitespace(res)
-        if res.len() == 0 || res.byte_at(0) != 58 { return Okay<'T, str>::Err("Expected :") }
+        if res.len() == 0 || res.byte_at(0) != 58 { return Okay<'T, view_str>::Err("Expected :") }
         res = res.substr(1, res.len() - 1)
         auto found# = false
         for f in reflect<'T>().fields {
-            if key_view == _str_cast(f.name) {
+            if key_view.equals(f.name) {
                 found = true
                 auto val# = f.get(obj)
                 res = val#.parse_json(res)!
@@ -430,7 +602,7 @@ pub fn deserialize_shape<'T>(json_str: view_str) -> Okay<'T, str> {
         }
         if !found { res = json_skip_value(res)! }
     }
-    return Okay<'T, str>::Ok(cede obj)
+    return Okay<'T, view_str>::Ok(cede obj)
 }
 
 impl JsonNode@FromJson {

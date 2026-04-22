@@ -1,4 +1,4 @@
-import std/serde/json::{to_json, deserialize_shape}
+import std/serde/json::{to_json, deserialize_shape, ToJson, serialize_shape}
 import std/string::{String}
 import std/io::{println}
 
@@ -7,6 +7,12 @@ pub shape User (
     name: String = String::from(""),
     active: bool = false
 )
+
+impl User@ToJson {
+    pub fn write_json(self, buf#: String) -> String {
+        return serialize_shape(self, buf)
+    }
+}
 
 pub fn main() -> i32 {
     auto u1 = User(id = 123, name = String::from("Alice"), active = true)

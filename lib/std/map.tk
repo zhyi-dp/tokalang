@@ -9,9 +9,9 @@ import core/libc::{libc_printf, libc_fflush}
 // HashMap using SOA (Structure of Arrays)
 // keys[i], vals[i], meta[i] correspond to the same slot.
 pub shape HashMap<'K, 'V> (
-    keys#: Vec<'K> = Vec<'K>(..),
-    vals#: Vec<'V> = Vec<'V>(..),
-    meta#: Vec<u8> = Vec<u8>(..), // 0=Empty, 1=Occupied
+    keys#: Vec<'K> = Vec<'K>::new(),
+    vals#: Vec<'V> = Vec<'V>::new(),
+    meta#: Vec<u8> = Vec<u8>::new(), // 0=Empty, 1=Occupied
     len#: usize = 0,
     cap#: usize = 0
 )
@@ -266,7 +266,7 @@ impl<'K, 'V> HashMap<'K, 'V> {
     }
 
 
-    pub fn iter(self#) -> HashMapIterator<'K, 'V> {
+    pub fn iter(self) -> HashMapIterator<'K, 'V> {
         return HashMapIterator<'K, 'V>(
              *keys_ptr = self.keys.unsafe_as_raw(),
              *vals_ptr = self.vals.unsafe_as_raw(),

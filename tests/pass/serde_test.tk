@@ -1,0 +1,62 @@
+import std/serde/json::{JsonNode, to_json, deserialize_shape, ToJson, serialize_shape}
+import std/string::{String}
+import std/io::{println}
+import std/vec::{Vec}
+import core/result::{Result}
+import core/str::{view_str}
+
+shape User(
+    id: i32 = 0,
+    name: String = String::from(""),
+    active: bool = false,
+    tags#: Vec<String> = Vec<String>::new(),
+    email: Option<String> = Option<String>::None,
+    status: Result<i32, String> = Result<i32, String>::Ok(0)
+)
+
+impl User@ToJson {
+    pub fn write_json(self, buf#: String) -> String {
+        return serialize_shape(self, buf)
+    }
+}
+
+fn main() -> i32 {
+    auto u# = User(
+        id = 1,
+        name = String::from("Alice"),
+        active = true,
+        tags = Vec<String>::new(),
+        email = Option<String>::Some(String::from("alice@example.com")),
+        status = Result<i32, String>::Err(String::from("Offline"))
+    )
+    
+    u.tags#.push(String::from("rust"))
+    u.tags#.push(String::from("toka"))
+    
+    auto json = to_json(u)
+    println("JSON: {}", json.as_view())
+    
+    // Test deserialization
+    auto u_res = deserialize_shape<User>(json.as_view())
+    match u_res {
+        auto Result<User, view_str>::Ok(u2) => {
+            println("Deserialized ID: {}", u2.id)
+            println("Deserialized Name: {}", u2.name)
+            println("Deserialized Tags len: {}", u2.tags.len() as i32)
+            match u2.email {
+                auto Option<String>::Some(&e) => println("Deserialized Email: {}", e.as_view())
+                _ => println("Deserialized Email: None")
+            }
+            match u2.status {
+                auto Result<i32, String>::Err(&e) => println("Deserialized Status: Err({})", e.as_view())
+                _ => println("Deserialized Status: Ok")
+            }
+        }
+        auto Result<User, view_str>::Err(&e) => {
+            println("Deserialization failed: {}", e)
+            return 1
+        }
+    }
+    
+    return 0
+}
