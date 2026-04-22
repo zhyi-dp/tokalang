@@ -42,7 +42,11 @@ jobs:
           mkdir build && cd build
           cmake .. -DCMAKE_BUILD_TYPE=Release
           make -j4
-
+          
+          # Build toka CLI tool and tokafmt using the newly built compiler
+          export TOKA_LIB=$GITHUB_WORKSPACE/lib
+          ./bin/tokac ../tools/toka/src/main.tk -o ./bin/toka -O3
+          ./bin/tokac ../tools/tokafmt/src/main.tk -o ./bin/tokafmt -O3
       - name: Run Package Script
         shell: bash
         run: |

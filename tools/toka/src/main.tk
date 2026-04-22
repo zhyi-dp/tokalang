@@ -30,7 +30,7 @@ fn cmd_new(name: String) -> i32 {
         libc_system(cmd.c_str())
         
         // Write src/main.tk
-        auto tk_file# = String::from("echo 'import std/io::{println}\n\nfn main() {\n    println(\"Hello, Toka!\")\n}' > ")
+        auto tk_file# = String::from("echo 'import std/io::{println}\n\nfn main() -> i32 {\n    println(\"Hello, Toka!\")\n    return 0\n}' > ")
         tk_file#.push_str(name.c_str())
         tk_file#.push_str("/src/main.tk")
         libc_system(tk_file.c_str())
