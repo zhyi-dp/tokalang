@@ -1,5 +1,6 @@
 import std/string::{String}
 import std/vec::{Vec}
+import std/encoding/hex
 
 const SHA256_K: [u32; 64] = [
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
@@ -47,13 +48,7 @@ fn sig1(x: u32) -> u32 {
     return rotr(x, 17) ^ rotr(x, 19) ^ (x >> 10)
 }
 
-fn hex_char(val: u8) -> char {
-    if val < 10 {
-        return (val + 48) as char // '0'-'9'
-    } else {
-        return (val + 87) as char // 'a'-'f'
-    }
-}
+
 
 impl Sha256 {
     fn process_block(self#, k: *[u32; 64]) {
@@ -204,18 +199,6 @@ impl Sha256 {
 
     pub fn finalize_hex(self#) -> String {
         auto hash = self#.finalize()
-        
-        auto res# = String::from("")
-        auto i# = 0
-        while i < 32 {
-            auto b = hash[i]
-            auto high = b >> 4
-            auto low = b & 0x0f
-            res#.push_char(hex_char(high))
-            res#.push_char(hex_char(low))
-            i = i + 1
-        }
-        
-        return res
+        return hex::encode_hex(&hash as *[u8], 32)
     }
 }

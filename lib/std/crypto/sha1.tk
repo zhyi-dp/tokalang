@@ -1,4 +1,5 @@
 import std/string::{String}
+import std/encoding/hex
 
 pub shape Sha1 (
     state: [u32; 5],
@@ -11,13 +12,7 @@ fn rotl(val: u32, n: u32) -> u32 {
     return (val << n) | (val >> (32 - n))
 }
 
-fn hex_char(val: u8) -> char {
-    if val < 10 {
-        return (val + 48) as char // '0'-'9'
-    } else {
-        return (val + 87) as char // 'a'-'f'
-    }
-}
+
 
 impl Sha1 {
     fn process_block(self#) {
@@ -166,18 +161,6 @@ impl Sha1 {
 
     pub fn finalize_hex(self#) -> String {
         auto hash = self#.finalize()
-        
-        auto res# = String::from("")
-        auto i# = 0
-        while i < 20 {
-            auto b = hash[i]
-            auto high = b >> 4
-            auto low = b & 0x0f
-            res#.push_char(hex_char(high))
-            res#.push_char(hex_char(low))
-            i = i + 1
-        }
-        
-        return res
+        return hex::encode_hex(&hash as *[u8], 20)
     }
 }
