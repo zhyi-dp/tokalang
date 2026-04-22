@@ -229,11 +229,11 @@ void Sema::instantiateGenericImpl(
     return;
   }
 
-  // [NEW] Check Trait Bounds
+  // [NEW] Check Trait Bounds (SFINAE)
   for (size_t i = 0; i < Template->GenericParams.size(); ++i) {
     if (!Template->GenericParams[i].TraitBounds.empty()) {
-      if (!checkTraitBounds(Template->Loc, Template->GenericParams[i].Name, Template->GenericParams[i].TraitBounds, GenericArgs[i]->toString())) {
-        return;
+      if (!checkTraitBounds(Template->Loc, Template->GenericParams[i].Name, Template->GenericParams[i].TraitBounds, GenericArgs[i]->toString(), true /* isSilent */)) {
+        return; // SFINAE: Silently filter out this impl block
       }
     }
   }
@@ -322,7 +322,7 @@ void Sema::instantiateGenericImpl(
 
 bool Sema::checkTraitBounds(SourceLocation Loc, const std::string &ParamName, 
                             const std::vector<std::string> &TraitBounds, 
-                            const std::string &ConcreteType) {
+                            const std::string &ConcreteType, bool isSilent) {
   bool success = true;
   std::string resolvedConcreteType = resolveType(ConcreteType);
 
@@ -339,8 +339,10 @@ bool Sema::checkTraitBounds(SourceLocation Loc, const std::string &ParamName,
       if (typeObj && typeObj->isSync(this)) continue;
     }
 
-    DiagnosticEngine::report(Loc, DiagID::ERR_TRAIT_BOUND_UNSATISFIED, ConcreteType, bound, ParamName);
-    HasError = true;
+    if (!isSilent) {
+      DiagnosticEngine::report(Loc, DiagID::ERR_TRAIT_BOUND_UNSATISFIED, ConcreteType, bound, ParamName);
+      HasError = true;
+    }
     success = false;
   }
   return success;

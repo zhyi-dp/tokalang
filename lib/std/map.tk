@@ -283,10 +283,6 @@ pub shape Entry<'K, 'V> (
 )
 
 impl<'K, 'V> Entry<'K, 'V> {
-    pub fn parse_json(self#, json: view_str) -> Result<view_str, str> {
-        return Result<view_str, str>::Err("Cannot json-parse internal iterator state")
-    }
-
     pub fn key(self) -> *'K { return self.*key } 
     pub fn val(self) -> *'V { return self.*val }
 }
@@ -297,10 +293,6 @@ pub shape EntryRef<'K, 'V> (
 )
 
 impl<'K, 'V> EntryRef<'K, 'V> {
-    pub fn parse_json(self#, json: view_str) -> Result<view_str, str> {
-        return Result<view_str, str>::Err("Cannot json-parse internal iterator state")
-    }
-
     pub fn key(self) -> &'K 
     effects: return <- self {
         return self.&key

@@ -372,7 +372,7 @@ private:
 
   bool checkTraitBounds(SourceLocation Loc, const std::string &ParamName, 
                         const std::vector<std::string> &TraitBounds, 
-                        const std::string &ConcreteType);
+                        const std::string &ConcreteType, bool isSilent = false);
 
   // [NEW] Deep Inspection for Union Safety
   std::shared_ptr<toka::Type>

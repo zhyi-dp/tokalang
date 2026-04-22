@@ -614,7 +614,7 @@ impl view_str@FromJson {
     }
 }
 
-impl<'T> Option<'T>@FromJson {
+impl<'T: @FromJson> Option<'T>@FromJson {
     pub fn parse_json(self#, json: view_str) -> JRes {
         auto rem# = json_skip_whitespace(json)
         if rem.len() >= 4 {
@@ -637,7 +637,7 @@ impl<'T> Option<'T>@FromJson {
 }
 
 // 零拷贝数组解析 (直接存入预定义的 Shape 向量中)
-impl<'T> Vec<'T>@FromJson {
+impl<'T: @FromJson> Vec<'T>@FromJson {
     pub fn parse_json(self#, json: view_str) -> JRes {
         auto res# = json_skip_whitespace(json)
         if res.len() == 0 || res.byte_at(0) != 91 { // '['

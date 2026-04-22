@@ -42,7 +42,7 @@ fn cmd_add(pkg_url: String) -> i32 {
         auto iter = pkg_url.split('/' as i32)
         auto pkg_alias# = String::from("")
         while !iter.is_done() {
-            auto part = iter.next()
+            auto part = iter#.next()
             if !part.is_empty() {
                 pkg_alias = part.clone()
             }
