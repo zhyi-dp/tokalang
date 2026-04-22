@@ -17,10 +17,9 @@ pub fn main() -> i32 {
         auto file_path = String::from(filename.c_str())
         auto val_r = String::from("r")
         
-        auto f_res = File::open(file_path, val_r)
+        auto file# = File::open(file_path, val_r)
         
-        if f_res.is_ok() {
-            auto file# = f_res.unwrap()
+        if file.is_valid() {
             auto content_res = file.read_to_string()
             if content_res.is_ok() {
                 auto content = content_res.unwrap()

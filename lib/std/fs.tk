@@ -148,12 +148,11 @@ pub fn metadata(path: String) -> Result<Metadata, String> {
  * Read the entire contents of a file into a string.
  */
 pub fn read_to_string(path: String) -> IoStringResult {
-    auto f_res = File::open(path, String::from("r"))
-    if f_res.is_err() {
+    auto f# = File::open(path, String::from("r"))
+    if !f.is_valid() {
         return IoStringResult::Err(String::from("Failed to open file for reading"))
     }
     
-    auto f# = f_res.unwrap()
     auto s_res = f#.read_to_string()
     f#.close()
     
@@ -164,12 +163,11 @@ pub fn read_to_string(path: String) -> IoStringResult {
  * Write a slice as the entire contents of a file.
  */
 pub fn write_string(path: String, content: String) -> Result<bool, String> {
-    auto f_res = File::open(path, String::from("w"))
-    if f_res.is_err() {
+    auto f# = File::open(path, String::from("w"))
+    if !f.is_valid() {
         return Result<bool, String>::Err(String::from("Failed to open file for writing"))
     }
     
-    auto f# = f_res.unwrap()
     auto write_len = f#.write(content)
     f#.close()
     

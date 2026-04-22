@@ -2,6 +2,15 @@
 
 import core/libc::libc_exit
 
+// IMPORTANT NOTICE ABOUT RESOURCE MANAGEMENT (@encap TYPES)
+// Currently, the Toka compiler performs shallow bit-copies during Sum Shape
+// pattern matching (like match and unwrap). Because of this limitation,
+// deep move/cede semantics for resources are not fully implemented inside Sum Shapes.
+// Do NOT wrap `@encap` types (such as `File`, `TcpStream`, `Child`) in `Result` or `Option`,
+// as `unwrap()` will create a shallow copy and cause double-free (SIGSEGV) crashes
+// when the RAII drop handler is triggered multiple times. 
+// Standard library resources should instead return by value and implement an `is_valid()` check.
+
 pub shape Okay<'T, 'E> (
     Ok('T) = 1 |
     Err('E) = 0 |

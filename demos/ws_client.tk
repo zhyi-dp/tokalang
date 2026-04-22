@@ -7,13 +7,11 @@ import core/libc
 fn client_task() -> async i32 {
     auto addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 9090)
     
-    auto stream_res = TcpStream::connect(addr)
-    if stream_res.is_err() { 
+    auto stream# = TcpStream::connect(addr)
+    if !stream.is_valid() { 
         println("Client: Failed to connect 127.0.0.1:9090")
         return 1 
     }
-    
-    auto stream# = stream_res.unwrap()
     println("Client: Connected! Sending HTTP Handshake...")
     
     auto req = v"GET / HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n"

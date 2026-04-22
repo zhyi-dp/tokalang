@@ -15,23 +15,21 @@ fn run_server(port: u16) -> i32 {
         auto ip = Ipv4Addr::new(127:u8, 0:u8, 0:u8, 1:u8)
         auto addr = SocketAddrV4::new(ip, port)
         
-        auto listener_res = TcpListener::bind(addr)
-        if listener_res.is_err() {
-            println("[Server] Bind failed: {}", listener_res.unwrap_err().c_str())
+        auto listener# = TcpListener::bind(addr)
+        if !listener.is_valid() {
+            println("[Server] Bind failed")
             return 1
         }
-        auto listener# = listener_res.unwrap()
         println("[Server] Listening...")
         
         // Accept connection
-        auto stream_res = listener#.accept()
-        if stream_res.is_err() {
-            println("[Server] Accept failed: {}", stream_res.unwrap_err().c_str())
+        auto stream# = listener#.accept()
+        if !stream.is_valid() {
+            println("[Server] Accept failed")
             return 1
         }
         
         println("[Server] Accepted connection!")
-        auto stream# = stream_res.unwrap()
         
         auto buf: [char; 128] = [0 as char; 128]
         auto *buf_ptr# = &buf[0] as *u8
@@ -71,13 +69,11 @@ pub fn main() -> i32 {
         auto ip = Ipv4Addr::new(127:u8, 0:u8, 0:u8, 1:u8)
         auto addr = SocketAddrV4::new(ip, 9095:u16)
         
-        auto connect_res = TcpStream::connect(addr)
-        if connect_res.is_err() {
-            println("[Client] Connect failed: {}", connect_res.unwrap_err().c_str())
+        auto stream# = TcpStream::connect(addr)
+        if !stream.is_valid() {
+            println("[Client] Connect failed")
             return 1
         }
-        
-        auto stream# = connect_res.unwrap()
         println("[Client] Connected successfully!")
         
         auto msg = String::from("Hello Toka")

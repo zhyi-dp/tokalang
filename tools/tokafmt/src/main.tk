@@ -14,15 +14,13 @@ fn main() -> i32 {
     auto target_file = env::get_arg(1)
     
     // Open file to read formatting
-    auto file_res = File::open(target_file.clone(), String::from("r"))
-    if !file_res.is_ok() {
+    auto file# = File::open(target_file.clone(), String::from("r"))
+    if !file.is_valid() {
         print(String::from("Error: Could not read file "))
         print(target_file.clone())
         print(String::from("\n"))
         return 1
     }
-    
-    auto file# = file_res.unwrap()
     auto content_res = file.read_to_string()
     if !content_res.is_ok() {
         println("Error reading string from file")

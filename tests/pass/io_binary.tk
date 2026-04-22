@@ -9,59 +9,53 @@ fn main() -> i32 {
         
         // Write
         {
-            auto f_res = File::open(filename.clone(), String::from("wb"))
-            match f_res {
-                auto Result<File, String>::Ok(&f#) => {
-                    auto *data# = alloc [4] u8
-                    data[0] = 65:u8 // 'A'
-                    data[1] = 66:u8 // 'B'
-                    data[2] = 67:u8 // 'C'
-                    data[3] = 68:u8 // 'D'
-                    
-                    f.write_buf(*data as *u8, 4:usize)
-                    f#.close()
-                    free [4] *data
-                }
-                auto Result<File, String>::Err(&e) => {
-                    println("Failed to open file for writing: {}", e)
-                    return 1
-                }
+            auto f# = File::open(filename.clone(), String::from("wb"))
+            if f.is_valid() {
+                auto *data# = alloc [4] u8
+                data[0] = 65:u8 // 'A'
+                data[1] = 66:u8 // 'B'
+                data[2] = 67:u8 // 'C'
+                data[3] = 68:u8 // 'D'
+                
+                f.write_buf(*data as *u8, 4:usize)
+                f#.close()
+                free [4] *data
+            } else {
+                println("Failed to open file for writing")
+                return 1
             }
         }
         
         // Read
         {
-            auto f_res = File::open(filename.clone(), String::from("rb"))
-            match f_res {
-                auto Result<File, String>::Ok(&f#) => {
-                    auto *buf# = alloc [10] u8
-                    // Clear buffer
-                    buf[0] = 0:u8
-                    
-                    auto read_res = f.read(*buf as *u8, 10:usize)
-                    match read_res {
-                        auto Result<usize, String>::Ok(n) => {
-                            if n != 4:usize {
-                                println("Read wrong number of bytes: {}", n)
-                                return 1
-                            }
-                            if buf[0] != 65:u8 { println("Byte 0 wrong"); return 1 }
-                            if buf[1] != 66:u8 { println("Byte 1 wrong"); return 1 }
-                            if buf[2] != 67:u8 { println("Byte 2 wrong"); return 1 }
-                            if buf[3] != 68:u8 { println("Byte 3 wrong"); return 1 }
-                        }
-                        auto Result<usize, String>::Err(&e) => {
-                            println("Read failed: {}", e)
+            auto f# = File::open(filename.clone(), String::from("rb"))
+            if f.is_valid() {
+                auto *buf# = alloc [10] u8
+                // Clear buffer
+                buf[0] = 0:u8
+                
+                auto read_res = f.read(*buf as *u8, 10:usize)
+                match read_res {
+                    auto Result<usize, String>::Ok(n) => {
+                        if n != 4:usize {
+                            println("Read wrong number of bytes: {}", n)
                             return 1
                         }
+                        if buf[0] != 65:u8 { println("Byte 0 wrong"); return 1 }
+                        if buf[1] != 66:u8 { println("Byte 1 wrong"); return 1 }
+                        if buf[2] != 67:u8 { println("Byte 2 wrong"); return 1 }
+                        if buf[3] != 68:u8 { println("Byte 3 wrong"); return 1 }
                     }
-                    f#.close()
-                    free [10] *buf
+                    auto Result<usize, String>::Err(&e) => {
+                        println("Read failed: {}", e)
+                        return 1
+                    }
                 }
-                auto Result<File, String>::Err(&e) => {
-                    println("Failed to open file for reading: {}", e)
-                    return 1
-                }
+                f#.close()
+                free [10] *buf
+            } else {
+                println("Failed to open file for reading")
+                return 1
             }
         }
         

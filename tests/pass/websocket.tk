@@ -7,11 +7,10 @@ import core/libc
 import stdx/websocket::{WsConnection, ws_accept_async}
 
 fn server_task(server#: TcpListener) -> async i32 {
-    auto accept_res = net_async_accept(server).await
-    if accept_res.is_err() {
+    auto stream# = net_async_accept(server).await
+    if !stream.is_valid() {
         return 1
     }
-    auto stream# = accept_res.unwrap()
     
     // Upgrade
     auto ws_conn_res = ws_accept_async(stream).await
@@ -44,10 +43,8 @@ fn client_task() -> async i32 {
     sleep_async(200).await
     auto addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 9031)
     
-    auto stream_res = TcpStream::connect(addr)
-    if stream_res.is_err() { return 11 }
-    
-    auto stream# = stream_res.unwrap()
+    auto stream# = TcpStream::connect(addr)
+    if !stream.is_valid() { return 11 }
     
     auto crlf_single# = String::from("")
     crlf_single#.push_char(13 as char)
@@ -138,12 +135,11 @@ fn entry_point(listener_arg: TcpListener) -> async i32 {
 pub fn main() -> i32 {
     auto addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 9031)
     
-    auto listen_res = TcpListener::bind(addr)
-    if listen_res.is_err() { 
+    auto listener# = TcpListener::bind(addr)
+    if !listener.is_valid() { 
         println("Listen bound failed!")
         return 20 
     }
-    auto listener# = listen_res.unwrap()
     
     // Start entry point
     auto entry = entry_point(listener).start

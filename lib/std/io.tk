@@ -48,21 +48,26 @@ impl File@encap {
 }
 
 impl File {
-    pub fn open(path: String, mode: String) -> Result<File, String> {
+    pub fn open(path: String, mode: String) -> File {
         unsafe {
             auto *p = libc_fopen(path.c_str(), mode.c_str())
             if *p == (ADDR0 as *void) {
-                return IoResult::Err(String::from("Failed to open file"))
+                return File(
+                    *handle = ADDR0 as *void,
+                    opened = false,
+                    owned = true
+                )
             }
-            auto f# = File(
+            return File(
                 *handle = *p,
                 opened = true,
                 owned = true
             )
-            auto res = IoResult::Ok(f)
-            f.owned = false
-            return res
         }
+    }
+
+    pub fn is_valid(self) -> bool {
+        return self.opened
     }
     
     pub fn close(self#) {

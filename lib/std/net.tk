@@ -68,29 +68,29 @@ impl TcpStream@encap {
 }
 
 impl TcpStream {
-    pub fn connect(addr: SocketAddrV4) -> Result<TcpStream, String> {
+    pub fn connect(addr: SocketAddrV4) -> TcpStream {
         unsafe {
             auto fd = sys::net_socket_impl()
             if fd < 0 {
-                return Result<TcpStream, String>::Err(String::from("Failed to create socket"))
+                return TcpStream(fd=-1, closed=true)
             }
             
             auto ip_num = addr.ip.to_u32()
             auto res = sys::net_connect_impl(fd, ip_num, addr.port)
             if res != 0 {
                 sys::net_close_impl(fd)
-                return Result<TcpStream, String>::Err(String::from("Connect failed"))
+                return TcpStream(fd=-1, closed=true)
             }
             
-            return Result<TcpStream, String>::Ok(TcpStream(fd=fd, closed=false))
+            return TcpStream(fd=fd, closed=false)
         }
     }
     
-    pub fn connect_async(addr: SocketAddrV4) -> async Result<TcpStream, String> {
+    pub fn connect_async(addr: SocketAddrV4) -> async TcpStream {
         unsafe {
             auto fd = sys::net_socket_impl()
             if fd < 0 {
-                return Result<TcpStream, String>::Err(String::from("Failed to create socket"))
+                return TcpStream(fd=-1, closed=true)
             }
             
             auto ip_num = addr.ip.to_u32()
@@ -99,14 +99,14 @@ impl TcpStream {
             if res == 0 {
                 // Connected instantly
                 sleep_async(0:i64).await
-                return Result<TcpStream, String>::Ok(TcpStream(fd=fd, closed=false))
+                return TcpStream(fd=fd, closed=false)
             }
             
             auto errno = sys::get_errno_impl()
             if errno != 36 && errno != 115 {
                 sys::net_close_impl(fd)
                 sleep_async(0:i64).await
-                return Result<TcpStream, String>::Err(String::from("Connect failed immediately"))
+                return TcpStream(fd=-1, closed=true)
             }
             
             auto coro = __builtin_coro_current_handle() as Addr
@@ -116,10 +116,10 @@ impl TcpStream {
             auto get_err = sys::net_getsockopt_error_impl(fd)
             if get_err != 0 {
                 sys::net_close_impl(fd)
-                return Result<TcpStream, String>::Err(String::from("Connect failed after wait"))
+                return TcpStream(fd=-1, closed=true)
             }
             
-            return Result<TcpStream, String>::Ok(TcpStream(fd=fd, closed=false))
+            return TcpStream(fd=fd, closed=false)
         }
     }
     
@@ -258,11 +258,11 @@ impl TcpListener@encap {
 }
 
 impl TcpListener {
-    pub fn bind(addr: SocketAddrV4) -> Result<TcpListener, String> {
+    pub fn bind(addr: SocketAddrV4) -> TcpListener {
         unsafe {
             auto fd = sys::net_socket_impl()
             if fd < 0 {
-                return Result<TcpListener, String>::Err(String::from("socket failed"))
+                return TcpListener(fd=-1, closed=true)
             }
             
             // SO_REUSEADDR
@@ -272,31 +272,31 @@ impl TcpListener {
             auto res = sys::net_bind_impl(fd, ip_num, addr.port)
             if res != 0 {
                 sys::net_close_impl(fd)
-                return Result<TcpListener, String>::Err(String::from("bind failed"))
+                return TcpListener(fd=-1, closed=true)
             }
             
             auto lres = sys::net_listen_impl(fd)
             if lres != 0 {
                 sys::net_close_impl(fd)
-                return Result<TcpListener, String>::Err(String::from("listen failed"))
+                return TcpListener(fd=-1, closed=true)
             }
             
-            return Result<TcpListener, String>::Ok(TcpListener(fd=fd, closed=false))
+            return TcpListener(fd=fd, closed=false)
         }
     }
     
-    pub fn accept(self#) -> Result<TcpStream, String> {
+    pub fn accept(self#) -> TcpStream {
         unsafe {
             if self.closed {
-                 return Result<TcpStream, String>::Err(String::from("Listener closed"))
+                 return TcpStream(fd=-1, closed=true)
             }
             
             auto client_fd = sys::net_accept_impl(self.fd)
             if client_fd < 0 {
-                 return Result<TcpStream, String>::Err(String::from("Accept failed"))
+                 return TcpStream(fd=-1, closed=true)
             }
             
-            return Result<TcpStream, String>::Ok(TcpStream(fd=client_fd, closed=false))
+            return TcpStream(fd=client_fd, closed=false)
         }
     }
     
@@ -341,11 +341,11 @@ pub fn net_async_read(stream#: TcpStream, *buf: u8, len: usize) -> async Result<
     return ret
 }
 
-pub fn net_async_accept(listener#: TcpListener) -> async Result<TcpStream, String> {
-    auto ret# = Result<TcpStream, String>::Err(String::from("Unreachable"))
+pub fn net_async_accept(listener#: TcpListener) -> async TcpStream {
+    auto ret# = TcpStream(fd=-1, closed=true)
     unsafe {
         if listener.closed {
-             ret = Result<TcpStream, String>::Err(String::from("Listener closed"))
+             // closed
         } else {
             sys::net_set_nonblocking_impl(listener.fd)
             
@@ -354,7 +354,7 @@ pub fn net_async_accept(listener#: TcpListener) -> async Result<TcpStream, Strin
                 auto client_fd = sys::net_accept_impl(listener.fd)
                 if client_fd >= 0 {
                     sleep_async(0:i64).await
-                    ret = Result<TcpStream, String>::Ok(TcpStream(fd=client_fd, closed=false))
+                    ret = TcpStream(fd=client_fd, closed=false)
                     done = true
                 } else {
                     auto err = sys::get_last_error()
@@ -366,7 +366,7 @@ pub fn net_async_accept(listener#: TcpListener) -> async Result<TcpStream, Strin
                         __builtin_coro_suspend()
                     } else {
                         sleep_async(0:i64).await
-                        ret = Result<TcpStream, String>::Err(String::from("Accept failed"))
+                        ret = TcpStream(fd=-1, closed=true)
                         done = true
                     }
                 }

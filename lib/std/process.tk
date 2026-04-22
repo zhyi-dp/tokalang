@@ -26,6 +26,10 @@ impl Child {
             return 0
         }
     }
+    
+    pub fn is_valid(self) -> bool {
+        return self.pid >= 0
+    }
 }
 
 

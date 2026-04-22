@@ -10,12 +10,11 @@ pub shape SentryScope (
 pub fn main() -> i32 {
     auto path_str = String::from("/Users/zhyi/Library/Application Support/ynote-desktop/sentry/scope_v2.json")
     auto mode_str = String::from("r")
-    auto file_res = File::open(path_str, mode_str)
-    if file_res.is_err() {
+    auto f# = File::open(path_str, mode_str)
+    if !f.is_valid() {
         println("File not found")
         return 1
     }
-    auto f = file_res.unwrap()
     auto read_res = f.read_to_string()
     if read_res.is_err() {
         println("Read fail")

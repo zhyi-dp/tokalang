@@ -28,9 +28,8 @@ fn handle_connection(stream#: TcpStream) -> async Result<(), String> {
 fn server_loop(listener#: TcpListener) -> async i32 {
     println("Toka WebSocket Echo Server listening on 127.0.0.1:9099...")
     while true {
-        auto accept_res = net_async_accept(listener).await
-        if accept_res.is_ok() {
-            auto stream# = accept_res.unwrap()
+        auto stream# = net_async_accept(listener).await
+        if stream.is_valid() {
             // Await execution to ensure the local TcpStream is not dropped
             // while the async task is still running over it.
             auto res = handle_connection(stream).await
@@ -44,14 +43,12 @@ fn server_loop(listener#: TcpListener) -> async i32 {
 
 pub fn main() -> i32 {
     auto addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 9099)
-    auto listen_res = TcpListener::bind(addr)
+    auto listener# = TcpListener::bind(addr)
     
-    if listen_res.is_err() { 
+    if !listener.is_valid() { 
         println("Failed to bind port 9099!")
         return 1 
     }
-    
-    auto listener# = listen_res.unwrap()
     auto t = server_loop(listener).start
     
     // Block forever on the server loop

@@ -65,20 +65,18 @@ fn run_server(port: u16) -> async i32 {
     auto ip = Ipv4Addr::new(127:u8, 0:u8, 0:u8, 1:u8)
     auto addr = SocketAddrV4::new(ip, port)
     
-    auto listener_res = TcpListener::bind(addr)
-    if listener_res.is_err() { 
+    auto listener# = TcpListener::bind(addr)
+    if !listener.is_valid() { 
         println("[Server] Bind failed!")
         return 1 
     }
-    auto listener# = listener_res.unwrap()
     println("[Server] Listening...")
     
     while !g_server_stop {
-        auto stream_res = net_async_accept(listener).await
-        if stream_res.is_ok() {
+        auto stream = net_async_accept(listener).await
+        if stream.is_valid() {
             if g_server_stop { break } // exit before processing if stopped
             println("[Server] Accepted Web connection natively asynchronously!")
-            auto stream = stream_res.unwrap()
             process_client(stream).start // detach child HTTP handler
         }
     }
@@ -94,14 +92,11 @@ fn async_client_runner() -> async i32 {
         auto addr = SocketAddrV4::new(ip, 8901:u16)
         
         println("[Client] Connecting to Async Server...")
-        auto connect_req = TcpStream::connect_async(addr)
-        auto connect_res = connect_req.await
-        if connect_res.is_err() { 
+        auto stream# = TcpStream::connect_async(addr).await
+        if !stream.is_valid() { 
             println("[Client] connect failed")
             return 1 
         }
-        
-        auto stream# = connect_res.unwrap()
         
         auto req_line = String::from("GET /home HTTP/1.1\r\nHost: localhost:8901\r\nAccept: */*\r\n\r\n")
         auto write_res = stream#.write_string_async(req_line).await

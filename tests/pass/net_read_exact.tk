@@ -13,13 +13,11 @@ fn run_server(port: u16) -> i32 {
     unsafe {
         auto ip = Ipv4Addr::new(127:u8, 0:u8, 0:u8, 1:u8)
         auto addr = SocketAddrV4::new(ip, port)
-        auto listener_res = TcpListener::bind(addr)
-        if listener_res.is_err() { return 1 }
-        auto listener# = listener_res.unwrap()
+        auto listener# = TcpListener::bind(addr)
+        if !listener.is_valid() { return 1 }
         
-        auto stream_res = listener#.accept()
-        if stream_res.is_err() { return 1 }
-        auto stream# = stream_res.unwrap()
+        auto stream# = listener#.accept()
+        if !stream.is_valid() { return 1 }
         
         // Send data in chunks to force multiple reads on client
         auto msg1 = String::from("Hello")
@@ -43,9 +41,8 @@ fn main() -> i32 {
         
         auto ip = Ipv4Addr::new(127:u8, 0:u8, 0:u8, 1:u8)
         auto addr = SocketAddrV4::new(ip, port)
-        auto connect_res = TcpStream::connect(addr)
-        if connect_res.is_err() { return 1 }
-        auto stream# = connect_res.unwrap()
+        auto stream# = TcpStream::connect(addr)
+        if !stream.is_valid() { return 1 }
         
         auto buf: [u8; 10] = [0:u8; 10]
         auto *buf_ptr# = &buf[0] as *u8

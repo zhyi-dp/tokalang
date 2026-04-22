@@ -6,20 +6,18 @@ import std/io::{println}
 pub fn async_server() -> async i32 {
     println("[Server] Binding to 127.0.0.1:8899...")
     auto addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8899)
-    auto listener_res = TcpListener::bind(addr)
-    if !listener_res.is_ok() {
+    auto listener# = TcpListener::bind(addr)
+    if !listener.is_valid() {
         println("[Server] Bind failed!")
         return -1
     }
-    auto listener# = listener_res.unwrap()
     
     println("[Server] Awaiting incoming connection...")
-    auto stream_res = net_async_accept(listener).await
-    if !stream_res.is_ok() {
+    auto stream# = net_async_accept(listener).await
+    if !stream.is_valid() {
         println("[Server] Accept failed!")
         return -1
     }
-    auto stream# = stream_res.unwrap()
     println("[Server] Client connected! Awaiting data...")
     
     // Read using async_read
@@ -46,8 +44,7 @@ pub fn async_client() -> async i32 {
     
     println("[Client] Connecting to server...")
     auto addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8899)
-    auto stream_res = TcpStream::connect(addr)
-    auto stream# = stream_res.unwrap()
+    auto stream# = TcpStream::connect(addr)
     
     println("[Client] Writing 'Hello Async' to server (non-blocking)...")
     auto w_res = stream#.write_string_async(String::from("Hello Async")).await

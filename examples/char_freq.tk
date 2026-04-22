@@ -22,13 +22,13 @@ fn main() -> i32 {
     
     // 1. Read File
     auto filename = String::from("demos/data.txt")
-    auto f_res = File::open(filename, String::from("r"))
-    if f_res.is_err() {
+    auto f# = File::open(filename, String::from("r"))
+    if !f.is_valid() {
         println("Error: Could not open file")
         return 1
     }
     
-    auto content_res = f_res.unwrap().read_to_string()
+    auto content_res = f#.read_to_string()
     if content_res.is_err() {
         println("Error: Could not read file")
         return 1
