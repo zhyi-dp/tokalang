@@ -28,9 +28,11 @@ jobs:
       - name: Install LLVM 20 (Ubuntu)
         if: runner.os == 'Linux'
         run: |
-          wget https://apt.llvm.org/llvm.sh
+          export DEBIAN_FRONTEND=noninteractive
+          sudo -E apt-get update -o Acquire::Retries=5 || true
+          wget --timeout=15 --tries=3 https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
-          sudo ./llvm.sh 20
+          sudo -E ./llvm.sh 20
           
       - name: Install LLVM 20 (macOS)
         if: runner.os == 'macOS'
