@@ -25,8 +25,19 @@ pub shape ReadDir (
     handle: Addr,
     finished#: bool
 )
-
-
+impl ReadDir@encap {
+    pub handle
+    pub finished
+    
+    fn drop(self#) {
+        if !self.finished {
+            sys::closedir_impl(self.handle)
+            self.finished = true
+        }
+    }
+    
+    pub fn clone(self) = delete
+}
 
 impl ReadDir {
     /**
@@ -60,18 +71,19 @@ impl ReadDir {
 /**
  * Returns an iterator over the entries in a directory.
  */
-pub fn read_dir(path: String) -> Result<ReadDir, String> {
+pub fn read_dir(path: String) -> ReadDir {
     auto h = sys::opendir_impl(path.c_str() as Addr)
     if h == ADDR0 {
-        return Result<ReadDir, String>::Err(String::from("Failed to open directory"))
+        return ReadDir(handle = h, finished = true)
     }
-    return Result<ReadDir, String>::Ok(ReadDir(
+    return ReadDir(
         handle = h,
         finished = false
-    ))
+    )
 }
 
 /**
+
  * Creates a new, empty directory at the provided path.
  */
 pub fn create_dir(path: String) -> bool {

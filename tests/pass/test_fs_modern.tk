@@ -15,13 +15,11 @@ pub fn main() -> i32 {
     assert(meta.is_file(), "fs.tk should be a file")
     
     // Test ReadDir
-    auto dir_res = fs::read_dir(String::from("lib/std"))
-    if dir_res.is_err() {
-        println("Error reading dir: {}", dir_res.unwrap_err())
+    auto dir_iter# = fs::read_dir(String::from("lib/std"))
+    if dir_iter.finished {
+        println("Error reading dir")
         return 1
     }
-    
-    auto dir_iter# = dir_res.unwrap()
     auto found_fs# = false
     while true {
         auto entry_opt = dir_iter#.next()

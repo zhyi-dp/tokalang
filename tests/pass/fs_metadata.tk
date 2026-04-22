@@ -38,12 +38,11 @@ fn main() -> i32 {
                                 libc_printf("Cleanup Rmdir failed, errno: %d\n", e)
                                 
                                 if e == 66 { // ENOTEMPTY
-                                    auto iter_res = fs::read_dir(dirname.clone())
-                                    if iter_res.is_err() {
-                                        println("Error reading dir: {}", iter_res.unwrap_err())
+                                    auto iter# = fs::read_dir(dirname.clone())
+                                    if iter.finished {
+                                        println("Error reading dir")
                                         return 1
                                     }
-                                    auto iter# = iter_res.unwrap()
                                     while true {
                                         auto entry_opt = iter#.next()
                                         if entry_opt.is_none() { break }
