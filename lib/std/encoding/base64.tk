@@ -1,14 +1,18 @@
-import std/string::String
+import std/string::{String}
 
-pub fn encode(data_addr: Addr, len: usize) -> String {
+pub fn encode_str(data: view_str) -> String {
+    auto len = data.len()
+    auto *ptr# = data.buf() as *[u8]
+    return encode_bytes(*ptr, len)
+}
+
+pub fn encode_bytes(*data: [u8], len: usize) -> String {
     auto res# = String::from("")
-    // Ensure string captures lifecycle correctly, avoiding leaking.
     auto b64_chars = String::from("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
     auto *chars = b64_chars.c_str() as *[char]
 
     auto i#: usize = 0
     unsafe {
-        auto *data = data_addr as *[u8]
         while i < len {
             auto octet_a = data[i] as u32
             auto octet_b# = 0: u32
@@ -21,17 +25,17 @@ pub fn encode(data_addr: Addr, len: usize) -> String {
 
             auto triple = (octet_a << 16) | (octet_b << 8) | octet_c
 
-            res#.push_char(chars[(triple >> 18) & 0x3F])
-            res#.push_char(chars[(triple >> 12) & 0x3F])
+            res#.push_char(chars[(triple >> 18) & 0x3f])
+            res#.push_char(chars[(triple >> 12) & 0x3f])
             
             if r > 1 {
-                res#.push_char(chars[(triple >> 6) & 0x3F])
+                res#.push_char(chars[(triple >> 6) & 0x3f])
             } else {
                 res#.push_char('=' as char)
             }
             
             if r > 2 {
-                res#.push_char(chars[triple & 0x3F])
+                res#.push_char(chars[triple & 0x3f])
             } else {
                 res#.push_char('=' as char)
             }

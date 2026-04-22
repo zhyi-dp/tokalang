@@ -1,0 +1,183 @@
+import std/string::{String}
+
+pub shape Sha1 (
+    state: [u32; 5],
+    data: [u8; 64],
+    datalen: u32,
+    bitlen: u64
+)
+
+fn rotl(val: u32, n: u32) -> u32 {
+    return (val << n) | (val >> (32 - n))
+}
+
+fn hex_char(val: u8) -> char {
+    if val < 10 {
+        return (val + 48) as char // '0'-'9'
+    } else {
+        return (val + 87) as char // 'a'-'f'
+    }
+}
+
+impl Sha1 {
+    fn process_block(self#) {
+        auto w#: [u32; 80] = [0; 80]
+        
+        auto i1# = 0
+        while i1 < 16 {
+            auto b0 = u32(self.data[i1 * 4])
+            auto b1 = u32(self.data[i1 * 4 + 1])
+            auto b2 = u32(self.data[i1 * 4 + 2])
+            auto b3 = u32(self.data[i1 * 4 + 3])
+            w[i1] = (b0 << 24) | (b1 << 16) | (b2 << 8) | b3
+            i1 = i1 + 1
+        }
+        
+        auto i2# = 16
+        while i2 < 80 {
+            auto v = w[i2 - 3] ^ w[i2 - 8] ^ w[i2 - 14] ^ w[i2 - 16]
+            w[i2] = rotl(v, 1)
+            i2 = i2 + 1
+        }
+        
+        auto a# = self.state[0]
+        auto b# = self.state[1]
+        auto c# = self.state[2]
+        auto d# = self.state[3]
+        auto e# = self.state[4]
+        
+        auto i3# = 0
+        while i3 < 80 {
+            auto f#: u32 = 0
+            auto k#: u32 = 0
+            
+            if i3 < 20 {
+                f = (b & c) | ((bnot b) & d)
+                k = 0x5a827999
+            } else if i3 < 40 {
+                f = b ^ c ^ d
+                k = 0x6ed9eba1
+            } else if i3 < 60 {
+                f = (b & c) | (b & d) | (c & d)
+                k = 0x8f1bbcdc
+            } else {
+                f = b ^ c ^ d
+                k = 0xca62c1d6
+            }
+            
+            auto temp = rotl(a, 5) + f + e + k + w[i3]
+            e = d
+            d = c
+            c = rotl(b, 30)
+            b = a
+            a = temp
+            
+            i3 = i3 + 1
+        }
+        
+        self.state[0] = self.state[0] + a
+        self.state[1] = self.state[1] + b
+        self.state[2] = self.state[2] + c
+        self.state[3] = self.state[3] + d
+        self.state[4] = self.state[4] + e
+    }
+
+    pub fn new() -> Sha1 {
+        return Sha1(
+            state = [
+                0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0
+            ],
+            data = [0; 64],
+            datalen = 0,
+            bitlen = 0
+        )
+    }
+
+    pub fn update(self#, data: view_str) {
+        auto len = usize(data.len())
+        auto *ptr# = data.buf() as *[u8]
+        self#.update_bytes(*ptr, len)
+    }
+
+    pub fn update_bytes(self#, *buf: [u8], len: usize) {
+        auto i# = 0:usize
+        while i < len {
+            auto b# = 0:u8
+            unsafe {
+                b = buf[i]
+            }
+            
+            self.data[self.datalen] = b
+            self.datalen = self.datalen + 1
+            if self.datalen == 64 {
+                self#.process_block()
+                self.bitlen = self.bitlen + 512
+                self.datalen = 0
+            }
+            i = i + 1
+        }
+    }
+
+    pub fn finalize(self#) -> [u8; 20] {
+        auto i# = self.datalen
+        
+        self.data[i] = 0x80
+        i = i + 1
+        
+        if i > 56 {
+            while i < 64 {
+                self.data[i] = 0x00
+                i = i + 1
+            }
+            self#.process_block()
+            i = 0
+        }
+        
+        while i < 56 {
+            self.data[i] = 0x00
+            i = i + 1
+        }
+        
+        self.bitlen = self.bitlen + u64(self.datalen * 8)
+        
+        self.data[63] = u8(self.bitlen)
+        self.data[62] = u8(self.bitlen >> 8)
+        self.data[61] = u8(self.bitlen >> 16)
+        self.data[60] = u8(self.bitlen >> 24)
+        self.data[59] = u8(self.bitlen >> 32)
+        self.data[58] = u8(self.bitlen >> 40)
+        self.data[57] = u8(self.bitlen >> 48)
+        self.data[56] = u8(self.bitlen >> 56)
+        
+        self#.process_block()
+        
+        auto hash#: [u8; 20] = [0; 20]
+        auto j# = 0
+        while j < 5 {
+            hash[j * 4] = u8(self.state[j] >> 24)
+            hash[j * 4 + 1] = u8(self.state[j] >> 16)
+            hash[j * 4 + 2] = u8(self.state[j] >> 8)
+            hash[j * 4 + 3] = u8(self.state[j])
+            j = j + 1
+        }
+        
+        return hash
+    }
+
+    pub fn finalize_hex(self#) -> String {
+        auto hash = self#.finalize()
+        
+        auto res# = String::from("")
+        auto i# = 0
+        while i < 20 {
+            auto b = hash[i]
+            auto high = b >> 4
+            auto low = b & 0x0f
+            res#.push_char(hex_char(high))
+            res#.push_char(hex_char(low))
+            i = i + 1
+        }
+        
+        return res
+    }
+}

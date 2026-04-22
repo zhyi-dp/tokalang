@@ -1,7 +1,7 @@
 import std/string::{String}
 import std/net::{TcpStream, net_async_read}
-import stdx/crypto/sha1
-import stdx/crypto/base64
+import std/crypto/sha1::{Sha1}
+import std/encoding/base64
 import core/result::{Result}
 import core/types::Addr
 import std/io::println
@@ -91,9 +91,10 @@ pub fn ws_accept_async(stream#: TcpStream) -> async Result<WsConnection, String>
         auto swk# = rest_view.substring(0, end_idx_opt.unwrap()).trim().to_string()
         swk#.push_str("258EAFA5-E914-47DA-95CA-C5AB0DC85B11")
         
-        auto *sha1_res# = sha1::hash(swk.c_str() as Addr, swk.len())
-        auto b64_res = base64::encode((*#sha1_res as Addr), 20)
-        unsafe { unsafe free [20] *#sha1_res }
+        auto sha1# = Sha1::new()
+        sha1#.update(swk.as_view())
+        auto hash_res = sha1#.finalize()
+        auto b64_res = base64::encode_bytes(&hash_res as *[u8], 20)
         
         stream#.write_view_async(v"HTTP/1.1 101 Switching Protocols").await!
         stream#.write_view_async(crlf_single.as_view()).await!

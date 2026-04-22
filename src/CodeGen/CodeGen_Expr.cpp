@@ -3665,7 +3665,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
                }
                auto *strExpr = dynamic_cast<const StringExpr *>(call->Args[i].get());
                
-                            << ", isPointerTy=" << (val && val->getType()->isPointerTy()) << "\n";
+                            // std::cout << ", isPointerTy=" << (val && val->getType()->isPointerTy()) << "\n";
                             
                if (isNakedCString && !strExpr) {
                    // User requested Safety Mode B: Do not allow dynamic *char implicitly!

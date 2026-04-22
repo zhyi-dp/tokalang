@@ -2462,7 +2462,7 @@ void CodeGen::fillSymbolMetadata(TokaSymbol &sym, std::shared_ptr<Type> typeObj,
     sym.soulType = allocaElemTy;
 
   if (typeObj) {
-                 << " soulTypePtr=" << sym.soulType << "\\n";
+      // std::cout << " soulTypePtr=" << sym.soulType << "\\n";
   }
 
   // Attributes

@@ -1,21 +1,21 @@
-import stdx/crypto/base64::encode
-import std/io::println
-import std/string::String
+import std/encoding/base64::{encode_str}
+import std/io::{println}
+import std/string::{String}
 
 pub fn main() -> i32 {
     auto t1 = String::from("light work.")
-    auto res1 = encode(t1.c_str() as Addr, t1.len())
-    println("light work. -> {}", res1.c_str())
+    auto res1 = encode_str(t1.as_view())
+    println("light work. -> {}", res1.as_view())
     assert(res1.eq(String::from("bGlnaHQgd29yay4=")), "Failed Base64 light work.")
 
     auto t2 = String::from("light work")
-    auto res2 = encode(t2.c_str() as Addr, t2.len())
-    println("light work -> {}", res2.c_str())
+    auto res2 = encode_str(t2.as_view())
+    println("light work -> {}", res2.as_view())
     assert(res2.eq(String::from("bGlnaHQgd29yaw==")), "Failed Base64 light work")
 
     auto t3 = String::from("light wor")
-    auto res3 = encode(t3.c_str() as Addr, t3.len())
-    println("light wor -> {}", res3.c_str())
+    auto res3 = encode_str(t3.as_view())
+    println("light wor -> {}", res3.as_view())
     assert(res3.eq(String::from("bGlnaHQgd29y")), "Failed Base64 light wor")
 
     println("All Base64 tests passed!")
