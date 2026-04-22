@@ -1,0 +1,32 @@
+# Clean Ubuntu 24.04 base image
+FROM ubuntu:24.04
+
+# Prevent interactive prompts during apt installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install core system dependencies
+# Clang is required by the Toka compiler to link the final executable
+# Curl, ca-certificates, tar, xz-utils are required to fetch and extract Toka packages
+RUN apt-get update && apt-get install -y \
+    curl \
+    clang \
+    ca-certificates \
+    tar \
+    xz-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+# Simulate an end-user environment by installing the latest version of Toka
+RUN curl -fsSL https://tokalang.dev/install.sh | bash
+
+# Configure the user's environment variables to make the 'toka' command immediately available
+ENV PATH="/root/.toka/bin:$PATH"
+ENV TOKA_LIB="/root/.toka/lib"
+
+# Set a custom terminal prompt so it's obvious we are inside the Docker container
+RUN echo 'export PS1="🐳 [Toka User Playground \W]\$ "' >> /root/.bashrc
+
+# Create a clean workspace
+WORKDIR /playground
+
+# Drop into an interactive bash session by default
+CMD ["bash"]

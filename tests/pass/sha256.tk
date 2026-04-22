@@ -1,0 +1,33 @@
+import std/crypto/sha256::{Sha256}
+import std/string::{String}
+import std/io::{println}
+
+fn test_empty_string() {
+    auto sha# = Sha256::new()
+    sha#.update(String::from("").as_view())
+    auto hash = sha#.finalize_hex()
+    assert(hash == String::from("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"), "Empty string SHA-256 mismatch")
+}
+
+fn test_abc() {
+    auto sha# = Sha256::new()
+    sha#.update(String::from("abc").as_view())
+    auto hash = sha#.finalize_hex()
+    assert(hash == String::from("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"), "abc SHA-256 mismatch")
+}
+
+fn test_hello_world() {
+    auto sha# = Sha256::new()
+    sha#.update(String::from("hello world").as_view())
+    auto hash = sha#.finalize_hex()
+    assert(hash == String::from("b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"), "hello world SHA-256 mismatch")
+}
+
+fn main() -> i32 {
+    test_empty_string()
+    test_abc()
+    test_hello_world()
+    
+    println("All SHA-256 tests passed successfully!")
+    return 0
+}
