@@ -215,7 +215,7 @@ void CodeGen::discover(const Module &ast) {
   // Phase 1: Registration (Names only)
   for (const auto &sh : ast.Shapes) {
     m_Shapes[sh->Name] = sh.get();
-    std::cerr << "CodeGen Phase 1 Shape: " << sh->Name << "\n";
+
   }
   for (const auto &alias : ast.TypeAliases)
     m_TypeAliases[alias->Name] = alias->TargetType;

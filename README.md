@@ -119,6 +119,8 @@ For the latest **Installation Guides**, **Tutorials**, **Code Examples**, and **
 
 👉 **[tokalang.dev](https://tokalang.dev)**
 
+> **Important Requirement:** Toka currently relies on **LLVM 20** (specifically `clang` and `lli`) as its backend. Please ensure LLVM 20 is installed on your system and available in your `PATH` before using the toolchain.
+
 > Note: To ensure documentation consistency and prevent outdated information, all usage instructions, examples, and deep-dive technical articles have been centralized on our official website.
 
 ## Inspirations & Lineage

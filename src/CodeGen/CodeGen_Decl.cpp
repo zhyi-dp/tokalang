@@ -441,8 +441,7 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
         }
         // Iterate reverse
         for (auto it = S->Members.rbegin(); it != S->Members.rend(); ++it) {
-          std::cerr << "  MEMBER: " << it->Name << " type: " << it->Type
-                    << " isShared: " << it->IsShared << std::endl;
+
           // Check if member needs drop
           std::string memberType = it->Type;
           // Strip morphology to find base type for drop method lookup

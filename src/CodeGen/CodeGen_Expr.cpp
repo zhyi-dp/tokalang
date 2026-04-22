@@ -1129,10 +1129,7 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
 }
 
 PhysEntity CodeGen::genUnaryExpr(const UnaryExpr *unary) {
-  if (dynamic_cast<const VariableExpr*>(unary->RHS.get())) {
-    std::cerr << " RHS=" << dynamic_cast<const VariableExpr*>(unary->RHS.get())->Name;
-  }
-  std::cerr << "\n";
+
   if (unary->Op == TokenType::PlusPlus || unary->Op == TokenType::MinusMinus) {
     llvm::Value *addr = genAddr(unary->RHS.get());
     if (!addr)

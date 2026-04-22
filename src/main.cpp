@@ -38,7 +38,7 @@
 
 #include "llvm/Support/FileSystem.h"
 
-bool quietMode = false;
+bool verboseMode = false;
 
 void parseSource(const std::string &filename,
                  std::vector<std::unique_ptr<toka::Module>> &astModules,
@@ -121,7 +121,7 @@ void parseSource(const std::string &filename,
     return;
   }
 
-  if (!quietMode) llvm::errs() << "Parsing " << resolvedPath << "...\n";
+  if (verboseMode) llvm::errs() << "Parsing " << resolvedPath << "...\n";
 
   toka::SourceLocation startLoc = sm.loadFile(resolvedPath);
   if (startLoc.isInvalid()) {
@@ -180,7 +180,7 @@ int main(int argc, char **argv) {
       }
     } else if (arg.rfind("-I", 0) == 0 && arg.length() > 2) {
       searchPaths.push_back(arg.substr(2));
-    } else if (arg == "--version" || arg == "-v") {
+    } else if (arg == "--version" || arg == "-V") {
       llvm::outs() << "toka version 0.8.0-beta (Built: " << __DATE__ << " " << __TIME__ << ")\n";
       return 0;
     } else if (arg == "--disable-borrow-check") {
@@ -199,8 +199,8 @@ int main(int argc, char **argv) {
         llvm::errs() << "--pkg requires an argument\n";
         return 1;
       }
-    } else if (arg == "-q" || arg == "--quiet") {
-      quietMode = true;
+    } else if (arg == "-v" || arg == "--verbose") {
+      verboseMode = true;
     } else if (arg == "-o") {
       if (i + 1 < argc) {
         outputFile = argv[++i];
@@ -234,7 +234,7 @@ int main(int argc, char **argv) {
   if (astModules.empty())
     return 1;
 
-  if (!quietMode) llvm::errs() << "Parse Successful. Running Semantic Analysis...\n";
+  if (verboseMode) llvm::errs() << "Parse Successful. Running Semantic Analysis...\n";
 
   toka::Sema sema;
   sema.setBorrowCheckEnabled(!disableBorrowCheck);
@@ -244,35 +244,35 @@ int main(int argc, char **argv) {
     }
   }
 
-  if (!quietMode) fprintf(stderr, "Sema Successful. Merging and Generating IR...\n");
+  if (verboseMode) fprintf(stderr, "Sema Successful. Merging and Generating IR...\n");
   fflush(stderr);
 
-  if (!quietMode) fprintf(stderr, "Initializing LLVM Context...\n");
+  if (verboseMode) fprintf(stderr, "Initializing LLVM Context...\n");
   fflush(stderr);
   llvm::LLVMContext context;
-  if (!quietMode) fprintf(stderr, "Instantiating CodeGen for module: %s\n", argv[1]);
+  if (verboseMode) fprintf(stderr, "Instantiating CodeGen for module: %s\n", argv[1]);
   fflush(stderr);
   toka::CodeGen codegen(context, argv[1]);
-  if (!quietMode) fprintf(stderr, "CodeGen instantiated.\n");
+  if (verboseMode) fprintf(stderr, "CodeGen instantiated.\n");
   fflush(stderr);
 
   std::unique_ptr<toka::Module> genericModule = sema.extractGenericRegistry();
   
-  if (!quietMode) fprintf(stderr, "Pass 1: Discovery (Registration)...\n");
+  if (verboseMode) fprintf(stderr, "Pass 1: Discovery (Registration)...\n");
   fflush(stderr);
   for (const auto &ast : astModules) {
     codegen.discover(*ast);
   }
   if (genericModule) codegen.discover(*genericModule);
 
-  if (!quietMode) fprintf(stderr, "Pass 2: Resolution (Signatures)...\n");
+  if (verboseMode) fprintf(stderr, "Pass 2: Resolution (Signatures)...\n");
   fflush(stderr);
   for (const auto &ast : astModules) {
     codegen.resolveSignatures(*ast);
   }
   if (genericModule) codegen.resolveSignatures(*genericModule);
 
-  if (!quietMode) fprintf(stderr, "Pass 3: Generation (Emission)...\n");
+  if (verboseMode) fprintf(stderr, "Pass 3: Generation (Emission)...\n");
   fflush(stderr);
   for (const auto &ast : astModules) {
     codegen.generate(*ast);
@@ -285,7 +285,7 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  if (!quietMode) fprintf(stderr, "Pass 4: Optimization (Coroutines & O2)...\n");
+  if (verboseMode) fprintf(stderr, "Pass 4: Optimization (Coroutines & O2)...\n");
   fflush(stderr);
 
   llvm::LoopAnalysisManager LAM;

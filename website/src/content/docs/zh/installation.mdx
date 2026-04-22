@@ -15,6 +15,8 @@ curl -fsSL https://tokalang.dev/install.sh | bash
 
 安装脚本会自动识别您的操作系统与硬件架构，拉取最新版编译器、包管理工具及标准库组合包至 `~/.toka/`，并极其贴心地将 `PATH` 与 `TOKA_LIB` 环境变量自动注入您的配置文件。
 
+> **重要环境依赖:** Toka 目前必须依赖 **LLVM 20** (特别是 `clang`) 作为其底层代码生成与链接后端。在安装和使用 Toka 工具链前，请务必确保系统中已安装 LLVM 20，并确保它们在 `PATH` 中可用 (或通过 `TOKA_CLANG` 环境变量指定)。
+
 ## 快速体验 (Hello World)
 
 安装完成后，您可以直接复制以下代码一键体验 Toka 的魅力：

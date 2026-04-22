@@ -158,7 +158,7 @@ llvm::Value *CodeGen::genReturnStmt(const ReturnStmt *ret) {
   }
 
   if (retVal) {
-    retVal->getType()->print(llvm::errs()); llvm::errs() << "\n";
+
     if (retVal->getType() != f->getReturnType()) {
       if (f->getReturnType()->isVoidTy())
         return m_Builder.CreateRetVoid();

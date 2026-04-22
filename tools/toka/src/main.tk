@@ -6,12 +6,13 @@ import src/pkg_manager::{cmd_fetch, build_pkg_args}
 fn print_help() {
     unsafe {
         libc_printf("Toka %s\n" as *char, "0.8.0")
-        libc_printf("\nUsage: toka <command>\n\nCommands:\n" as *char)
-        libc_printf("  new <name>   Create a new project\n" as *char)
+        libc_printf("\nUsage: toka <command> [options]\n\nCommands:\n" as *char)
+        libc_printf("  new <name>   Create a new Toka project\n" as *char)
+        libc_printf("  build        Compile current project to an executable\n" as *char)
+        libc_printf("  run [file]   Compile and execute a Toka program\n" as *char)
         libc_printf("  fetch        Fetch dependencies from toka.json\n" as *char)
-        libc_printf("  add <url>    Add a library dependency (Legacy)\n" as *char)
-        libc_printf("  build        Compile current project\n" as *char)
-        libc_printf("  run          Compile and execute\n" as *char)
+        libc_printf("\nOptions:\n" as *char)
+        libc_printf("  -v, --verbose  Enable verbose compiler output\n" as *char)
     }
 }
 
@@ -138,6 +139,7 @@ fn cmd_build() -> i32 {
         auto res = libc_system(cmd.c_str())
         if res != 0 {
             libc_printf("Error executing Project.tk -> compile failed\n" as *char)
+            libc_printf("Hint: Ensure LLVM 20 (clang) is installed and available in your PATH or TOKA_CLANG.\n" as *char)
         }
         libc_system("rm -f .toka_build.ll .toka_build_exe" as *char)
         return res
@@ -153,7 +155,7 @@ fn cmd_run_single(file: String) -> i32 {
             sys_clang = String::from(addr as *char)
         }
         
-        auto cmd# = String::from("tokac -q ")
+        auto cmd# = String::from("tokac ")
         auto toka_lib = libc_getenv("TOKA_LIB" as *char) as Addr
         if toka_lib != 0:Addr {
             cmd#.push_str("-I ")
@@ -171,6 +173,7 @@ fn cmd_run_single(file: String) -> i32 {
         auto res = libc_system(cmd.c_str())
         if res != 0 {
             libc_printf("Error executing %s\n" as *char, file.c_str())
+            libc_printf("Hint: Ensure LLVM 20 (clang) is installed and available in your PATH or TOKA_CLANG.\n" as *char)
         }
         libc_system("rm -f .toka_single.ll .toka_single_exe" as *char)
         return res

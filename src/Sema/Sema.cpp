@@ -1144,7 +1144,7 @@ bool Sema::isShapeSend(const std::string &shapeName) {
   
   bool res = m_ShapeProps[shapeName].IsSend;
   if (!res) {
-    std::cerr << "DEBUG isShapeSend(" << shapeName << ") -> false (Props)\n";
+
   }
   return res;
 }
