@@ -1,7 +1,7 @@
 import std/string::{String}
 import std/env
 import core/libc::{libc_system, libc_printf}
-import pkg_manager::{cmd_fetch, build_pkg_args}
+import src/pkg_manager::{cmd_fetch, build_pkg_args}
 
 fn print_help() {
     unsafe {
@@ -188,7 +188,7 @@ fn cmd_run() -> i32 {
 }
 
 fn main() -> i32 {
-    auto argc = env::args()
+    auto argc = env::args_count()
     if argc < 2 {
         print_help()
         return 1

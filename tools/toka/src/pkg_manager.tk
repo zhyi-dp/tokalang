@@ -2,7 +2,7 @@ import std/io::{println}
 import std/string::{String}
 import std/fs::{read_to_string}
 import core/libc::{libc_system, libc_printf}
-import stdx/json::{JsonNode}
+import std/serde/json::{JsonNode}
 
 pub fn cmd_fetch() -> i32 {
     auto res = read_to_string(String::from("toka.json"))

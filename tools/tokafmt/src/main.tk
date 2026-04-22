@@ -5,7 +5,7 @@ import src/lexer::{Lexer}
 import src/printer::{Printer}
 
 fn main() -> i32 {
-    auto argc = env::args()
+    auto argc = env::args_count()
     if argc < 2 {
         println("Usage: tokafmt <file.tk>")
         return 1
