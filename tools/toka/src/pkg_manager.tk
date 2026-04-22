@@ -1,0 +1,215 @@
+import std/io::{println}
+import std/string::{String}
+import std/fs::{read_to_string}
+import core/libc::{libc_system, libc_printf}
+import stdx/json::{JsonNode}
+
+pub fn cmd_fetch() -> i32 {
+    auto res = read_to_string(String::from("toka.json"))
+    if res.is_err() {
+        println("Error: toka.json not found in current directory.")
+        return 1
+    }
+    
+    auto json_str = res.unwrap()
+    auto v_str = json_str.as_str()
+    
+    auto root#: JsonNode = JsonNode::NullNode(0)
+    auto parse_res = root#.parse_json(v_str, 0:usize)
+    
+    if parse_res.is_err() {
+        println("Error: Failed to parse toka.json.")
+        return 1
+    }
+    
+    match root {
+        ObjectNode(&map_ptr) => {
+            // Find dependencies
+            auto deps_opt = map_ptr.get(String::from("dependencies"))
+            if deps_opt.is_none() {
+                println("No dependencies found in toka.json.")
+                return 0
+            }
+            
+            auto deps_node_ptr = deps_opt.unwrap()
+            match deps_node_ptr {
+                ObjectNode(&deps_map) => {
+                    println("Fetching dependencies from toka.json...")
+                    auto iter# = deps_map#.iter()
+                    while true {
+                        auto entry_opt = iter#.next()
+                        if entry_opt.is_none() { break }
+                        
+                        auto entry = entry_opt.unwrap()
+                        auto *pkg_name_ptr = entry.key()
+                        auto *pkg_ver_node = entry.val()
+                        
+                        auto pkg_name = pkg_name_ptr.clone()
+                        auto pkg_ver# = String::from("")
+                        
+                        match pkg_ver_node {
+                            StrNode(&s) => {
+                                pkg_ver = s.clone()
+                            }
+                            _ => {
+                                println("Warning: Version must be a string")
+                                continue
+                            }
+                        }
+                        
+                        unsafe { libc_printf(" -> Resolving %s @ %s\n" as *char, pkg_name.c_str(), pkg_ver.c_str()) }
+                        
+                        auto target_dir# = String::from(".toka/packages/")
+                        target_dir#.push_str(pkg_name.c_str())
+                        target_dir#.push_str("-")
+                        target_dir#.push_str(pkg_ver.c_str())
+                        
+                        auto mkdir_cmd# = String::from("mkdir -p ")
+                        mkdir_cmd#.push_str(target_dir.c_str())
+                        unsafe { libc_system(mkdir_cmd.c_str()) }
+                        
+                        auto tmp_json# = String::from("/tmp/toka_")
+                        tmp_json#.push_str(pkg_name.c_str())
+                        tmp_json#.push_str(".json")
+
+                        auto curl_cmd# = String::from("curl -sL https://pkg.tokalang.dev/packages/")
+                        curl_cmd#.push_str(pkg_name.c_str())
+                        curl_cmd#.push_str(".json -o ")
+                        curl_cmd#.push_str(tmp_json.c_str())
+
+                        unsafe { libc_system(curl_cmd.c_str()) }
+
+                        auto index_res = read_to_string(tmp_json.clone())
+                        if index_res.is_err() {
+                            println("Error: Failed to fetch package index from registry.")
+                            continue
+                        }
+
+                        auto index_str = index_res.unwrap()
+                        auto index_root#: JsonNode = JsonNode::NullNode(0)
+                        if index_root#.parse_json(index_str.as_str(), 0:usize).is_err() {
+                            println("Error: Failed to parse registry JSON.")
+                            continue
+                        }
+
+                        auto tarball_url# = String::from("")
+
+                        match index_root {
+                            ObjectNode(&index_map) => {
+                                auto versions_opt = index_map.get(String::from("versions"))
+                                if versions_opt.is_some() {
+                                    auto versions_node = versions_opt.unwrap()
+                                    match versions_node {
+                                        ObjectNode(&versions_map) => {
+                                            auto target_ver_opt = versions_map.get(pkg_ver.clone())
+                                            if target_ver_opt.is_some() {
+                                                auto target_ver_node = target_ver_opt.unwrap()
+                                                match target_ver_node {
+                                                    ObjectNode(&ver_info) => {
+                                                        auto tarball_opt = ver_info.get(String::from("tarball"))
+                                                        if tarball_opt.is_some() {
+                                                            auto tarball_node = tarball_opt.unwrap()
+                                                            match tarball_node {
+                                                                StrNode(&tb_url) => {
+                                                                    tarball_url = tb_url.clone()
+                                                                }
+                                                                _ => {}
+                                                            }
+                                                        }
+                                                    }
+                                                    _ => {}
+                                                }
+                                            }
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+
+                        if tarball_url.is_empty() {
+                            unsafe { libc_printf("Error: Could not find tarball for %s @ %s\n" as *char, pkg_name.c_str(), pkg_ver.c_str()) }
+                            continue
+                        }
+
+                        auto dl_cmd# = String::from("curl -sL ")
+                        dl_cmd#.push_str(tarball_url.c_str())
+                        dl_cmd#.push_str(" | tar -xz -C ")
+                        dl_cmd#.push_str(target_dir.c_str())
+                        dl_cmd#.push_str(" --strip-components=1")
+
+                        unsafe { libc_system(dl_cmd.c_str()) }
+                        unsafe { libc_printf("    [Registry] Downloaded %s to %s\n" as *char, pkg_name.c_str(), target_dir.c_str()) }
+                    }
+                }
+                _ => {
+                    println("Error: 'dependencies' must be an object.")
+                    return 1
+                }
+            }
+        }
+        _ => {
+            println("Error: toka.json must be a JSON object.")
+            return 1
+        }
+    }
+    
+    println("Fetch complete.")
+    return 0
+}
+
+pub fn build_pkg_args() -> String {
+    auto res = read_to_string(String::from("toka.json"))
+    if res.is_err() {
+        return String::from("")
+    }
+    
+    auto json_str = res.unwrap()
+    auto v_str = json_str.as_str()
+    auto root#: JsonNode = JsonNode::NullNode(0)
+    if root#.parse_json(v_str, 0:usize).is_err() {
+        return String::from("")
+    }
+    
+    auto out# = String::from("")
+    match root {
+        ObjectNode(&map_ptr) => {
+            auto deps_opt = map_ptr.get(String::from("dependencies"))
+            if deps_opt.is_some() {
+                auto deps_node_ptr = deps_opt.unwrap()
+                match deps_node_ptr {
+                    ObjectNode(&deps_map) => {
+                        auto iter# = deps_map#.iter()
+                        while true {
+                            auto entry_opt = iter#.next()
+                            if entry_opt.is_none() { break }
+                            
+                            auto entry = entry_opt.unwrap()
+                            auto *key_p = entry.key()
+                            auto pkg_name = key_p.clone()
+                            auto pkg_ver# = String::from("")
+                            auto *val_node = entry.val()
+                            match val_node {
+                                StrNode(&s) => { pkg_ver = s.clone() }
+                                _ => { continue }
+                            }
+                            
+                            out#.push_str("--pkg ")
+                            out#.push_str(pkg_name.c_str())
+                            out#.push_str("=")
+                            out#.push_str(".toka/packages/")
+                            out#.push_str(pkg_name.c_str())
+                            out#.push_str("-")
+                            out#.push_str(pkg_ver.c_str())
+                            out#.push_str("/src/lib.tk ")
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        _ => {}
+    }
+    return out
+}

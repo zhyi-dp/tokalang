@@ -41,7 +41,8 @@ void parseSource(const std::string &filename,
                  std::set<std::string> &visited,
                  std::vector<std::string> &recursionStack,
                  toka::SourceManager &sm,
-                 const std::vector<std::string> &searchPaths) {
+                 const std::vector<std::string> &searchPaths,
+                 const std::map<std::string, std::string> &pkgMap) {
   // Check recursion stack for circular dependency
   for (const auto &f : recursionStack) {
     if (f == filename) {
@@ -63,8 +64,14 @@ void parseSource(const std::string &filename,
   std::string resolvedPath = filename;
   bool found = false;
 
+  // 0. Check package aliases
+  auto pkgIt = pkgMap.find(filename);
+  if (pkgIt != pkgMap.end()) {
+    resolvedPath = pkgIt->second;
+    found = true;
+  }
   // 1. Try exact filename
-  if (std::ifstream(filename).good()) {
+  else if (std::ifstream(filename).good()) {
     found = true;
   }
   // 2. Try adding .tk
@@ -133,7 +140,7 @@ void parseSource(const std::string &filename,
       // TODO: Handle logic import symbol filtering if we add per-module symbol
       // tables. For now, we just parse the file to register its globals.
     }
-    parseSource(imp->PhysicalPath, astModules, visited, recursionStack, sm, searchPaths);
+    parseSource(imp->PhysicalPath, astModules, visited, recursionStack, sm, searchPaths, pkgMap);
   }
 
   astModules.push_back(std::move(module));
@@ -155,6 +162,7 @@ int main(int argc, char **argv) {
   }
 
   std::vector<std::string> inputFiles;
+  std::map<std::string, std::string> pkgMap;
   bool disableBorrowCheck = false;
   for (int i = 1; i < argc; ++i) {
     std::string arg = argv[i];
@@ -172,6 +180,20 @@ int main(int argc, char **argv) {
       return 0;
     } else if (arg == "--disable-borrow-check") {
       disableBorrowCheck = true;
+    } else if (arg == "--pkg" || arg == "-P") {
+      if (i + 1 < argc) {
+        std::string mapping = argv[++i];
+        size_t eqPos = mapping.find('=');
+        if (eqPos != std::string::npos) {
+          pkgMap[mapping.substr(0, eqPos)] = mapping.substr(eqPos + 1);
+        } else {
+          llvm::errs() << "--pkg requires format name=path\n";
+          return 1;
+        }
+      } else {
+        llvm::errs() << "--pkg requires an argument\n";
+        return 1;
+      }
     } else if (arg.rfind("-", 0) == 0) {
       // Ignore other flags for now or report error
     } else {
@@ -192,7 +214,7 @@ int main(int argc, char **argv) {
 
   std::vector<std::string> recursionStack;
   for (const auto &file : inputFiles) {
-    parseSource(file, astModules, visited, recursionStack, sm, searchPaths);
+    parseSource(file, astModules, visited, recursionStack, sm, searchPaths, pkgMap);
   }
 
   if (astModules.empty())

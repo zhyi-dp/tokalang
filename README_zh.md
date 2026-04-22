@@ -156,6 +156,30 @@ make
 ./build/bin/tokac tests/test_trait.tk > output.ll && lli output.ll
 ```
 
+## 📦 官方包管理器 (Toka Package Manager)
+
+Toka 拥有一套内置的、基于 **Minimal Version Selection (MVS)** 算法的现代化包管理系统。我们摒弃了复杂的依赖求解器（SAT Solver），以保证 100% 的构建确定性。
+
+**核心特性：**
+* **零配置中心化注册表**: 默认通过全球边缘网络 `pkg.tokalang.dev` 极速分发。
+* **声明式意图 (AI-Native)**: `toka.json` 包含专为 AI 代码助手设计的 `ai` 意图清单，实现“只要描述意图，AI 自动安装依赖”。
+* **全局缓存结构**: 依赖源码统一沉淀在本地的 `.toka/packages/` 中。
+
+**如何使用：**
+在项目根目录新建 `toka.json`：
+```json
+{
+  "dependencies": {
+    "tokalog": "1.2.0"
+  }
+}
+```
+然后执行命令：
+```bash
+toka fetch   # 解析索引，从 Registry 下载对应版本的代码到本地缓存
+toka build   # 编译器自动引入 .toka/packages/ 里的源码进行编译
+```
+
 ## 📄 示例代码 (Examples)
 
 ### 1. 安全的高并发流式异步处理

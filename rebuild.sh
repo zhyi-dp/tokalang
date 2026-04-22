@@ -28,7 +28,7 @@ echo "2. Building Toka CLI Tool (toka)"
 echo "====================================="
 cd tools/toka
 echo "   -> Compiling tools/toka/src/main.tk to main.ll..."
-tokac -I "$ROOT_DIR/lib" src/main.tk > main.ll
+tokac -I "$ROOT_DIR/lib" -I src src/main.tk > main.ll
 
 echo "   -> Compiling main.ll to executable with LLVM 20 Clang..."
 $LLVM_CLANG main.ll -isysroot $(xcrun --show-sdk-path) -o toka
