@@ -1,9 +1,45 @@
-tests/fail/implicit_box.tk:6:11: error[E0459]: Implicit heap-boxing via pointer initialization is prohibited. Use explicit allocation like 'new Point(...)' stringently
-tests/fail/implicit_box.tk:7:6: error[E0421]: Member access 'x' on non-shape type 'p'
-tests/fail/implicit_box.tk:8:26: error[E0421]: Member access 'x' on non-shape type 'p'
-tests/fail/implicit_box.tk:9:13: error[E0421]: Member access 'x' on non-shape type 'p'
-tests/fail/implicit_box.tk:13:11: error[E0459]: Implicit heap-boxing via pointer initialization is prohibited. Use explicit allocation like 'new Point(...)' stringently
-tests/fail/implicit_box.tk:15:7: error[E0421]: Member access 'x' on non-shape type 's1'
-tests/fail/implicit_box.tk:16:28: error[E0421]: Member access 'x' on non-shape type 's1'
-tests/fail/implicit_box.tk:17:14: error[E0421]: Member access 'x' on non-shape type 's1'
-tests/fail/implicit_box.tk:21:15: error[E0459]: Implicit heap-boxing via pointer initialization is prohibited. Use explicit allocation like 'new Point(...)' stringently
+error[E0459]: Implicit heap-boxing via pointer initialization is prohibited. Use explicit allocation like 'new Point(...)' stringently
+ --> tests/fail/implicit_box.tk:6:11
+  |
+ 6 |     auto ^p# = Point(x = 111, y = 222, z = 333)
+  |           ^
+error[E0421]: Member access 'x' on non-shape type 'p'
+ --> tests/fail/implicit_box.tk:7:6
+  |
+ 7 |     p.x = 444
+  |      ^
+error[E0421]: Member access 'x' on non-shape type 'p'
+ --> tests/fail/implicit_box.tk:8:26
+  |
+ 8 |     println("p.x = {}", p.x)
+  |                          ^
+error[E0421]: Member access 'x' on non-shape type 'p'
+ --> tests/fail/implicit_box.tk:9:13
+  |
+ 9 |     assert(p.x == 444, "implicit box unique mutation")
+  |             ^
+error[E0459]: Implicit heap-boxing via pointer initialization is prohibited. Use explicit allocation like 'new Point(...)' stringently
+ --> tests/fail/implicit_box.tk:13:11
+   |
+ 13 |     auto ~s1# = Point(x = 100, y = 200, z = 300)
+   |           ^
+error[E0421]: Member access 'x' on non-shape type 's1'
+ --> tests/fail/implicit_box.tk:15:7
+   |
+ 15 |     s1.x = 999
+   |       ^
+error[E0421]: Member access 'x' on non-shape type 's1'
+ --> tests/fail/implicit_box.tk:16:28
+   |
+ 16 |     println("s2.x = {}", s2.x)
+   |                            ^
+error[E0421]: Member access 'x' on non-shape type 's1'
+ --> tests/fail/implicit_box.tk:17:14
+   |
+ 17 |     assert(s2.x == 999, "implicit box shared mutation")
+   |              ^
+error[E0459]: Implicit heap-boxing via pointer initialization is prohibited. Use explicit allocation like 'new Point(...)' stringently
+ --> tests/fail/implicit_box.tk:21:15
+   |
+ 21 |     auto nul ~s1 = Point(x = 42, y = 42, z = 42)
+   |               ^

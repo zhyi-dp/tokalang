@@ -1,5 +1,25 @@
-tests/fail/trait_bounds_violation.tk:3:7: error[E0445]: Shape 'Data' manages raw pointers but does not implement 'drop'
-tests/fail/trait_bounds_violation.tk:3:7: error[E0444]: Shape 'Data' manages resources but does not implement 'drop'
-tests/fail/trait_bounds_violation.tk:3:7: error[E0458]: Shape 'Data' manages resources (raw pointers) but does not implement 'clone'
-tests/fail/trait_bounds_violation.tk:12:19: error[E0422]: Type mismatch for member '*ptr': expected '*i32?', but got 'null'
-tests/fail/trait_bounds_violation.tk:13:5: error[E0606]: Type 'Data' does not satisfy trait bound '@Send' for generic parameter 'T'
+error[E0445]: Shape 'Data' manages raw pointers but does not implement 'drop'
+ --> tests/fail/trait_bounds_violation.tk:3:7
+  |
+ 3 | shape Data (
+  |       ^
+error[E0444]: Shape 'Data' manages resources but does not implement 'drop'
+ --> tests/fail/trait_bounds_violation.tk:3:7
+  |
+ 3 | shape Data (
+  |       ^
+error[E0458]: Shape 'Data' manages resources (raw pointers) but does not implement 'clone'
+ --> tests/fail/trait_bounds_violation.tk:3:7
+  |
+ 3 | shape Data (
+  |       ^
+error[E0422]: Type mismatch for member '*ptr': expected '*i32?', but got 'null'
+ --> tests/fail/trait_bounds_violation.tk:12:19
+   |
+ 12 |     auto ^d = new Data(value = 42, *ptr = null)
+   |                   ^
+error[E0606]: Type 'Data' does not satisfy trait bound '@Send' for generic parameter 'T'
+ --> tests/fail/trait_bounds_violation.tk:13:5
+   |
+ 13 |     process<Data>(^d) // EXPECT: error[E0606]:
+   |     ^

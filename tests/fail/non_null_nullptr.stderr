@@ -1,1 +1,5 @@
-tests/fail/non_null_nullptr.tk:2:11: error[E0409]: Cannot initialize variable of type '*i32' with value of type 'null'
+error[E0409]: Cannot initialize variable of type '*i32' with value of type 'null'
+ --> tests/fail/non_null_nullptr.tk:2:11
+  |
+ 2 |     auto *p: i32 = null // EXPECT: error[E0409]:
+  |           ^

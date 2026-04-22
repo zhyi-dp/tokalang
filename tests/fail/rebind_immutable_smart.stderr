@@ -1,2 +1,10 @@
-tests/fail/rebind_immutable_smart.tk:13:11: error[E0406]: Cannot assign to immutable entity. Missing writable token '#' or '!'.
-tests/fail/rebind_immutable_smart.tk:13:5: error[E0443]: Cannot modify immutable entity '~Node'
+error[E0406]: Cannot assign to immutable entity. Missing writable token '#' or '!'.
+ --> tests/fail/rebind_immutable_smart.tk:13:11
+   |
+ 13 |     ~head = new Node(next = unset, val = 2) // CHECK: error: Cannot assign to immutable entity
+   |           ^
+error[E0443]: Cannot modify immutable entity '~Node'
+ --> tests/fail/rebind_immutable_smart.tk:13:5
+   |
+ 13 |     ~head = new Node(next = unset, val = 2) // CHECK: error: Cannot assign to immutable entity
+   |     ^

@@ -1,6 +1,30 @@
-tests/fail/escape_effects_basic.tk:3:16: error[E0455]: Returning reference to local variable 'a' is unsafe
-tests/fail/escape_effects_basic.tk:5:12: error[E0455]: Returning reference to local variable 'b' is unsafe
-tests/fail/escape_effects_basic.tk:13:16: error[E0455]: Returning reference to local variable 'a' is unsafe
-tests/fail/escape_effects_basic.tk:15:12: error[E0455]: Returning reference to local variable 'b' is unsafe
-tests/fail/escape_effects_basic.tk:23:16: error[E0455]: Returning reference to local variable 'a' is unsafe
-tests/fail/escape_effects_basic.tk:25:12: error[E0455]: Returning reference to local variable 'b' is unsafe
+error[E0455]: Returning reference to local variable 'a' is unsafe
+ --> tests/fail/escape_effects_basic.tk:3:16
+  |
+ 3 |         return &a
+  |                ^
+error[E0455]: Returning reference to local variable 'b' is unsafe
+ --> tests/fail/escape_effects_basic.tk:5:12
+  |
+ 5 |     return &b
+  |            ^
+error[E0455]: Returning reference to local variable 'a' is unsafe
+ --> tests/fail/escape_effects_basic.tk:13:16
+   |
+ 13 |         return &a
+   |                ^
+error[E0455]: Returning reference to local variable 'b' is unsafe
+ --> tests/fail/escape_effects_basic.tk:15:12
+   |
+ 15 |     return &b
+   |            ^
+error[E0455]: Returning reference to local variable 'a' is unsafe
+ --> tests/fail/escape_effects_basic.tk:23:16
+   |
+ 23 |         return &a
+   |                ^
+error[E0455]: Returning reference to local variable 'b' is unsafe
+ --> tests/fail/escape_effects_basic.tk:25:12
+   |
+ 25 |     return &b
+   |            ^

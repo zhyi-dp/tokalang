@@ -1,1 +1,5 @@
-tests/fail/mutable_method_call.tk:13:6: error[E0443]: Cannot modify immutable entity 'Method 'set' requires explicit mutable argument (use '#')'
+error[E0443]: Cannot modify immutable entity 'Method 'set' requires explicit mutable argument (use '#')'
+ --> tests/fail/mutable_method_call.tk:13:6
+   |
+ 13 |     f.set(10)
+   |      ^

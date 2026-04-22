@@ -1,1 +1,5 @@
-tests/fail/move_in_loop.tk:6:19: error[E0105]: Parse error: Zero-argument closures must use '{ => ... }' to disambiguate from code blocks
+error[E0105]: Parse error: Zero-argument closures must use '{ => ... }' to disambiguate from code blocks
+ --> tests/fail/move_in_loop.tk:6:19
+  |
+ 6 |     for i in 0..5 {
+  |                   ^

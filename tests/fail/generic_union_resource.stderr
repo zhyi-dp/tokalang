@@ -1,3 +1,15 @@
-tests/fail/generic_union_resource.tk:2:7: error[E0427]: Union member '0' has type '^val:T' which manages resources (HasDrop); unions must be data-only
-tests/fail/generic_union_resource.tk:2:7: note: Unions cannot track active variants to drop resources safely; consider using a raw pointer '*^val:T' or 'ManuallyDrop<T>'
-tests/fail/generic_union_resource.tk:16:14: error[E0417]: Shape 'DangerousUnionResource_M_i32' has no member named '^val'
+error[E0427]: Union member '0' has type '^val:T' which manages resources (HasDrop); unions must be data-only
+ --> tests/fail/generic_union_resource.tk:2:7
+  |
+ 2 | shape DangerousUnionResource<T> (
+  |       ^
+note: Unions cannot track active variants to drop resources safely; consider using a raw pointer '*^val:T' or 'ManuallyDrop<T>'
+ --> tests/fail/generic_union_resource.tk:2:7
+  |
+ 2 | shape DangerousUnionResource<T> (
+  |       ^
+error[E0417]: Shape 'DangerousUnionResource_M_i32' has no member named '^val'
+ --> tests/fail/generic_union_resource.tk:16:14
+   |
+ 16 |     auto u = DangerousUnionResource<i32>(^val = ^ptr); 
+   |              ^

@@ -1,4 +1,20 @@
-tests/fail/union_safety_types.tk:8:7: error[E0426]: Union member 'b' has restricted type 'bool' (underlying 'bool')
-tests/fail/union_safety_types.tk:13:7: error[E0426]: Union member 'b' has restricted type 'BoolAlias' (underlying 'bool')
-tests/fail/union_safety_types.tk:18:7: error[E0426]: Union member 'e' has restricted type 'MyEnum' (underlying 'strict enum')
-tests/fail/union_safety_types.tk:23:7: error[E0426]: Union member 'e' has restricted type 'StrictEnum' (underlying 'strict enum')
+error[E0426]: Union member 'b' has restricted type 'bool' (underlying 'bool')
+ --> tests/fail/union_safety_types.tk:8:7
+  |
+ 8 | shape FailBool (
+  |       ^
+error[E0426]: Union member 'b' has restricted type 'BoolAlias' (underlying 'bool')
+ --> tests/fail/union_safety_types.tk:13:7
+   |
+ 13 | shape FailBoolAlias (
+   |       ^
+error[E0426]: Union member 'e' has restricted type 'MyEnum' (underlying 'strict enum')
+ --> tests/fail/union_safety_types.tk:18:7
+   |
+ 18 | shape FailEnum (
+   |       ^
+error[E0426]: Union member 'e' has restricted type 'StrictEnum' (underlying 'strict enum')
+ --> tests/fail/union_safety_types.tk:23:7
+   |
+ 23 | shape FailEnumAlias (
+   |       ^

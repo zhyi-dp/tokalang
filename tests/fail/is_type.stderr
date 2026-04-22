@@ -1,1 +1,5 @@
-tests/fail/is_type.tk:17:13: error[E0406]: 'Data' is a shape, not a valid pattern for 'is'
+error[E0406]: 'Data' is a shape, not a valid pattern for 'is'
+ --> tests/fail/is_type.tk:17:13
+   |
+ 17 |     if p is Data { // Error: Data is not a variable
+   |             ^

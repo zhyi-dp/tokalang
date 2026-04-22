@@ -1,2 +1,10 @@
-tests/fail/conflict_prelude_assert.tk:5:1: error[E0462]: Symbol 'assert' is already defined in this scope
-tests/fail/conflict_prelude_assert.tk:5:1: note: Symbol 'assert' conflicts with implicit import from Prelude
+error[E0462]: Symbol 'assert' is already defined in this scope
+ --> tests/fail/conflict_prelude_assert.tk:5:1
+  |
+ 5 | fn assert(cond: bool, msg: cstring) {
+  | ^
+note: Symbol 'assert' conflicts with implicit import from Prelude
+ --> tests/fail/conflict_prelude_assert.tk:5:1
+  |
+ 5 | fn assert(cond: bool, msg: cstring) {
+  | ^

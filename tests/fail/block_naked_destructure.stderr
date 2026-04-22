@@ -1,3 +1,15 @@
-tests/fail/block_naked_destructure.tk:7:11: error[E0461]: Illegal use of permission suffixes (# or $) in everyday contexts. Modifiers are strictly limited to declarations or explicit mutable method calls.
-tests/fail/block_naked_destructure.tk:8:17: error[E0554]: Naked destructuring of resource 'String' is strictly forbidden to prevent silent copies and double-frees. You must use an explicit borrow '&' (e.g., '&msg')
-tests/fail/block_naked_destructure.tk:11:18: error[E0554]: Naked destructuring of resource 'String' is strictly forbidden to prevent silent copies and double-frees. You must use an explicit borrow '&' (e.g., '&e')
+error[E0461]: Illegal use of permission suffixes (# or $) in everyday contexts. Modifiers are strictly limited to declarations or explicit mutable method calls.
+ --> tests/fail/block_naked_destructure.tk:7:11
+  |
+ 7 |     match string_res# {
+  |           ^
+error[E0554]: Naked destructuring of resource 'String' is strictly forbidden to prevent silent copies and double-frees. You must use an explicit borrow '&' (e.g., '&msg')
+ --> tests/fail/block_naked_destructure.tk:8:17
+  |
+ 8 |         auto Ok(msg) => { // SHOULD FAIL HERE!
+  |                 ^
+error[E0554]: Naked destructuring of resource 'String' is strictly forbidden to prevent silent copies and double-frees. You must use an explicit borrow '&' (e.g., '&e')
+ --> tests/fail/block_naked_destructure.tk:11:18
+   |
+ 11 |         auto Err(e) => {} // SHOULD FAIL HERE!
+   |                  ^

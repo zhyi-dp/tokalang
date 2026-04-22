@@ -1,3 +1,15 @@
-tests/fail/borrow_field.tk:17:17: error[E0461]: Illegal use of permission suffixes (# or $) in everyday contexts. Modifiers are strictly limited to declarations or explicit mutable method calls.
-tests/fail/borrow_field.tk:18:17: error[E0441]: Cannot access 'p' while it is mutably borrowed
-tests/fail/borrow_field.tk:18:17: error[E0441]: Cannot access 'p' while it is mutably borrowed
+error[E0461]: Illegal use of permission suffixes (# or $) in everyday contexts. Modifiers are strictly limited to declarations or explicit mutable method calls.
+ --> tests/fail/borrow_field.tk:17:17
+   |
+ 17 |     auto &y# = &p#
+   |                 ^
+error[E0441]: Cannot access 'p' while it is mutably borrowed
+ --> tests/fail/borrow_field.tk:18:17
+   |
+ 18 |     auto val = p.x // EXPECT: error[E0441]: Cannot access 'p' while it is mutably borrowed
+   |                 ^
+error[E0441]: Cannot access 'p' while it is mutably borrowed
+ --> tests/fail/borrow_field.tk:18:17
+   |
+ 18 |     auto val = p.x // EXPECT: error[E0441]: Cannot access 'p' while it is mutably borrowed
+   |                 ^

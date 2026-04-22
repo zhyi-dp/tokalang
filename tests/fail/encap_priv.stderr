@@ -1,2 +1,10 @@
-tests/fail/encap_priv.tk:21:17: error[E0418]: Member 'len' of shape 'String' is private
-tests/fail/encap_priv.tk:21:17: error[E0418]: Member 'len' of shape 'String' is private
+error[E0418]: Member 'len' of shape 'String' is private
+ --> tests/fail/encap_priv.tk:21:17
+   |
+ 21 |     auto len = s.len 
+   |                 ^
+error[E0418]: Member 'len' of shape 'String' is private
+ --> tests/fail/encap_priv.tk:21:17
+   |
+ 21 |     auto len = s.len 
+   |                 ^

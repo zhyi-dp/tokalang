@@ -1,1 +1,5 @@
-tests/fail/import_namespace.tk:18:5: error[E0406]: Module 'io' not found or not imported
+error[E0406]: Module 'io' not found or not imported
+ --> tests/fail/import_namespace.tk:18:5
+   |
+ 18 |     io::println("This should fail compile") // EXPECT: error[E0406]: Module 'io' not found or not imported
+   |     ^

@@ -1,2 +1,10 @@
-tests/fail/async_wait_conflict.tk:7:5: error[E0702]: Dangling effect call rejected: 'read_config' must be consumed by .await, .wait or .start
-tests/fail/async_wait_conflict.tk:13:13: error[E0406]: Cannot wait on a non-TaskHandle type: cstring
+error[E0702]: Dangling effect call rejected: 'read_config' must be consumed by .await, .wait or .start
+ --> tests/fail/async_wait_conflict.tk:7:5
+  |
+ 7 |     read_config()
+  |     ^
+error[E0406]: Cannot wait on a non-TaskHandle type: cstring
+ --> tests/fail/async_wait_conflict.tk:13:13
+   |
+ 13 |     "hello".wait
+   |             ^

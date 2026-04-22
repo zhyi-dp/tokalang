@@ -1,8 +1,40 @@
-tests/fail/inherent_restriction.tk:6:4: error[E0460]: Redundant inherent restriction '$' on 'a'; it is already immutable by default
-tests/fail/inherent_restriction.tk:11:15: error[E0406]: Morphology symbols (^, *, ~, &) are only allowed at the terminal of an access chain
-tests/fail/inherent_restriction.tk:11:16: error[E0461]: Illegal use of permission suffixes (# or $) in everyday contexts. Modifiers are strictly limited to declarations or explicit mutable method calls.
-tests/fail/inherent_restriction.tk:11:16: error[E0406]: Permission symbols (#, ?, $) are only allowed at the terminal of an access chain, got 'd#'
-tests/fail/inherent_restriction.tk:12:5: error[E0461]: Illegal use of permission suffixes (# or $) in everyday contexts. Modifiers are strictly limited to declarations or explicit mutable method calls.
-tests/fail/inherent_restriction.tk:12:5: error[E0406]: Permission symbols (#, ?, $) are only allowed at the terminal of an access chain, got 'd#'
-tests/fail/inherent_restriction.tk:12:7: error[E0443]: Cannot modify immutable entity 'i32$'
-tests/fail/inherent_restriction.tk:14:10: error[E0460]: Redundant inherent restriction '$' on 'z'; it is already immutable by default
+error[E0460]: Redundant inherent restriction '$' on 'a'; it is already immutable by default
+ --> tests/fail/inherent_restriction.tk:6:4
+  |
+ 6 | fn foo(a$: i32) { // EXPECT: error[E0406]:
+  |    ^
+error[E0406]: Morphology symbols (^, *, ~, &) are only allowed at the terminal of an access chain
+ --> tests/fail/inherent_restriction.tk:11:15
+   |
+ 11 |     auto v = (^d#).x // EXPECT: error[E0406]:
+   |               ^
+error[E0461]: Illegal use of permission suffixes (# or $) in everyday contexts. Modifiers are strictly limited to declarations or explicit mutable method calls.
+ --> tests/fail/inherent_restriction.tk:11:16
+   |
+ 11 |     auto v = (^d#).x // EXPECT: error[E0406]:
+   |                ^
+error[E0406]: Permission symbols (#, ?, $) are only allowed at the terminal of an access chain, got 'd#'
+ --> tests/fail/inherent_restriction.tk:11:16
+   |
+ 11 |     auto v = (^d#).x // EXPECT: error[E0406]:
+   |                ^
+error[E0461]: Illegal use of permission suffixes (# or $) in everyday contexts. Modifiers are strictly limited to declarations or explicit mutable method calls.
+ --> tests/fail/inherent_restriction.tk:12:5
+   |
+ 12 |     d#.y = 20 // EXPECT: error[E0443]:
+   |     ^
+error[E0406]: Permission symbols (#, ?, $) are only allowed at the terminal of an access chain, got 'd#'
+ --> tests/fail/inherent_restriction.tk:12:5
+   |
+ 12 |     d#.y = 20 // EXPECT: error[E0443]:
+   |     ^
+error[E0443]: Cannot modify immutable entity 'i32$'
+ --> tests/fail/inherent_restriction.tk:12:7
+   |
+ 12 |     d#.y = 20 // EXPECT: error[E0443]:
+   |       ^
+error[E0460]: Redundant inherent restriction '$' on 'z'; it is already immutable by default
+ --> tests/fail/inherent_restriction.tk:14:10
+   |
+ 14 |     auto z$ = 10 // EXPECT: error[E0406]:
+   |          ^

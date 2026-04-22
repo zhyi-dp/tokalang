@@ -1,1 +1,5 @@
-tests/fail/unique_freeze_move.tk:10:15: error[E0440]: Cannot move 'p' while it is borrowed
+error[E0440]: Cannot move 'p' while it is borrowed
+ --> tests/fail/unique_freeze_move.tk:10:15
+   |
+ 10 |     auto ^q = ^p 
+   |               ^

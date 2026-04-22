@@ -1,4 +1,20 @@
-tests/fail/escape_ref_life.tk:3:16: error[E0455]: Returning reference to local variable 'a' is unsafe
-tests/fail/escape_ref_life.tk:5:16: error[E0455]: Returning reference to local variable 'b' is unsafe
-tests/fail/escape_ref_life.tk:10:13: error[E0455]: Returning reference to local variable 'b' is unsafe
-tests/fail/escape_ref_life.tk:10:17: error[E0455]: Returning reference to local variable 'a' is unsafe
+error[E0455]: Returning reference to local variable 'a' is unsafe
+ --> tests/fail/escape_ref_life.tk:3:16
+  |
+ 3 |         return &a
+  |                ^
+error[E0455]: Returning reference to local variable 'b' is unsafe
+ --> tests/fail/escape_ref_life.tk:5:16
+  |
+ 5 |         return &b
+  |                ^
+error[E0455]: Returning reference to local variable 'b' is unsafe
+ --> tests/fail/escape_ref_life.tk:10:13
+   |
+ 10 |     return (&b, &a)
+   |             ^
+error[E0455]: Returning reference to local variable 'a' is unsafe
+ --> tests/fail/escape_ref_life.tk:10:17
+   |
+ 10 |     return (&b, &a)
+   |                 ^

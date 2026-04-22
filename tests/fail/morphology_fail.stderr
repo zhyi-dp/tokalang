@@ -1,16 +1,80 @@
-tests/fail/morphology_fail.tk:4:11: error[E0459]: Implicit heap-boxing via pointer initialization is prohibited. Use explicit allocation like 'new i32(...)' stringently
-tests/fail/morphology_fail.tk:5:11: error[E0409]: Cannot initialize variable of type '*(Raw Pointer)' with value of type 'i32'
-tests/fail/morphology_fail.tk:8:7: error[E0406]: Cannot assign to immutable entity. Missing writable token '#' or '!'.
-tests/fail/morphology_fail.tk:8:5: error[E0443]: Cannot modify immutable entity 'r'
-tests/fail/morphology_fail.tk:8:7: error[E0448]: Pointer morphology mismatch: expected explicit 'value' (from LHS/Target), found '^' (from RHS/Source)
-tests/fail/morphology_fail.tk:8:7: error[E0408]: Cannot convert type '^p (assign)' to 'r'
-tests/fail/morphology_fail.tk:14:11: error[E0459]: Implicit heap-boxing via pointer initialization is prohibited. Use explicit allocation like 'new p(...)' stringently
-tests/fail/morphology_fail.tk:18:11: error[E0459]: Implicit heap-boxing via pointer initialization is prohibited. Use explicit allocation like 'new i32(...)' stringently
-tests/fail/morphology_fail.tk:21:11: error[E0448]: Pointer morphology mismatch: expected explicit '^' (from LHS/Target), found '*' (from RHS/Source)
-tests/fail/morphology_fail.tk:24:11: error[E0448]: Pointer morphology mismatch: expected explicit '*' (from LHS/Target), found '^' (from RHS/Source)
-tests/fail/morphology_fail.tk:30:11: error[E0448]: Pointer morphology mismatch: expected explicit '*' (from LHS/Target), found '&' (from RHS/Source)
-tests/fail/morphology_fail.tk:36:12: error[E0455]: Returning reference to local variable 'val' is unsafe
-tests/fail/morphology_fail.tk:44:17: error[E0448]: Pointer morphology mismatch: expected explicit '^' (from LHS/Target), found '&' (from RHS/Source)
-tests/fail/morphology_fail.tk:46:11: error[E0459]: Implicit heap-boxing via pointer initialization is prohibited. Use explicit allocation like 'new i32(...)' stringently
-tests/fail/morphology_fail.tk:48:17: error[E0448]: Pointer morphology mismatch: expected explicit '^' (from LHS/Target), found 'value' (from RHS/Source)
-tests/fail/morphology_fail.tk:48:17: error[E0406]: Type mismatch for argument 1: expected ^i32, got u
+error[E0459]: Implicit heap-boxing via pointer initialization is prohibited. Use explicit allocation like 'new i32(...)' stringently
+ --> tests/fail/morphology_fail.tk:4:11
+  |
+ 4 |     auto ^p = 10;
+  |           ^
+error[E0409]: Cannot initialize variable of type '*(Raw Pointer)' with value of type 'i32'
+ --> tests/fail/morphology_fail.tk:5:11
+  |
+ 5 |     auto *r = 10;
+  |           ^
+error[E0406]: Cannot assign to immutable entity. Missing writable token '#' or '!'.
+ --> tests/fail/morphology_fail.tk:8:7
+  |
+ 8 |     r = ^p;
+  |       ^
+error[E0443]: Cannot modify immutable entity 'r'
+ --> tests/fail/morphology_fail.tk:8:5
+  |
+ 8 |     r = ^p;
+  |     ^
+error[E0448]: Pointer morphology mismatch: expected explicit 'value' (from LHS/Target), found '^' (from RHS/Source)
+ --> tests/fail/morphology_fail.tk:8:7
+  |
+ 8 |     r = ^p;
+  |       ^
+error[E0408]: Cannot convert type '^p (assign)' to 'r'
+ --> tests/fail/morphology_fail.tk:8:7
+  |
+ 8 |     r = ^p;
+  |       ^
+error[E0459]: Implicit heap-boxing via pointer initialization is prohibited. Use explicit allocation like 'new p(...)' stringently
+ --> tests/fail/morphology_fail.tk:14:11
+   |
+ 14 |     auto ^p2 = p; 
+   |           ^
+error[E0459]: Implicit heap-boxing via pointer initialization is prohibited. Use explicit allocation like 'new i32(...)' stringently
+ --> tests/fail/morphology_fail.tk:18:11
+   |
+ 18 |     auto ^uniq = 10;
+   |           ^
+error[E0448]: Pointer morphology mismatch: expected explicit '^' (from LHS/Target), found '*' (from RHS/Source)
+ --> tests/fail/morphology_fail.tk:21:11
+   |
+ 21 |     auto ^p = *uniq;
+   |           ^
+error[E0448]: Pointer morphology mismatch: expected explicit '*' (from LHS/Target), found '^' (from RHS/Source)
+ --> tests/fail/morphology_fail.tk:24:11
+   |
+ 24 |     auto *raw = ^uniq;
+   |           ^
+error[E0448]: Pointer morphology mismatch: expected explicit '*' (from LHS/Target), found '&' (from RHS/Source)
+ --> tests/fail/morphology_fail.tk:30:11
+   |
+ 30 |     auto *p = &val;
+   |           ^
+error[E0455]: Returning reference to local variable 'val' is unsafe
+ --> tests/fail/morphology_fail.tk:36:12
+   |
+ 36 |     return &val;
+   |            ^
+error[E0448]: Pointer morphology mismatch: expected explicit '^' (from LHS/Target), found '&' (from RHS/Source)
+ --> tests/fail/morphology_fail.tk:44:17
+   |
+ 44 |     take_unique(&val);
+   |                 ^
+error[E0459]: Implicit heap-boxing via pointer initialization is prohibited. Use explicit allocation like 'new i32(...)' stringently
+ --> tests/fail/morphology_fail.tk:46:11
+   |
+ 46 |     auto ^u = 10;
+   |           ^
+error[E0448]: Pointer morphology mismatch: expected explicit '^' (from LHS/Target), found 'value' (from RHS/Source)
+ --> tests/fail/morphology_fail.tk:48:17
+   |
+ 48 |     take_unique(u); 
+   |                 ^
+error[E0406]: Type mismatch for argument 1: expected ^i32, got u
+ --> tests/fail/morphology_fail.tk:48:17
+   |
+ 48 |     take_unique(u); 
+   |                 ^

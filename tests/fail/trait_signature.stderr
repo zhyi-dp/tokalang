@@ -1,2 +1,10 @@
-tests/fail/trait_signature.tk:23:8: error[E0428]: Method signature mismatch: trait defines 'must_be_pub' as pub, but implementation is private
-tests/fail/trait_signature.tk:26:12: error[E0428]: Method signature mismatch: trait defines 'must_be_priv' as private, but implementation is pub
+error[E0428]: Method signature mismatch: trait defines 'must_be_pub' as pub, but implementation is private
+ --> tests/fail/trait_signature.tk:23:8
+   |
+ 23 |     fn must_be_pub(self) {} // EXPECT: error[E0428]:
+   |        ^
+error[E0428]: Method signature mismatch: trait defines 'must_be_priv' as private, but implementation is pub
+ --> tests/fail/trait_signature.tk:26:12
+   |
+ 26 |     pub fn must_be_priv(self) {} // EXPECT: error[E0428]:
+   |            ^

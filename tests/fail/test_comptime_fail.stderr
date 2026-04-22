@@ -1,1 +1,5 @@
-tests/fail/test_comptime_fail.tk:4:5: error[E0406]: Compile-time error: This is an expected failed test for compile_error
+error[E0406]: Compile-time error: This is an expected failed test for compile_error
+ --> tests/fail/test_comptime_fail.tk:4:5
+  |
+ 4 |     compile_error("This is an expected failed test for compile_error")
+  |     ^

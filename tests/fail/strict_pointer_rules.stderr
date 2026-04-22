@@ -1,2 +1,10 @@
-tests/fail/strict_pointer_rules.tk:7:14: error[E0467]: Variable 'p1' implies pointer type '^Point#' but lacks explicit sigil. Use 'auto ^p1' or dereference.
-tests/fail/strict_pointer_rules.tk:12:10: error[E0406]: Morphology symbols (^, *, ~, &) are only allowed at the terminal of an access chain
+error[E0467]: Variable 'p1' implies pointer type '^Point#' but lacks explicit sigil. Use 'auto ^p1' or dereference.
+ --> tests/fail/strict_pointer_rules.tk:7:14
+  |
+ 7 |         auto p1 = new Point(x=1, y=2) // EXPECT: error[E0451]:
+  |              ^
+error[E0406]: Morphology symbols (^, *, ~, &) are only allowed at the terminal of an access chain
+ --> tests/fail/strict_pointer_rules.tk:12:10
+   |
+ 12 |         (^p2).x = 10 // EXPECT: error[E0406]:
+   |          ^

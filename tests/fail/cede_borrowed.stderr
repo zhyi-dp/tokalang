@@ -1,1 +1,5 @@
-tests/fail/cede_borrowed.tk:8:11: error[E0459]: Implicit heap-boxing via pointer initialization is prohibited. Use explicit allocation like 'new Data(...)' stringently
+error[E0459]: Implicit heap-boxing via pointer initialization is prohibited. Use explicit allocation like 'new Data(...)' stringently
+ --> tests/fail/cede_borrowed.tk:8:11
+  |
+ 8 |     auto ^p2 = cede p
+  |           ^

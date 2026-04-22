@@ -1,1 +1,5 @@
-tests/fail/borrow_move.tk:20:16: error[E0440]: Cannot move 'p' while it is borrowed
+error[E0440]: Cannot move 'p' while it is borrowed
+ --> tests/fail/borrow_move.tk:20:16
+   |
+ 20 |     auto ^z# = ^p // EXPECT: error[E0440]:
+   |                ^

@@ -1,2 +1,10 @@
-tests/fail/borrow.tk:18:17: error[E0461]: Illegal use of permission suffixes (# or $) in everyday contexts. Modifiers are strictly limited to declarations or explicit mutable method calls.
-tests/fail/borrow.tk:19:24: error[E0441]: Cannot access 'x' while it is mutably borrowed
+error[E0461]: Illegal use of permission suffixes (# or $) in everyday contexts. Modifiers are strictly limited to declarations or explicit mutable method calls.
+ --> tests/fail/borrow.tk:18:17
+   |
+ 18 |     auto &y# = &x#
+   |                 ^
+error[E0441]: Cannot access 'x' while it is mutably borrowed
+ --> tests/fail/borrow.tk:19:24
+   |
+ 19 |     println("x is {}", x) // EXPECT: error[E0441]:
+   |                        ^

@@ -1,1 +1,5 @@
-tests/fail/morphic_constraint_violation.tk:8:19: error[E0416]: Unknown shape type 'i32'
+error[E0416]: Unknown shape type 'i32'
+ --> tests/fail/morphic_constraint_violation.tk:8:19
+  |
+ 8 |     auto ^p = new i32(val = 10)
+  |                   ^

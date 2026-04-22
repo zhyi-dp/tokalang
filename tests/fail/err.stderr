@@ -1,3 +1,15 @@
-tests/fail/err.tk:14:1: error[E0404]: Symbol 'printf' not found in module 'std/io'
-tests/fail/err.tk:41:8: error[E0406]: Cannot assign to immutable entity. Missing writable token '#' or '!'.
-tests/fail/err.tk:41:5: error[E0443]: Cannot modify immutable entity 'i32'
+error[E0404]: Symbol 'printf' not found in module 'std/io'
+ --> tests/fail/err.tk:14:1
+   |
+ 14 | import std/io::printf
+   | ^
+error[E0406]: Cannot assign to immutable entity. Missing writable token '#' or '!'.
+ --> tests/fail/err.tk:41:8
+   |
+ 41 |     c# = 10 // Error: c is immutable
+   |        ^
+error[E0443]: Cannot modify immutable entity 'i32'
+ --> tests/fail/err.tk:41:5
+   |
+ 41 |     c# = 10 // Error: c is immutable
+   |     ^

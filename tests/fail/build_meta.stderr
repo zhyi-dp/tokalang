@@ -1,4 +1,20 @@
-tests/fail/build_meta.tk:35:5: error[E0406]: println requires at least a format string
-tests/fail/build_meta.tk:37:5: error[E0406]: println requires at least a format string
-tests/fail/build_meta.tk:41:5: error[E0406]: println requires at least a format string
-tests/fail/build_meta.tk:42:5: error[E0406]: println requires at least a format string
+error[E0406]: println requires at least a format string
+ --> tests/fail/build_meta.tk:35:5
+   |
+ 35 |     println("{}", POINT.a) // EXPECT: error[E0406]:
+   |     ^
+error[E0406]: println requires at least a format string
+ --> tests/fail/build_meta.tk:37:5
+   |
+ 37 |     println("{}", XYZ.x) // EXPECT: error[E0406]:
+   |     ^
+error[E0406]: println requires at least a format string
+ --> tests/fail/build_meta.tk:41:5
+   |
+ 41 |     println("{}", point.a) // EXPECT: error[E0406]:
+   |     ^
+error[E0406]: println requires at least a format string
+ --> tests/fail/build_meta.tk:42:5
+   |
+ 42 |     println("{}", xyz.x)
+   |     ^

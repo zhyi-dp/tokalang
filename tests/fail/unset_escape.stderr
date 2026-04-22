@@ -1,5 +1,25 @@
-tests/fail/unset_escape.tk:7:5: error[E0408]: Cannot convert type 'i32' to '&i32'
-tests/fail/unset_escape.tk:4:32: error[E0412]: Reference '&ref' to unset variable 'x' escapes scope without initialization
-tests/fail/unset_escape.tk:11:31: error[E0412]: Reference '&refY' to unset variable 'y' escapes scope without initialization
-tests/fail/unset_escape.tk:22:30: error[E0412]: Reference '&refZ' to unset variable 'z' escapes scope without initialization
-tests/fail/unset_escape.tk:37:5: error[E0412]: Reference '&refA' to unset variable 'a' escapes scope without initialization
+error[E0408]: Cannot convert type 'i32' to '&i32'
+ --> tests/fail/unset_escape.tk:7:5
+  |
+ 7 |     return ref // EXPECT: error[E0412]:
+  |     ^
+error[E0412]: Reference '&ref' to unset variable 'x' escapes scope without initialization
+ --> tests/fail/unset_escape.tk:4:32
+  |
+ 4 | fn test_return_unset() -> &i32 {
+  |                                ^
+error[E0412]: Reference '&refY' to unset variable 'y' escapes scope without initialization
+ --> tests/fail/unset_escape.tk:11:31
+   |
+ 11 | fn test_break_unset() -> void {
+   |                               ^
+error[E0412]: Reference '&refZ' to unset variable 'z' escapes scope without initialization
+ --> tests/fail/unset_escape.tk:22:30
+   |
+ 22 | fn test_pass_unset() -> void {
+   |                              ^
+error[E0412]: Reference '&refA' to unset variable 'a' escapes scope without initialization
+ --> tests/fail/unset_escape.tk:37:5
+   |
+ 37 |     {
+   |     ^

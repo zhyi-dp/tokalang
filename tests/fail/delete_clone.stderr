@@ -1,2 +1,10 @@
-tests/fail/delete_clone.tk:6:19: error[E0406]: Cannot implicitly copy value of type 'TcpStream' because its 'clone' method is explicitly deleted (= delete)
-tests/fail/delete_clone.tk:6:19: error[E0406]: Cannot implicitly copy value of type 'TcpStream' because its 'clone' method is explicitly deleted (= delete)
+error[E0406]: Cannot implicitly copy value of type 'TcpStream' because its 'clone' method is explicitly deleted (= delete)
+ --> tests/fail/delete_clone.tk:6:19
+  |
+ 6 |         auto s2 = s1 // Should trigger Auto-Clone which triggers IsDeleted error
+  |                   ^
+error[E0406]: Cannot implicitly copy value of type 'TcpStream' because its 'clone' method is explicitly deleted (= delete)
+ --> tests/fail/delete_clone.tk:6:19
+  |
+ 6 |         auto s2 = s1 // Should trigger Auto-Clone which triggers IsDeleted error
+  |                   ^

@@ -1,5 +1,25 @@
-tests/fail/struct_init.tk:18:15: error[E0417]: Shape 'Point' has no member named 'z'
-tests/fail/struct_init.tk:18:15: error[E0406]: Missing field 'x' in constructor for 'Point' (no default value)
-tests/fail/struct_init.tk:22:15: error[E0422]: Type mismatch for member 'x': expected 'i32', but got 'cstring'
-tests/fail/struct_init.tk:26:15: error[E0406]: Missing field 'y' in constructor for 'Point' (no default value)
-tests/fail/struct_init.tk:29:15: error[E0424]: Duplicate field 'x' in shape initialization
+error[E0417]: Shape 'Point' has no member named 'z'
+ --> tests/fail/struct_init.tk:18:15
+   |
+ 18 |     auto p1 = Point(z = 10, y = 20)
+   |               ^
+error[E0406]: Missing field 'x' in constructor for 'Point' (no default value)
+ --> tests/fail/struct_init.tk:18:15
+   |
+ 18 |     auto p1 = Point(z = 10, y = 20)
+   |               ^
+error[E0422]: Type mismatch for member 'x': expected 'i32', but got 'cstring'
+ --> tests/fail/struct_init.tk:22:15
+   |
+ 22 |     auto p2 = Point(x = "hello", y = 20)
+   |               ^
+error[E0406]: Missing field 'y' in constructor for 'Point' (no default value)
+ --> tests/fail/struct_init.tk:26:15
+   |
+ 26 |     auto p3 = Point(x = 10)
+   |               ^
+error[E0424]: Duplicate field 'x' in shape initialization
+ --> tests/fail/struct_init.tk:29:15
+   |
+ 29 |     auto p4 = Point(x = 10, y = 20, x = 30)
+   |               ^

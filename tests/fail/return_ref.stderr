@@ -1,5 +1,25 @@
-tests/fail/return_ref.tk:3:12: error[E0455]: Returning reference to local variable 'x' is unsafe
-tests/fail/return_ref.tk:8:16: error[E0455]: Returning reference to local variable 'x' is unsafe
-tests/fail/return_ref.tk:10:12: error[E0455]: Returning reference to local variable 'y' is unsafe
-tests/fail/return_ref.tk:27:31: error[E0461]: Illegal use of permission suffixes (# or $) in everyday contexts. Modifiers are strictly limited to declarations or explicit mutable method calls.
-tests/fail/return_ref.tk:32:21: error[E0456]: Object 'ref_a' (lived longer) cannot depend on 'b' (lived shorter)
+error[E0455]: Returning reference to local variable 'x' is unsafe
+ --> tests/fail/return_ref.tk:3:12
+  |
+ 3 |     return &x // EXPECT: error[E0455]:
+  |            ^
+error[E0455]: Returning reference to local variable 'x' is unsafe
+ --> tests/fail/return_ref.tk:8:16
+  |
+ 8 |         return &x
+  |                ^
+error[E0455]: Returning reference to local variable 'y' is unsafe
+ --> tests/fail/return_ref.tk:10:12
+   |
+ 10 |     return &y // EXPECT: error[E0455]:
+   |            ^
+error[E0461]: Illegal use of permission suffixes (# or $) in everyday contexts. Modifiers are strictly limited to declarations or explicit mutable method calls.
+ --> tests/fail/return_ref.tk:27:31
+   |
+ 27 |     auto ref_a = RefInt(&val=&a#)
+   |                               ^
+error[E0456]: Object 'ref_a' (lived longer) cannot depend on 'b' (lived shorter)
+ --> tests/fail/return_ref.tk:32:21
+   |
+ 32 |         ref_a.&#val = &b // EXPECT: error[E0456]:
+   |                     ^

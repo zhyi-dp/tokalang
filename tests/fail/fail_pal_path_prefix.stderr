@@ -1,1 +1,10 @@
-tests/fail/fail_pal_path_prefix.tk:28:16: error[E0442]: Cannot mutably borrow immutable entity 'scene.root.left'
+error[E0406]: Cannot implicitly copy value of type 'Node' because its 'clone' method is explicitly deleted (= delete)
+ --> tests/fail/fail_pal_path_prefix.tk:28:18
+   |
+ 28 |     scene.root = newRoot 
+   |                  ^
+error[E0442]: Cannot mutably borrow immutable entity 'scene.root.left'
+ --> tests/fail/fail_pal_path_prefix.tk:28:16
+   |
+ 28 |     scene.root = newRoot 
+   |                ^
