@@ -15,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-24.04
+          - os: ubuntu-22.04
             name: linux-x64
             pkg_cmd: OS=linux ARCH=x64 ./tools/scripts/package_release.sh ${{ github.ref_name }}
           - os: macos-latest
