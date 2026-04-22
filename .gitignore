@@ -84,3 +84,4 @@ compile_err*.txt
 test_output*.txt
 test_pkg_demo/
 
+*.vsix

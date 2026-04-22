@@ -1,0 +1,8 @@
+node_modules/
+.vscode/
+.vscode-test/
+out/
+src/
+*.vsix
+package-lock.json
+*.md

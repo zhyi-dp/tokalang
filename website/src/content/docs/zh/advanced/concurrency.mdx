@@ -12,16 +12,16 @@ Toka 利用操作系统级别的本地线程 (Native Threads) 执行物理级并
 ```toka
 import std/thread::{thread_spawn, sleep_ms}
 
-pub fn main() -> i32 {
+pub fn main() -> Result<i32, String> {
     // 启动线程并期待其返回一个 i32 类型结果
     auto handle# = thread_spawn<i32>({ =>
         println("来自分离线程的问候！")
         return cede 0
     })
     
-    // 主线程等待它执行完毕
-    handle#.join().unwrap()
-    return 0
+    // 主线程等待它执行完毕。如果线程崩溃抛出错误，! 将往上传播
+    handle#.join()!
+    return Result<i32, String>::Ok(0)
 }
 ```
 
@@ -36,14 +36,14 @@ import std/sync::{Mutex}
 import std/thread::{thread_spawn}
 import std/io::{println}
 
-pub fn main() -> i32 {
+pub fn main() -> Result<i32, String> {
     // 将变量 0 放入一个包裹着 i32 的互斥锁
     auto m# = Mutex<i32>::new(0)
     
     // 大括号构造明确的作用域生命周期
     {
-        // 1. 尝试获取锁并解开 Result 包装
-        auto mut_guard = m#.lock().unwrap()
+        // 1. 尝试获取锁，利用 ! 直接将任何上锁期间可能存在的毒化异常向外抛射
+        auto mut_guard = m#.lock()!
         
         // 2. 此时，你的手中的 mut_guard 是数据的唯一安全守卫。
         // 使用它提供的方法，获取内部数据实体本身的指针控制器！加上 # 获得读写权。
@@ -53,9 +53,9 @@ pub fn main() -> i32 {
         mut_val = mut_val + 10
         println("我把值修改成了: {}", mut_val)
         
-    } // <-- 大括号结束！隐式的 drop 会析构 mut_guard 这个守卫，进而【自动释放底层的 MutexLock】
+    } // <-- 大括号结束！隐式的 drop 会析构 mut_guard 这个守卫，进而自动释放锁
     
-    return 0
+    return Result<i32, String>::Ok(0)
 }
 ```
 **安全防御核心**：在 Toka 标准库设计中，由于实施了 `@encap` 特征隐蔽，`m.data` 对于外部代码绝对不可见！开发者被**强制约束**只能通过 `m#.lock()` 方法拿到生命周期守卫，彻底告别了“忘了加锁却读写了数据”的危险。

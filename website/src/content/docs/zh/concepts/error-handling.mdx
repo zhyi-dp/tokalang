@@ -1,0 +1,72 @@
+---
+title: 错误处理与传播
+description: 使用 Result、Option 以及全新的 ! 号运算符实现优雅的错误散播。
+---
+
+在传统的编程中，处理错误要么充斥着隐式的 `Exception`（可能在任何地方炸开），要么充斥着冗余的 `if err != null`（比如 Go）或者深层嵌套的 `.unwrap()` 判断。
+
+Toka 提供了两级渐进式的错误处理逻辑，利用极其精炼的 `!` 散播运算符，实现了 **“既有静态强类型的防漏网保护，又有脚本般的极致丝滑编写体验”**。
+
+## Result 与 Option 容器
+
+Toka 没有 `try...catch`，一切可能产生失败或空值的结果，都必须被显式装在这个容器中：
+
+- `Result<'T, 'E>`：包含成功的数据 `'T` `Ok`，或包含失败的原因 `'E` `Err`。
+- `Option<'T>`：包含预料之内存在的数据 `Some`，或合法空值 `None`。
+
+当你调用可能失败的 IO 操作时，Toka 编译器强制你**必须显式解开**容器包装，才能得到原始数据，绝无空指针悄咪咪传递的可能：
+
+```toka
+fn read_file_opt() -> Result<String, String> {
+    // fs_read 方法返回的是 Result 容器！
+    auto res = fs_read("/etc/hosts")
+    
+    // 如果不用解包手段，你不能针对 res 内部的 String 做任何操作。
+    return res
+}
+```
+
+## `!` (Error Propagation) 向上传播符
+
+当你有一大串可能报错的操作，并且你只想在任何一步发生意外时，**直接把错误扔还给你的调用者**。
+使用传统的 `.unwrap()` 强行扯开不但难看，如果在真实环境中炸裂会导致 `panic` 和程序退出。
+
+在 Toka 的无糖范式里，后缀 `!` 就等同于**提前安全退栈**。
+
+```toka
+import std/vec::{Vec}
+
+pub fn handle_connection(stream#: TcpStream) -> async Result<(), String> {
+    // .await 等待网络结果
+    // ! 符号表示：如果是 Err，立刻结束本函数 return Err()，如果是 Ok 把真实连接实体赋给 ws_conn
+    auto ws_conn# = ws_accept_async(stream).await!
+    
+    while true {
+        auto msg = ws_conn#.read_text_async().await!
+        
+        // 这一步只有在上层没有报错时才会执行
+        ws_conn#.write_text_async(msg.as_view()).await!
+    }
+    
+    return Result<(), String>::Ok(())
+}
+```
+
+### `!` 是怎么执行解构的？
+
+`expr!` 被编译期转化为等价的控制流：
+```toka
+auto temp = expr
+if temp.is_err() {
+    return temp  // 如果外面函数也是 Result 返回类型，直接早射返回！
+}
+// 接下来的代码使用的是被安全提取出来的真实实体
+```
+
+这也是 Toka 之所以在 **并发和网络处理** 时极其强大的原因。由于采用了底层基于 RAII (`Vec` 等智能结构) 的堆栈释放，当 `!` 触发提前退出时，你所在作用域申请的局部数据也会随之触发安全释放。
+
+> [!TIP]
+> **什么时候用 `!`？**
+> 当你的应用层函数本身就会返回 `Result<...>` 类型给上层时（也就是你不想就地吞并异常），放肆地加 `!` 吧！
+>
+> 如果你的函数不可能返回 `Result`（例如 `main` 通常必须是个 `i32`，或者不想让系统级报错溢出），你应该通过常规的对 `res.is_err()` 分支执行相应的修复工作。

@@ -12,16 +12,16 @@ Toka leverages OS-level Native Threads for physical parallel processing. To spaw
 ```toka
 import std/thread::{thread_spawn, sleep_ms}
 
-pub fn main() -> i32 {
+pub fn main() -> Result<i32, String> {
     // Spawn a thread expecting it to return an i32 result
     auto handle# = thread_spawn<i32>({ =>
         println("Hello from a detached thread!")
         return cede 0
     })
     
-    // The main thread waits for it to finish executing
-    handle#.join().unwrap()
-    return 0
+    // The main thread waits for it. If it panicked or crashed, ! throws the error outwardly.
+    handle#.join()!
+    return Result<i32, String>::Ok(0)
 }
 ```
 
@@ -36,14 +36,14 @@ import std/sync::{Mutex}
 import std/thread::{thread_spawn}
 import std/io::{println}
 
-pub fn main() -> i32 {
+pub fn main() -> Result<i32, String> {
     // Pack the variable 0 into a Mutex enveloping an i32
     auto m# = Mutex<i32>::new(0)
     
     // Curly braces establish an explicit scope lifetime
     {
-        // 1. Attempt to acquire the lock and unwrap the Result wrapper
-        auto mut_guard = m#.lock().unwrap()
+        // 1. Attempt to acquire the lock. Leveraging `!` throws any poisoning exceptions instantly outwardly!
+        auto mut_guard = m#.lock()!
         
         // 2. Now, the `mut_guard` in your hands is the sole safe defender of the data.
         // Use the methods it provides to get the pointer controller of the internal data entity itself! 
@@ -54,9 +54,9 @@ pub fn main() -> i32 {
         mut_val = mut_val + 10
         println("I modified the value to: {}", mut_val)
         
-    } // <-- Ends curly brace! The implicit drop destructs `mut_guard`, which in turn [automatically releases the underlying MutexLock]
+    } // <-- Ends curly brace! The implicit drop destructs `mut_guard`, which in turn automatically releases the lock.
     
-    return 0
+    return Result<i32, String>::Ok(0)
 }
 ```
 **The Core of Safety Defense**: Within the Toka Standard Library design, because `@encap` trait concealment is enforced, `m.data` remains absolutely invisible to external code! Developers are **compulsorily bound** to go through the `m#.lock()` method to retrieve the lifetime guard, bidding a final farewell to the dangerous "forgot to lock but read/wrote data anyway" scenario.

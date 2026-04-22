@@ -6,25 +6,13 @@ import core/result::Result
 import core/libc
 import stdx/websocket::{WsConnection, ws_accept_async}
 
-fn handle_connection(stream#: TcpStream) -> async i32 {
-    auto ws_conn_res# = ws_accept_async(stream).await
-    if ws_conn_res.is_err() {
-        println("Server: Handshake failed. Reason: {}", ws_conn_res#.unwrap_err().as_view())
-        return 1
-    }
-    
-    auto ws_conn# = ws_conn_res.unwrap()
+fn handle_connection(stream#: TcpStream) -> async Result<(), String> {
+    auto ws_conn# = ws_accept_async(stream).await!
     println("Server: [New Client Connected]")
     
     // Simple echo loop
     while true {
-        auto msg_res = ws_conn#.read_text_async().await
-        if msg_res.is_err() {
-            println("Server: [Client Disconnected] reason: {}", msg_res#.unwrap_err().as_view())
-            break
-        }
-        
-        auto msg = msg_res.unwrap()
+        auto msg = ws_conn#.read_text_async().await!
         if msg.len() == 0 {
             println("Server: Peer closed payload gracefully")
             break
@@ -32,13 +20,9 @@ fn handle_connection(stream#: TcpStream) -> async i32 {
         
         println("Server -> Received: {}", msg)
         
-        auto wr2 = ws_conn#.write_text_async(msg.as_view()).await
-        if wr2.is_err() {
-            println("Server: [Failed to write echo back]")
-            break
-        }
+        ws_conn#.write_text_async(msg.as_view()).await!
     }
-    return 0
+    return Result<(), String>::Ok(())
 }
 
 fn server_loop(listener#: TcpListener) -> async i32 {
@@ -49,7 +33,10 @@ fn server_loop(listener#: TcpListener) -> async i32 {
             auto stream# = accept_res.unwrap()
             // Await execution to ensure the local TcpStream is not dropped
             // while the async task is still running over it.
-            handle_connection(stream).await
+            auto res = handle_connection(stream).await
+            if res.is_err() {
+                println("Server: Connection failed: {}", res#.unwrap_err().as_view())
+            }
         }
     }
     return 0

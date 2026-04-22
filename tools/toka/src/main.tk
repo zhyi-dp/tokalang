@@ -15,13 +15,20 @@ fn print_help() {
 
 fn cmd_new(name: String) -> i32 {
     unsafe {
+        auto check_cmd# = String::from("test -d ")
+        check_cmd#.push_str(name.c_str())
+        if libc_system(check_cmd.c_str()) == 0 {
+            libc_printf("Error: Directory '%s' already exists! Aborting.\n" as *char, name.c_str())
+            return 1
+        }
+        
         auto cmd# = String::from("mkdir -p ")
         cmd#.push_str(name.c_str())
         cmd#.push_str("/src")
         libc_system(cmd.c_str())
         
         // Write src/main.tk
-        auto tk_file# = String::from("echo 'import core/libc::{libc_printf}\n\nfn main() {\n    unsafe { libc_printf(\"Hello, Toka!\\\\n\" as *char) }\n}' > ")
+        auto tk_file# = String::from("echo 'import std/io::{println}\n\nfn main() {\n    println(\"Hello, Toka!\")\n}' > ")
         tk_file#.push_str(name.c_str())
         tk_file#.push_str("/src/main.tk")
         libc_system(tk_file.c_str())

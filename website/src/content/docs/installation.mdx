@@ -3,19 +3,31 @@ title: Installation
 description: How to install the Toka compiler and build tool.
 ---
 
-Toka currently builds from source to ensure you have the latest performance optimizations and LLVM integration.
+For a fast and hassle-free setup, we provide an automated installation script that downloads pre-compiled binaries for macOS and Linux.
 
-## Prerequisites
+## Quick Install (Recommended)
 
-Before installing Toka, ensure your system has the following dependencies:
+To install Toka and all its associated tools (the compiler, package manager, and standard library), run the following command in your terminal:
 
-- **LLVM 20**: The Toka compiler is built on the LLVM 20 framework.
-- **Clang 20**: Required for linking the generated LLVM IR into final executables.
+```bash
+curl -fsSL https://tokalang.dev/install.sh | bash
+```
+
+This script will automatically detect your OS and CPU architecture, download the latest stable release to `~/.toka/`, and append the executables to your `PATH` and `TOKA_LIB` variables.
+
+## Build From Source
+
+If you wish to contribute to the compiler, or run Toka on an officially unsupported platform, you can easily build the toolchain from source.
+
+### Prerequisites
+
+- **LLVM 20**: The Toka framework is heavily coupled with LLVM 20.
+- **Clang 20**: Required for linking the generated object files.
 - **CMake**: Version 3.15 or higher.
 
-## Building the Compiler and Tools
+### Compiling
 
-Toka provides a convenient automated build script `rebuild.sh` that compiles both the core compiler `tokac` and the native package manager `toka` at once.
+Toka provides a convenient automated build script `rebuild.sh` that compiles both the core compiler `tokac` and the package manager `toka`.
 
 1. Clone the repository:
    ```bash

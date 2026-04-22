@@ -1,0 +1,72 @@
+---
+title: Error Handling & Propagation
+description: Elegantly propagate errors utilizing Result, Option, and the brand-new `!` operator.
+---
+
+In traditional programming, handling errors is either polluted with implicit `Exception`s (that could explode anywhere) or plagued by redundant `if err != null` checks (like in Go) or deeply nested `.unwrap()` calls.
+
+Toka delivers a two-tier progressive approach to error logic, combined with the extremely concise `!` propagation operator, bridging the gap between "**static strict-type ironclad safety**" and "**smooth scripting-like coding experiences**".
+
+## Result and Option Containers
+
+Toka abolishes `try...catch`. Any output that can yield a failure or null must be explicitly housed inside of these wrappers:
+
+- `Result<'T, 'E>`: Contains the successful data `'T` named `Ok`, or failing cause `'E` named `Err`.
+- `Option<'T>`: Contains the expected data `Some`, or a legal nothingness `None`.
+
+When you execute an IO operation that might fail, Toka’s compiler will strictly enforce that you **must explicitly unwrap** or destructure the container before you could touch the raw primitive. There is no silent NullPointerException:
+
+```toka
+fn read_file_opt() -> Result<String, String> {
+    // fs_read returns a Result container here!
+    auto res = fs_read("/etc/hosts")
+    
+    // You cannot do anything to the internal String entity without unpacking `res` first.
+    return res
+}
+```
+
+## `!` (Error Propagation) Operator
+
+When you have a long chain of operations with potential failure states, and your intention is to **throw the error backwards to your caller** immediately as it happens. Tearing it open brutally via `.unwrap()` is not only visually ugly, it also translates to fatal `panic` and abrupt application termination.
+
+In Toka's sugar-free paradigm, appending `!` literally translates to **an early & safe stack-return cutoff**.
+
+```toka
+import std/vec::{Vec}
+
+pub fn handle_connection(stream#: TcpStream) -> async Result<(), String> {
+    // .await waits for the network payload
+    // The ! symbol means: If it's an Err, instantly terminate this function and `return Err()`. 
+    // If it's Ok, assign the genuine connection entity to `ws_conn`!
+    auto ws_conn# = ws_accept_async(stream).await!
+    
+    while true {
+        auto msg = ws_conn#.read_text_async().await!
+        
+        // The following scope evaluates ONLY if no error above was thrown up!
+        ws_conn#.write_text_async(msg.as_view()).await!
+    }
+    
+    return Result<(), String>::Ok(())
+}
+```
+
+### How Does `!` Destructure Values?
+
+An `expr!` is resolved by the compiler functionally akin to this control flow:
+```toka
+auto temp = expr
+if temp.is_err() {
+    return temp  // If the outer function ALSO returns Result, early return outwards!
+}
+// Subsequent codes are empowered with the safely extracted underlying data
+```
+
+This is precisely why Toka shines brilliantly when handling **Concurrencies and Networking architectures**. Because it hinges on RAII semantic wrappers (like `Vec` buffers) tied to block execution scopes, when `!` activates an early termination logic, any local resources allocated in the current scope will instantly undergo safe deallocation processes.
+
+> [!TIP]
+> **When to use `!`?**
+> When your application-level procedure defines a return type of `Result<...>`, go wild and spray `!` across nested handlers!
+>
+> If your function does not and cannot yield a `Result` constraint (for example `main` usually dictates `i32`, or if you never want system-level errors overflowing outwards), you should handle it conventionally by checking branches via `res.is_err()` and resolving them right there.
