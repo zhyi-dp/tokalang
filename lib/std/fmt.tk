@@ -93,34 +93,3 @@ impl StringBuilder {
     }
 }
 
-// Extensions for primitives to have .to_string()
-impl i32 {
-    pub fn to_string(self) -> String {
-        return String::from_int(self)
-    }
-}
-
-impl i64 {
-    pub fn to_string(self) -> String {
-        return String::from_i64(self)
-    }
-}
-
-impl bool {
-    pub fn to_string(self) -> String {
-        if self { return String::from("true") }
-        return String::from("false")
-    }
-}
-
-impl u64 {
-    pub fn to_string(self) -> String {
-        unsafe {
-             auto *buf# = libc_malloc(32) as *char
-             libc_snprintf(*buf, 32, "%llu", self)
-             auto s = String::from(*buf)
-             libc_free(*buf as *void)
-             return s
-        }
-    }
-}
