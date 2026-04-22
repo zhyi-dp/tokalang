@@ -346,12 +346,6 @@ void Sema::checkStmt(Stmt *S) {
     if (m_InUnsafeContext && expectedRetObj && expectedRetObj->isRawPointer() && ExprTypeObj && ExprTypeObj->isNullType()) {
         bypassNullRet = true;
     }
-    if (ExprTypeObj && ExprTypeObj->isNullType()) {
-         std::cerr << "[DEBUG] Return null check: unsafe=" << m_InUnsafeContext 
-                   << " expected=" << (expectedRetObj ? expectedRetObj->toString() : "null")
-                   << " isRaw=" << (expectedRetObj ? std::to_string(expectedRetObj->isRawPointer()) : "0")
-                   << " bypass=" << bypassNullRet << "\n";
-    }
 
     // Strict Ownership/Morphology Check for Return
     if (expectedRetObj && expectedRetObj->IsCede) {

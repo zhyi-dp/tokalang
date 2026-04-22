@@ -610,9 +610,6 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       isImplicitDeref = (actualName != ve->Name);
       Info = *InfoPtr;
       ve->IsMorphicExempt = Info.IsMorphicExempt; // [NEW]
-      if (ve->Name == "'def_val") {
-           std::cerr << "[DEBUG] 'def_val resolved IsMorphicExempt = " << ve->IsMorphicExempt << ", TypeObj = " << (Info.TypeObj ? Info.TypeObj->toString() : "NULL") << "\n";
-      }
     }
 
     if (!InfoPtr) {
@@ -2244,7 +2241,6 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
         }
       }
     }
-    std::cerr << "DEBUG-UNWRAP: payloadT = " << (payloadT ? payloadT->toString() : "null") << "\n";
     return payloadT;
   } else if (auto *Post = dynamic_cast<PostfixExpr *>(E)) {
     // [Fix] Do NOT disable soul collapse.
@@ -3135,8 +3131,7 @@ std::shared_ptr<toka::Type> Sema::checkUnaryExpr(UnaryExpr *Unary) {
       }
     }
 
-    std::cerr << "[DEBUG] Ampersand for '" << getStringifyPath(Unary->RHS.get()) 
-              << "' -> expectedWrit=" << m_ExpectedWritability << ", exclusive=" << isExclusive << "\n";
+    // remove debug
 
     if (!m_InLHS) {
       std::string pathToBorrow = getStringifyPath(Unary->RHS.get());
@@ -5229,11 +5224,8 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
   if (Fn && Fn->Effect == EffectKind::Async) isAsync = true;
   if (Ext && Ext->Effect == EffectKind::Async) isAsync = true;
   
-  std::cerr << "[DEBUG] checkCallExpr CallName=" << CallName << " Fn=" << (Fn ? "yes" : "no") << " isAsync=" << isAsync << "\n";
-  
   if (isAsync) {
       std::string tName = "TaskHandle<" + ReturnType->toString() + ">";
-      std::cerr << "[DEBUG] Wrapping return type to " << tName << "\n";
       return toka::Type::fromString(tName);
   }
 
@@ -5272,7 +5264,6 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
     return;
 
   std::string T = resolveType(TargetType);
-  llvm::errs() << "DEBUG-PAT: TargetType=" << TargetType << " | T=" << T << "\n";
   while (!T.empty() && (T.back() == '#' || T.back() == '?' || T.back() == '!')) {
       T.pop_back();
   }
@@ -5712,7 +5703,6 @@ Sema::checkStructInit(InitStructExpr *Init, ShapeDecl *SD,
       else if (memberTypeObj->isReference()) expectedMorph = MorphKind::Ref;
 
       // [DEBUG TRACE] Let's see what Toka thinks memberTypeObj is
-      std::cerr << "[DEBUG] checkStructInit field: " << pair.first << " expectedMorph: " << (int)expectedMorph << " providedMorph: " << (int)providedMorph << " memberType: " << memberTypeObj->toString() << "\n";
 
       checkStrictMorphology(Init, expectedMorph, providedMorph, pDefMember->Name);
     }

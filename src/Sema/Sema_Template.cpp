@@ -41,7 +41,6 @@ substituteTypeString(const std::string &Input,
   std::string Output = subObj->toString();
 
   if (Input != Output) {
-    llvm::errs() << "DEBUG: sub [" << Input << "] -> [" << Output << "]\n";
   }
   return Output;
 }

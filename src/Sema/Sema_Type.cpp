@@ -515,7 +515,6 @@ Sema::instantiateGenericShape(std::shared_ptr<ShapeType> GenericShape) {
       auto memberTypeObj = toka::Type::fromString(fullTypeStr);
       auto subObj = memberTypeObj->substitute(substMap);
       std::string newStr = subObj->toString();
-      llvm::errs() << "DEBUG: [Shape] sub [" << fullTypeStr << "] -> [" << newStr << "]\n";
       fullTypeStr = newStr;
       
       // Update m.Type to ensure downstream logic (e.g. CodeGen) perceives the substituted template type

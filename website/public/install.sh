@@ -46,17 +46,21 @@ TMP_DIR=$(mktemp -d)
 
 # Download
 echo "Downloading $TARBALL from $DOWNLOAD_URL..."
-curl -# -sL -o "${TMP_DIR}/${TARBALL}" "$DOWNLOAD_URL"
+curl -# -L -o "${TMP_DIR}/${TARBALL}" "$DOWNLOAD_URL"
 
 # Extract
 rm -rf "${TOKA_DIR}"
 mkdir -p "${TOKA_DIR}"
 echo "Extracting..."
-tar -xzf "${TMP_DIR}/${TARBALL}" -C "$TMP_DIR"
+tar -xzf "${TMP_DIR}/${TARBALL}" -C "$TMP_DIR" || { echo "Extraction failed."; exit 1; }
 
 # Move files to ~/.toka
 # The tarball unzips as an inner directory named toka-VERSION-OS-ARCH.
 INNER_DIR="${TMP_DIR}/toka-${VERSION}-${OS}-${ARCH}"
+if [ ! -d "$INNER_DIR" ]; then
+  echo "Expected directory $INNER_DIR not found. Installation failed."
+  exit 1
+fi
 cp -a "${INNER_DIR}/"* "${TOKA_DIR}/"
 rm -rf "$TMP_DIR"
 
@@ -85,12 +89,15 @@ fi
 if [ -n "$PROFILE_FILE" ]; then
   if ! grep -q 'export PATH="\$HOME/.toka/bin:\$PATH"' "$PROFILE_FILE"; then
     echo "export PATH=\"\$HOME/.toka/bin:\$PATH\"" >> "$PROFILE_FILE"
-    echo "export TOKA_LIB=\"\$HOME/.toka/lib\"" >> "$PROFILE_FILE"
-    echo "Added \$HOME/.toka/bin to PATH and set TOKA_LIB in $PROFILE_FILE."
-    echo "Please restart your shell or run: source $PROFILE_FILE"
+    echo "Added \$HOME/.toka/bin to PATH in $PROFILE_FILE."
   fi
+  if ! grep -q 'export TOKA_LIB="\$HOME/.toka/lib"' "$PROFILE_FILE"; then
+    echo "export TOKA_LIB=\"\$HOME/.toka/lib\"" >> "$PROFILE_FILE"
+    echo "Added TOKA_LIB to $PROFILE_FILE."
+  fi
+  echo "Please restart your shell or run: source $PROFILE_FILE"
 else
-  echo "Please add $BIN_DIR to your PATH manually."
+  echo "Please add $BIN_DIR to your PATH and set TOKA_LIB=$HOME/.toka/lib manually."
 fi
 
 echo ""

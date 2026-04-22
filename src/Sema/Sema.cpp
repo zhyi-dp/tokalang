@@ -708,10 +708,6 @@ void Sema::checkFunction(FunctionDecl *Fn) {
     }
     CurrentScope->define(Arg.Name, Info);
 
-    if (Arg.Name == "'def_val" || Arg.Name == "val") {
-       std::cerr << "[DEBUG] checkFunction arg: " << Arg.Name << ", Arg.Type=" << Arg.Type << ", resolved Info=" << (Info.TypeObj ? Info.TypeObj->toString() : "NULL") << ", CurrentFnRet=" << CurrentFunctionReturnType << "\n";
-       std::cerr << "[DEBUG] " << Arg.Name << " resolved IsMorphicExempt = " << Info.IsMorphicExempt << "\n";
-    }
   }
 
   if (Fn->Body) {

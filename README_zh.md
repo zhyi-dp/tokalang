@@ -182,7 +182,19 @@ toka build   # 编译器自动引入 .toka/packages/ 里的源码进行编译
 
 ## 📄 示例代码 (Examples)
 
-### 1. 安全的高并发流式异步处理
+### 1. Hello World
+Toka 最简单的入口程序，体验极简与安全的结合：
+
+```rust
+import std/io::println
+
+fn main() -> i32 {
+    println("Hello, Toka!")
+    return 0
+}
+```
+
+### 2. 安全的高并发流式异步处理
 Toka 的正交内存标记（如表示可写的 `#`）与异步环境相结合，配合原生错误传播符 `!`，使得服务端代码变得极为优雅：
 
 ```rust
@@ -212,7 +224,7 @@ fn handle_connection(stream#: TcpStream) -> async Result<(), String> {
 }
 ```
 
-### 2. 代数数据类型 (ADTs) 与 模式匹配
+### 3. 代数数据类型 (ADTs) 与 模式匹配
 
 ```rust
 import std/io::println
