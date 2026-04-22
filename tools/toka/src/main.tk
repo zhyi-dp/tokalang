@@ -203,6 +203,11 @@ fn main() -> i32 {
         return cmd_run()
     }
     
+    if cmd.eq(String::from("--version")) || cmd.eq(String::from("-v")) {
+        unsafe { libc_printf("toka manager version 0.8.0-beta\n" as *char) }
+        return 0
+    }
+    
     unsafe { libc_printf("Error: unknown command '%s'\n" as *char, cmd.c_str()) }
     return 1
 }

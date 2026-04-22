@@ -150,7 +150,7 @@ void parseSource(const std::string &filename,
 
 int main(int argc, char **argv) {
   std::vector<std::string> searchPaths;
-  if (const char* env_p = std::getenv("TOKA_LIB_PATH")) {
+  if (const char* env_p = std::getenv("TOKA_LIB")) {
     std::string envStr(env_p);
     std::stringstream ss(envStr);
     std::string item;
@@ -176,7 +176,7 @@ int main(int argc, char **argv) {
     } else if (arg.rfind("-I", 0) == 0 && arg.length() > 2) {
       searchPaths.push_back(arg.substr(2));
     } else if (arg == "--version" || arg == "-v") {
-      llvm::outs() << "toka version 0.8.0\n";
+      llvm::outs() << "toka version 0.8.0-beta (Built: " << __DATE__ << " " << __TIME__ << ")\n";
       return 0;
     } else if (arg == "--disable-borrow-check") {
       disableBorrowCheck = true;
