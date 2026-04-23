@@ -94,19 +94,14 @@ impl Instant@encap {
 impl Instant {
     pub fn now() -> Instant {
         unsafe {
-            auto tv_addr = libc_malloc(16:usize) as Addr
+            auto buf# = [0:i64; 2]
+            auto tv_addr = &buf[0] as Addr
             if !sys::sys_clock_monotonic(tv_addr) {
-                libc_free(tv_addr as *void)
                 return Instant(duration_since_boot = Duration::from_secs(0:u64))
             }
             
-            auto *p_sec = tv_addr as *[i64]
-            auto tv_sec = p_sec[0]
-            
-            auto *p_nsec = (tv_addr as usize + 8:usize) as *[i64]
-            auto tv_nsec = p_nsec[0]
-            
-            libc_free(tv_addr as *void)
+            auto tv_sec = buf[0]
+            auto tv_nsec = buf[1]
             
             return Instant(duration_since_boot = Duration::new(tv_sec as u64, tv_nsec as u32))
         }
@@ -146,19 +141,14 @@ impl SystemTime@encap {
 impl SystemTime {
     pub fn now() -> SystemTime {
         unsafe {
-            auto tv_addr = libc_malloc(16:usize) as Addr
+            auto buf# = [0:i64; 2]
+            auto tv_addr = &buf[0] as Addr
             if !sys::sys_clock_realtime(tv_addr) {
-                libc_free(tv_addr as *void)
                 return SystemTime(duration_since_epoch = Duration::from_secs(0:u64))
             }
             
-            auto *p_sec = tv_addr as *[i64]
-            auto tv_sec = p_sec[0]
-            
-            auto *p_nsec = (tv_addr as usize + 8:usize) as *[i64]
-            auto tv_nsec = p_nsec[0]
-            
-            libc_free(tv_addr as *void)
+            auto tv_sec = buf[0]
+            auto tv_nsec = buf[1]
             
             return SystemTime(duration_since_epoch = Duration::new(tv_sec as u64, tv_nsec as u32))
         }
@@ -178,29 +168,30 @@ impl SystemTime {
 
     pub fn to_datetime(self) -> DateTime {
         unsafe {
-            // libc_localtime expects a pointer to time_t (i64)
             auto secs = self.duration_since_epoch.as_secs()
             auto s_val# = secs as i64
-            auto *tm_ptr = libc_localtime(*s_val)
+            
+            // struct tm is usually ~44-56 bytes.
+            // Allocate an array of 16 i32s (64 bytes) to safely hold it on the stack.
+            auto tm_buf# = [0:i32; 16]
+            auto *tm_addr = &tm_buf[0] as *void
+            
+            auto *tm_ptr = libc_localtime_r(&s_val as *i64, *tm_addr)
             
             if *tm_ptr == null {
                 return DateTime(year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0, wday = 0, yday = 0, isdst = 0)
             }
 
-            // On macOS & Linux, struct tm starts with 9 i32 fields
-            auto addr = *tm_ptr as Addr
-            auto *fields = addr as *[i32]
-            
             return DateTime(
-                second = fields[0],
-                minute = fields[1],
-                hour   = fields[2],
-                day    = fields[3],
-                month  = fields[4] + 1, // tm_mon is 0-11
-                year   = fields[5] + 1900, // tm_year is years since 1900
-                wday   = fields[6],
-                yday   = fields[7],
-                isdst  = fields[8]
+                second = tm_buf[0],
+                minute = tm_buf[1],
+                hour   = tm_buf[2],
+                day    = tm_buf[3],
+                month  = tm_buf[4] + 1, // tm_mon is 0-11
+                year   = tm_buf[5] + 1900, // tm_year is years since 1900
+                wday   = tm_buf[6],
+                yday   = tm_buf[7],
+                isdst  = tm_buf[8]
             )
         }
     }

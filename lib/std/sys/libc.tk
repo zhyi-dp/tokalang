@@ -41,7 +41,9 @@ extern fn libc_kill(pid: i32, sig: i32) -> i32
 extern fn libc_getenv(*name: char) -> *char
 extern fn libc_time(*tloc: i64) -> i64
 extern fn libc_localtime(*timer: i64) -> *void // tm struct pointer
+extern fn libc_localtime_r(*timer: i64, *result: void) -> *void
 extern fn libc_gmtime(*timer: i64) -> *void
+extern fn libc_gmtime_r(*timer: i64, *result: void) -> *void
 extern fn libc_strftime(*s: char, max: usize, *format: char, *tm: void) -> usize
 extern fn libc___error() -> *i32 // for errno on Mac
 

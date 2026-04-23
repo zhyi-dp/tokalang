@@ -1,0 +1,67 @@
+import core/types::{Addr, usize}
+import core/libc::{libc_malloc, libc_free}
+import std/sys/libc::{libc_pthread_create, libc_pthread_join, libc_pthread_detach}
+
+/// Spawns a new OS thread using the underlying POSIX API.
+/// Returns the thread ID (Addr) or 0 on failure.
+pub fn sys_thread_spawn(func_ptr: Addr, arg_ptr: Addr) -> Addr {
+    unsafe {
+        auto *thread_ptr# = (libc_malloc(8 as usize) as *Addr)
+        thread_ptr = 0:Addr
+        
+        auto rc = libc_pthread_create(
+            (*thread_ptr) as Addr,
+            0:Addr,
+            func_ptr,
+            arg_ptr
+        )
+        
+        if rc != 0 {
+            libc_free((*thread_ptr) as *void)
+            return 0:Addr
+        }
+        
+        auto thread_id = thread_ptr
+        libc_free((*thread_ptr) as *void)
+        
+        return thread_id
+    }
+}
+
+/// Joins a running thread. Returns the pointer returned by the thread, or 0 on failure.
+pub fn sys_thread_join(tid: Addr) -> Addr {
+    unsafe {
+        auto *retval_ptr# = (libc_malloc(8 as usize) as *Addr)
+        retval_ptr = 0:Addr
+        
+        auto rc = libc_pthread_join(tid, (*retval_ptr) as Addr)
+        
+        if rc != 0 {
+            libc_free((*retval_ptr) as *void)
+            return 0:Addr // Could potentially return error code but 0 means no result
+        }
+        
+        auto raw_res: Addr = retval_ptr
+        libc_free((*retval_ptr) as *void)
+        
+        return raw_res
+    }
+}
+
+/// Detaches a thread.
+pub fn sys_thread_detach(tid: Addr) {
+    if tid != 0:Addr {
+        unsafe {
+            libc_pthread_detach(tid)
+        }
+    }
+}
+
+
+/// Unwraps a Toka closure fat pointer to extract the raw C function pointer.
+pub fn unwrap_fat_pointer(fat_ptr_addr: Addr) -> Addr {
+    // Toka runtime closure format:
+    // [0..7]: Environment pointer
+    // [8..15]: Function pointer
+    return fat_ptr_addr + 8:Addr
+}

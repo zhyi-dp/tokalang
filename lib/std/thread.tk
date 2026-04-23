@@ -1,5 +1,6 @@
 import core/libc::{libc_malloc, libc_free}
-import std/sys/libc::{libc_pthread_create, libc_pthread_join, libc_pthread_detach, libc_sched_yield, libc_usleep, libc_putchar}
+import std/sys/libc::{libc_sched_yield, libc_usleep, libc_putchar}
+import std/sys/thread::{sys_thread_spawn, sys_thread_join, sys_thread_detach, unwrap_fat_pointer}
 import std/io::{println}
 import core/result::{Result}
 import std/error::{Error}
@@ -68,25 +69,14 @@ pub fn thread_spawn<'T: @Send>(f: fn() -> cede 'T) -> JoinHandle<'T> {
         auto *tramp_mem# = (*tramp_buf) as *Addr
         auto env_ptr = tramp_mem
         
-        auto func_ptr_addr = ((*tramp_buf) as Addr) + 8
+        auto func_ptr_addr = unwrap_fat_pointer((*tramp_buf) as Addr)
         auto *invoker_ptr# = (func_ptr_addr as *Addr)
         auto real_invoker = invoker_ptr
         
-        // 3. Allocate Addr for thread_id
-        auto *thread_ptr# = (libc_malloc(8 as usize) as *Addr)
-        thread_ptr = 0:Addr
-        
-        // 4. Fire the thread natively. We pass `f_arg` (the heap-allocated ClosureBox pointer) 
+        // 3 & 4. Fire the thread natively by delegating to sys_thread.
+        // We pass `f_arg` (the heap-allocated ClosureBox pointer) 
         // as the `env_ptr`, safely tricking the closure into reading it instead of the local stack bounds!
-        auto rc = libc_pthread_create(
-            (*thread_ptr) as Addr,
-            0:Addr,
-            real_invoker,
-            f_arg
-        )
-        
-        auto thread_id = thread_ptr
-        libc_free((*thread_ptr) as *byte)
+        auto thread_id = sys_thread_spawn(real_invoker, f_arg)
         
         // Free our trampoline shell immediately, thread only needs the bare C pointers inside
         libc_free((*tramp_buf) as *byte)
@@ -102,9 +92,7 @@ impl<'T: @Send> JoinHandle<'T> {
     /// The OS guarantees reclaiming its runtime resources independently.
     pub fn detach(self#) {
         if self.id != 0:Addr {
-            unsafe {
-                libc_pthread_detach(self.id)
-            }
+            sys_thread_detach(self.id)
             self.id = 0:Addr
         }
     }
@@ -123,28 +111,12 @@ impl<'T: @Send> JoinHandle<'T> {
         self.id = 0:Addr
         
         unsafe {
-            // Allocate 8-byte pointer block to receive the pthread_join result
-            auto *retval_ptr# = (libc_malloc(8 as usize) as *Addr)
-            retval_ptr = 0:Addr
-            
-            // We pass the pointer handle (*retval_ptr) so that `pthread_join` writes the struct box pointer 
-            auto rc = libc_pthread_join(tid, (*retval_ptr) as Addr)
-            
-            if rc != 0 {
-                auto msg# = String::from("pthread_join failed with error code: ")
-                auto rc_str = String::from_int(rc)
-                msg#.push_str(rc_str.c_str())
-                
-                auto err = Error::new(rc, msg)
-                libc_free((*retval_ptr) as *byte)
+            auto raw_res = sys_thread_join(tid)
+            if raw_res == 0:Addr {
+                auto msg = String::from("sys_thread_join failed to retrieve result")
+                auto err = Error::new(1, msg)
                 return Result<'T, Error>::Err(err)
             }
-            
-            // The value effectively returned from the thread
-            auto raw_res: Addr = retval_ptr
-            
-            // Free the indirection block that we allocated to satisfy `void **`
-            libc_free((*retval_ptr) as *byte)
             
             // Extract the structurally boxed payload safely
             auto *box_ret = (raw_res as *'T)
