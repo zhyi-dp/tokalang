@@ -1,0 +1,15 @@
+import std/rand::{Random}
+import core/libc::{libc_abort, libc_exit}
+
+pub fn main() {
+    auto rng# = Random::new(42:u64, 54:u64)
+    auto v1 = rng#.next_u32()
+    auto v2 = rng#.next_u32()
+    auto v3 = rng#.next_u64()
+    
+    // PCG32 should be deterministic based on seed and seq
+    if v1 == v2 { libc_abort() }
+    if v3 == 0:u64 { libc_abort() }
+    
+    libc_exit(0)
+}

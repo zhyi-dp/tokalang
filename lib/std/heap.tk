@@ -1,0 +1,120 @@
+// Copyright (c) 2026 Toka Project. All rights reserved.
+
+import core/option::{Option}
+import core/types::{usize}
+import std/vec::{Vec}
+
+/// A priority queue implemented with a binary heap.
+/// 
+/// The `cmp` function determines the ordering. If `cmp(a, b)` returns true,
+/// then `a` will be placed closer to the top of the heap than `b`.
+/// For a min-heap, `cmp` should be `a < b`. For a max-heap, `a > b`.
+pub shape BinaryHeap<'T>(
+    data#: Vec<'T>,
+    cmp: fn('T, 'T) -> bool
+)
+
+impl<'T> BinaryHeap<'T> {
+    pub fn new(cmp: fn('T, 'T) -> bool) -> BinaryHeap<'T> {
+        auto data# = Vec<'T>::new()
+        return BinaryHeap<'T>(
+            data = data,
+            cmp = cmp
+        )
+    }
+
+    pub fn len(self) -> usize {
+        return self.data.len()
+    }
+
+    pub fn is_empty(self) -> bool {
+        return self.data.is_empty()
+    }
+
+    pub fn push(self#, item: cede 'T) {
+        self.data#.push(cede item)
+        self#.sift_up(self.data.len() - 1)
+    }
+
+    pub fn pop(self#) -> Option<'T> {
+        if self.data.is_empty() { return Option<'T>::None() }
+        
+        auto last_idx = self.data.len() - 1
+        if last_idx == 0 {
+            auto ret = self.data.get(0)
+            self.data#.pop()
+            return Option<'T>::Some(cede ret)
+        }
+        
+        auto ret = self.data.get(0)
+        auto last_item = self.data.get(last_idx)
+        self.data#.set(0:usize, cede last_item)
+        self.data#.pop()
+        
+        self#.sift_down(0:usize)
+        return Option<'T>::Some(cede ret)
+    }
+
+    pub fn peek(self) -> Option<'T> {
+        if self.data.is_empty() { return Option<'T>::None() }
+        auto ret = self.data.get(0)
+        return Option<'T>::Some(cede ret)
+    }
+
+    fn sift_up(self#, idx: usize) {
+        auto cmp_fn = self.cmp
+        auto current# = idx
+        while current > 0 {
+            auto parent = (current - 1) / 2
+            auto c_item = self.data.get(current)
+            auto p_item = self.data.get(parent)
+            
+            if cmp_fn(c_item, p_item) {
+                // swap
+                self.data#.set(current, p_item)
+                self.data#.set(parent, c_item)
+                current = parent
+            } else {
+                break
+            }
+        }
+    }
+
+    fn sift_down(self#, idx: usize) {
+        auto cmp_fn = self.cmp
+        auto current# = idx
+        auto len = self.data.len()
+        
+        while true {
+            auto left = 2 * current + 1
+            auto right = 2 * current + 2
+            auto smallest# = current
+            
+            if left < len {
+                auto l_item = self.data.get(left)
+                auto s_item = self.data.get(smallest)
+                if cmp_fn(l_item, s_item) {
+                    smallest = left
+                }
+            }
+            
+            if right < len {
+                auto r_item = self.data.get(right)
+                auto s_item = self.data.get(smallest)
+                if cmp_fn(r_item, s_item) {
+                    smallest = right
+                }
+            }
+            
+            if smallest != current {
+                auto c_item = self.data.get(current)
+                auto s_item = self.data.get(smallest)
+                self.data#.set(current, s_item)
+                self.data#.set(smallest, c_item)
+                current = smallest
+            } else {
+                break
+            }
+        }
+    }
+}

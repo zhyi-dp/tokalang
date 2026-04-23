@@ -1,0 +1,40 @@
+import std/heap::{BinaryHeap}
+import std/io::{print_line}
+import std/string::{String}
+import core/libc::{libc_abort}
+
+pub fn main() {
+    print_line(String::from("Start Min-Heap"))
+    auto min_cmp: fn(i32, i32) -> bool = { a, b => a < b }
+    auto min_heap# = BinaryHeap<i32>::new(min_cmp)
+    min_heap#.push(5)
+    min_heap#.push(2)
+    min_heap#.push(8)
+    min_heap#.push(1)
+    
+    if min_heap.len() != 4 { libc_abort() }
+    if min_heap.peek().unwrap() != 1 { libc_abort() }
+    if min_heap#.pop().unwrap() != 1 { libc_abort() }
+    if min_heap.peek().unwrap() != 2 { libc_abort() }
+    if min_heap#.pop().unwrap() != 2 { libc_abort() }
+    if min_heap.peek().unwrap() != 5 { libc_abort() }
+    if min_heap#.pop().unwrap() != 5 { libc_abort() }
+    if min_heap.peek().unwrap() != 8 { libc_abort() }
+    if min_heap#.pop().unwrap() != 8 { libc_abort() }
+    if !min_heap.is_empty() { libc_abort() }
+    
+    print_line(String::from("Start Max-Heap"))
+    auto max_cmp: fn(i32, i32) -> bool = { a, b => a > b }
+    auto max_heap# = BinaryHeap<i32>::new(max_cmp)
+    max_heap#.push(5)
+    max_heap#.push(2)
+    max_heap#.push(8)
+    max_heap#.push(1)
+    
+    print_line(String::from("Max-Heap check"))
+    if max_heap#.pop().unwrap() != 8 { libc_abort() }
+    if max_heap#.pop().unwrap() != 5 { libc_abort() }
+    if max_heap#.pop().unwrap() != 2 { libc_abort() }
+    if max_heap#.pop().unwrap() != 1 { libc_abort() }
+    print_line(String::from("All Done"))
+}

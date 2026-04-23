@@ -18,16 +18,94 @@ pub fn current_time_ms() -> i64 {
 
 pub shape TaskPtr(addr: Addr)
 
+import core/option::{Option}
+
 shape TimerEntry(
     addr: Addr, // coro handle
     expire_at: i64
 )
 
+shape TimerHeap(
+    data#: Vec<TimerEntry>
+)
+
+impl TimerHeap {
+    pub fn push(self#, item: TimerEntry) {
+        self.data#.push(item)
+        self#.sift_up(self.data.len() - 1)
+    }
+
+    pub fn pop(self#) -> Option<TimerEntry> {
+        if self.data.is_empty() { return Option<TimerEntry>::None() }
+        auto last_idx = self.data.len() - 1
+        if last_idx == 0 {
+            auto ret = self.data.get(0)
+            self.data#.pop()
+            return Option<TimerEntry>::Some(ret)
+        }
+        auto ret = self.data.get(0)
+        auto last_item = self.data.get(last_idx)
+        self.data#.set(0:usize, last_item)
+        self.data#.pop()
+        self#.sift_down(0:usize)
+        return Option<TimerEntry>::Some(ret)
+    }
+
+    pub fn peek(self) -> Option<TimerEntry> {
+        if self.data.is_empty() { return Option<TimerEntry>::None() }
+        return Option<TimerEntry>::Some(self.data.get(0))
+    }
+
+    pub fn len(self) -> usize { return self.data.len() }
+
+    fn sift_up(self#, idx: usize) {
+        auto current# = idx
+        while current > 0 {
+            auto parent = (current - 1) / 2
+            auto c_item = self.data.get(current)
+            auto p_item = self.data.get(parent)
+            if c_item.expire_at < p_item.expire_at {
+                self.data#.set(current, p_item)
+                self.data#.set(parent, c_item)
+                current = parent
+            } else { break }
+        }
+    }
+
+    fn sift_down(self#, idx: usize) {
+        auto current# = idx
+        auto len = self.data.len()
+        while true {
+            auto left = 2 * current + 1
+            auto right = 2 * current + 2
+            auto smallest# = current
+            
+            if left < len {
+                if self.data.get(left).expire_at < self.data.get(smallest).expire_at {
+                    smallest = left
+                }
+            }
+            if right < len {
+                if self.data.get(right).expire_at < self.data.get(smallest).expire_at {
+                    smallest = right
+                }
+            }
+            if smallest != current {
+                auto c_item = self.data.get(current)
+                auto s_item = self.data.get(smallest)
+                self.data#.set(current, s_item)
+                self.data#.set(smallest, c_item)
+                current = smallest
+            } else { break }
+        }
+    }
+}
+
 // ==========================================
 // 全局就绪任务队列 (基于底层内联 pthread_mutex + Vec)
 // ==========================================
 auto g_task_queue# = Vec<TaskPtr>(*buf=null, len=0, cap=0)
-auto g_timer_queue# = Vec<TimerEntry>(*buf=null, len=0, cap=0)
+auto g_timer_queue# = TimerHeap(data=Vec<TimerEntry>(*buf=null, len=0, cap=0))
 auto g_detached_tasks# = Vec<usize>(*buf=null, len=0, cap=0)
 auto g_mutex_ptr#: Addr = 0:Addr
 auto g_mutex_init#: bool = false
@@ -95,26 +173,19 @@ pub fn __toka_spawn_blocking(*task: void) {
         
         lock_queue()
         auto now = current_time_ms()
-        auto keep_len#: usize = 0
-        auto j#: usize = 0
-        auto initial_timer_len = g_timer_queue.len()
         
         // Timer Queue 检查并释放到期的挂起协程到 Task Queue
-        while j < initial_timer_len {
-            auto t = g_timer_queue.get(j)
+        while true {
+            auto top_opt = g_timer_queue.peek()
+            if top_opt.is_none() { break }
+            auto t = top_opt.unwrap()
             if now >= t.expire_at {
                 // println("[Loop] Time reached for timer handle, pushing to task queue!")
                 g_task_queue#.push(TaskPtr(addr=t.addr))
+                g_timer_queue#.pop()
             } else {
-                g_timer_queue#.set(keep_len, t)
-                keep_len += 1
+                break
             }
-            j += 1
-        }
-        
-        // 出队所有已被移动或者失效的后续元素，以截断数组长度
-        while g_timer_queue.len() > keep_len {
-            g_timer_queue#.pop()
         }
         
         // 尝试从就绪队列消费协程
@@ -164,15 +235,8 @@ pub fn __toka_spawn_blocking(*task: void) {
         // Calculate next timeout based on `g_timer_queue`
         auto timeout_ms# = 100 // default max delay
         lock_queue()
-        auto timer_len = g_timer_queue.len()
-        if timer_len > 0 {
-            auto min_expire# = g_timer_queue.get(0).expire_at
-            auto i#: usize = 1
-            while i < timer_len {
-                auto exp = g_timer_queue.get(i).expire_at
-                if exp < min_expire { min_expire = exp }
-                i += 1
-            }
+        if !g_timer_queue.data.is_empty() {
+            auto min_expire = g_timer_queue.peek().unwrap().expire_at
             auto wait_time# = min_expire - current_time_ms()
             if wait_time < 0:i64 { wait_time = 0:i64 }
             if wait_time < timeout_ms as i64 {

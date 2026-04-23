@@ -1,0 +1,42 @@
+// Copyright (c) 2026 Toka Project. All rights reserved.
+
+/// A fast, statistically excellent pseudo-random number generator (PCG32).
+pub shape Random(
+    state#: u64,
+    inc: u64
+)
+
+impl Random {
+    /// Creates a new PCG32 random number generator.
+    /// The `seed` is the starting state, and `seq` selects the output sequence.
+    pub fn new(seed: u64, seq: u64) -> Random {
+        auto initstate = 0:u64
+        auto initinc = (seq << 1:u64) | 1:u64
+        auto rng# = Random(state = initstate, inc = initinc)
+        rng#.next_u32()
+        rng.state = rng.state + seed
+        rng#.next_u32()
+        return rng
+    }
+
+    /// Generates a pseudo-random 32-bit unsigned integer.
+    pub fn next_u32(self#) -> u32 {
+        auto oldstate = self.state
+        // Advance internal state
+        self.state = oldstate * 6364136223846793005:u64 + self.inc
+        
+        // Calculate output function (XSH RR)
+        auto xorshifted = (((oldstate >> 18:u64) ^ oldstate) >> 27:u64) as u32
+        auto rot = (oldstate >> 59:u64) as u32
+        auto neg_rot = (32:u32 - rot) & 31:u32
+        
+        return (xorshifted >> rot) | (xorshifted << neg_rot)
+    }
+
+    /// Generates a pseudo-random 64-bit unsigned integer.
+    pub fn next_u64(self#) -> u64 {
+        auto hi = self#.next_u32() as u64
+        auto lo = self#.next_u32() as u64
+        return (hi << 32:u64) | lo
+    }
+}
