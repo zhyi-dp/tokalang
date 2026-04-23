@@ -1,6 +1,6 @@
 import std/string::{String}
 import std/env
-import core/libc::{libc_system, libc_printf}
+import std/sys/libc::{libc_system, libc_printf}
 import src/pkg_manager::{cmd_fetch, build_pkg_args}
 
 fn print_help() {

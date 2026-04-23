@@ -1,7 +1,7 @@
 import std/io::{println}
 import std/string::{String}
 import std/fs::{read_to_string}
-import core/libc::{libc_system, libc_printf}
+import std/sys/libc::{libc_system, libc_printf}
 import std/serde/json::{JsonNode}
 
 pub fn cmd_fetch() -> i32 {
