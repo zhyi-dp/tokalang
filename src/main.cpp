@@ -20,6 +20,11 @@
 #include "toka/SourceManager.h"
 #include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/TargetSelect.h"
+#include "llvm/MC/TargetRegistry.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetOptions.h"
+#include "llvm/IR/LegacyPassManager.h"
+#include "llvm/TargetParser/Host.h"
 #include "llvm/Transforms/Coroutines/CoroCleanup.h"
 #include "llvm/Transforms/Coroutines/CoroEarly.h"
 #include "llvm/Transforms/Coroutines/CoroElide.h"
@@ -168,6 +173,7 @@ int main(int argc, char **argv) {
   std::vector<std::string> inputFiles;
   std::map<std::string, std::string> pkgMap;
   bool disableBorrowCheck = false;
+  bool emitObj = false;
   std::string outputFile = "";
   for (int i = 1; i < argc; ++i) {
     std::string arg = argv[i];
@@ -204,10 +210,17 @@ int main(int argc, char **argv) {
     } else if (arg == "-o") {
       if (i + 1 < argc) {
         outputFile = argv[++i];
+        if (outputFile.length() > 2 && outputFile.substr(outputFile.length() - 2) == ".o") {
+          emitObj = true;
+        }
       } else {
         llvm::errs() << "-o requires an argument\n";
         return 1;
       }
+    } else if (arg == "--emit-obj") {
+      emitObj = true;
+    } else if (arg == "--emit-llvm") {
+      emitObj = false;
     } else if (arg.rfind("-", 0) == 0) {
       // Ignore other flags for now or report error
     } else {
@@ -317,16 +330,67 @@ int main(int argc, char **argv) {
   MPM.run(*codegen.getModule(), MAM);
 
   
-  if (outputFile.empty()) {
-    codegen.print(llvm::outs());
-  } else {
+  if (outputFile.empty() && emitObj) {
+    llvm::errs() << "Error: --emit-obj requires an output file specified with -o\n";
+    return 1;
+  }
+
+  if (emitObj) {
+    if (verboseMode) fprintf(stderr, "Initializing TargetMachine for native emission...\n");
+    fflush(stderr);
+
+    llvm::InitializeAllTargetInfos();
+    llvm::InitializeAllTargets();
+    llvm::InitializeAllTargetMCs();
+    llvm::InitializeAllAsmParsers();
+    llvm::InitializeAllAsmPrinters();
+
+    auto TargetTriple = llvm::sys::getDefaultTargetTriple();
+    std::string Error;
+    auto Target = llvm::TargetRegistry::lookupTarget(TargetTriple, Error);
+
+    if (!Target) {
+      llvm::errs() << "Target lookup error: " << Error;
+      return 1;
+    }
+
+    auto CPU = "generic";
+    auto Features = "";
+    llvm::TargetOptions opt;
+    std::optional<llvm::Reloc::Model> RM = llvm::Reloc::PIC_;
+    auto TargetMachine = Target->createTargetMachine(TargetTriple, CPU, Features, opt, RM);
+
+    codegen.getModule()->setDataLayout(TargetMachine->createDataLayout());
+    codegen.getModule()->setTargetTriple(TargetTriple);
+
     std::error_code EC;
     llvm::raw_fd_ostream dest(outputFile, EC, llvm::sys::fs::OF_None);
     if (EC) {
       llvm::errs() << "Could not open file: " << EC.message() << "\n";
       return 1;
     }
-    codegen.print(dest);
+
+    llvm::legacy::PassManager pass;
+    if (TargetMachine->addPassesToEmitFile(pass, dest, nullptr, llvm::CodeGenFileType::ObjectFile)) {
+      llvm::errs() << "TargetMachine can't emit a file of this type\n";
+      return 1;
+    }
+
+    pass.run(*codegen.getModule());
+    dest.flush();
+    if (verboseMode) fprintf(stderr, "Object file emitted successfully.\n");
+  } else {
+    if (outputFile.empty()) {
+      codegen.print(llvm::outs());
+    } else {
+      std::error_code EC;
+      llvm::raw_fd_ostream dest(outputFile, EC, llvm::sys::fs::OF_None);
+      if (EC) {
+        llvm::errs() << "Could not open file: " << EC.message() << "\n";
+        return 1;
+      }
+      codegen.print(dest);
+    }
   }
 
 
