@@ -1,0 +1,49 @@
+import core/option::{Option}
+import core/result::{Result}
+import core/libc::{libc_printf, libc_abort}
+
+impl<'T> Option<'T> {
+    /// Unwrap the option or panic with a custom error message
+    pub fn expect(self, *msg: char) -> 'T {
+        match self {
+            auto Option<'T>::Some('val) => return 'val
+            _ => {
+                unsafe {
+                    libc_printf("[Option] panic: %s\n" as *char, msg)
+                    libc_abort()
+                }
+                return self.unwrap()
+            }
+        }
+    }
+}
+
+impl<'T, 'E> Result<'T, 'E> {
+    /// Unwrap the result or panic with a custom error message
+    pub fn expect(self, *msg: char) -> 'T {
+        match self {
+            auto Result<'T, 'E>::Ok('val) => return 'val
+            _ => {
+                unsafe {
+                    libc_printf("[Result] panic: %s\n" as *char, msg)
+                    libc_abort()
+                }
+                return self.unwrap()
+            }
+        }
+    }
+    
+    /// Unwrap the error or panic with a custom error message
+    pub fn expect_err(self, *msg: char) -> 'E {
+        match self {
+            auto Result<'T, 'E>::Err('val) => return 'val
+            _ => {
+                unsafe {
+                    libc_printf("[Result] panic: %s\n" as *char, msg)
+                    libc_abort()
+                }
+                return self.unwrap_err()
+            }
+        }
+    }
+}

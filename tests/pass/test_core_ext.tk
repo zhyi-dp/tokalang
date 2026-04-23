@@ -1,0 +1,57 @@
+import std/core_ext::*
+import core/option::{Option}
+import core/result::{Result}
+import core/memory::{copy_memory, set_memory, compare_memory}
+import core/libc::*
+import core/types::{Addr, usize}
+
+fn main() -> i32 {
+    // 1. Test Option::expect
+    auto opt1 = Option<i32>::Some(42)
+    if opt1.expect("This should not panic" as *char) != 42 {
+        return 1
+    }
+
+    // 2. Test Result::expect
+    auto res1 = Result<i32, u32>::Ok(100)
+    if res1.expect("This should not panic either" as *char) != 100 {
+        return 2
+    }
+
+    // 3. Test Result::expect_err
+    auto res2 = Result<i32, u32>::Err(500)
+    if res2.expect_err("This err should not panic" as *char) != 500 {
+        return 3
+    }
+    
+    // 4. Test memory operations
+    unsafe {
+        auto dst_addr = libc_calloc(4:usize, 1:usize) as Addr
+        auto src_addr = libc_calloc(4:usize, 1:usize) as Addr
+        
+        auto *d_slice# = dst_addr as *[u8]
+        auto *s_slice# = src_addr as *[u8]
+        
+        s_slice[0] = 1:u8
+        s_slice[1] = 2:u8
+        s_slice[2] = 3:u8
+        s_slice[3] = 4:u8
+        
+        // Test set_memory
+        set_memory(dst_addr, 9:u8, 4:usize)
+        if d_slice[0] != 9:u8 { return 4 }
+        
+        // Test copy_memory
+        copy_memory(dst_addr, src_addr, 4:usize)
+        if d_slice[1] != 2:u8 { return 5 }
+        
+        // Test compare_memory
+        auto diff = compare_memory(dst_addr, src_addr, 4:usize)
+        if diff != 0 { return 6 }
+        
+        libc_free(dst_addr as *void)
+        libc_free(src_addr as *void)
+    }
+
+    return 0
+}

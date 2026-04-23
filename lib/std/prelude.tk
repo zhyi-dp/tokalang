@@ -19,6 +19,7 @@ pub import std::string::String
 pub import std::error::{Error}
 
 import std/sys/os::*
+pub import std::core_ext::*
 
 /*
 pub fn panic(message: str) {

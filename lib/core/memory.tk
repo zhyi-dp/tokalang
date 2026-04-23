@@ -11,3 +11,29 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+import core/types::{usize, Addr}
+import core/libc::{libc_memcpy, libc_memset, libc_memcmp}
+
+/// Safely copy `count` bytes from `src` to `dst`.
+/// Both `dst` and `src` must be valid and appropriately sized.
+pub fn copy_memory(dst: Addr, src: Addr, count: usize) {
+    unsafe {
+        libc_memcpy(dst as *void, src as *void, count)
+    }
+}
+
+/// Safely set `count` bytes of `dst` to the value `val`.
+pub fn set_memory(dst: Addr, val: u8, count: usize) {
+    unsafe {
+        libc_memset(dst as *void, val as i32, count)
+    }
+}
+
+/// Compare `count` bytes between `p1` and `p2`.
+/// Returns 0 if identical, otherwise difference of the first non-matching byte.
+pub fn compare_memory(p1: Addr, p2: Addr, count: usize) -> i32 {
+    unsafe {
+        return libc_memcmp(p1 as *void, p2 as *void, count)
+    }
+}
