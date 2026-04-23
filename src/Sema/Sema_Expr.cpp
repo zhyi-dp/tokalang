@@ -1820,7 +1820,10 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     if (AllocE->Initializer) {
       checkExpr(AllocE->Initializer.get(), toka::Type::fromString(baseType));
     }
-    AllocE->TypeName = baseType; // [FIX] Update with mangled name for CodeGen
+    // [FIX] Update with mangled name for CodeGen, but only if it's NOT an unresolved generic param
+    if (baseType.find('\'') == std::string::npos) {
+      AllocE->TypeName = baseType;
+    }
     if (AllocE->IsArray) {
       return toka::Type::fromString("*[" + baseType + "]");
     }

@@ -729,6 +729,9 @@ void Sema::checkFunction(FunctionDecl *Fn) {
 
 void Sema::checkImpl(ImplDecl *Impl) {
   // [NEW] Skip Generic Templates until Instantiation
+  if (!Impl->GenericParams.empty()) {
+      return;
+  }
   // (Assuming Impl<T> is handled similarly to Functions, but for now we focus
   // on non-generic Impl or instantiated ones)
   

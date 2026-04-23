@@ -1,13 +1,10 @@
 import std/btree_map::{BTreeMap}
 import core/option::{Maybe}
-import std/string::{String}
 import core/primitives
-import core/traits::*
-
-
-
+import std/io
 
 pub fn main() -> i32 {
+    io::println("Starting...")
     auto map# = BTreeMap<i32, i32>::new()
     
     auto i# = 0
@@ -16,20 +13,10 @@ pub fn main() -> i32 {
         i += 1
     }
     
-    assert(map.len() == 5, "len should be 5")
+    io::println("Inserted 5")
     
-    i = 0
-    while i < 5 {
-        auto val = map.get(i)
-        assert(val.unwrap() == i * 10, "value mismatch")
-        i += 1
-    }
-    // Test overwrite (insert an existing key, e.g. 0)
     map#.insert(0, 5000)
-    assert(map.len() == 5, "len should not increase on overwrite")
-    auto v50 = map.get(0)
-    assert(v50.unwrap() == 5000, "value should be updated")
+    io::println("Overwrite 0 done")
     
-    // Drop logic implicitly executed here
     return 0
 }

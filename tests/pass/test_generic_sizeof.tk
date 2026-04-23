@@ -1,0 +1,17 @@
+import core/types::{usize, Addr}
+
+pub shape GenericArray<'T> (
+    arr#: ['T; 5],
+    len#: usize = 0
+)
+
+pub fn alloc_array<'T>() -> Addr {
+    unsafe {
+        return (unsafe alloc [1] GenericArray<'T>) as Addr
+    }
+}
+
+pub fn main() -> i32 {
+    auto addr = alloc_array<i32>()
+    return 0
+}

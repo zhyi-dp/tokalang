@@ -144,6 +144,7 @@ public:
       visitExpr(Post->LHS.get());
     } else if (auto *Cast = dynamic_cast<CastExpr *>(E)) {
       Cast->TargetType = sub(Cast->TargetType);
+      visitExpr(Cast->Expression.get());
     } else if (auto *Closure = dynamic_cast<ClosureExpr *>(E)) {
       Closure->ReturnType = sub(Closure->ReturnType);
       visitStmt(Closure->Body.get());
@@ -167,7 +168,7 @@ public:
       New->Type = sub(New->Type);
       visitExpr(New->Initializer.get());
     } else if (auto *Alloc = dynamic_cast<AllocExpr *>(E)) {
-      Alloc->TypeName = sub(Alloc->TypeName);
+      Alloc->TypeName = sub(Alloc->TypeName); 
       visitExpr(Alloc->Initializer.get());
       visitExpr(Alloc->ArraySize.get());
     } else if (auto *Arr = dynamic_cast<ArrayExpr *>(E)) {
