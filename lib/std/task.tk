@@ -9,7 +9,7 @@ import std/sys/sync as sys_sync
 import std/time::{Instant}
 import core/task::{TaskHandle, __toka_coro_resume, __toka_coro_done, __toka_coro_destroy}
 import core/types::{Addr}
-import std/sys/os as sys
+import std/sys/net as sysnet
 
 pub fn current_time_ms() -> i64 {
     auto inst = Instant::now()
@@ -113,7 +113,7 @@ auto g_reactor_fd#: i32 = -1
 
 pub fn get_reactor_fd() -> i32 {
     if g_reactor_fd == -1 {
-        g_reactor_fd = sys::reactor_create_impl()
+        g_reactor_fd = sysnet::reactor_create_impl()
     }
     return g_reactor_fd
 }
@@ -229,7 +229,7 @@ pub fn __toka_spawn_blocking(*task: void) {
         unlock_queue()
         
         if g_reactor_fd == -1 {
-            g_reactor_fd = sys::reactor_create_impl()
+            g_reactor_fd = sysnet::reactor_create_impl()
         }
 
         // Calculate next timeout based on `g_timer_queue`
@@ -252,7 +252,7 @@ pub fn __toka_spawn_blocking(*task: void) {
             auto events_buf# = [0:Addr; 64]
             auto *events_ptr = &events_buf[0] as *Addr
             
-            auto n = sys::reactor_wait_impl(g_reactor_fd, timeout_ms, *events_ptr, 64)
+            auto n = sysnet::reactor_wait_impl(g_reactor_fd, timeout_ms, *events_ptr, 64)
             
             if n > 0 {
                 lock_queue()

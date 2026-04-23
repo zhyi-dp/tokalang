@@ -5,7 +5,8 @@ import std/string::{String}
 import core/libc::*
 import core/result::{Result}
 import core/option::{Option}
-import std/sys/os as sys 
+import std/sys/os as sys
+import std/sys/net as sysnet 
 import std/io 
 import std/task::{get_reactor_fd, sleep_async}
 
@@ -58,7 +59,7 @@ impl TcpStream@encap {
     fn drop(self#) {
         unsafe {
             if !self.closed {
-                sys::net_close_impl(self.fd)
+                sysnet::net_close_impl(self.fd)
                 self.closed = true
             }
         }
@@ -70,15 +71,15 @@ impl TcpStream@encap {
 impl TcpStream {
     pub fn connect(addr: SocketAddrV4) -> TcpStream {
         unsafe {
-            auto fd = sys::net_socket_impl()
+            auto fd = sysnet::net_socket_impl()
             if fd < 0 {
                 return TcpStream(fd=-1, closed=true)
             }
             
             auto ip_num = addr.ip.to_u32()
-            auto res = sys::net_connect_impl(fd, ip_num, addr.port)
+            auto res = sysnet::net_connect_impl(fd, ip_num, addr.port)
             if res != 0 {
-                sys::net_close_impl(fd)
+                sysnet::net_close_impl(fd)
                 return TcpStream(fd=-1, closed=true)
             }
             
@@ -88,13 +89,13 @@ impl TcpStream {
     
     pub fn connect_async(addr: SocketAddrV4) -> async TcpStream {
         unsafe {
-            auto fd = sys::net_socket_impl()
+            auto fd = sysnet::net_socket_impl()
             if fd < 0 {
                 return TcpStream(fd=-1, closed=true)
             }
             
             auto ip_num = addr.ip.to_u32()
-            auto res = sys::net_connect_impl(fd, ip_num, addr.port)
+            auto res = sysnet::net_connect_impl(fd, ip_num, addr.port)
             
             if res == 0 {
                 // Connected instantly
@@ -102,20 +103,20 @@ impl TcpStream {
                 return TcpStream(fd=fd, closed=false)
             }
             
-            auto errno = sys::get_errno_impl()
+            auto errno = sysnet::get_errno_impl()
             if errno != 36 && errno != 115 {
-                sys::net_close_impl(fd)
+                sysnet::net_close_impl(fd)
                 sleep_async(0:i64).await
                 return TcpStream(fd=-1, closed=true)
             }
             
             auto coro = __builtin_coro_current_handle() as Addr
-            sys::reactor_add_write_impl(get_reactor_fd(), fd, coro)
+            sysnet::reactor_add_write_impl(get_reactor_fd(), fd, coro)
             __builtin_coro_suspend()
             
-            auto get_err = sys::net_getsockopt_error_impl(fd)
+            auto get_err = sysnet::net_getsockopt_error_impl(fd)
             if get_err != 0 {
-                sys::net_close_impl(fd)
+                sysnet::net_close_impl(fd)
                 return TcpStream(fd=-1, closed=true)
             }
             
@@ -130,7 +131,7 @@ impl TcpStream {
             if self.closed {
                 return Result<usize, String>::Err(String::from("Stream closed"))
             }
-            auto n: i64 = sys::net_read_impl(my_fd, *buf, len)
+            auto n: i64 = sysnet::net_read_impl(my_fd, *buf, len)
             if n < 0 {
                 return Result<usize, String>::Err(String::from("Read error"))
             }
@@ -164,7 +165,7 @@ impl TcpStream {
             if self.closed {
                 return Result<usize, String>::Err(String::from("Stream closed"))
             }
-            auto n: i64 = sys::net_write_impl(my_fd, *buf, len)
+            auto n: i64 = sysnet::net_write_impl(my_fd, *buf, len)
             if n < 0 {
                 return Result<usize, String>::Err(String::from("Write error"))
             }
@@ -225,7 +226,7 @@ impl TcpStream {
     pub fn close(self#) {
         unsafe {
             if !self.closed {
-                sys::net_close_impl(self.fd)
+                sysnet::net_close_impl(self.fd)
                 self.closed = true
             }
         }
@@ -248,7 +249,7 @@ impl TcpListener@encap {
     fn drop(self#) {
         unsafe {
             if !self.closed {
-                sys::net_close_impl(self.fd)
+                sysnet::net_close_impl(self.fd)
                 self.closed = true
             }
         }
@@ -260,24 +261,24 @@ impl TcpListener@encap {
 impl TcpListener {
     pub fn bind(addr: SocketAddrV4) -> TcpListener {
         unsafe {
-            auto fd = sys::net_socket_impl()
+            auto fd = sysnet::net_socket_impl()
             if fd < 0 {
                 return TcpListener(fd=-1, closed=true)
             }
             
             // SO_REUSEADDR
-            sys::net_setsockopt_reuse_impl(fd)
+            sysnet::net_setsockopt_reuse_impl(fd)
             
             auto ip_num = addr.ip.to_u32()
-            auto res = sys::net_bind_impl(fd, ip_num, addr.port)
+            auto res = sysnet::net_bind_impl(fd, ip_num, addr.port)
             if res != 0 {
-                sys::net_close_impl(fd)
+                sysnet::net_close_impl(fd)
                 return TcpListener(fd=-1, closed=true)
             }
             
-            auto lres = sys::net_listen_impl(fd)
+            auto lres = sysnet::net_listen_impl(fd)
             if lres != 0 {
-                sys::net_close_impl(fd)
+                sysnet::net_close_impl(fd)
                 return TcpListener(fd=-1, closed=true)
             }
             
@@ -291,7 +292,7 @@ impl TcpListener {
                  return TcpStream(fd=-1, closed=true)
             }
             
-            auto client_fd = sys::net_accept_impl(self.fd)
+            auto client_fd = sysnet::net_accept_impl(self.fd)
             if client_fd < 0 {
                  return TcpStream(fd=-1, closed=true)
             }
@@ -312,22 +313,22 @@ pub fn net_async_read(stream#: TcpStream, *buf: u8, len: usize) -> async Result<
         if stream.closed {
             ret = Result<usize, String>::Err(String::from("Stream closed"))
         } else {
-            sys::net_set_nonblocking_impl(stream.fd)
+            sysnet::net_set_nonblocking_impl(stream.fd)
             
             auto done# = false
             while !done {
-                auto n: i64 = sys::net_read_impl(stream.fd, *buf, len)
+                auto n: i64 = sysnet::net_read_impl(stream.fd, *buf, len)
                 if n >= 0:i64 {
                     sleep_async(0:i64).await
                     ret = Result<usize, String>::Ok(n as usize)
                     done = true
                 } else {
                     auto err = sys::get_last_error()
-                    auto eagain = sys::get_eagain_impl()
+                    auto eagain = sysnet::get_eagain_impl()
                     
                     if err == eagain {
                         auto coro = __builtin_coro_current_handle() as Addr
-                        sys::reactor_add_read_impl(get_reactor_fd(), stream.fd, coro)
+                        sysnet::reactor_add_read_impl(get_reactor_fd(), stream.fd, coro)
                         __builtin_coro_suspend()
                     } else {
                         sleep_async(0:i64).await
@@ -347,22 +348,22 @@ pub fn net_async_accept(listener#: TcpListener) -> async TcpStream {
         if listener.closed {
              // closed
         } else {
-            sys::net_set_nonblocking_impl(listener.fd)
+            sysnet::net_set_nonblocking_impl(listener.fd)
             
             auto done# = false
             while !done {
-                auto client_fd = sys::net_accept_impl(listener.fd)
+                auto client_fd = sysnet::net_accept_impl(listener.fd)
                 if client_fd >= 0 {
                     sleep_async(0:i64).await
                     ret = TcpStream(fd=client_fd, closed=false)
                     done = true
                 } else {
                     auto err = sys::get_last_error()
-                    auto eagain = sys::get_eagain_impl()
+                    auto eagain = sysnet::get_eagain_impl()
                     
                     if err == eagain {
                         auto coro = __builtin_coro_current_handle() as Addr
-                        sys::reactor_add_read_impl(get_reactor_fd(), listener.fd, coro)
+                        sysnet::reactor_add_read_impl(get_reactor_fd(), listener.fd, coro)
                         __builtin_coro_suspend()
                     } else {
                         sleep_async(0:i64).await
@@ -382,22 +383,22 @@ pub fn net_async_write(stream#: TcpStream, *buf: u8, len: usize) -> async Result
         if stream.closed {
             ret = Result<usize, String>::Err(String::from("Stream closed"))
         } else {
-            sys::net_set_nonblocking_impl(stream.fd)
+            sysnet::net_set_nonblocking_impl(stream.fd)
             
             auto done# = false
             while !done {
-                auto n: i64 = sys::net_write_impl(stream.fd, *buf, len)
+                auto n: i64 = sysnet::net_write_impl(stream.fd, *buf, len)
                 if n >= 0:i64 {
                     sleep_async(0:i64).await
                     ret = Result<usize, String>::Ok(n as usize)
                     done = true
                 } else {
                     auto err = sys::get_last_error()
-                    auto eagain = sys::get_eagain_impl()
+                    auto eagain = sysnet::get_eagain_impl()
                     
                     if err == eagain {
                         auto coro = __builtin_coro_current_handle() as Addr
-                        sys::reactor_add_write_impl(get_reactor_fd(), stream.fd, coro)
+                        sysnet::reactor_add_write_impl(get_reactor_fd(), stream.fd, coro)
                         __builtin_coro_suspend()
                     } else {
                         sleep_async(0:i64).await
