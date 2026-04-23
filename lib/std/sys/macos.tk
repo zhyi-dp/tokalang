@@ -2,6 +2,7 @@
 import core/types::{char, usize, Addr, ADDR0}
 import std/string::{String}
 import core/libc::*
+import std/sys/libc::*
 import core/option::{Option}
 
 // macOS specific argument retrieval externs.

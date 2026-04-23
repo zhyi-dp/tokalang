@@ -5,7 +5,8 @@ import std/string::{String}
 import core/result::{Result}
 import core/types::{usize, Addr}
 import std/sys/macos
-import core/libc::{libc_printf, libc_strcmp}
+import core/libc::{libc_strcmp}
+import std/sys/libc::{libc_printf}
 
 fn main() -> i32 {
     unsafe {

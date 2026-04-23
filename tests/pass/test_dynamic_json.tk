@@ -1,6 +1,6 @@
 import std/io
 import std/io::{println, print}
-import core/libc::{libc_printf, libc_fflush}
+import std/sys/libc::{libc_fflush, libc_printf}
 import std/string::{String}
 import core/str::{str, view_str}
 import std/serde/json::{JsonNode}

@@ -1,6 +1,7 @@
 import std/io::{println}
 import std/task::{sleep_async, block_on, __toka_spawn_blocking, current_time_ms}
-import core/libc::{libc_exit, libc_fflush, libc_printf}
+import core/libc::{libc_exit}
+import std/sys/libc::{libc_fflush, libc_printf}
 import std/time::{SystemTime, Duration, DateTime}
 
 fn log_ms(*msg: char) {

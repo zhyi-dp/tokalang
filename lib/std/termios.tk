@@ -36,7 +36,7 @@ pub const TCSAFLUSH = 2
 pub const VMIN = 16
 pub const VTIME = 17
 
-import core/libc::*
+import std/sys/libc::*
 
 // fd 0 is stdin, 1 is stdout, 2 is stderr
 pub fn __toka_tcgetattr(fd: i32, *termios_p: Termios) -> i32 {

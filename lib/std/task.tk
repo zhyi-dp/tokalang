@@ -4,7 +4,8 @@
 // This file provides the runtime task scheduler and synchronization context.
 
 import std/vec::{Vec}
-import core/libc::{libc_usleep, libc_pthread_mutex_lock, libc_pthread_mutex_unlock, libc_pthread_mutex_init, libc_malloc, libc_gettimeofday, libc_free}
+import core/libc::{libc_malloc, libc_free}
+import std/sys/libc::{libc_usleep, libc_pthread_mutex_lock, libc_pthread_mutex_unlock, libc_pthread_mutex_init, libc_gettimeofday}
 import core/task::{TaskHandle, __toka_coro_resume, __toka_coro_done, __toka_coro_destroy}
 import core/types::{Addr}
 import std/sys/os as sys

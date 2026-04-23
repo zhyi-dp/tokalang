@@ -22,6 +22,7 @@
 
 import core/types::{Addr, usize}
 import core/libc::*
+import std/sys/libc::*
 
 // export Magic Hooks
 pub fn __toka_alloc(size: usize) -> *void {

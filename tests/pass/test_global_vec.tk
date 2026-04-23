@@ -1,6 +1,6 @@
 import std/vec::{Vec}
 import std/io::{println}
-import core/libc::{libc_printf, libc_fflush}
+import std/sys/libc::{libc_fflush, libc_printf}
 
 auto g_dummy_vec# = Vec<i32>(*buf=null, len=0:usize, cap=0:usize)
 

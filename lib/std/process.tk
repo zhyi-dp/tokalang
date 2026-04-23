@@ -2,7 +2,7 @@
 
 import std/vec::Vec
 import std/string::String
-import core/libc::*
+import std/sys/libc::*
 import core/types::{Addr, ADDR0, char, usize}
 
 pub shape Child(pid: i32)

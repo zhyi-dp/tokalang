@@ -1,4 +1,5 @@
-import core/libc::{libc_pthread_create, libc_pthread_join, libc_pthread_detach, libc_sched_yield, libc_malloc, libc_free, libc_usleep, libc_putchar}
+import core/libc::{libc_malloc, libc_free}
+import std/sys/libc::{libc_pthread_create, libc_pthread_join, libc_pthread_detach, libc_sched_yield, libc_usleep, libc_putchar}
 import std/io::{println}
 import core/result::{Result}
 import std/error::{Error}

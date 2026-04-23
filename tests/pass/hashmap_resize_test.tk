@@ -1,7 +1,7 @@
 import std/io::println
 import std/map::{HashMap, MapResult}
 import core/option::{Option}
-import core/libc::{libc_printf, libc_fflush}
+import std/sys/libc::{libc_fflush, libc_printf}
 
 fn main() -> i32 {
     auto map# = HashMap<i32, i32>::new()

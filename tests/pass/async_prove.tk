@@ -1,6 +1,6 @@
 import std/task
 import std/task::{block_on}
-import core/libc::{libc_usleep}
+import std/sys/libc::{libc_usleep}
 import std/io::{println}
 
 fn secondary_task() -> async i32 {

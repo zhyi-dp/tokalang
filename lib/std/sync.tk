@@ -1,4 +1,5 @@
-import core/libc::{libc_pthread_mutex_init, libc_pthread_mutex_destroy, libc_pthread_mutex_lock, libc_pthread_mutex_unlock, libc_pthread_rwlock_init, libc_pthread_rwlock_destroy, libc_pthread_rwlock_rdlock, libc_pthread_rwlock_wrlock, libc_pthread_rwlock_unlock, libc_pthread_cond_init, libc_pthread_cond_destroy, libc_pthread_cond_wait, libc_pthread_cond_signal, libc_pthread_cond_broadcast, libc_malloc, libc_free}
+import core/libc::{libc_malloc, libc_free}
+import std/sys/libc::{libc_pthread_mutex_init, libc_pthread_mutex_destroy, libc_pthread_mutex_lock, libc_pthread_mutex_unlock, libc_pthread_rwlock_init, libc_pthread_rwlock_destroy, libc_pthread_rwlock_rdlock, libc_pthread_rwlock_wrlock, libc_pthread_rwlock_unlock, libc_pthread_cond_init, libc_pthread_cond_destroy, libc_pthread_cond_wait, libc_pthread_cond_signal, libc_pthread_cond_broadcast}
 import core/result::{Result}
 import std/error::{Error}
 import std/string::{String}

@@ -1,6 +1,6 @@
 // import core/prelude -- Cycle break
 
-import core/libc::libc_exit
+import core/libc::{libc_exit}
 
 // IMPORTANT NOTICE ABOUT RESOURCE MANAGEMENT (@encap TYPES)
 // Currently, the Toka compiler performs shallow bit-copies during Sum Shape

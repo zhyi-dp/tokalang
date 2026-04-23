@@ -2,6 +2,7 @@
 import core/types::{char, usize, Addr, ADDR0}
 import std/string::{String}
 import core/libc::*
+import std/sys/libc::*
 
 extern fn open(*path: char, oflag: i32) -> i32
 extern fn read(fd: i32, *buf: void, count: i64) -> i64

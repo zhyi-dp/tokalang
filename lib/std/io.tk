@@ -14,6 +14,7 @@
 import core/types::{usize, char, ADDR0}
 import std/string::{String}
 import core/libc::*
+import std/sys/libc::*
 import core/result::{Result}
 
 // Intrinsic

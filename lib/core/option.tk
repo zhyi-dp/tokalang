@@ -1,6 +1,6 @@
 // import core/prelude -- Cycle break
 
-import core/libc::libc_exit
+import core/libc::{libc_exit}
 
 pub shape Maybe<'T> (
     Some('T) = 1 |

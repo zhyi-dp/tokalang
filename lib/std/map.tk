@@ -3,7 +3,7 @@ import core/traits::{@Hash, @PartialEq, @encap}
 import core/option::{Option}
 import std/vec::{Vec}
 import core/primitives
-import core/libc::{libc_printf, libc_fflush}
+import std/sys/libc::{libc_printf, libc_fflush}
 
 
 // HashMap using SOA (Structure of Arrays)
