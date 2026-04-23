@@ -174,6 +174,8 @@ int main(int argc, char **argv) {
   std::map<std::string, std::string> pkgMap;
   bool disableBorrowCheck = false;
   bool emitObj = false;
+  bool compileOnly = false;
+  llvm::OptimizationLevel optLevel = llvm::OptimizationLevel::O0;
   std::string outputFile = "";
   for (int i = 1; i < argc; ++i) {
     std::string arg = argv[i];
@@ -212,11 +214,31 @@ int main(int argc, char **argv) {
         outputFile = argv[++i];
         if (outputFile.length() > 2 && outputFile.substr(outputFile.length() - 2) == ".o") {
           emitObj = true;
+          compileOnly = true;
+        } else if (outputFile.length() > 3 && outputFile.substr(outputFile.length() - 3) == ".ll") {
+          emitObj = false;
+        } else {
+          emitObj = true;
         }
       } else {
         llvm::errs() << "-o requires an argument\n";
         return 1;
       }
+    } else if (arg == "-c") {
+      compileOnly = true;
+      emitObj = true;
+    } else if (arg == "-O0") {
+      optLevel = llvm::OptimizationLevel::O0;
+    } else if (arg == "-O1") {
+      optLevel = llvm::OptimizationLevel::O1;
+    } else if (arg == "-O2") {
+      optLevel = llvm::OptimizationLevel::O2;
+    } else if (arg == "-O3") {
+      optLevel = llvm::OptimizationLevel::O3;
+    } else if (arg == "-Os") {
+      optLevel = llvm::OptimizationLevel::Os;
+    } else if (arg == "-Oz") {
+      optLevel = llvm::OptimizationLevel::Oz;
     } else if (arg == "--emit-obj") {
       emitObj = true;
     } else if (arg == "--emit-llvm") {
@@ -326,12 +348,25 @@ int main(int argc, char **argv) {
         MPM.addPass(llvm::CoroCleanupPass());
       });
 
-  llvm::ModulePassManager MPM = PB.buildO0DefaultPipeline(llvm::OptimizationLevel::O0);
+  llvm::ModulePassManager MPM;
+  if (optLevel == llvm::OptimizationLevel::O0) {
+    MPM = PB.buildO0DefaultPipeline(optLevel);
+  } else {
+    MPM = PB.buildPerModuleDefaultPipeline(optLevel);
+  }
   MPM.run(*codegen.getModule(), MAM);
 
-  
-  if (outputFile.empty() && emitObj) {
-    llvm::errs() << "Error: --emit-obj requires an output file specified with -o\n";
+  std::string finalOutput = outputFile;
+  std::string objFile = outputFile;
+  if (emitObj && !compileOnly) {
+    if (finalOutput.empty()) {
+      finalOutput = "a.out";
+    }
+    objFile = "/tmp/toka_tmp_" + std::to_string(std::time(nullptr)) + ".o";
+  }
+
+  if (objFile.empty() && emitObj) {
+    llvm::errs() << "Error: compilation requires an output file specified with -o\n";
     return 1;
   }
 
@@ -364,7 +399,7 @@ int main(int argc, char **argv) {
     codegen.getModule()->setTargetTriple(TargetTriple);
 
     std::error_code EC;
-    llvm::raw_fd_ostream dest(outputFile, EC, llvm::sys::fs::OF_None);
+    llvm::raw_fd_ostream dest(objFile, EC, llvm::sys::fs::OF_None);
     if (EC) {
       llvm::errs() << "Could not open file: " << EC.message() << "\n";
       return 1;
@@ -378,7 +413,20 @@ int main(int argc, char **argv) {
 
     pass.run(*codegen.getModule());
     dest.flush();
+    dest.close();
     if (verboseMode) fprintf(stderr, "Object file emitted successfully.\n");
+
+    if (!compileOnly) {
+      if (verboseMode) fprintf(stderr, "Linking executable: %s\n", finalOutput.c_str());
+      fflush(stderr);
+      std::string cmd = "cc " + objFile + " -o " + finalOutput;
+      int ret = system(cmd.c_str());
+      if (ret != 0) {
+        llvm::errs() << "Linker error: cc failed\n";
+        return 1;
+      }
+      std::remove(objFile.c_str());
+    }
   } else {
     if (outputFile.empty()) {
       codegen.print(llvm::outs());
