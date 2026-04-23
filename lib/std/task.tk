@@ -4,28 +4,16 @@
 // This file provides the runtime task scheduler and synchronization context.
 
 import std/vec::{Vec}
-import core/libc::{libc_malloc, libc_free}
-import std/sys/libc::{libc_usleep, libc_pthread_mutex_lock, libc_pthread_mutex_unlock, libc_pthread_mutex_init, libc_gettimeofday}
+import std/sys/libc::{libc_usleep}
+import std/sys/sync as sys_sync
+import std/time::{Instant}
 import core/task::{TaskHandle, __toka_coro_resume, __toka_coro_done, __toka_coro_destroy}
 import core/types::{Addr}
 import std/sys/os as sys
 
-shape timeval (
-    tv_sec: i64,
-    tv_usec: i32,
-    padding: i32
-)
-
 pub fn current_time_ms() -> i64 {
-    unsafe {
-        // 使用单元素堆分配获取合法的底层指针以传递给 C 接口
-        auto *tv_ptr# = unsafe alloc [1]timeval
-        libc_gettimeofday(*tv_ptr as *void, null)
-        auto sec = tv_ptr[0].tv_sec
-        auto usec = tv_ptr[0].tv_usec
-        unsafe free [1] *#tv_ptr
-        return (sec * 1000:i64) + (usec / 1000:i64)
-    }
+    auto inst = Instant::now()
+    return inst.duration_since_boot.as_millis() as i64
 }
 
 pub shape TaskPtr(addr: Addr)
@@ -54,17 +42,14 @@ pub fn get_reactor_fd() -> i32 {
 
 fn lock_queue() {
     if !g_mutex_init {
-        g_mutex_ptr = (libc_malloc(64) as *byte) as Addr
-        libc_pthread_mutex_init(g_mutex_ptr, 0:Addr)
+        g_mutex_ptr = sys_sync::sys_mutex_create()
         g_mutex_init = true
     }
-    libc_pthread_mutex_lock(g_mutex_ptr)
+    sys_sync::sys_mutex_lock(g_mutex_ptr)
 }
 
 fn unlock_queue() {
-    unsafe {
-        libc_pthread_mutex_unlock(g_mutex_ptr)
-    }
+    sys_sync::sys_mutex_unlock(g_mutex_ptr)
 }
 
 pub fn __toka_spawn(*task: void) {
@@ -200,22 +185,20 @@ pub fn __toka_spawn_blocking(*task: void) {
 
         // Block on the reactor
         unsafe {
-            auto *events# = libc_malloc(512) as *Addr
-            if *events as usize != 0 {
-                auto n = sys::reactor_wait_impl(g_reactor_fd, timeout_ms, *events, 64)
-                
-                if n > 0 {
-                    lock_queue()
-                    auto i# = 0
-                    while i < n {
-                        auto *ptr_addr = (*events as usize + (i * 8) as usize) as *Addr
-                        auto handle = ptr_addr // value
-                        g_task_queue#.push(TaskPtr(addr=handle))
-                        i += 1
-                    }
-                    unlock_queue()
+            auto events_buf# = [0:Addr; 64]
+            auto *events_ptr = &events_buf[0] as *Addr
+            
+            auto n = sys::reactor_wait_impl(g_reactor_fd, timeout_ms, *events_ptr, 64)
+            
+            if n > 0 {
+                lock_queue()
+                auto i# = 0
+                while i < n {
+                    auto handle = events_buf[i]
+                    g_task_queue#.push(TaskPtr(addr=handle))
+                    i += 1
                 }
-                libc_free(*events as *void)
+                unlock_queue()
             }
         }
     }

@@ -1,5 +1,5 @@
-import core/libc::{libc_malloc, libc_free}
-import std/sys/libc::{libc_pthread_mutex_init, libc_pthread_mutex_destroy, libc_pthread_mutex_lock, libc_pthread_mutex_unlock, libc_pthread_rwlock_init, libc_pthread_rwlock_destroy, libc_pthread_rwlock_rdlock, libc_pthread_rwlock_wrlock, libc_pthread_rwlock_unlock, libc_pthread_cond_init, libc_pthread_cond_destroy, libc_pthread_cond_wait, libc_pthread_cond_signal, libc_pthread_cond_broadcast}
+
+import std/sys/sync::{sys_mutex_create, sys_mutex_lock, sys_mutex_unlock, sys_mutex_destroy, sys_rwlock_create, sys_rwlock_rdlock, sys_rwlock_wrlock, sys_rwlock_unlock, sys_rwlock_destroy, sys_cond_create, sys_cond_wait, sys_cond_signal, sys_cond_broadcast, sys_cond_destroy}
 import core/result::{Result}
 import std/error::{Error}
 import std/string::{String}
@@ -15,40 +15,23 @@ impl<'T: @Send> Mutex<'T>@Send {}
 
 impl<'T: @Send> Mutex<'T> {
     pub fn new(data: cede 'T) -> Mutex<'T> {
-        unsafe {
-
-            // Allocate 64 bytes for macOS pthread_mutex_t (64 bytes covers Linux as well)
-            auto *handle_ptr# = (libc_malloc(64 as usize) as *byte)
-            auto handle_addr = (*handle_ptr) as Addr
-            
-            // Initialize the mutex with default attributes (0:Addr)
-            libc_pthread_mutex_init(handle_addr, 0:Addr)
-            
-            return Mutex<'T>(
-                handle = handle_addr,
-                data = cede data
-            )
-        }
+        return Mutex<'T>(
+            handle = sys_mutex_create(),
+            data = cede data
+        )
     }
     
     /// Directly allocates and initializes a new Mutex as a shared pointer (~Mutex)
     pub fn make(data: cede 'T) -> ^Mutex<'T> {
-        unsafe {
-            auto *handle_ptr# = (libc_malloc(64 as usize) as *byte)
-            auto handle_addr = (*handle_ptr) as Addr
-            
-            libc_pthread_mutex_init(handle_addr, 0:Addr)
-            
-            return new Mutex<'T>(
-                handle = handle_addr,
-                data = cede data
-            )
-        }
+        return new Mutex<'T>(
+            handle = sys_mutex_create(),
+            data = cede data
+        )
     }
     
     pub fn lock(self) -> Result<MutexLock<'T>, Error> {
         unsafe {
-            auto rc = libc_pthread_mutex_lock(self.handle)
+            auto rc = sys_mutex_lock(self.handle)
             if rc != 0 {
                 auto msg# = String::from("mutex lock failed with error code: ")
                 auto rc_str = String::from_int(rc)
@@ -70,7 +53,7 @@ impl<'T: @Send> Mutex<'T> {
     /// Unlocks the mutex implicitly yielding it to other waiting threads.
     pub fn unlock(self) -> Result<i32, Error> {
         unsafe {
-            auto rc = libc_pthread_mutex_unlock(self.handle)
+            auto rc = sys_mutex_unlock(self.handle)
             if rc != 0 {
                 auto msg# = String::from("mutex unlock failed with error code: ")
                 auto rc_str = String::from_int(rc)
@@ -89,9 +72,8 @@ impl<'T: @Send> Mutex<'T>@encap {
         unsafe {
             auto h: Addr = self.handle
             if h != 0:Addr {
-                libc_pthread_mutex_destroy(h)
-                libc_free(h as *void)
-                self.handle = 0:Addr
+                sys_mutex_destroy(h)
+                                self.handle = 0:Addr
             }
         }
     }
@@ -111,7 +93,7 @@ impl<'T: @Send> MutexLock<'T>@encap {
     fn drop(self#) {
         unsafe {
             if self.handle != 0:Addr {
-                libc_pthread_mutex_unlock(self.handle)
+                sys_mutex_unlock(self.handle)
                 self.handle = 0:Addr
             }
         }
@@ -137,23 +119,15 @@ impl<'T: {@Send, @Sync}> RwMutex<'T>@Send {}
 
 impl<'T: {@Send, @Sync}> RwMutex<'T> {
     pub fn new(data: cede 'T) -> RwMutex<'T> {
-        unsafe {
-            // macOS pthread_rwlock_t is 192 bytes, Linux is 56 bytes.
-            auto *handle_ptr# = (libc_malloc(256 as usize) as *byte)
-            auto handle_addr = (*handle_ptr) as Addr
-            
-            libc_pthread_rwlock_init(handle_addr, 0:Addr)
-            
-            return RwMutex<'T>(
-                handle = handle_addr,
-                data = cede data
-            )
-        }
+        return RwMutex<'T>(
+            handle = sys_rwlock_create(),
+            data = cede data
+        )
     }
     
     pub fn read_lock(self) -> Result<RwReadLock<'T>, Error> {
         unsafe {
-            auto rc = libc_pthread_rwlock_rdlock(self.handle)
+            auto rc = sys_rwlock_rdlock(self.handle)
             if rc != 0 {
                 auto msg# = String::from("rwlock read_lock failed with error code: ")
                 auto rc_str = String::from_int(rc)
@@ -174,7 +148,7 @@ impl<'T: {@Send, @Sync}> RwMutex<'T> {
     
     pub fn write_lock(self) -> Result<RwWriteLock<'T>, Error> {
         unsafe {
-            auto rc = libc_pthread_rwlock_wrlock(self.handle)
+            auto rc = sys_rwlock_wrlock(self.handle)
             if rc != 0 {
                 auto msg# = String::from("rwlock write_lock failed with error code: ")
                 auto rc_str = String::from_int(rc)
@@ -195,7 +169,7 @@ impl<'T: {@Send, @Sync}> RwMutex<'T> {
     
     pub fn unlock(self) -> Result<i32, Error> {
         unsafe {
-            auto rc = libc_pthread_rwlock_unlock(self.handle)
+            auto rc = sys_rwlock_unlock(self.handle)
             if rc != 0 {
                 auto msg# = String::from("rwlock unlock failed with error code: ")
                 auto rc_str = String::from_int(rc)
@@ -213,9 +187,8 @@ impl<'T: {@Send, @Sync}> RwMutex<'T>@encap {
         unsafe {
             auto h: Addr = self.handle
             if h != 0:Addr {
-                libc_pthread_rwlock_destroy(h)
-                libc_free(h as *void)
-                self.handle = 0:Addr
+                sys_rwlock_destroy(h)
+                                self.handle = 0:Addr
             }
         }
     }
@@ -235,7 +208,7 @@ impl<'T: {@Send, @Sync}> RwReadLock<'T>@encap {
     fn drop(self#) {
         unsafe {
             if self.handle != 0:Addr {
-                libc_pthread_rwlock_unlock(self.handle)
+                sys_rwlock_unlock(self.handle)
                 self.handle = 0:Addr
             }
         }
@@ -262,7 +235,7 @@ impl<'T: {@Send, @Sync}> RwWriteLock<'T>@encap {
     fn drop(self#) {
         unsafe {
             if self.handle != 0:Addr {
-                libc_pthread_rwlock_unlock(self.handle)
+                sys_rwlock_unlock(self.handle)
                 self.handle = 0:Addr
             }
         }
@@ -295,9 +268,8 @@ impl<'T: @Send> CondVar<'T>@encap {
         unsafe {
             auto h: Addr = self.handle
             if h != 0:Addr {
-                libc_pthread_cond_destroy(h)
-                libc_free(h as *void)
-                self.handle = 0:Addr
+                sys_cond_destroy(h)
+                                self.handle = 0:Addr
             }
         }
     }
@@ -308,31 +280,16 @@ impl<'T: @Send> CondVar<'T>@encap {
 impl<'T: @Send> CondVar<'T> {
     /// Creates a new Condition Variable
     pub fn new() -> CondVar<'T> {
-        unsafe {
-            // Allocate 64 bytes for macOS/Linux pthread_cond_t safely
-            auto *handle_ptr# = (libc_malloc(64 as usize) as *byte)
-            auto handle_addr = (*handle_ptr) as Addr
-            
-            libc_pthread_cond_init(handle_addr, 0:Addr)
-            
-            return CondVar<'T>(
-                handle = handle_addr
-            )
-        }
+        return CondVar<'T>(
+            handle = sys_cond_create()
+        )
     }
     
     /// Directly allocates and initializes a new CondVar as a shared pointer (~CondVar<'T>)
     pub fn make() -> ^CondVar<'T> {
-        unsafe {
-            auto *handle_ptr# = (libc_malloc(64 as usize) as *byte)
-            auto handle_addr = (*handle_ptr) as Addr
-            
-            libc_pthread_cond_init(handle_addr, 0:Addr)
-            
-            return new CondVar<'T>(
-                handle = handle_addr
-            )
-        }
+        return new CondVar<'T>(
+            handle = sys_cond_create()
+        )
     }
     
     /// Suspends the current thread until another thread calls notify_one() or notify_all().
@@ -341,21 +298,21 @@ impl<'T: @Send> CondVar<'T> {
     pub fn wait_cond(self, mut_lock: MutexLock<'T>) {
         unsafe {
             // Unlocks the mutex, puts the thread to sleep, and wakes up locked again.
-            libc_pthread_cond_wait(self.handle, mut_lock.handle)
+            sys_cond_wait(self.handle, mut_lock.handle)
         }
     }
 
     /// Wakes up a single thread waiting on this condition variable.
     pub fn notify_one(self) {
         unsafe {
-            libc_pthread_cond_signal(self.handle)
+            sys_cond_signal(self.handle)
         }
     }
 
     /// Wakes up all threads currently waiting on this condition variable.
     pub fn notify_all(self) {
         unsafe {
-            libc_pthread_cond_broadcast(self.handle)
+            sys_cond_broadcast(self.handle)
         }
     }
 }

@@ -1,0 +1,112 @@
+// Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
+
+import core/types::{Addr, usize, byte}
+import core/libc::{libc_malloc, libc_free}
+import std/sys/libc::{
+    libc_pthread_mutex_init, libc_pthread_mutex_destroy, 
+    libc_pthread_mutex_lock, libc_pthread_mutex_unlock,
+    libc_pthread_rwlock_init, libc_pthread_rwlock_destroy, 
+    libc_pthread_rwlock_rdlock, libc_pthread_rwlock_wrlock, libc_pthread_rwlock_unlock,
+    libc_pthread_cond_init, libc_pthread_cond_destroy, 
+    libc_pthread_cond_wait, libc_pthread_cond_signal, libc_pthread_cond_broadcast
+}
+
+// -----------------------------------------------------------------------------
+// Mutex
+// -----------------------------------------------------------------------------
+
+pub fn sys_mutex_create() -> Addr {
+    unsafe {
+        auto *handle_ptr# = (libc_malloc(64 as usize) as *byte)
+        auto handle_addr = (*handle_ptr) as Addr
+        libc_pthread_mutex_init(handle_addr, 0:Addr)
+        return handle_addr
+    }
+}
+
+pub fn sys_mutex_lock(handle: Addr) -> i32 {
+    unsafe { return libc_pthread_mutex_lock(handle) }
+}
+
+pub fn sys_mutex_unlock(handle: Addr) -> i32 {
+    unsafe { return libc_pthread_mutex_unlock(handle) }
+}
+
+pub fn sys_mutex_destroy(handle: Addr) {
+    if handle != 0:Addr {
+        unsafe {
+            libc_pthread_mutex_destroy(handle)
+            libc_free(handle as *void)
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+// RwLock
+// -----------------------------------------------------------------------------
+
+pub fn sys_rwlock_create() -> Addr {
+    unsafe {
+        auto *handle_ptr# = (libc_malloc(256 as usize) as *byte)
+        auto handle_addr = (*handle_ptr) as Addr
+        libc_pthread_rwlock_init(handle_addr, 0:Addr)
+        return handle_addr
+    }
+}
+
+pub fn sys_rwlock_rdlock(handle: Addr) -> i32 {
+    unsafe { return libc_pthread_rwlock_rdlock(handle) }
+}
+
+pub fn sys_rwlock_wrlock(handle: Addr) -> i32 {
+    unsafe { return libc_pthread_rwlock_wrlock(handle) }
+}
+
+pub fn sys_rwlock_unlock(handle: Addr) -> i32 {
+    unsafe { return libc_pthread_rwlock_unlock(handle) }
+}
+
+pub fn sys_rwlock_destroy(handle: Addr) {
+    if handle != 0:Addr {
+        unsafe {
+            libc_pthread_rwlock_destroy(handle)
+            libc_free(handle as *void)
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+// CondVar
+// -----------------------------------------------------------------------------
+
+pub fn sys_cond_create() -> Addr {
+    unsafe {
+        auto *handle_ptr# = (libc_malloc(64 as usize) as *byte)
+        auto handle_addr = (*handle_ptr) as Addr
+        libc_pthread_cond_init(handle_addr, 0:Addr)
+        return handle_addr
+    }
+}
+
+pub fn sys_cond_wait(handle: Addr, mutex_handle: Addr) {
+    unsafe {
+        libc_pthread_cond_wait(handle, mutex_handle)
+    }
+}
+
+pub fn sys_cond_signal(handle: Addr) {
+    unsafe { libc_pthread_cond_signal(handle) }
+}
+
+pub fn sys_cond_broadcast(handle: Addr) {
+    unsafe { libc_pthread_cond_broadcast(handle) }
+}
+
+pub fn sys_cond_destroy(handle: Addr) {
+    if handle != 0:Addr {
+        unsafe {
+            libc_pthread_cond_destroy(handle)
+            libc_free(handle as *void)
+        }
+    }
+}
