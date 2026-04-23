@@ -1592,6 +1592,11 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       }
     }
     if (!innerTy) return nullptr;
+    if (auto ptrTy = std::dynamic_pointer_cast<toka::PointerType>(innerTy)) {
+        if (m_ExpectedType && !std::dynamic_pointer_cast<toka::PointerType>(m_ExpectedType)) {
+            innerTy = ptrTy->PointeeType;
+        }
+    }
     ce->ResolvedType = innerTy;
     return innerTy;
   } else if (auto *se = dynamic_cast<SizeOfExpr *>(E)) {

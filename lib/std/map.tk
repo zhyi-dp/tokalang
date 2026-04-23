@@ -25,15 +25,13 @@ impl<'K, 'V> HashMap<'K, 'V>@encap {
                  auto *m = self.meta.unsafe_get(i)
                  if m == 1 {
                      // Drop key
-                     auto *ptr_k = self.keys.unsafe_get(i)
                      {
-                         auto k = cede ptr_k // Copy/Move out
+                         auto k: 'K = cede self.keys.buf[i] // Copy/Move out
                      }
                      
                      // Drop val
-                     auto *ptr_v = self.vals.unsafe_get(i)
                      {
-                         auto v = cede ptr_v
+                         auto v: 'V = cede self.vals.buf[i]
                      }
                  }
                  i += 1
@@ -175,14 +173,11 @@ impl<'K, 'V> HashMap<'K, 'V> {
         
         unsafe {
             if is_new {
-                auto *m_ptr#: u8 = self.meta.unsafe_get(found_slot)
-                m_ptr = 1
-                auto *k_ptr#: 'K = self.keys.unsafe_get(found_slot)
-                k_ptr = cede key
+                self.meta.buf[found_slot] = 1
+                self.keys.buf[found_slot] = cede key
                 self.len = self.len + 1
             }
-            auto *v_ptr#: 'V = self.vals.unsafe_get(found_slot)
-            v_ptr = cede val
+            self.vals.buf[found_slot] = cede val
         }
     }
     
@@ -206,10 +201,8 @@ impl<'K, 'V> HashMap<'K, 'V> {
                 auto *m_ptr#: u8 = self.meta.unsafe_get(i)
                 if m_ptr == 1 {
                      moved_count += 1
-                     auto *old_k_ptr#: 'K = self.keys.unsafe_get(i)
-                     auto *old_v_ptr#: 'V = self.vals.unsafe_get(i)
-                     auto key = cede old_k_ptr 
-                     auto val = cede old_v_ptr
+                     auto key: 'K = cede self.keys.buf[i]
+                     auto val: 'V = cede self.vals.buf[i]
                      
                      auto idx# = (key.hash() as usize) band (new_cap - 1)
                      auto start_idx = idx
@@ -218,10 +211,8 @@ impl<'K, 'V> HashMap<'K, 'V> {
                          auto *nm_ptr#: u8 = new_m.unsafe_get(idx)
                          if nm_ptr == 0 {
                              nm_ptr = 1
-                             auto *nk_ptr#: 'K = new_k.unsafe_get(idx)
-                             nk_ptr = cede key
-                             auto *nv_ptr#: 'V = new_v.unsafe_get(idx)
-                             nv_ptr = cede val
+                             new_k.buf[idx] = cede key
+                             new_v.buf[idx] = cede val
                              break
                          }
                          idx = (idx + 1) band (new_cap - 1)
@@ -304,9 +295,8 @@ impl<'K, 'V> HashMap<'K, 'V> {
                          m_ptr = 2 // Mark as tombstone
                          self.len -= 1
                          
-                         auto old_k = cede k_ptr
-                         auto *v_ptr#: 'V = self.vals.unsafe_get(idx)
-                         auto old_v = cede v_ptr
+                         auto old_k: 'K = cede self.keys.buf[idx]
+                         auto old_v: 'V = cede self.vals.buf[idx]
                          return Option<'V>::Some(cede old_v)
                      }
                  }
@@ -324,10 +314,8 @@ impl<'K, 'V> HashMap<'K, 'V> {
                 auto *m_ptr#: u8 = self.meta.unsafe_get(i)
                 if m_ptr == 1 {
                     m_ptr = 0
-                    auto *k_ptr#: 'K = self.keys.unsafe_get(i)
-                    auto *v_ptr#: 'V = self.vals.unsafe_get(i)
-                    auto _old_k = cede k_ptr
-                    auto _old_v = cede v_ptr
+                    auto _old_k: 'K = cede self.keys.buf[i]
+                    auto _old_v: 'V = cede self.vals.buf[i]
                 } else {
                     if m_ptr == 2 {
                         m_ptr = 0
