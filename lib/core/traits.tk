@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub trait @PartialOrd {
+    pub fn cmp(self, other: Self) -> i32
+}
+
 pub trait @encap {
     //pub *
     pub fn clone(self) -> Self

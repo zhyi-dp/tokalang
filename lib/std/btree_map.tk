@@ -1,0 +1,274 @@
+import core/types::{usize, Addr, ADDR0}
+import core/traits::{@PartialOrd, @PartialEq, @encap}
+import core/option::{Option, Maybe}
+
+pub fn addr_is_null(a: Addr) -> bool {
+    return (a as u64) == 0:u64
+}
+
+pub fn addr_is_not_null(a: Addr) -> bool {
+    return (a as u64) != 0:u64
+}
+
+pub shape BTreeNode<'K: @PartialOrd, 'V> (
+    keys#: ['K; 5],
+    vals#: ['V; 5],
+    children#: [Addr; 6],
+    len#: usize = 0,
+    is_leaf#: bool = true
+)
+
+impl<'K: @PartialOrd, 'V> BTreeNode<'K, 'V> {
+    pub fn destroy(node_addr: Addr) {
+        unsafe {
+            if addr_is_null(node_addr) { return }
+            auto *n# = node_addr as *BTreeNode<'K, 'V>
+            
+            auto i#: usize = 0
+            while i < n.len {
+                auto _k = cede n.keys[i]
+                auto _v = cede n.vals[i]
+                i += 1
+            }
+            
+            if !n.is_leaf {
+                auto j#: usize = 0
+                while j <= n.len {
+                    auto c_addr = n.children[j]
+                    if addr_is_not_null(c_addr) {
+                        BTreeNode<'K, 'V>::destroy(c_addr)
+                    }
+                    j += 1
+                }
+            }
+            unsafe free [1] (node_addr as *[BTreeNode<'K, 'V>])
+        }
+    }
+
+    pub fn new(is_leaf: bool) -> Addr {
+        unsafe {
+            auto node_addr = (unsafe alloc [1] BTreeNode<'K, 'V>) as Addr
+            auto *node# = node_addr as *BTreeNode<'K, 'V>
+            node.len = 0
+            node.is_leaf = is_leaf
+            
+            auto i#: usize = 0
+            while i < 6 {
+                node.children[i] = 0:Addr
+                i += 1
+            }
+            return node_addr
+        }
+    }
+
+    pub fn split_child(self#, i: usize) {
+        unsafe {
+            auto *y# = self.children[i] as *BTreeNode<'K, 'V>
+            auto z_addr = BTreeNode<'K, 'V>::new(y.is_leaf)
+            auto *z# = z_addr as *BTreeNode<'K, 'V>
+            
+            z.len = 2
+            
+            auto j#: usize = 0
+            while j < 2 {
+                z.keys[j] = cede y.keys[j + 3]
+                z.vals[j] = cede y.vals[j + 3]
+                j += 1
+            }
+            if !y.is_leaf {
+                j = 0
+                while j < 3 {
+                    z.children[j] = y.children[j + 3]
+                    y.children[j + 3] = 0:Addr
+                    j += 1
+                }
+            }
+            y.len = 2
+            
+            j = self.len
+            while j > i {
+                self.children[j + 1] = self.children[j]
+                j -= 1
+            }
+            self.children[i + 1] = z_addr
+            
+            j = self.len
+            while j > i {
+                self.keys[j] = cede self.keys[j - 1]
+                self.vals[j] = cede self.vals[j - 1]
+                j -= 1
+            }
+            
+            self.keys[i] = cede y.keys[2]
+            self.vals[i] = cede y.vals[2]
+            
+            self.len += 1
+        }
+    }
+
+    pub fn insert_non_full(self#, key: 'K, val: 'V) -> bool {
+        unsafe {
+            auto key_buf# = [cede key]
+            auto val_buf# = [cede val]
+            
+            auto idx#: usize = 0
+            while idx < self.len {
+                auto k_ptr_cur = self.keys[idx]
+                auto cmp_res = key_buf[0].cmp(k_ptr_cur)
+                if cmp_res == 0 {
+                    self.vals[idx] = cede val_buf[0]
+                    return false
+                }
+                idx += 1
+            }
+            
+            auto i#: i32 = (self.len as i32) - 1
+            if self.is_leaf {
+                while i >= 0 {
+                    auto u_i = i as usize
+                    auto k_ptr_loop = self.keys[u_i]
+                    auto cmp = key_buf[0].cmp(k_ptr_loop)
+                    if cmp < 0 {
+                        self.keys[u_i + 1] = cede self.keys[u_i]
+                        self.vals[u_i + 1] = cede self.vals[u_i]
+                        i -= 1
+                    } else {
+                        break
+                    }
+                }
+                self.keys[(i + 1) as usize] = cede key_buf[0]
+                self.vals[(i + 1) as usize] = cede val_buf[0]
+                self.len += 1
+                return true
+            } else {
+                while i >= 0 {
+                    auto u_i = i as usize
+                    auto k_ptr_loop = self.keys[u_i]
+                    auto cmp = key_buf[0].cmp(k_ptr_loop)
+                    if cmp > 0 {
+                        break
+                    }
+                    i -= 1
+                }
+                i += 1
+                auto idx2 = i as usize
+                auto child_addr = self.children[idx2]
+                auto *child# = child_addr as *BTreeNode<'K, 'V>
+                if child.len == 5 {
+                    self#.split_child(idx2)
+                    auto new_k_ptr = self.keys[idx2]
+                    auto cmp2 = key_buf[0].cmp(new_k_ptr)
+                    if cmp2 > 0 {
+                        idx2 += 1
+                    }
+                }
+                auto real_child_addr = self.children[idx2]
+                if addr_is_not_null(real_child_addr) {
+                    auto *real_child# = real_child_addr as *BTreeNode<'K, 'V>
+                    return real_child#.insert_non_full(cede key_buf[0], cede val_buf[0])
+                }
+                return false
+            }
+        }
+    }
+
+}
+
+pub shape BTreeMap<'K: @PartialOrd, 'V> (
+    root_addr#: Addr = ADDR0,
+    len#: usize = 0
+)
+
+pub fn btree_node_get<'K: @PartialOrd, 'V>(node_addr: Addr, key: 'K) -> Option<'V> {
+    unsafe {
+        auto current_addr# = node_addr
+        while true {
+            if addr_is_null(current_addr) { return Maybe<'V>::None }
+            auto *n# = current_addr as *BTreeNode<'K, 'V>
+            auto i#: usize = 0
+            while i < n.len {
+                auto k_ptr = n.keys[i]
+                auto cmp_res = key.cmp(k_ptr)
+                if cmp_res == 0 {
+                    auto v_ptr = n.vals[i]
+                    return Maybe<'V>::Some(v_ptr)
+                }
+                if cmp_res < 0 {
+                    break
+                }
+                i += 1
+            }
+            
+            if n.is_leaf {
+                return Maybe<'V>::None
+            }
+            
+            current_addr = n.children[i]
+        }
+        return Maybe<'V>::None
+    }
+}
+
+impl<'K: @PartialOrd, 'V> BTreeMap<'K, 'V>@encap {
+    pub *
+    fn drop(self#) {
+        self#.clear()
+    }
+    
+    pub fn clone(self) = delete
+
+    pub fn new() -> BTreeMap<'K, 'V> {
+        return BTreeMap<'K, 'V>(
+            root_addr = BTreeNode<'K, 'V>::new(true),
+            len = 0
+        )
+    }
+
+    pub fn is_empty(self) -> bool {
+        return self.len == 0
+    }
+
+    pub fn len(self) -> usize {
+        return self.len
+    }
+
+    pub fn clear(self#) {
+        unsafe {
+            if addr_is_not_null(self.root_addr) {
+                BTreeNode<'K, 'V>::destroy(self.root_addr)
+                self.root_addr = BTreeNode<'K, 'V>::new(true)
+                self.len = 0
+            }
+        }
+    }
+
+    pub fn insert(self#, key: 'K, val: 'V) {
+        unsafe {
+            auto key_buf# = [cede key]
+            auto val_buf# = [cede val]
+            
+            auto old_root_addr = self.root_addr
+            auto *r# = old_root_addr as *BTreeNode<'K, 'V>
+            if r.len == 5 {
+                auto s_addr = BTreeNode<'K, 'V>::new(false)
+                auto *s# = s_addr as *BTreeNode<'K, 'V>
+                self.root_addr = s_addr
+                s.children[0] = old_root_addr
+                s#.split_child(0)
+                auto added = s#.insert_non_full(cede key_buf[0], cede val_buf[0])
+                if added { self.len += 1 }
+            } else {
+                auto added = r#.insert_non_full(cede key_buf[0], cede val_buf[0])
+                if added { self.len += 1 }
+            }
+        }
+    }
+
+    pub fn get(self, key: 'K) -> Option<'V> {
+        return btree_node_get<'K, 'V>(self.root_addr, key)
+    }
+
+    pub fn contains_key(self, key: 'K) -> bool {
+        return self.get(key).is_some()
+    }
+}

@@ -14,7 +14,7 @@
 
 import core/types::*
 import core/option::{Option}
-import core/traits::{@encap, @PartialEq}
+import core/traits::{@encap, @PartialEq, @PartialOrd}
 import core/utf8::*
 
 // A memory-safe, zero-allocation reference to a string view
@@ -34,6 +34,24 @@ impl view_str@encap {
 impl view_str@PartialEq {
     pub fn eq(self, other: view_str) -> bool {
         return self.equals(other)
+    }
+}
+
+impl view_str@PartialOrd {
+    pub fn cmp(self, other: view_str) -> i32 {
+        unsafe {
+            auto i#: usize = 0
+            while i < self.len && i < other.len {
+                auto *p1 = &(self.buf[i]) as *char
+                auto *p2 = &(other.buf[i]) as *char
+                if *p1 < *p2 { return -1 }
+                if *p1 > *p2 { return 1 }
+                i = i + 1
+            }
+            if self.len < other.len { return -1 }
+            if self.len > other.len { return 1 }
+            return 0
+        }
     }
 }
 

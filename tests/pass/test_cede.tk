@@ -1,0 +1,12 @@
+import core/types::{Addr, usize, ADDR0}
+
+pub fn main() -> i32 {
+    auto a: Addr = ADDR0
+    if a != ADDR0 {
+        return 1
+    }
+    if (a as usize) != 0 {
+        return 2
+    }
+    return 0
+}
