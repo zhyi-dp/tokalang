@@ -47,6 +47,15 @@ impl<'T> HashSet<'T> {
         return self.map.len() == 0
     }
 
+    pub fn clear(self#) {
+        self.map#.clear()
+    }
+
+    pub fn remove(self#, val: 'T) -> bool {
+        auto opt = self.map#.remove(val)
+        return opt.is_some()
+    }
+
     pub fn iter(self#) -> HashSetIterator<'T> {
         return HashSetIterator<'T>(
             map_iter = self.map#.iter()

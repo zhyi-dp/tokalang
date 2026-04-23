@@ -1,0 +1,143 @@
+import core/types::{usize, Addr, ADDR0}
+import core/traits::{@encap}
+import core/libc::*
+import core/option::{Option}
+
+pub shape ListNode<'T> (
+    nul *#prev: ListNode<'T> = null as *ListNode<'T>,
+    nul *#next: ListNode<'T> = null as *ListNode<'T>,
+    val#: Option<'T> = Option<'T>::None
+)
+
+pub shape LinkedList<'T> (
+    nul *#head: ListNode<'T> = null as *ListNode<'T>,
+    nul *#tail: ListNode<'T> = null as *ListNode<'T>,
+    len#: usize = 0
+)
+
+impl<'T> LinkedList<'T> {
+    pub fn new() -> LinkedList<'T> {
+        return LinkedList<'T>(
+            *head = null as *ListNode<'T>,
+            *tail = null as *ListNode<'T>,
+            len = 0
+        )
+    }
+
+    pub fn is_empty(self) -> bool {
+        return self.len == 0
+    }
+
+    pub fn len(self) -> usize {
+        return self.len
+    }
+
+    pub fn clear(self#) {
+        unsafe {
+            auto *curr# = self.*head
+            while true {
+                auto curr_addr = curr as Addr
+                if curr_addr == ADDR0 { break }
+                
+                auto *next# = curr.*next
+                auto _val = cede curr.val
+                unsafe free [1] (curr as *[ListNode<'T>])
+                curr = next
+            }
+            self.*head = null as *ListNode<'T>
+            self.*tail = null as *ListNode<'T>
+            self.len = 0
+        }
+    }
+
+    pub fn push_back(self#, val: 'T) {
+        unsafe {
+            auto *node# = (unsafe alloc [1] ListNode<'T>) as *ListNode<'T>
+            node.*prev = self.*tail
+            node.*next = null as *ListNode<'T>
+            node.val = Option<'T>::Some(cede val)
+
+            auto tail_addr = self.*tail as Addr
+            if tail_addr != ADDR0 {
+                auto *t_node = self.*tail
+                t_node.*next = node
+            } else {
+                self.*head = node
+            }
+            self.*tail = node
+            self.len += 1
+        }
+    }
+
+    pub fn push_front(self#, val: 'T) {
+        unsafe {
+            auto *node# = (unsafe alloc [1] ListNode<'T>) as *ListNode<'T>
+            node.*prev = null as *ListNode<'T>
+            node.*next = self.*head
+            node.val = Option<'T>::Some(cede val)
+
+            auto head_addr = self.*head as Addr
+            if head_addr != ADDR0 {
+                auto *h_node = self.*head
+                h_node.*prev = node
+            } else {
+                self.*tail = node
+            }
+            self.*head = node
+            self.len += 1
+        }
+    }
+
+    pub fn pop_back(self#) -> Option<'T> {
+        if self.len == 0 {
+            return Option<'T>::None
+        }
+        unsafe {
+            auto *node# = self.*tail
+            auto val = cede node.val
+            self.*tail = node.*prev
+            
+            auto tail_addr = self.*tail as Addr
+            if tail_addr != ADDR0 {
+                auto *t_node = self.*tail
+                t_node.*next = null as *ListNode<'T>
+            } else {
+                self.*head = null as *ListNode<'T>
+            }
+            self.len -= 1
+            unsafe free [1] (node as *[ListNode<'T>])
+            return cede val
+        }
+    }
+
+    pub fn pop_front(self#) -> Option<'T> {
+        if self.len == 0 {
+            return Option<'T>::None
+        }
+        unsafe {
+            auto *node# = self.*head
+            auto val = cede node.val
+            self.*head = node.*next
+            
+            auto head_addr = self.*head as Addr
+            if head_addr != ADDR0 {
+                auto *h_node = self.*head
+                h_node.*prev = null as *ListNode<'T>
+            } else {
+                self.*tail = null as *ListNode<'T>
+            }
+            self.len -= 1
+            unsafe free [1] (node as *[ListNode<'T>])
+            return cede val
+        }
+    }
+}
+
+impl<'T> LinkedList<'T>@encap {
+    pub *
+    fn drop(self#) {
+        self#.clear()
+    }
+    
+    pub fn clone(self) = delete
+}

@@ -1,0 +1,141 @@
+import core/types::{usize}
+import core/traits::{@encap}
+import core/libc::*
+import core/option::{Option}
+
+pub shape VecDeque<'T> (
+    nul *#buf#: ['T] = null as *['T],
+    cap#: usize = 0,
+    head#: usize = 0,
+    len#: usize = 0
+)
+
+
+
+impl<'T> VecDeque<'T> {
+    pub fn new() -> VecDeque<'T> {
+        return VecDeque<'T>(
+            *buf = null as *['T],
+            cap = 0,
+            head = 0,
+            len = 0
+        )
+    }
+
+    pub fn len(self) -> usize {
+        return self.len
+    }
+
+    pub fn is_empty(self) -> bool {
+        return self.len == 0
+    }
+
+    pub fn clear(self#) {
+        unsafe {
+            auto i# = 0:usize
+            while i < self.len {
+                auto idx = (self.head + i) % self.cap
+                auto _val = cede self.buf[idx]
+                i += 1
+            }
+            self.len = 0
+            self.head = 0
+        }
+    }
+
+    fn grow(self#) {
+        unsafe {
+            auto new_cap# = self.cap * 2
+            if new_cap == 0 { new_cap = 8 }
+            
+            auto *new_buf# = unsafe alloc [new_cap] 'T
+            
+            // Re-align to 0
+            auto i# = 0:usize
+            while i < self.len {
+                auto idx = (self.head + i) % self.cap
+                new_buf[i] = cede self.buf[idx]
+                i += 1
+            }
+            
+            if self.*buf != null {
+                unsafe free [self.cap] self.*#buf
+            }
+            
+            self.*buf = *new_buf
+            self.cap = new_cap
+            self.head = 0
+        }
+    }
+
+    pub fn push_back(self#, val: 'T) {
+        if self.len == self.cap {
+            self#.grow()
+        }
+        unsafe {
+            auto idx = (self.head + self.len) % self.cap
+            self.buf[idx] = cede val
+            self.len += 1
+        }
+    }
+
+    pub fn push_front(self#, val: 'T) {
+        if self.len == self.cap {
+            self#.grow()
+        }
+        unsafe {
+            self.head = (self.head + self.cap - 1) % self.cap
+            self.buf[self.head] = cede val
+            self.len += 1
+        }
+    }
+
+    pub fn pop_back(self#) -> Option<'T> {
+        if self.len == 0 {
+            return Option<'T>::None
+        }
+        unsafe {
+            auto idx = (self.head + self.len - 1) % self.cap
+            auto val = cede self.buf[idx]
+            self.len -= 1
+            return Option<'T>::Some(cede val)
+        }
+    }
+
+    pub fn pop_front(self#) -> Option<'T> {
+        if self.len == 0 {
+            return Option<'T>::None
+        }
+        unsafe {
+            auto val = cede self.buf[self.head]
+            self.head = (self.head + 1) % self.cap
+            self.len -= 1
+            return Option<'T>::Some(cede val)
+        }
+    }
+
+    pub fn get(self, index: usize) -> Option<'T> {
+        if index >= self.len {
+            return Option<'T>::None
+        }
+        unsafe {
+            auto idx = (self.head + index) % self.cap
+            auto val = self.buf[idx] 
+            return Option<'T>::Some(val)
+        }
+    }
+}
+
+impl<'T> VecDeque<'T>@encap {
+    pub *
+    fn drop(self#) {
+        unsafe {
+            if self.*buf != null {
+                self#.clear()
+                unsafe free [self.cap] self.*#buf
+            }
+        }
+    }
+    
+    pub fn clone(self) = delete
+}

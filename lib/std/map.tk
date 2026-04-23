@@ -88,6 +88,10 @@ impl<'K, 'V> HashMap<'K, 'V> {
         return self.len
     }
 
+    pub fn is_empty(self) -> bool {
+        return self.len == 0
+    }
+
     pub fn new() -> HashMap<'K, 'V> {
         unsafe {
             auto init_cap = 128
@@ -136,23 +140,32 @@ impl<'K, 'V> HashMap<'K, 'V> {
         // Optimization: capacity is power of 2, use mask
         auto idx# = (key.hash() as usize) band (capacity - 1)
         auto start_idx = idx
-        auto found_slot#: usize = 0
+        auto found_slot#: usize = capacity
         auto is_new# = false
         
         while true {
             unsafe {
                 auto *m_ptr#: u8 = self.meta.unsafe_get(idx)
                 if m_ptr == 0 {
-                    found_slot = idx
+                    if found_slot == capacity {
+                        found_slot = idx
+                    }
                     is_new = true
                     break
                 }
                 
-                // Occupied. Check Key match.
-                auto *k_ptr#: 'K = self.keys.unsafe_get(idx)
-                if k_ptr.eq(key) {
-                    found_slot = idx
-                    break
+                if m_ptr == 2 {
+                    if found_slot == capacity {
+                        found_slot = idx
+                    }
+                } else {
+                    // Occupied. Check Key match.
+                    auto *k_ptr#: 'K = self.keys.unsafe_get(idx)
+                    if k_ptr.eq(key) {
+                        found_slot = idx
+                        is_new = false
+                        break
+                    }
                 }
             }
             
@@ -238,6 +251,7 @@ impl<'K, 'V> HashMap<'K, 'V> {
     
     pub fn get(self, key: 'K) -> Option<'V> {
          auto capacity = self.cap
+         if capacity == 0 { return Option<'V>::None }
          auto idx# = (key.hash() as usize) band (capacity - 1)
          auto start_idx = idx
          
@@ -249,11 +263,13 @@ impl<'K, 'V> HashMap<'K, 'V> {
                      return Option<'V>::None
                  }
                  
-                 // Occupied, check key
-                 auto *k_ptr#: 'K = self.keys.unsafe_get(idx)
-                 if k_ptr.eq(key) {
-                     auto *v_ptr#: 'V = self.vals.unsafe_get(idx)
-                     return Option<'V>::Some(v_ptr)
+                 if m_ptr == 1 {
+                     // Occupied, check key
+                     auto *k_ptr#: 'K = self.keys.unsafe_get(idx)
+                     if k_ptr.eq(key) {
+                         auto *v_ptr#: 'V = self.vals.unsafe_get(idx)
+                         return Option<'V>::Some(v_ptr)
+                     }
                  }
              }
              
@@ -263,6 +279,64 @@ impl<'K, 'V> HashMap<'K, 'V> {
              }
          }
          return Option<'V>::None
+    }
+
+    pub fn contains_key(self, key: 'K) -> bool {
+         auto val_opt = self.get(key)
+         return val_opt.is_some()
+    }
+
+    pub fn remove(self#, key: 'K) -> Option<'V> {
+         auto capacity = self.cap
+         if capacity == 0 { return Option<'V>::None }
+         auto idx# = (key.hash() as usize) band (capacity - 1)
+         auto start_idx = idx
+         
+         while true {
+             unsafe {
+                 auto *m_ptr#: u8 = self.meta.unsafe_get(idx)
+                 if m_ptr == 0 {
+                     return Option<'V>::None
+                 }
+                 if m_ptr == 1 {
+                     auto *k_ptr#: 'K = self.keys.unsafe_get(idx)
+                     if k_ptr.eq(key) {
+                         m_ptr = 2 // Mark as tombstone
+                         self.len -= 1
+                         
+                         auto old_k = cede k_ptr
+                         auto *v_ptr#: 'V = self.vals.unsafe_get(idx)
+                         auto old_v = cede v_ptr
+                         return Option<'V>::Some(cede old_v)
+                     }
+                 }
+             }
+             idx = (idx + 1) band (capacity - 1)
+             if idx == start_idx { break }
+         }
+         return Option<'V>::None
+    }
+
+    pub fn clear(self#) {
+        unsafe {
+            auto i# = 0:usize
+            while i < self.cap {
+                auto *m_ptr#: u8 = self.meta.unsafe_get(i)
+                if m_ptr == 1 {
+                    m_ptr = 0
+                    auto *k_ptr#: 'K = self.keys.unsafe_get(i)
+                    auto *v_ptr#: 'V = self.vals.unsafe_get(i)
+                    auto _old_k = cede k_ptr
+                    auto _old_v = cede v_ptr
+                } else {
+                    if m_ptr == 2 {
+                        m_ptr = 0
+                    }
+                }
+                i += 1
+            }
+            self.len = 0
+        }
     }
 
 

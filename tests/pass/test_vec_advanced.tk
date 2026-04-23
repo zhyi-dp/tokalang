@@ -1,0 +1,37 @@
+import std/io::{println}
+import std/vec::{Vec}
+import core/option::{Option}
+
+fn main() -> i32 {
+    auto v# = Vec<i32>::new()
+    if !v.is_empty() { return 1 }
+    
+    v#.push(10)
+    v#.push(20)
+    v#.push(30)
+    
+    if v.len() != 3 { return 2 }
+    
+    v#.insert(1, 15) // [10, 15, 20, 30]
+    if v.len() != 4 { return 3 }
+    if v.at(1) != 15 { return 4 }
+    if v.at(2) != 20 { return 5 }
+    
+    auto opt = v#.remove(2) // removes 20
+    match opt {
+        auto Option<i32>::Some(val) => {
+            if val != 20 { return 6 }
+        }
+        auto Option<i32>::None => return 7
+    }
+    
+    if v.len() != 3 { return 8 } // [10, 15, 30]
+    if v.at(2) != 30 { return 9 }
+    
+    v#.clear()
+    if !v.is_empty() { return 10 }
+    if v.len() != 0 { return 11 }
+    
+    println("test_vec_advanced passed!")
+    return 0
+}

@@ -1,0 +1,38 @@
+import std/io::{println}
+
+import std/deque::{VecDeque}
+import core/option::{Option}
+
+fn main() -> i32 {
+    // ----------------------------------------
+    // Test VecDeque
+    // ----------------------------------------
+    auto deque# = VecDeque<i32>::new()
+    if !deque.is_empty() { return 9 }
+    
+    deque#.push_back(100)
+    deque#.push_front(50)
+    deque#.push_back(200)
+    // [50, 100, 200]
+    
+    if deque.len() != 3 { return 10 }
+    
+    auto d1 = deque#.pop_front()
+    match d1 {
+        auto Option<i32>::Some(val) => { if val != 50 { return 11 } }
+        auto Option<i32>::None => return 12
+    }
+    
+    auto d2 = deque#.pop_back()
+    match d2 {
+        auto Option<i32>::Some(val) => { if val != 200 { return 13 } }
+        auto Option<i32>::None => return 14
+    }
+    
+    deque#.clear()
+    if !deque.is_empty() { return 15 }
+    if deque.len() != 0 { return 16 }
+    
+    println("test_advanced_containers passed!")
+    return 0
+}

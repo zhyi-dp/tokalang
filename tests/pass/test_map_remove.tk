@@ -1,0 +1,54 @@
+import std/io::{println}
+import std/map::{HashMap}
+import std/set::{HashSet}
+import core/option::{Option}
+
+fn main() -> i32 {
+    auto m# = HashMap<i32, i32>::new()
+    if !m.is_empty() { return 1 }
+    
+    m#.insert(1, 100)
+    m#.insert(2, 200)
+    m#.insert(3, 300)
+    
+    if m.len() != 3 { return 2 }
+    if !m.contains_key(2) { return 3 }
+    if m.contains_key(4) { return 4 }
+    
+    auto opt = m#.remove(2)
+    match opt {
+        auto Option<i32>::Some(val) => {
+            if val != 200 { return 5 }
+        }
+        auto Option<i32>::None => return 6
+    }
+    
+    if m.len() != 2 { return 7 }
+    if m.contains_key(2) { return 8 }
+    
+    // Tombstone probing test
+    // 插入一个可能会和 2 产生相同 hash probing path 的数（比如同样的数，或者让它扩容）
+    m#.insert(2, 201)
+    if !m.contains_key(2) { return 9 }
+    
+    auto opt2 = m.get(2)
+    match opt2 {
+        auto Option<i32>::Some(val) => {
+            if val != 201 { return 10 }
+        }
+        auto Option<i32>::None => return 11
+    }
+    
+    m#.clear()
+    if !m.is_empty() { return 12 }
+    if m.len() != 0 { return 13 }
+    
+    auto s# = HashSet<i32>::new()
+    s#.insert(10)
+    if !s.contains(10) { return 14 }
+    s#.remove(10)
+    if s.contains(10) { return 15 }
+    
+    println("test_map_remove passed!")
+    return 0
+}
