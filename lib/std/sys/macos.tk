@@ -531,3 +531,15 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
         return n
     }
 }
+
+// === Clock API ===
+
+pub fn sys_clock_monotonic(ts_addr: Addr) -> bool {
+    // CLOCK_MONOTONIC_RAW (4) or CLOCK_MONOTONIC (6) on macOS. We use 6 for broader compatibility.
+    unsafe { return libc_clock_gettime(6, ts_addr) == 0 }
+}
+
+pub fn sys_clock_realtime(ts_addr: Addr) -> bool {
+    // CLOCK_REALTIME (0) on macOS
+    unsafe { return libc_clock_gettime(0, ts_addr) == 0 }
+}

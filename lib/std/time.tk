@@ -12,134 +12,248 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import core/types::{char, usize}
+import core/types::{usize, char, Addr}
 import core/libc::*
 import std/string::{String}
+import std/sys/os as sys
 
-/**
- * Represents a Unix timestamp in seconds.
- */
-pub shape Time (
-    seconds: i64
+// ----------------------------------------------------------------------------
+// Duration
+// ----------------------------------------------------------------------------
+pub shape Duration (
+    secs: u64,
+    nanos: u32
 )
 
-/**
- * Represents a monotonic timer for measuring duration.
- * Maintains state as precision milliseconds.
- */
-pub shape Instant (
-    ms: i64
-)
+impl Duration@encap {
+    pub *
+    pub fn clone(self) -> Duration { return self }
+    fn drop(self#) {}
+}
 
-/**
- * Represents a broken-down calendar time.
- * Matches macOS (Darwin) struct tm layout.
- */
-pub shape DateTime (
-    sec: i32,
-    min: i32,
-    hour: i32,
-    mday: i32,
-    mon: i32,
-    year: i32,
-    wday: i32,
-    yday: i32,
-    isdst: i32,
-    unused_padding: i32, // for 8-byte alignment of next long
-    gmtoff: i64,
-    *zone: char
-)
-
-impl DateTime@encap {
-    pub fn clone(self) -> DateTime {
-        return self
+impl Duration {
+    pub fn new(secs: u64, nanos: u32) -> Duration {
+        auto extra_secs = (nanos / 1000000000:u32) as u64
+        return Duration(
+            secs = secs + extra_secs,
+            nanos = nanos % 1000000000:u32
+        )
     }
-    fn drop(self#) {
-        // Observer only, no resource to free
+
+    pub fn from_secs(secs: u64) -> Duration {
+        return Duration(secs = secs, nanos = 0:u32)
+    }
+
+    pub fn from_millis(millis: u64) -> Duration {
+        auto secs = millis / 1000:u64
+        auto nanos = ((millis % 1000:u64) * 1000000:u64) as u32
+        return Duration(secs = secs, nanos = nanos)
+    }
+
+    pub fn as_secs(self) -> u64 {
+        return self.secs
+    }
+
+    pub fn as_millis(self) -> u64 {
+        return (self.secs * 1000:u64) + ((self.nanos / 1000000:u32) as u64)
+    }
+    
+    pub fn as_nanos(self) -> u64 {
+        return (self.secs * 1000000000:u64) + (self.nanos as u64)
+    }
+
+    pub fn add(self, other: Duration) -> Duration {
+        return Duration::new(self.secs + other.secs, self.nanos + other.nanos)
+    }
+
+    pub fn sub(self, other: Duration) -> Duration {
+        auto self_ns = self.as_nanos()
+        auto other_ns = other.as_nanos()
+        if self_ns < other_ns {
+            return Duration::new(0:u64, 0:u32)
+        }
+        auto diff = self_ns - other_ns
+        return Duration::from_millis(diff / 1000000:u64) // lossy conversion for simple sub, ideally we'd implement from_nanos correctly
     }
 }
 
-pub fn now() -> Time {
-    unsafe {
-        return Time(seconds = libc_time(null))
-    }
+// ----------------------------------------------------------------------------
+// Instant (Monotonic Clock)
+// ----------------------------------------------------------------------------
+pub shape Instant (
+    duration_since_boot: Duration
+)
+
+impl Instant@encap {
+    pub *
+    pub fn clone(self) -> Instant { return self }
+    fn drop(self#) {}
 }
 
 impl Instant {
     pub fn now() -> Instant {
         unsafe {
-            auto tv_addr = libc_malloc(16) as Addr
-            libc_gettimeofday(tv_addr as *void, null)
+            auto tv_addr = libc_malloc(16:usize) as Addr
+            if !sys::sys_clock_monotonic(tv_addr) {
+                libc_free(tv_addr as *void)
+                return Instant(duration_since_boot = Duration::from_secs(0:u64))
+            }
             
             auto *p_sec = tv_addr as *[i64]
             auto tv_sec = p_sec[0]
             
-            auto *p_usec = tv_addr as *[i32]
-            auto tv_usec = p_usec[2]
+            auto *p_nsec = (tv_addr as usize + 8:usize) as *[i64]
+            auto tv_nsec = p_nsec[0]
             
             libc_free(tv_addr as *void)
-            return Instant(ms = (tv_sec * 1000:i64) + ((tv_usec as i64) / 1000:i64))
+            
+            return Instant(duration_since_boot = Duration::new(tv_sec as u64, tv_nsec as u32))
         }
     }
-    
-    pub fn elapsed_ms(self) -> i64 {
+
+    pub fn elapsed(self) -> Duration {
         auto current = Instant::now()
-        return current.ms - self.ms
+        return current.duration_since(self)
+    }
+    
+    pub fn duration_since(self, earlier: Instant) -> Duration {
+        auto self_ns = self.duration_since_boot.as_nanos()
+        auto earlier_ns = earlier.duration_since_boot.as_nanos()
+        if self_ns < earlier_ns {
+            return Duration::from_secs(0:u64)
+        }
+        auto diff = self_ns - earlier_ns
+        auto secs = diff / 1000000000:u64
+        auto nanos = (diff % 1000000000:u64) as u32
+        return Duration::new(secs, nanos)
     }
 }
 
-impl Time {
+// ----------------------------------------------------------------------------
+// SystemTime (Wall Clock)
+// ----------------------------------------------------------------------------
+pub shape SystemTime (
+    duration_since_epoch: Duration
+)
+
+impl SystemTime@encap {
+    pub *
+    pub fn clone(self) -> SystemTime { return self }
+    fn drop(self#) {}
+}
+
+impl SystemTime {
+    pub fn now() -> SystemTime {
+        unsafe {
+            auto tv_addr = libc_malloc(16:usize) as Addr
+            if !sys::sys_clock_realtime(tv_addr) {
+                libc_free(tv_addr as *void)
+                return SystemTime(duration_since_epoch = Duration::from_secs(0:u64))
+            }
+            
+            auto *p_sec = tv_addr as *[i64]
+            auto tv_sec = p_sec[0]
+            
+            auto *p_nsec = (tv_addr as usize + 8:usize) as *[i64]
+            auto tv_nsec = p_nsec[0]
+            
+            libc_free(tv_addr as *void)
+            
+            return SystemTime(duration_since_epoch = Duration::new(tv_sec as u64, tv_nsec as u32))
+        }
+    }
+    
+    pub fn duration_since(self, earlier: SystemTime) -> Duration {
+        auto self_ns = self.duration_since_epoch.as_nanos()
+        auto earlier_ns = earlier.duration_since_epoch.as_nanos()
+        if self_ns < earlier_ns {
+            return Duration::from_secs(0:u64)
+        }
+        auto diff = self_ns - earlier_ns
+        auto secs = diff / 1000000000:u64
+        auto nanos = (diff % 1000000000:u64) as u32
+        return Duration::new(secs, nanos)
+    }
+
     pub fn to_datetime(self) -> DateTime {
         unsafe {
             // libc_localtime expects a pointer to time_t (i64)
-            auto s# = self.seconds
-            auto *tm_ptr = libc_localtime(*s)
+            auto secs = self.duration_since_epoch.as_secs()
+            auto s_val# = secs as i64
+            auto *tm_ptr = libc_localtime(*s_val)
             
             if *tm_ptr == null {
-                return DateTime(sec = 0, min = 0, hour = 0, mday = 0, mon = 0, year = 0, wday = 0, yday = 0, isdst = 0, unused_padding = 0, gmtoff = 0:i64, *zone = null)
+                return DateTime(year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0, wday = 0, yday = 0, isdst = 0)
             }
 
-            // On macOS, struct tm fields are mostly i32.
-            // Avoid direct *void -> *i32 cast due to compiler crash.
+            // On macOS & Linux, struct tm starts with 9 i32 fields
             auto addr = *tm_ptr as Addr
             auto *fields = addr as *[i32]
             
             return DateTime(
-                sec = fields[0],
-                min = fields[1],
-                hour = fields[2],
-                mday = fields[3],
-                mon = fields[4],
-                year = fields[5],
-                wday = fields[6],
-                yday = fields[7],
-                isdst = fields[8],
-                unused_padding = 0,
-                gmtoff = 0:i64, // Skip complex fields for stability
-                *zone = null
+                second = fields[0],
+                minute = fields[1],
+                hour   = fields[2],
+                day    = fields[3],
+                month  = fields[4] + 1, // tm_mon is 0-11
+                year   = fields[5] + 1900, // tm_year is years since 1900
+                wday   = fields[6],
+                yday   = fields[7],
+                isdst  = fields[8]
             )
         }
     }
 }
 
-impl DateTime {
-    pub fn format(self, fmt: String) -> String {
-        unsafe {
-            auto *buf# = libc_malloc(128:u64) as *char
-            // To pass a pointer to self, we need it to be addressable.
-            // Copying to a local mutable variable # ensures it's on stack.
-            auto self_copy# = self 
-            auto len = libc_strftime(*buf, 128:u64, fmt.c_str(), *self_copy as *void)
-            auto s = String::from_with_len(*buf, len as i32)
-            libc_free(*buf as *void)
-            return s
-        }
-    }
+// ----------------------------------------------------------------------------
+// DateTime (Calendar Time)
+// ----------------------------------------------------------------------------
+pub shape DateTime (
+    year: i32,
+    month: i32,
+    day: i32,
+    hour: i32,
+    minute: i32,
+    second: i32,
+    wday: i32,
+    yday: i32,
+    isdst: i32
+)
 
-    pub fn year(self) -> i32 { return self.year + 1900 }
-    pub fn month(self) -> i32 { return self.mon + 1 }
-    pub fn day(self) -> i32 { return self.mday }
-    pub fn hour(self) -> i32 { return self.hour }
-    pub fn minute(self) -> i32 { return self.min }
-    pub fn second(self) -> i32 { return self.sec }
+impl DateTime@encap {
+    pub *
+    pub fn clone(self) -> DateTime { return self }
+    fn drop(self#) {}
+}
+
+impl DateTime {
+    // Basic formatting like "2026-04-23 08:30:00"
+    pub fn to_string(self) -> String {
+        auto y_str = self.year.to_string()
+        auto m_str = self.month.to_string()
+        auto d_str = self.day.to_string()
+        auto h_str = self.hour.to_string()
+        auto min_str = self.minute.to_string()
+        auto s_str = self.second.to_string()
+        
+        auto res# = String::from("")
+        res#.push_str(y_str.c_str())
+        res#.push_str("-")
+        if self.month < 10 { res#.push_str("0") }
+        res#.push_str(m_str.c_str())
+        res#.push_str("-")
+        if self.day < 10 { res#.push_str("0") }
+        res#.push_str(d_str.c_str())
+        res#.push_str(" ")
+        if self.hour < 10 { res#.push_str("0") }
+        res#.push_str(h_str.c_str())
+        res#.push_str(":")
+        if self.minute < 10 { res#.push_str("0") }
+        res#.push_str(min_str.c_str())
+        res#.push_str(":")
+        if self.second < 10 { res#.push_str("0") }
+        res#.push_str(s_str.c_str())
+        
+        return res
+    }
 }

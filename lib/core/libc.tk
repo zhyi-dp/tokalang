@@ -126,6 +126,7 @@ extern fn libc_isfinite(x: f64) -> i32
 
 // System/Process
 extern fn libc_gettimeofday(*tv: void, *tz: void) -> i32
+extern fn libc_clock_gettime(clock_id: i32, tp: Addr) -> i32
 extern fn libc_exit(status: i32) -> void
 extern fn libc_usleep(usec: u32) -> i32
 extern fn libc_abort() -> void
