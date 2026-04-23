@@ -1,0 +1,22 @@
+import std/log::{Logger, LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERROR, debug, info, warn, error}
+import std/string::{String}
+import std/io::{print_line}
+
+pub fn main() {
+    print_line(String::from("--- Testing Global Convenience Functions ---"))
+    debug(String::from("This is a debug message (visible)"))
+    info(String::from("This is an info message"))
+    warn(String::from("This is a warning message"))
+    error(String::from("This is an error message"))
+
+    print_line(String::from("\n--- Testing Configured Logger ---"))
+    auto logger# = Logger::new(LOG_WARN)
+    
+    // Debug and info should NOT print since level is WARN
+    logger#.debug(String::from("This should NOT print (debug)"))
+    logger#.info(String::from("This should NOT print (info)"))
+    
+    // Warn and error SHOULD print
+    logger#.warn(String::from("This should print (warn)"))
+    logger#.error(String::from("This should print (error)"))
+}

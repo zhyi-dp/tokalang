@@ -65,3 +65,17 @@ pub fn unwrap_fat_pointer(fat_ptr_addr: Addr) -> Addr {
     // [8..15]: Function pointer
     return fat_ptr_addr + 8:Addr
 }
+
+/// Allocates memory for a thread's environment closure box
+pub fn sys_alloc_thread_env(size: usize) -> Addr {
+    unsafe {
+        return libc_malloc(size) as Addr
+    }
+}
+
+/// Frees memory of a thread's environment closure box
+pub fn sys_free_thread_env(ptr: Addr) {
+    unsafe {
+        libc_free(ptr as *void)
+    }
+}

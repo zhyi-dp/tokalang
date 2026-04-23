@@ -1,0 +1,109 @@
+import std/io::{print_line, print}
+import std/string::{String}
+import std/time::{SystemTime, DateTime}
+
+pub alias LogLevel = i32
+pub const LOG_DEBUG: LogLevel = 0
+pub const LOG_INFO: LogLevel  = 1
+pub const LOG_WARN: LogLevel  = 2
+pub const LOG_ERROR: LogLevel = 3
+
+pub shape Logger(
+    level: LogLevel
+)
+
+impl Logger@encap {
+    pub *
+    fn drop(self#) {}
+    pub fn clone(self) -> Logger { return self }
+}
+
+impl Logger {
+    pub fn new(level: LogLevel) -> Logger {
+        return Logger(level = level)
+    }
+
+    pub fn set_level(self#, level: LogLevel) {
+        self.level = level
+    }
+
+    fn get_prefix(self, level: LogLevel) -> String {
+        auto now = SystemTime::now().to_datetime()
+        auto time_str = now.to_string()
+        
+        auto prefix# = String::from("\x1b[90m")
+        prefix#.push_str("[")
+        prefix#.push_str(time_str.c_str())
+        prefix#.push_str("] ")
+        
+        if level == LOG_DEBUG {
+            prefix#.push_str("\x1b[90m")
+            prefix#.push_str("[DEBUG] ")
+        } else if level == LOG_INFO {
+            prefix#.push_str("\x1b[32m")
+            prefix#.push_str("[INFO]  ")
+        } else if level == LOG_WARN {
+            prefix#.push_str("\x1b[33m")
+            prefix#.push_str("[WARN]  ")
+        } else if level == LOG_ERROR {
+            prefix#.push_str("\x1b[31m")
+            prefix#.push_str("[ERROR] ")
+        }
+        
+        prefix#.push_str("\x1b[0m")
+        return prefix
+    }
+
+    pub fn debug(self, msg: String) {
+        if self.level <= LOG_DEBUG {
+            auto out# = self.get_prefix(LOG_DEBUG)
+            out#.push_str(msg.c_str())
+            print_line(cede out)
+        }
+    }
+
+    pub fn info(self, msg: String) {
+        if self.level <= LOG_INFO {
+            auto out# = self.get_prefix(LOG_INFO)
+            out#.push_str(msg.c_str())
+            print_line(cede out)
+        }
+    }
+
+    pub fn warn(self, msg: String) {
+        if self.level <= LOG_WARN {
+            auto out# = self.get_prefix(LOG_WARN)
+            out#.push_str(msg.c_str())
+            print_line(cede out)
+        }
+    }
+
+    pub fn error(self, msg: String) {
+        if self.level <= LOG_ERROR {
+            auto out# = self.get_prefix(LOG_ERROR)
+            out#.push_str(msg.c_str())
+            print_line(cede out)
+        }
+    }
+}
+
+// Global convenience functions (defaults to INFO level visibility)
+pub fn debug(msg: String) {
+    auto logger = Logger::new(LOG_DEBUG)
+    logger.debug(cede msg)
+}
+
+pub fn info(msg: String) {
+    auto logger = Logger::new(LOG_INFO)
+    logger.info(cede msg)
+}
+
+pub fn warn(msg: String) {
+    auto logger = Logger::new(LOG_WARN)
+    logger.warn(cede msg)
+}
+
+pub fn error(msg: String) {
+    auto logger = Logger::new(LOG_ERROR)
+    logger.error(cede msg)
+}

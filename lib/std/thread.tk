@@ -1,6 +1,5 @@
-import core/libc::{libc_malloc, libc_free}
 import std/sys/libc::{libc_sched_yield, libc_usleep, libc_putchar}
-import std/sys/thread::{sys_thread_spawn, sys_thread_join, sys_thread_detach, unwrap_fat_pointer}
+import std/sys/thread::{sys_thread_spawn, sys_thread_join, sys_thread_detach, unwrap_fat_pointer, sys_alloc_thread_env, sys_free_thread_env}
 import std/io::{println}
 import core/result::{Result}
 import std/error::{Error}
@@ -33,9 +32,9 @@ shape TrampBox(f: fn() -> Addr)
 /// by value (move semantics).
 pub fn thread_spawn<'T: @Send>(f: fn() -> cede 'T) -> JoinHandle<'T> {
     unsafe {
-        // 1. Box the closure explicitly via libc_malloc to avoid compiler managed auto-drop
-        auto *box_ptr# = (libc_malloc(sizeof(ClosureBox<'T>) as usize) as *ClosureBox<'T>)
-        auto f_arg = unsafe ((*box_ptr) as Addr)
+        // 1. Box the closure explicitly via sys_alloc_thread_env to avoid compiler managed auto-drop
+        auto f_arg = sys_alloc_thread_env(sizeof(ClosureBox<'T>) as usize)
+        auto *box_ptr# = (f_arg as *ClosureBox<'T>)
         
         box_ptr = ClosureBox<'T>(closure = cede f, self_ptr = f_arg)
         
@@ -49,10 +48,10 @@ pub fn thread_spawn<'T: @Send>(f: fn() -> cede 'T) -> JoinHandle<'T> {
                 auto self_ptr = captured_box.self_ptr
                 
                 // Free the ClosureBox shell 
-                libc_free(self_ptr as *void)
+                sys_free_thread_env(self_ptr)
                 
                 // Create native heap box for result matching structural types safely via parenthesis isolating generic templates 
-                auto *ret_ptr# = (libc_malloc(sizeof('T) as usize) as *'T)
+                auto *ret_ptr# = (sys_alloc_thread_env(sizeof('T) as usize) as *'T)
                 
                 // Write the structural closure evaluation safely to memory by utilizing `cede` keyword for moves!
                 ret_ptr = cede closure()
@@ -61,8 +60,8 @@ pub fn thread_spawn<'T: @Send>(f: fn() -> cede 'T) -> JoinHandle<'T> {
             }
         }
         
-        // Box the trampoline manually via libc_malloc to avoid compiler managed auto-drop
-        auto *tramp_buf# = (libc_malloc(sizeof(TrampBox) as usize) as *TrampBox)
+        // Box the trampoline manually via sys_alloc_thread_env to avoid compiler managed auto-drop
+        auto *tramp_buf# = (sys_alloc_thread_env(sizeof(TrampBox) as usize) as *TrampBox)
         tramp_buf = TrampBox(f = cede tramp_fn)
         
         // Now safely extract the native C function pointer & environment block
@@ -79,7 +78,7 @@ pub fn thread_spawn<'T: @Send>(f: fn() -> cede 'T) -> JoinHandle<'T> {
         auto thread_id = sys_thread_spawn(real_invoker, f_arg)
         
         // Free our trampoline shell immediately, thread only needs the bare C pointers inside
-        libc_free((*tramp_buf) as *byte)
+        sys_free_thread_env((*tramp_buf) as Addr)
         
         return JoinHandle<'T>(id = thread_id)
     }
@@ -121,7 +120,7 @@ impl<'T: @Send> JoinHandle<'T> {
             // Extract the structurally boxed payload safely
             auto *box_ret = (raw_res as *'T)
             auto val = cede box_ret
-            libc_free(raw_res as *void)
+            sys_free_thread_env(raw_res)
             
             return Result<'T, Error>::Ok(cede val)
         }
@@ -131,7 +130,7 @@ impl<'T: @Send> JoinHandle<'T> {
 impl<'T: @Send> JoinHandle<'T>@encap {
     fn drop(self#) {
         if self.id != 0:Addr {
-            unsafe { libc_pthread_detach(self.id) }
+            sys_thread_detach(self.id)
             self.id = 0:Addr
         }
     }
