@@ -1,0 +1,20 @@
+import std/btree_set::{BTreeSet}
+import core/primitives
+
+pub fn main() -> i32 {
+    auto set# = BTreeSet<i32>::new()
+    set#.insert(1)
+    set#.insert(5)
+    set#.insert(1) // duplicate shouldn't affect size
+    
+    assert(set.len() == 2, "len mismatch")
+    assert(set.contains(1), "should contain 1")
+    assert(set.contains(5), "should contain 5")
+    assert(!set.contains(2), "should not contain 2")
+
+    set#.clear()
+    assert(set.len() == 0, "clear failed")
+    assert(set.is_empty(), "should be empty")
+
+    return 0
+}

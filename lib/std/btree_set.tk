@@ -1,0 +1,43 @@
+import core/types::{usize}
+import core/traits::{@PartialOrd, @PartialEq, @encap}
+import std/btree_map::{BTreeMap}
+
+pub shape BTreeSet<'T: @PartialOrd> (
+    map#: BTreeMap<'T, bool>
+)
+
+impl<'T: @PartialOrd> BTreeSet<'T> {
+    pub fn new() -> BTreeSet<'T> {
+        return BTreeSet<'T>( map = BTreeMap<'T, bool>::new() )
+    }
+
+    pub fn len(self) -> usize {
+        return self.map.len()
+    }
+
+    pub fn is_empty(self) -> bool {
+        return self.map.is_empty()
+    }
+
+    pub fn insert(self#, val: 'T) {
+        self.map#.insert(cede val, true)
+    }
+
+    pub fn contains(self, val: 'T) -> bool {
+        return self.map.contains_key(val)
+    }
+
+    pub fn clear(self#) {
+        self.map#.clear()
+    }
+}
+
+impl<'T: @PartialOrd> BTreeSet<'T>@encap {
+    pub *
+    
+    pub fn clone(self) = delete
+
+    fn drop(self#) {
+        self.map#.clear()
+    }
+}

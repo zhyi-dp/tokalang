@@ -5,7 +5,8 @@ pub fn main() -> i32 {
     if a != ADDR0 {
         return 1
     }
-    if (a as usize) != 0 {
+    auto u_a = a as usize
+    if u_a != 0 {
         return 2
     }
     return 0
