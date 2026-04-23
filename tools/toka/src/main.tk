@@ -110,12 +110,6 @@ fn cmd_add(pkg_url: String) -> i32 {
 
 fn cmd_build() -> i32 {
     unsafe {
-        auto sys_clang# = String::from("/usr/local/opt/llvm@20/bin/clang")
-        auto addr = libc_getenv("TOKA_CLANG" as *char) as Addr
-        if addr != 0:Addr {
-            sys_clang = String::from(addr as *char)
-        }
-        
         auto cmd# = String::from("tokac ")
         auto toka_lib = libc_getenv("TOKA_LIB" as *char) as Addr
         if toka_lib != 0:Addr {
@@ -132,16 +126,13 @@ fn cmd_build() -> i32 {
             cmd#.push_str(" ")
         }
         
-        cmd#.push_str("Project.tk > .toka_build.ll && ")
-        cmd#.push_str(sys_clang.c_str())
-        cmd#.push_str(" .toka_build.ll -isysroot $(xcrun --show-sdk-path) -o .toka_build_exe && ./.toka_build_exe")
+        cmd#.push_str("Project.tk -o .toka_build_exe -O3 && ./.toka_build_exe")
 
         auto res = libc_system(cmd.c_str())
         if res != 0 {
             libc_printf("Error executing Project.tk -> compile failed\n" as *char)
-            libc_printf("Hint: Ensure LLVM 20 (clang) is installed and available in your PATH or TOKA_CLANG.\n" as *char)
         }
-        libc_system("rm -f .toka_build.ll .toka_build_exe" as *char)
+        libc_system("rm -f .toka_build_exe" as *char)
         return res
     }
 }
@@ -149,12 +140,6 @@ fn cmd_build() -> i32 {
 
 fn cmd_run_single(file: String) -> i32 {
     unsafe {
-        auto sys_clang# = String::from("/usr/local/opt/llvm@20/bin/clang")
-        auto addr = libc_getenv("TOKA_CLANG" as *char) as Addr
-        if addr != 0:Addr {
-            sys_clang = String::from(addr as *char)
-        }
-        
         auto cmd# = String::from("tokac ")
         auto toka_lib = libc_getenv("TOKA_LIB" as *char) as Addr
         if toka_lib != 0:Addr {
@@ -166,16 +151,13 @@ fn cmd_run_single(file: String) -> i32 {
         }
         
         cmd#.push_str(file.c_str())
-        cmd#.push_str(" -o .toka_single.ll && ")
-        cmd#.push_str(sys_clang.c_str())
-        cmd#.push_str(" .toka_single.ll -isysroot $(xcrun --show-sdk-path) -o .toka_single_exe && ./.toka_single_exe")
+        cmd#.push_str(" -o .toka_single_exe -O3 && ./.toka_single_exe")
 
         auto res = libc_system(cmd.c_str())
         if res != 0 {
             libc_printf("Error executing %s\n" as *char, file.c_str())
-            libc_printf("Hint: Ensure LLVM 20 (clang) is installed and available in your PATH or TOKA_CLANG.\n" as *char)
         }
-        libc_system("rm -f .toka_single.ll .toka_single_exe" as *char)
+        libc_system("rm -f .toka_single_exe" as *char)
         return res
     }
 }

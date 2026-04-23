@@ -69,7 +69,9 @@ pub fn run_build(proj: Executable) -> i32 {
             cmd1#.push_str("-I .tokapkg ")
         }
         cmd1#.push_str(&s)
-        cmd1#.push_str(" > target/debug/main.ll")
+        cmd1#.push_str(" -o target/debug/" as *char)
+        cmd1#.push_str(&n)
+        cmd1#.push_str(" -O3" as *char)
         
         // Execute compiler
         auto res1 = libc_system(cmd1.c_str())
@@ -77,26 +79,8 @@ pub fn run_build(proj: Executable) -> i32 {
             libc_system("echo 'Toka compilation failed.'" as *char)
             return res1
         }
-        auto clang_path# = String::from("clang ")
-        auto addr = libc_getenv("TOKA_CLANG" as *char) as Addr
-        if addr != 0:Addr {
-            clang_path = String::from(addr as *char)
-        } else {
-            clang_path = String::from("/usr/local/opt/llvm@20/bin/clang")
-        }
         
-        auto cmd2# = String::from("")
-        cmd2#.push_str(clang_path.c_str())
-        cmd2#.push_str(" target/debug/main.ll -isysroot $(xcrun --show-sdk-path) -o target/debug/")
-        cmd2#.push_str(&n)
-        
-        auto res2 = libc_system(cmd2.c_str())
-        if res2 != 0 {
-            libc_system("echo 'Clang linking failed.'" as *char)
-            return res2
-        }
-        
-        libc_system("echo 'Build successful!'\n" as *char)
+        libc_system("echo 'Build successful!\n'" as *char)
         return 0
     }
 }
