@@ -139,7 +139,7 @@ impl File {
         }
     }
 
-    // Optimized read_line using libc_fgets
+    // Optimized read_line using libc_fgets with zero-allocation stack buffer
     pub fn read_line(self) -> Result<String, String> {
         unsafe {
             if !self.opened { 
@@ -147,17 +147,19 @@ impl File {
             }
             
             auto buf_size = 4096:i32
-            auto *temp_buf# = libc_malloc(buf_size as usize) as *[char]
+            auto temp_buf# = [0:char; 4096]
+            auto *temp_ptr = &temp_buf[0] as *char
+            
             auto s# = String::from("")
             auto done# = false
             
             while !done {
-                auto *res = libc_fgets(*temp_buf as *char, buf_size, self.*handle)
+                auto *res = libc_fgets(*temp_ptr, buf_size, self.*handle)
                 if *res == null {
                     done = true
                 } else {
-                    auto slen = libc_strlen(*temp_buf as *char)
-                    s#.push_buf(*temp_buf as *u8, slen)
+                    auto slen = libc_strlen(*temp_ptr)
+                    s#.push_buf(*temp_ptr as *u8, slen)
                     
                     // Check if newline was reached
                     auto last_char_idx = (slen as i32) - 1
@@ -166,8 +168,6 @@ impl File {
                     }
                 }
             }
-            
-            libc_free(*temp_buf as *void)
             
             // To maintain backward compatibility: 
             // Return Ok("") on EOF if no data was read.
