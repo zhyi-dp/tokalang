@@ -171,6 +171,17 @@ int main(int argc, char **argv) {
     }
   }
 
+  if (const char* env_p = std::getenv("TOKA_PATH")) {
+    std::string envStr(env_p);
+    std::stringstream ss(envStr);
+    std::string item;
+    while (std::getline(ss, item, ':')) {
+        if (!item.empty()) {
+            searchPaths.push_back(item);
+        }
+    }
+  }
+
   std::vector<std::string> inputFiles;
   std::map<std::string, std::string> pkgMap;
   bool disableBorrowCheck = false;

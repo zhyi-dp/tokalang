@@ -81,6 +81,11 @@ export PATH="/path/to/tokalang/build/bin:$PATH"
 # 关键设置：让编译器及包管理工具精准地定位到标准库
 export TOKA_LIB="/path/to/tokalang/lib"
 
+# 第三方库生态设置 (新增)：定义全局依赖搜索路径
+# 多个路径可以使用冒号 ":" 分割。你可以将个人的常用库或下载的源码包放进这些目录，
+# 然后在代码中就可以直接 `import mylib::{...}` 无缝导入！
+export TOKA_PATH="/path/to/your/custom/libs:/another/lib/path"
+
 # (可选) 指定用于底层链接的工具。默认为 macOS 原生或 /usr/local/opt/llvm@20/bin/clang
 export TOKA_CLANG="/usr/local/opt/llvm@20/bin/clang"
 ```
@@ -105,15 +110,28 @@ cd my_app
 - `src/main.tk`: 项目入口文件。
 - `toka.mod`: Toka 的声明式包管理与依赖描述清单。您可以通过此文件配置依赖项目和包属性。
 
-### 2. 引入第三方依赖包
+### 2. 引入文件与第三方依赖
 
-需要使用开源或第三方的库时，使用 `add` 命令将其注册到工程目录下的 `.tokapkg` 中：
+Toka 提供了一套极其直观、符合直觉的 `import` 路径模块系统：
 
-```bash
-toka add pkg.tokalang.dev/user/ansi
+**导入本地文件（相对与绝对路径）**：
+Toka 原生支持直接将路径写进代码里（注意：无需包裹在引号中）：
+```toka
+// 相对路径导入当前目录的 utils.tk
+import ./utils::{foo, bar}
+import ../lib/network::{get}
+
+// 绝对路径导入
+import /opt/shared/mylib::{baz}
 ```
 
-随后你就可以直接在代码中使用标准方式导入了：`import ansi::{...}`
+**导入第三方包管理依赖**：
+如果你通过包管理器 `toka add pkg.tokalang.dev/user/ansi` 安装了第三方包，那么它会被注册。随后你可以直接在代码中使用标准方式导入它：
+```toka
+import ansi::{...}
+```
+
+> **提示:** 编译器在解析裸名称（如 `ansi`）时，会依次从标准库 (`TOKA_LIB`) 以及我们刚刚配置的全局搜索路径 (`TOKA_PATH`) 中进行查找匹配。
 
 ### 3. 一键编译与运行
 

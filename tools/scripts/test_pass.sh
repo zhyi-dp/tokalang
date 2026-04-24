@@ -1,6 +1,8 @@
 #!/bin/bash
 # tool/test_pass.sh - Parallel Test Runner
 
+export ASAN_OPTIONS=detect_container_overflow=0
+
 # --- Configuration ---
 TOKAC="./build/bin/tokac"
 if which lli-20 >/dev/null 2>&1; then
@@ -166,6 +168,7 @@ echo "---------------------------------"
 RESULTS_FILE=$(mktemp)
 
 # Run parallel -P 8
+export ASAN_OPTIONS=detect_container_overflow=0
 find tests/pass -name "*.tk" -print0 | xargs -0 -P 8 -n 1 "$0" --worker | tee "$RESULTS_FILE"
 
 # Stats

@@ -1665,9 +1665,9 @@ PhysEntity CodeGen::genLiteralExpr(const Expr *expr) {
           llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context),
                                  str->Value.size()),
           {1});
-      return fatVal;
+      return PhysEntity(fatVal, "str", fatVal->getType(), false);
     }
-    return ptr;
+    return PhysEntity(ptr, "cstring", ptr->getType(), false);
   }
   if (auto *vstr = dynamic_cast<const ViewStringExpr *>(expr)) {
     llvm::Value *ptr = m_Builder.CreateGlobalString(vstr->Value);
@@ -1680,7 +1680,7 @@ PhysEntity CodeGen::genLiteralExpr(const Expr *expr) {
         llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context),
                                vstr->Value.size()),
         {1});
-    return fatVal;
+    return PhysEntity(fatVal, "view_str", fatVal->getType(), false);
   }
   if (auto *chr = dynamic_cast<const CharLiteralExpr *>(expr)) {
     return llvm::ConstantInt::get(llvm::Type::getInt8Ty(m_Context), chr->Value);
@@ -3200,7 +3200,11 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
           } else if (ty->isFloatTy()) {
             spec = "%f";
             pVal = m_Builder.CreateFPExt(val, m_Builder.getDoubleTy());
-          } else if (semanticType == "*char" || semanticType == "cstring") {
+          } 
+          
+          if (semanticType == "*char" || semanticType == "cstring" ||
+                     ((semanticType == "view_str" || semanticType == "str" || semanticType == "String") && 
+                      ty->isPointerTy() && !ty->isStructTy())) {
             spec = "%s";
           } else if ((semanticType == "view_str" || semanticType == "str" ||
                       semanticType == "String") &&

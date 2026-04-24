@@ -78,23 +78,28 @@ To use Toka seamlessly from any directory, add these configurations to your `.zs
 # Add the compiler and build tool to your PATH
 export PATH="/path/to/tokalang/build/bin:$PATH"
 
-# Critical: Set the exact path to the Toka standard library
+# Essential: Tell the compiler and package manager where the standard library is
 export TOKA_LIB="/path/to/tokalang/lib"
 
-# (Optional) Specify the Clang compiler to use for linking. Defaults to /usr/local/opt/llvm@20/bin/clang
+# Third-Party Libraries (New): Define global dependency search paths
+# You can use ":" to split multiple paths. Drop your downloaded or personal
+# library folders here, and you can seamlessly `import mylib::{...}` in your code!
+export TOKA_PATH="/path/to/your/custom/libs:/another/lib/path"
+
+# (Optional) Specify the Clang compiler for linking.
 export TOKA_CLANG="/usr/local/opt/llvm@20/bin/clang"
 ```
 
 > [!IMPORTANT]
-> Be sure to replace `/path/to/tokalang` with the actual absolute path to your cloned repository.
+> Make sure to replace `/path/to/tokalang` with the actual absolute path to your cloned repository.
 
-## Developing with the Package Manager
+## Package Manager Workflow
 
-Once your environment variables are set, you can use the native `toka` CLI directly.
+Once the environment variables are set up, you can use the native `toka` command from any directory!
 
 ### 1. Initialize a New Project
 
-Use the `new` command to instantly scaffold a standardized project:
+Use the `new` command to quickly scaffold a project with a standardized structure:
 
 ```bash
 toka new my_app
@@ -102,18 +107,31 @@ cd my_app
 ```
 
 This generates:
-- `src/main.tk`: The main entry point.
-- `toka.mod`: Toka's declarative build and dependency manifest.
+- `src/main.tk`: The project entry file.
+- `toka.mod`: Toka's declarative package manifest.
 
-### 2. Add Third-Party Requirements
+### 2. Importing Files & Dependencies
 
-To fetch third-party libraries seamlessly, use the `add` command which registers dependencies in your local `.tokapkg` directory:
+Toka provides an incredibly intuitive and straightforward `import` module system:
 
-```bash
-toka add pkg.tokalang.dev/user/ansi
+**Importing Local Files (Relative & Absolute)**:
+Toka natively supports writing paths directly in code (Note: no quotes needed!):
+```toka
+// Relative path import for utils.tk in current directory
+import ./utils::{foo, bar}
+import ../lib/network::{get}
+
+// Absolute path import
+import /opt/shared/mylib::{baz}
 ```
 
-Then you can import them directly in your code via `import ansi::{...}`.
+**Importing Package Manager Dependencies**:
+If you installed a 3rd-party package via `toka add pkg.tokalang.dev/user/ansi`, it gets registered. You can then import it naturally:
+```toka
+import ansi::{...}
+```
+
+> **Tip:** When resolving bare names like `ansi`, the compiler searches sequentially through the standard library (`TOKA_LIB`) and your configured global paths (`TOKA_PATH`)..
 
 ### 3. Build and Run 
 

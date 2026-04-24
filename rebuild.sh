@@ -4,6 +4,9 @@ set -e
 # Toka Project Rebuild Script
 # Automatically recompiles both the 'tokac' compiler and the 'toka' native package manager CLI
 
+# Workaround for LLVM 20 ASan container-overflow false positives on macOS
+export ASAN_OPTIONS=detect_container_overflow=0
+
 ROOT_DIR=$(pwd)
 BIN_DIR="$ROOT_DIR/build/bin"
 
