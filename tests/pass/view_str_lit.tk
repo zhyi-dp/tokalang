@@ -2,7 +2,7 @@ import std/io::println
 import core/str::view_str
 
 fn main() -> i32 {
-    auto s = v"Hello Toka"
+    auto s = s"Hello Toka"
     println("{}", s)
     
     if s.len() != 10:usize {

@@ -23,6 +23,7 @@ extern fn libc_fgetc(*stream: void) -> i32
 extern fn libc_fgets(*s: char, n: i32, *stream: void) -> *char
 extern fn libc_fputs(*s: char, *stream: void) -> i32
 extern fn libc_feof(*stream: void) -> i32
+
 extern fn libc_fprintf(*stream: void, *format: char, ...) -> i32
 extern fn libc_printf(*format: char, ...) -> i32
 extern fn libc_fscanf(*stream: void, *format: char, ...) -> i32

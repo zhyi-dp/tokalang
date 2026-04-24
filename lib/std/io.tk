@@ -18,6 +18,7 @@ import std/sys/libc::*
 import core/result::{Result}
 
 // Intrinsic
+extern fn print(fmt: str, ...) -> void
 extern fn println(fmt: str, ...) -> void
 
 // Specific Result Types to avoid Generic Instantiation B
@@ -226,10 +227,7 @@ pub fn stderr() -> File {
     }
 }
 
-pub fn print(s: String) {
-    auto out = stdout()
-    out.write(s)
-}
+
 
 pub fn print_line(s: String) {
     auto out = stdout()

@@ -30,7 +30,7 @@ fn server_task(server#: TcpListener) -> async i32 {
     assert(msg.eq(String::from("Hello, Toka WS!")), "Message mismatch!")
     
     // Echo back
-    auto wr_res = ws_conn#.write_text_async(v"Echo: ").await
+    auto wr_res = ws_conn#.write_text_async(s"Echo: ").await
     if wr_res.is_err() { return 4 }
     
     auto wr2 = ws_conn#.write_text_async(msg.as_view()).await
@@ -70,7 +70,7 @@ fn client_task() -> async i32 {
     unsafe { unsafe free [4096] *#buf }
     
     // Write a masked text frame (Payload: "Hello, Toka WS!") (15 bytes)
-    auto p_str = v"Hello, Toka WS!"
+    auto p_str = s"Hello, Toka WS!"
     auto p_len = p_str.len()
     
     auto *f_buf# = unsafe alloc [32] u8

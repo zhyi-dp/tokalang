@@ -155,9 +155,9 @@ Token Lexer::nextToken() {
     t = Token{TokenType::EndOfFile, "", m_Line, m_Column};
   } else if (isDigit(peek())) {
     t = number();
-  } else if (peek() == 'v' && peekNext() == '"') {
+  } else if (peek() == 's' && peekNext() == '"') {
     uint32_t startCol = m_Column;
-    advance(); // v
+    advance(); // s
     t = viewString();
     t.Column = startCol;
   } else if (isAlpha(peek())) {

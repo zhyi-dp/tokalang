@@ -2,7 +2,7 @@ import std/string::{String}
 
 pub fn encode_hex(*data: [u8], len: usize) -> String {
     auto res# = String::from("")
-    auto lut = v"0123456789abcdef"
+    auto lut = s"0123456789abcdef"
     auto i#: usize = 0
     unsafe {
         while i < len {

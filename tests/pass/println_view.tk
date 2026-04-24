@@ -2,7 +2,7 @@ import std/io::println
 import std/string::{String}
 
 fn main() -> i32 {
-    auto s = v"hello toka"
+    auto s = s"hello toka"
     println("View: {}", s)
     
     auto sub = s.substring(0, 5)

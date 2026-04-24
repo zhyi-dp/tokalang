@@ -16,9 +16,7 @@ fn main() -> i32 {
     // Open file to read formatting
     auto file# = File::open(target_file.clone(), String::from("r"))
     if !file.is_valid() {
-        print(String::from("Error: Could not read file "))
-        print(target_file.clone())
-        print(String::from("\n"))
+        print("Error: Could not read file {}\n", target_file.c_str())
         return 1
     }
     auto content_res = file.read_to_string()
@@ -37,6 +35,6 @@ fn main() -> i32 {
     auto printer# = Printer::new()
     auto formatted_code = printer#.format(lexer)
 
-    print(formatted_code)
+    print("{}", formatted_code.c_str())
     return 0
 }

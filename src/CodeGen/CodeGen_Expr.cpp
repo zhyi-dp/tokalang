@@ -3115,16 +3115,17 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
     }
   }
 
-  // Intrinsic: println (Compiler Magic)
-  if (call->Callee == "println" ||
-      (call->Callee.size() > 9 &&
-       call->Callee.substr(call->Callee.size() - 9) == "::println")) {
+  // Intrinsic: println / print (Compiler Magic)
+  bool isPrintln = (call->Callee == "println" || (call->Callee.size() > 9 && call->Callee.substr(call->Callee.size() - 9) == "::println"));
+  bool isPrint = (call->Callee == "print" || (call->Callee.size() > 7 && call->Callee.substr(call->Callee.size() - 7) == "::print"));
+  
+  if (isPrintln || isPrint) {
     if (call->Args.empty())
       return nullptr;
 
     auto *fmtExpr = dynamic_cast<const StringExpr *>(call->Args[0].get());
     if (!fmtExpr) {
-      error(call, "println intrinsic requires a string literal as "
+      error(call, call->Callee + " intrinsic requires a string literal as "
                   "first argument.");
       return nullptr;
     }
@@ -3283,11 +3284,15 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
 
     // Print remaining tail
     std::string tail = fmt.substr(lastPos);
-    tail += "\n"; // Auto newline
-    std::vector<llvm::Value *> tailArgs;
-    tailArgs.push_back(m_Builder.CreateGlobalString("%s"));
-    tailArgs.push_back(m_Builder.CreateGlobalString(tail));
-    m_Builder.CreateCall(printfFunc, tailArgs);
+    if (isPrintln) {
+      tail += "\n"; // Auto newline
+    }
+    if (!tail.empty()) {
+      std::vector<llvm::Value *> tailArgs;
+      tailArgs.push_back(m_Builder.CreateGlobalString("%s"));
+      tailArgs.push_back(m_Builder.CreateGlobalString(tail));
+      m_Builder.CreateCall(printfFunc, tailArgs);
+    }
 
     return llvm::ConstantInt::get(m_Builder.getInt32Ty(), 0);
   }

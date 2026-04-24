@@ -69,8 +69,8 @@ pub fn ws_accept_async(stream#: TcpStream) -> async Result<WsConnection, String>
             }
         }
         
-        auto key_marker = v"Sec-WebSocket-Key:"
-        auto key_marker_lower = v"sec-websocket-key:"
+        auto key_marker = s"Sec-WebSocket-Key:"
+        auto key_marker_lower = s"sec-websocket-key:"
         auto req_view = req_str.as_view()
         auto idx_opt# = req_view.index_of_str(key_marker)
         if idx_opt.is_none() {
@@ -96,13 +96,13 @@ pub fn ws_accept_async(stream#: TcpStream) -> async Result<WsConnection, String>
         auto hash_res = sha1#.finalize()
         auto b64_res = base64::encode_bytes(&hash_res as *[u8], 20)
         
-        stream#.write_view_async(v"HTTP/1.1 101 Switching Protocols").await!
+        stream#.write_view_async(s"HTTP/1.1 101 Switching Protocols").await!
         stream#.write_view_async(crlf_single.as_view()).await!
-        stream#.write_view_async(v"Upgrade: websocket").await!
+        stream#.write_view_async(s"Upgrade: websocket").await!
         stream#.write_view_async(crlf_single.as_view()).await!
-        stream#.write_view_async(v"Connection: Upgrade").await!
+        stream#.write_view_async(s"Connection: Upgrade").await!
         stream#.write_view_async(crlf_single.as_view()).await!
-        stream#.write_view_async(v"Sec-WebSocket-Accept: ").await!
+        stream#.write_view_async(s"Sec-WebSocket-Accept: ").await!
         stream#.write_string_async(b64_res).await!
         stream#.write_view_async(crlf_crlf.as_view()).await!
         

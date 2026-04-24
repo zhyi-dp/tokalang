@@ -14,7 +14,7 @@ fn client_task() -> async i32 {
     }
     println("Client: Connected! Sending HTTP Handshake...")
     
-    auto req = v"GET / HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n"
+    auto req = s"GET / HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n"
     stream#.write_view_async(req).await
     
     auto *buf# = unsafe alloc [4096] u8
@@ -29,7 +29,7 @@ fn client_task() -> async i32 {
     println("Client: Handshake successful! Sending masked frame...")
     
     // Write masked frame "Ping from Toka!" (15 bytes)
-    auto p_str = v"Ping from Toka!"
+    auto p_str = s"Ping from Toka!"
     auto p_len = p_str.len()
     
     auto *f_buf# = unsafe alloc [32] u8

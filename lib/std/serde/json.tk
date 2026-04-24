@@ -239,10 +239,10 @@ impl i32@FromJson {
 impl bool@FromJson {
     pub fn parse_json(self#, json: view_str) -> JsonRes {
         auto rem = json_skip_whitespace(json)
-        if rem.starts_with(v"true") {
+        if rem.starts_with(s"true") {
             self = true
             return JsonRes::Ok(rem.substr(4, rem.len() - 4))
-        } else if rem.starts_with(v"false") {
+        } else if rem.starts_with(s"false") {
             self = false
             return JsonRes::Ok(rem.substr(5, rem.len() - 5))
         }
@@ -450,7 +450,7 @@ impl view_str@FromJson {
 impl<'T: @FromJson> Option<'T>@FromJson {
     pub fn parse_json(self#, json: view_str) -> JsonRes {
         auto rem# = json_skip_whitespace(json)
-        if rem.starts_with(v"null") {
+        if rem.starts_with(s"null") {
             self = Option<'T>::None
             return JsonRes::Ok(rem.substr(4, rem.len() - 4))
         }
@@ -473,20 +473,20 @@ impl<'T: @FromJson, 'E: @FromJson> Result<'T, 'E>@FromJson {
         rem = rem.substr(1, rem.len() - 1)
         rem = json_skip_whitespace(rem)
         
-        auto key# = v""
+        auto key# = s""
         rem = key#.parse_json(rem)!
         rem = json_skip_whitespace(rem)
         if rem.len() == 0 || rem.byte_at(0) != 58 { return JsonRes::Err("Expected : for Result") }
         rem = rem.substr(1, rem.len() - 1)
         
         unsafe {
-            if key.equals(v"Ok") {
+            if key.equals(s"Ok") {
                 auto ^buf = new [1]Uninit<'T>()
                 libc_memset(*buf as *void, 0, sizeof('T))
                 auto *val#: 'T = (*buf + 0) as *'T
                 rem = val#.parse_json(rem)!
                 self = Result<'T, 'E>::Ok(cede val)
-            } else if key.equals(v"Err") {
+            } else if key.equals(s"Err") {
                 auto ^buf = new [1]Uninit<'E>()
                 libc_memset(*buf as *void, 0, sizeof('E))
                 auto *e#: 'E = (*buf + 0) as *'E
@@ -585,7 +585,7 @@ pub fn deserialize_shape<'T>(json_str: view_str) -> Okay<'T, view_str> {
         }
         first = false
         res = json_skip_whitespace(res)
-        auto key_view# = v""
+        auto key_view# = s""
         res = key_view#.parse_json(res)!
         res = json_skip_whitespace(res)
         if res.len() == 0 || res.byte_at(0) != 58 { return Okay<'T, view_str>::Err("Expected :") }
@@ -666,12 +666,12 @@ impl JsonNode {
             rem = s#.parse_json(rem)!
             self = JsonNode::StrNode(cede s)
             return JsonRes::Ok(rem)
-        } else if rem.starts_with(v"true") || rem.starts_with(v"false") {
+        } else if rem.starts_with(s"true") || rem.starts_with(s"false") {
             auto b# = false
             rem = b#.parse_json(rem)!
             self = JsonNode::BoolNode(b)
             return JsonRes::Ok(rem)
-        } else if rem.starts_with(v"null") {
+        } else if rem.starts_with(s"null") {
             self = JsonNode::NullNode(0)
             return JsonRes::Ok(rem.substr(4, rem.len() - 4))
         } else {

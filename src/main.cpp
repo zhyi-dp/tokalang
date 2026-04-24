@@ -201,7 +201,7 @@ int main(int argc, char **argv) {
     } else if (arg.rfind("-I", 0) == 0 && arg.length() > 2) {
       searchPaths.push_back(arg.substr(2));
     } else if (arg == "--version" || arg == "-V") {
-      llvm::outs() << "toka version 0.9.0 (Built: " << __DATE__ << " " << __TIME__ << ")\n";
+      llvm::outs() << "toka version 0.9.1 (Built: " << __DATE__ << " " << __TIME__ << ")\n";
       return 0;
     } else if (arg == "--check-json") {
       g_JsonDiagnostics = true;

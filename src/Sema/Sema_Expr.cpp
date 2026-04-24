@@ -4175,20 +4175,20 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
       return toka::Type::fromString("void");
   }
 
-  // 2. Intrinsics (println)
-  if (CallName == "println" || CallName == "std::io::println") {
-    bool visible = (CallName == "std::io::println");
+  // 2. Intrinsics (println, print)
+  if (CallName == "println" || CallName == "std::io::println" || CallName == "print" || CallName == "std::io::print") {
+    bool visible = (CallName == "std::io::println" || CallName == "std::io::print");
     if (!visible) {
       SymbolInfo val;
-      if (CurrentScope->lookup("println", val))
+      if (CurrentScope->lookup(CallName, val))
         visible = true;
     }
     if (!visible) {
-      error(Call, "println requires at least a format string");
+      error(Call, CallName + " requires at least a format string");
       return toka::Type::fromString("void");
     }
     if (Call->Args.empty()) {
-      error(Call, "println requires at least a format string");
+      error(Call, CallName + " requires at least a format string");
     }
     for (auto &Arg : Call->Args) {
       Arg = foldGenericConstant(std::move(Arg)); // [FIX]

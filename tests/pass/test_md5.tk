@@ -11,28 +11,28 @@ pub fn main() -> i32 {
 
     // Test 2: "a"
     auto m2# = Md5::new()
-    m2#.update(v"a")
+    m2#.update(s"a")
     auto h2 = m2#.finalize_hex()
     println("MD5(\"a\") = {}", h2.as_view())
     assert(h2.eq(String::from("0cc175b9c0f1b6a831c399e269772661")), "MD5 'a' failed")
 
     // Test 3: "abc"
     auto m3# = Md5::new()
-    m3#.update(v"abc")
+    m3#.update(s"abc")
     auto h3 = m3#.finalize_hex()
     println("MD5(\"abc\") = {}", h3.as_view())
     assert(h3.eq(String::from("900150983cd24fb0d6963f7d28e17f72")), "MD5 'abc' failed")
 
     // Test 4: "message digest"
     auto m4# = Md5::new()
-    m4#.update(v"message digest")
+    m4#.update(s"message digest")
     auto h4 = m4#.finalize_hex()
     println("MD5(\"message digest\") = {}", h4.as_view())
     assert(h4.eq(String::from("f96b697d7cb7938d525a2f31aaf161d0")), "MD5 'message digest' failed")
 
     // Test 5: "abcdefghijklmnopqrstuvwxyz"
     auto m5# = Md5::new()
-    m5#.update(v"abcdefghijklmnopqrstuvwxyz")
+    m5#.update(s"abcdefghijklmnopqrstuvwxyz")
     auto h5 = m5#.finalize_hex()
     println("MD5(\"alphabet\") = {}", h5.as_view())
     assert(h5.eq(String::from("c3fcd3d76192e4007dfb496cca67e13b")), "MD5 alphabet failed")

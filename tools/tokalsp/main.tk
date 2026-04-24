@@ -85,7 +85,7 @@ fn process_message(body: String) {
                 match method_node {
                     auto JsonNode::StrNode(&mstr) => {
                         auto method_str = mstr.as_view()
-                        if method_str.equals(v"initialize") {
+                        if method_str.equals(s"initialize") {
                             auto id_opt# = map.get(String::from("id"))
                             if id_opt.is_some() {
                                 auto id_node# = id_opt.unwrap()
@@ -108,7 +108,7 @@ fn process_message(body: String) {
                                 out.write(response)
                                 out.flush()
                             }
-                        } else if method_str.equals(v"textDocument/didOpen") || method_str.equals(v"textDocument/didChange") {
+                        } else if method_str.equals(s"textDocument/didOpen") || method_str.equals(s"textDocument/didChange") {
                             auto params_opt# = map.get(String::from("params"))
                             if params_opt.is_some() {
                                 auto params_node# = params_opt.unwrap()
@@ -150,7 +150,7 @@ fn process_message(body: String) {
                                             text_node = JsonNode::NullNode(0)
                                         }
                                         
-                                        if method_str.equals(v"textDocument/didChange") {
+                                        if method_str.equals(s"textDocument/didChange") {
                                             auto changes_opt# = pmap.get(String::from("contentChanges"))
                                             if changes_opt.is_some() {
                                                 auto changes_node# = changes_opt.unwrap()
@@ -194,7 +194,7 @@ fn process_message(body: String) {
                                                 diag_json#.push_view(doc_uri.as_view())
                                                 diag_json#.push_str("\",\"diagnostics\":[")
                                                 
-                                                if json_out.len() > 0 && json_out.as_view().starts_with(v"{") {
+                                                if json_out.len() > 0 && json_out.as_view().starts_with(s"{") {
                                                     auto err_root#: JsonNode = JsonNode::NullNode(0)
                                                     auto err_res = err_root#.parse_json(json_out.as_view())
                                                     if err_res.is_ok() {
@@ -299,7 +299,7 @@ pub fn main() {
                 }
             }
             
-            if line.as_view().starts_with(v"Content-Length:") {
+            if line.as_view().starts_with(s"Content-Length:") {
                 clen = parse_content_length(line.as_view())
             }
         }
