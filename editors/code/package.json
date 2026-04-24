@@ -2,7 +2,7 @@
   "name": "toka-vscode",
   "displayName": "Toka Language Support",
   "description": "Syntax highlighting and language support for Toka",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "zhyi",
   "repository": {
     "type": "git",
@@ -41,6 +41,7 @@
     ]
   },
   "dependencies": {
-    "@vscode/vsce": "^3.7.1"
+    "@vscode/vsce": "^3.7.1",
+    "vscode-languageclient": "^9.0.1"
   }
 }

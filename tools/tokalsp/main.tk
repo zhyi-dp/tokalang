@@ -1,0 +1,300 @@
+import std/io::{stdin, stdout, File, print}
+import std/string::{String}
+import core/str::{view_str}
+import core/libc::{libc_malloc, libc_free}
+import core/types::{usize, char, ADDR0}
+import std/serde/json::{JsonNode, to_json, JsonRes, @FromJson}
+import std/sys/libc::{libc_popen, libc_pclose, libc_fread}
+
+// Simple JSON-RPC Error response structure
+pub shape JsonRpcError (
+    code: i32,
+    message: String
+)
+
+fn parse_content_length(s: view_str) -> usize {
+    auto len#: usize = 0
+    auto i#: usize = 0
+    // Skip to first digit
+    while i < s.len() {
+        auto c = s.byte_at(i)
+        if c >= 48 && c <= 57 { break }
+        i += 1
+    }
+    // Parse digits
+    while i < s.len() {
+        auto c = s.byte_at(i)
+        if c >= 48 && c <= 57 {
+            len = len * 10 + ((c - 48) as usize)
+        } else {
+            break
+        }
+        i += 1
+    }
+    return len
+}
+
+fn execute_command(cmd: String) -> String {
+    unsafe {
+        auto *p = libc_popen(cmd.c_str(), "r" as *char)
+        if *p == (ADDR0 as *void) { return String::from("") }
+        
+        auto res# = String::from("")
+        auto buf# = [0:char; 1024]
+        while true {
+            auto bytes_read = libc_fread(&buf[0] as *void, 1, 1024, *p)
+            if bytes_read == 0 { break }
+            res#.push_buf(&buf[0] as *u8, bytes_read)
+        }
+        libc_pclose(*p)
+        return res
+    }
+}
+
+fn send_notification(method: String, params_json: String) {
+    auto out = stdout()
+    auto payload = String::from("{\"jsonrpc\":\"2.0\",\"method\":\"")
+    payload#.push_view(method.as_view())
+    payload#.push_str("\",\"params\":")
+    payload#.push_view(params_json.as_view())
+    payload#.push_str("}")
+    
+    auto header = String::from("Content-Length: ")
+    header#.push_view(String::from_int(payload.len() as i32).as_view())
+    header#.push_char(13 as char)
+    header#.push_char(10 as char)
+    header#.push_char(13 as char)
+    header#.push_char(10 as char)
+    
+    out.write(header)
+    out.write(payload)
+    out.flush()
+}
+
+fn process_message(body: String) {
+    // We parse the JSON payload
+    auto root#: JsonNode = JsonNode::NullNode(0)
+    auto res = root#.parse_json(body.as_view())
+    if res.is_err() { return }
+    
+    // For now, if it's an "initialize" request, we respond.
+    match root {
+        auto JsonNode::ObjectNode(&map) => {
+            auto method_opt = map.get(String::from("method"))
+            if method_opt.is_some() {
+                auto method_node = method_opt.unwrap()
+                match method_node {
+                    auto JsonNode::StrNode(&mstr) => {
+                        auto method_str = mstr.as_view()
+                        if method_str.equals(v"initialize") {
+                            auto id_opt = map.get(String::from("id"))
+                            if id_opt.is_some() {
+                                // Send initialize response
+                                auto response = String::from("{\"jsonrpc\":\"2.0\",\"id\":")
+                                // Append ID
+                                match id_opt.unwrap() {
+                                    auto JsonNode::NumNode(&n) => { response#.push_view(String::from_f64(n).as_view()) }
+                                    _ => { response#.push_str("null") }
+                                }
+                                response#.push_str(",\"result\":{\"capabilities\":{\"textDocumentSync\":1}}}")
+                                
+                                auto out = stdout()
+                                auto header = String::from("Content-Length: ")
+                                header#.push_view(String::from_int(response.len() as i32).as_view())
+                                header#.push_char(13 as char)
+                                header#.push_char(10 as char)
+                                header#.push_char(13 as char)
+                                header#.push_char(10 as char)
+                                out.write(header)
+                                out.write(response)
+                                out.flush()
+                            }
+                        } else if method_str.equals(v"textDocument/didOpen") || method_str.equals(v"textDocument/didChange") {
+                            auto params_opt = map.get(String::from("params"))
+                            if params_opt.is_some() {
+                                match params_opt.unwrap() {
+                                    auto JsonNode::ObjectNode(&pmap) => {
+                                        auto text_opt = pmap.get(String::from("textDocument"))
+                                        auto doc_uri# = String::from("")
+                                        auto doc_text# = String::from("")
+                                        
+                                        if text_opt.is_some() {
+                                            match text_opt.unwrap() {
+                                                auto JsonNode::ObjectNode(&tmap) => {
+                                                    auto uri_opt = tmap.get(String::from("uri"))
+                                                    if uri_opt.is_some() {
+                                                        match uri_opt.unwrap() {
+                                                            auto JsonNode::StrNode(&u) => { doc_uri = u.clone() }
+                                                            _ => {}
+                                                        }
+                                                    }
+                                                    auto text_field = tmap.get(String::from("text"))
+                                                    if text_field.is_some() {
+                                                        match text_field.unwrap() {
+                                                            auto JsonNode::StrNode(&t) => { doc_text = t.clone() }
+                                                            _ => {}
+                                                        }
+                                                    }
+                                                }
+                                                _ => {}
+                                            }
+                                        }
+                                        
+                                        // For didChange, it's inside contentChanges
+                                        if method_str.equals(v"textDocument/didChange") {
+                                            auto changes_opt = pmap.get(String::from("contentChanges"))
+                                            if changes_opt.is_some() {
+                                                match changes_opt.unwrap() {
+                                                    auto JsonNode::ArrayNode(&arr) => {
+                                                        if arr.len() > 0 {
+                                                            match arr.at(0) {
+                                                                auto JsonNode::ObjectNode(&cmap) => {
+                                                                    auto text_c = cmap.get(String::from("text"))
+                                                                    if text_c.is_some() {
+                                                                        match text_c.unwrap() {
+                                                                            auto JsonNode::StrNode(&t) => { doc_text = t.clone() }
+                                                                            _ => {}
+                                                                        }
+                                                                    }
+                                                                }
+                                                                _ => {}
+                                                            }
+                                                        }
+                                                    }
+                                                    _ => {}
+                                                }
+                                            }
+                                        }
+                                        
+                                        // If we got text, write to /tmp/tokalsp_current.tk
+                                        if doc_text.len() > 0 {
+                                            auto tmp_file# = File::open(String::from("/tmp/tokalsp_current.tk"), String::from("w"))
+                                            if tmp_file.is_valid() {
+                                                tmp_file.write(doc_text)
+                                                tmp_file#.close()
+                                                
+                                                // Run tokac --check-json
+                                                auto json_out = execute_command(String::from("tokac --check-json /tmp/tokalsp_current.tk 2>&1"))
+                                                
+                                                // Default empty diagnostics
+                                                auto diag_json = String::from("{\"uri\":\"")
+                                                diag_json#.push_view(doc_uri.as_view())
+                                                diag_json#.push_str("\",\"diagnostics\":[")
+                                                
+                                                if json_out.len() > 0 && json_out.as_view().starts_with(v"{") {
+                                                    auto err_root#: JsonNode = JsonNode::NullNode(0)
+                                                    auto err_res = err_root#.parse_json(json_out.as_view())
+                                                    if err_res.is_ok() {
+                                                        match err_root {
+                                                            auto JsonNode::ObjectNode(&emap) => {
+                                                                auto line#: i32 = 0
+                                                                auto col#: i32 = 0
+                                                                auto msg# = String::from("")
+                                                                
+                                                                auto l_opt = emap.get(String::from("line"))
+                                                                if l_opt.is_some() {
+                                                                    match l_opt.unwrap() {
+                                                                        auto JsonNode::NumNode(&n) => { line = (n as i32) - 1 } // 0-indexed
+                                                                        _ => {}
+                                                                    }
+                                                                }
+                                                                auto c_opt = emap.get(String::from("col"))
+                                                                if c_opt.is_some() {
+                                                                    match c_opt.unwrap() {
+                                                                        auto JsonNode::NumNode(&n) => { col = (n as i32) - 1 } // 0-indexed
+                                                                        _ => {}
+                                                                    }
+                                                                }
+                                                                auto m_opt = emap.get(String::from("message"))
+                                                                if m_opt.is_some() {
+                                                                    match m_opt.unwrap() {
+                                                                        auto JsonNode::StrNode(&m) => { msg = m.clone() }
+                                                                        _ => {}
+                                                                    }
+                                                                }
+                                                                
+                                                                if line < 0 { line = 0 }
+                                                                if col < 0 { col = 0 }
+                                                                
+                                                                // Build diagnostic object
+                                                                diag_json#.push_str("{\"range\":{\"start\":{\"line\":")
+                                                                diag_json#.push_view(String::from_int(line).as_view())
+                                                                diag_json#.push_str(",\"character\":")
+                                                                diag_json#.push_view(String::from_int(col).as_view())
+                                                                diag_json#.push_str("},\"end\":{\"line\":")
+                                                                diag_json#.push_view(String::from_int(line).as_view())
+                                                                diag_json#.push_str(",\"character\":")
+                                                                diag_json#.push_view(String::from_int(col + 1).as_view()) // Highlight 1 char
+                                                                diag_json#.push_str("}},\"severity\":1,\"message\":\"")
+                                                                diag_json#.push_view(msg.as_view())
+                                                                diag_json#.push_str("\"}")
+                                                            }
+                                                            _ => {}
+                                                        }
+                                                    }
+                                                }
+                                                
+                                                diag_json#.push_str("]}")
+                                                send_notification(String::from("textDocument/publishDiagnostics"), diag_json)
+                                                stdout().flush()
+                                            }
+                                        }
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+pub fn main() {
+    auto input = stdin()
+    while true {
+        auto log# = File::open(String::from("/tmp/tokalsp.log"), String::from("a"))
+        log.write(String::from("LOOP START\n"))
+        log#.close()
+        
+        auto clen#: usize = 0
+        while true {
+            auto line_res = input.read_line()
+            if line_res.is_err() { return }
+            auto line = line_res.unwrap()
+            
+            if line.len() == 0 { return } // EOF
+            
+            if line.len() <= 2 {
+                auto c0 = line.byte_at(0)
+                if c0 == 13 || c0 == 10 {
+                    break // End of headers
+                }
+            }
+            
+            if line.as_view().starts_with(v"Content-Length:") {
+                clen = parse_content_length(line.as_view())
+            }
+        }
+        
+        if clen == 0 { continue }
+        
+        unsafe {
+            auto *buf = libc_malloc(clen) as *char
+            input.read(*buf as *u8, clen)
+            auto body = String::from_with_len(*buf, clen)
+            libc_free(*buf as *void)
+            
+            auto err# = File::open(String::from("/tmp/tokalsp.log"), String::from("a"))
+            err.write(String::from("BODY: ["))
+            err.write(body.clone())
+            err.write(String::from("]\n"))
+            err#.close()
+            
+            process_message(cede body)
+        }
+    }
+}

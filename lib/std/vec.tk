@@ -44,7 +44,7 @@ impl<'T> Vec<'T>@encap {
     fn drop(self#) {
         unsafe {
             if self.*buf != null {
-                unsafe free [self.cap]self.*#buf
+                unsafe free [self.len]self.*#buf
                 self.*buf = null // Explicit nullify
             }
         }
@@ -291,7 +291,7 @@ impl<'T> Vec<'T> {
                 
                 // Free old buffer
                 if self.*buf != null {
-                    unsafe free [self.cap]self.*#buf
+                    unsafe free [0]self.*#buf
                 }
                 
                 // Update fields

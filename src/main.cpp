@@ -44,6 +44,7 @@
 #include "llvm/Support/FileSystem.h"
 
 bool verboseMode = false;
+bool g_JsonDiagnostics = false;
 
 void parseSource(const std::string &filename,
                  std::vector<std::unique_ptr<toka::Module>> &astModules,
@@ -191,6 +192,8 @@ int main(int argc, char **argv) {
     } else if (arg == "--version" || arg == "-V") {
       llvm::outs() << "toka version 0.8.0-beta (Built: " << __DATE__ << " " << __TIME__ << ")\n";
       return 0;
+    } else if (arg == "--check-json") {
+      g_JsonDiagnostics = true;
     } else if (arg == "--disable-borrow-check") {
       disableBorrowCheck = true;
     } else if (arg == "--pkg" || arg == "-P") {

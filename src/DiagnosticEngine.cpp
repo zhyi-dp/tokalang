@@ -15,6 +15,8 @@
 #include "toka/SourceManager.h"
 #include <iostream>
 
+extern bool g_JsonDiagnostics;
+
 namespace toka {
 
 SourceManager *DiagnosticEngine::SrcMgr = nullptr;
@@ -70,6 +72,20 @@ void DiagnosticEngine::reportImpl(DiagLoc loc, DiagID id,
     ErrorCount++;
   }
 
+  if (::g_JsonDiagnostics) {
+    std::string escapedMsg = message;
+    size_t pos = 0;
+    while ((pos = escapedMsg.find('"', pos)) != std::string::npos) {
+      escapedMsg.replace(pos, 1, "\\\"");
+      pos += 2;
+    }
+    std::cout << "{\"file\": \"" << loc.File << "\", \"line\": " << loc.Line 
+              << ", \"col\": " << loc.Col << ", \"message\": \"" << escapedMsg 
+              << "\", \"code\": \"" << getCode(id) << "\", \"level\": " << (int)level << "}\n";
+    if (level == DiagLevel::Error) exit(0); // Exit 0 for LSP so it doesn't think it crashed
+    return;
+  }
+
   const char *color = "";
   const char *reset = "\033[0m";
 
@@ -104,6 +120,8 @@ void DiagnosticEngine::reportImpl(SourceLocation loc, DiagID id,
     // Print the basic header first
     reportImpl(DL, id, message);
     
+    if (::g_JsonDiagnostics) return;
+
     // Print rich snippet if available
     std::string lineData = SrcMgr->getLineData(Full);
     if (!lineData.empty()) {

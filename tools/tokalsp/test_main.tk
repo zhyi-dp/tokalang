@@ -1,0 +1,11 @@
+import std/io::{stdin, stdout, File, print}
+import std/string::{String}
+fn main() {
+    auto input = stdin()
+    auto log# = File::open(String::from("/tmp/test.log"), String::from("w"))
+    auto line1 = input.read_line().unwrap()
+    log.write(String::from("L1:")); log.write(line1)
+    auto line2 = input.read_line().unwrap()
+    log.write(String::from("L2:")); log.write(line2)
+    log#.close()
+}

@@ -32,6 +32,8 @@ extern fn libc_gettimeofday(*tv: void, *tz: void) -> i32
 extern fn libc_clock_gettime(clock_id: i32, tp: Addr) -> i32
 extern fn libc_usleep(usec: u32) -> i32
 extern fn libc_system(*command: char) -> i32
+extern fn libc_popen(*command: char, *mode: char) -> *void
+extern fn libc_pclose(*stream: void) -> i32
 extern fn libc_fork() -> i32
 extern fn libc_execvp(*file: char, *argv: void) -> i32
 extern fn libc_waitpid(pid: i32, *status: i32, options: i32) -> i32

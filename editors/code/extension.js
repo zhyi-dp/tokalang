@@ -3,6 +3,9 @@ const cp = require('child_process');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
+const { LanguageClient, TransportKind } = require('vscode-languageclient/node');
+
+let client;
 
 /**
  * @param {vscode.ExtensionContext} context
@@ -23,6 +26,36 @@ function activate(context) {
             new TokaDocumentFormattingProvider()
         )
     );
+
+    // Setup Language Client for Toka
+    let projectRoot = '';
+    if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+        projectRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
+    }
+
+    let tokalspPath = 'tokalsp';
+    if (projectRoot !== '') {
+        tokalspPath = path.join(projectRoot, 'build', 'bin', 'tokalsp');
+    }
+
+    // Only start if the binary exists, or if we assume it's in PATH
+    const serverOptions = {
+        run: { command: tokalspPath, transport: TransportKind.stdio },
+        debug: { command: tokalspPath, transport: TransportKind.stdio }
+    };
+
+    const clientOptions = {
+        documentSelector: [{ scheme: 'file', language: 'toka' }]
+    };
+
+    client = new LanguageClient(
+        'tokalsp',
+        'Toka Language Server',
+        serverOptions,
+        clientOptions
+    );
+
+    client.start();
 }
 
 class TokaDocumentSymbolProvider {
@@ -88,7 +121,12 @@ class TokaDocumentSymbolProvider {
     }
 }
 
-function deactivate() { }
+function deactivate() {
+    if (!client) {
+        return undefined;
+    }
+    return client.stop();
+}
 
 const outputChannel = vscode.window.createOutputChannel("Toka Formatter");
 
