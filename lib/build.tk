@@ -27,7 +27,7 @@ impl Executable {
     }
     
     pub fn add_dep(self#, *url: char) {
-        if self.deps.len() > 0:i32 {
+        if self.deps.len() > 0:usize {
             self.deps#.push_str("," as *char)
         }
         self.deps#.push_str(*url)
@@ -43,11 +43,11 @@ pub fn run_build(proj: Executable) -> i32 {
         auto *v = proj.*version
         auto *s = proj.*src
         
-        if proj.deps.len() > 0:i32 {
+        if proj.deps.len() > 0:usize {
             auto deps_iter = proj.deps.split(',' as char)
             loop {
                 auto pkg_url = deps_iter#.next()
-                if pkg_url.len() == 0:i32 { break }
+                if pkg_url.len() == 0:usize { break }
                 
                 auto add_cmd# = String::from("toka add ")
                 add_cmd#.push_str(pkg_url.c_str())

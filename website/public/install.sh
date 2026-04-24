@@ -33,7 +33,7 @@ if [ "$VERSION" = "latest" ]; then
   VERSION=$(curl -sSL "https://api.github.com/repos/zhyi-dp/tokalang/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
   if [ -z "$VERSION" ]; then
     # Fallback if API rate limited or no latest release marked
-    VERSION="v0.8.0-beta"
+    VERSION="v0.9.0"
     echo "Warning: Could not determine latest version. Defaulting to $VERSION"
   fi
 fi

@@ -5,7 +5,7 @@ import src/pkg_manager::{cmd_fetch, build_pkg_args}
 
 fn print_help() {
     unsafe {
-        libc_printf("Toka %s\n" as *char, "0.8.0")
+        libc_printf("Toka %s\n" as *char, "0.9.0")
         libc_printf("\nUsage: toka <command> [options]\n\nCommands:\n" as *char)
         libc_printf("  new <name>   Create a new Toka project\n" as *char)
         libc_printf("  build        Compile current project to an executable\n" as *char)
@@ -37,7 +37,7 @@ fn cmd_new(name: String) -> i32 {
         libc_system(tk_file.c_str())
         
         // Write Project.tk
-        auto proj_file# = String::from("echo 'import build::{Executable, run_build}\n\nfn main() {\n    auto app = Executable(\n        name = \"app\",\n        version = \"0.1.0\",\n        src = \"src/main.tk\"\n    )\n    run_build(app)\n}' > ")
+        auto proj_file# = String::from("echo 'import build::{Executable, run_build}\n\nfn main() {\n    auto app = Executable(\n        name = \"app\",\n        version = \"0.1.0\",\n        src = \"src/main.tk\",\n        deps = String::from(\"\")\n    )\n    run_build(app)\n}' > ")
         proj_file#.push_str(name.c_str())
         proj_file#.push_str("/Project.tk")
         libc_system(proj_file.c_str())
@@ -225,7 +225,7 @@ fn main() -> i32 {
     }
     
     if cmd.eq(String::from("--version")) || cmd.eq(String::from("-v")) {
-        unsafe { libc_printf("toka manager version 0.8.0-beta\n" as *char) }
+        unsafe { libc_printf("toka manager version 0.9.0\n" as *char) }
         return 0
     }
     
