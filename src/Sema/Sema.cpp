@@ -1396,8 +1396,9 @@ FunctionDecl *Sema::instantiateGenericFunction(
             // Check if it's a number
             try {
               uint64_t val = std::stoull(valStr);
+              auto oldLoc = ve->Loc;
               rep->Count = std::make_unique<NumberExpr>(val);
-              rep->Count->Loc = ve->Loc;
+              rep->Count->Loc = oldLoc;
             } catch (...) {
             }
           }
