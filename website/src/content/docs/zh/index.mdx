@@ -3,7 +3,7 @@ title: Toka 编程语言
 description: 一个为系统工程设计的现代编程语言，提供强安全保证与卓越表达力。
 template: splash
 hero:
-  tagline: "下一代系统编程语言：安全、性能与表达力的统一。"
+  tagline: "拥有 C 的绝对性能与底层掌控力，兼具 Rust 级别的内存安全，却能提供如脚本语言般清爽的开发体验。"
   banner:
     content: "🚀 v0.9.0 <strong>Pulsar</strong> 正式发布！带来 AOT 原生编译与极致内存安全加固！"
   image:
@@ -23,16 +23,16 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 ## 核心创新
 
 <CardGrid stagger>
-	<Card title="AOT 原生编译" icon="rocket">
-		通过 `toka run` 体验闪电般的执行速度。支持透明自动链接与 LLVM 优化级别 (-O0 到 -O3)，榨干硬件性能。
+	<Card title="无生命周期标注的绝对安全" icon="shield">
+		首创单帽原则 (Single-Hat Principle) 与 PAL 检查器。在编译期以零运行时开销杜绝悬空指针与数据竞争。享受 100% 的内存安全，免受与编译器搏斗的折磨。
 	</Card>
-	<Card title="安全原生内存" icon="shield">
-		所有权机制被植入语法层面。基于 **^T** (唯一) 和 **~T** (共享) 指针，享受零成本抽象与经过严苛测试的标准容器。
+	<Card title="零成本抽象与 C 原生互操作" icon="rocket">
+		底层基于 LLVM 20 构建，无垃圾回收 (No GC)。内存布局与 C/C++ 极其贴近，支持无缝内联调用现有的庞大 C 语言历史遗产（如 SQLite、OpenGL）。
 	</Card>
-	<Card title="属性令牌系统" icon="pencil">
-		类型的“化学分子式”。组合使用 **#** (灵魂可写) 和 **?** (实体可空) 等短令牌实现精确控制，告别臃肿的关键字。
+	<Card title="透明并发与原生错误流" icon="puzzle">
+		拒绝隐式的“黑魔法调度器”。普通函数与 `async` (异步挂起) 具有清晰的物理边界。配合原生的 `!` 错误传播符，彻底告别回调地狱和 `if err != nil` 瀑布。
 	</Card>
-	<Card title="灵肉合一 (Soul-Identity)" icon="document">
-		在哲学上区分 **Soul** (值) 与 **Identity** (地址)。消除引用赋值与内容修改之间的歧义。
+	<Card title="极速的现代化工具链" icon="setting">
+		忘记繁琐的 CMake 构建脚本。内置 `toka run` 与 AI 原生包管理器。只需一个简单的 `toka.json`，即可在全局网络中极速拉取并构建全部依赖。
 	</Card>
 </CardGrid>

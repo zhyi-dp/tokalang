@@ -3,7 +3,7 @@ title: Toka Programming Language
 description: A modern programming language designed for systems engineering, providing strong safety guarantees and excellent expressiveness.
 template: splash
 hero:
-  tagline: "The next-generation systems programming language: A unification of safety, performance, and expressiveness."
+  tagline: "Delivers the absolute performance of C and the memory safety of Rust, with the clean developer experience of a scripting language."
   banner:
     content: "🚀 v0.9.0 <strong>Pulsar</strong> is out! Featuring AOT Compilation and Hardened Memory Safety!"
   image:
@@ -23,16 +23,16 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 ## Key Innovations
 
 <CardGrid stagger>
-	<Card title="AOT Native Compilation" icon="rocket">
-		Experience lightning-fast execution via `toka run`. Features transparent auto-linking and LLVM optimization levels (-O0 to -O3) for maximum performance.
+	<Card title="Absolute Safety Without Lifetime Annotations" icon="shield">
+		Pioneering the Single-Hat Principle and PAL Checker. Eliminates dangling pointers and data races at compile time with zero runtime overhead. Enjoy 100% memory safety without endlessly fighting the compiler.
 	</Card>
-	<Card title="Safe Native Memory" icon="shield">
-		Ownership is baked into the grammar with **^T** (Unique) and **~T** (Shared) pointers. Enjoy zero-cost abstractions and hardened standard containers.
+	<Card title="Zero-Cost Abstraction & C Interop" icon="rocket">
+		Built on LLVM 20 with No Garbage Collection (No GC). Its memory layout closely mirrors C/C++, allowing seamless zero-overhead inline calls to the vast existing C ecosystem.
 	</Card>
-	<Card title="Attribute Token System" icon="pencil">
-		Visual chemical formulas for types. Combine **name#** (Mutable) and **Type?** (Nullable) for precise control without keyword bloat.
+	<Card title="Transparent Concurrency & Error Flow" icon="puzzle">
+		No implicit black magic schedulers. Standard functions and `async` functions have clear physical boundaries. Paired with the native `!` error propagation operator, banish callback hell and `if err != nil` waterfalls.
 	</Card>
-	<Card title="Soul-Identity Duality" icon="document">
-		Philosophically split between **Soul** (Value) and **Identity** (Address). Eliminate ambiguity between reference assignment and content mutation.
+	<Card title="Blazing Fast Modern Toolchain" icon="setting">
+		Forget messy CMake build scripts. Toka features the built-in `toka run` and an AI-Native Package Manager. A simple `toka.json` fetches and builds global dependencies from the edge network.
 	</Card>
 </CardGrid>
