@@ -200,24 +200,29 @@ impl File {
 
 // === Global I/O Functions ===
 
+import core/types::{Addr}
+
+auto g_stdin_handle#: Addr = 0:Addr
 pub fn stdin() -> File {
     unsafe {
-        auto *p = libc_fdopen(0, "r" as *char)
-        return File(*handle = *p, opened = (*p != null), owned = false)
+        if g_stdin_handle == 0:Addr { g_stdin_handle = libc_fdopen(0, "r" as *char) as Addr }
+        return File(*handle = g_stdin_handle as *void, opened = (g_stdin_handle != 0:Addr), owned = false)
     }
 }
 
+auto g_stdout_handle#: Addr = 0:Addr
 pub fn stdout() -> File {
     unsafe {
-        auto *p = libc_fdopen(1, "w" as *char)
-        return File(*handle = *p, opened = (*p != null), owned = false)
+        if g_stdout_handle == 0:Addr { g_stdout_handle = libc_fdopen(1, "w" as *char) as Addr }
+        return File(*handle = g_stdout_handle as *void, opened = (g_stdout_handle != 0:Addr), owned = false)
     }
 }
 
+auto g_stderr_handle#: Addr = 0:Addr
 pub fn stderr() -> File {
     unsafe {
-        auto *p = libc_fdopen(2, "w" as *char)
-        return File(*handle = *p, opened = (*p != null), owned = false)
+        if g_stderr_handle == 0:Addr { g_stderr_handle = libc_fdopen(2, "w" as *char) as Addr }
+        return File(*handle = g_stderr_handle as *void, opened = (g_stderr_handle != 0:Addr), owned = false)
     }
 }
 
