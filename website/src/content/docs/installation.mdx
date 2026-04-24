@@ -15,7 +15,10 @@ curl -fsSL https://tokalang.dev/install.sh | bash
 
 This script will automatically detect your OS and CPU architecture, download the latest stable release to `~/.toka/`, and append the executables to your `PATH` and `TOKA_LIB` variables.
 
-> **Important Requirement:** Toka currently relies on **LLVM 20** (specifically `clang`) as its backend for code generation and linking. Please ensure LLVM 20 is installed on your system and available in your `PATH` (or specified via `TOKA_CLANG`) before using the toolchain.
+> 🔧 **Prerequisites:** 
+> The Toka compiler is statically linked with a powerful LLVM engine under the hood, so you **do not** need to manually install the massive LLVM toolchain. However, to complete the final linking step for executables, please ensure a standard C build environment is installed on your system:
+> - **macOS**: Simply run `xcode-select --install` in your terminal.
+> - **Linux**: Ensure `gcc` or `build-essential` is installed (e.g., `sudo apt install build-essential`).
 
 ## Quick Start (Hello World)
 

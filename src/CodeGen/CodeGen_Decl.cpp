@@ -1810,6 +1810,10 @@ PhysEntity toka::CodeGen::genMethodCall(const toka::MethodCallExpr *expr) {
     for (auto const &[traitName, traitDecl] : m_Traits) {
       std::string traitFunc = traitName + "_" + typeName + "_" + expr->Method;
       callee = m_Module->getFunction(traitFunc);
+      if (callee) {
+        funcName = traitFunc;
+        break;
+      }
       if (callee)
         break;
     }
@@ -1964,9 +1968,15 @@ PhysEntity toka::CodeGen::genMethodCall(const toka::MethodCallExpr *expr) {
                     llvm::Value *alloca = createEntryBlockAlloca(viewStrTy, nullptr, "str_synth");
                     llvm::Value *bufPtr = m_Builder.CreateStructGEP(viewStrTy, alloca, 0, "buf_ptr");
                     llvm::Value *lenPtr = m_Builder.CreateStructGEP(viewStrTy, alloca, 1, "len_ptr");
-                    m_Builder.CreateStore(argVal, bufPtr);
+                    // We must generate the raw i8* pointer directly
+                    llvm::Value *rawStr = genExpr(expr->Args[i].get()).load(m_Builder);
+                    m_Builder.CreateStore(rawStr, bufPtr);
                     m_Builder.CreateStore(llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), literalLen), lenPtr);
-                    argVal = m_Builder.CreateLoad(viewStrTy, alloca);
+                    if (isCaptured) {
+                        argVal = alloca;
+                    } else {
+                        argVal = m_Builder.CreateLoad(viewStrTy, alloca);
+                    }
                 }
             } else if (argVal->getType()->isPointerTy() && !argVal->getType()->isStructTy()) {
                  // Wait, opaque pointers are just PTR. If we reached here but it wasn't a StringExpr.

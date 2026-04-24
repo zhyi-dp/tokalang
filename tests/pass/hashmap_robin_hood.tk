@@ -1,0 +1,64 @@
+import std/map::{HashMap}
+import std/string::{String}
+import std/io::{println}
+import std/sys/libc::{libc_printf}
+
+fn test_robin_hood() {
+    auto map# = HashMap<i32, String>::new()
+    
+    // 1. Heavy insertion to trigger resizes and Robin Hood stealing
+    auto i# = 0
+    while i < 1000 {
+        auto val_str# = String::from("val_")
+        map#.insert(i, cede val_str)
+        i += 1
+    }
+    
+    // Validate length
+    if map.len() != 1000 {
+        unsafe { libc_printf("FAIL: len should be 1000, got %d\n" as *char, map.len() as i32) }
+        return
+    }
+    
+    // 2. Validate gets
+    auto j# = 0
+    while j < 1000 {
+        auto opt = map.get(j)
+        if opt.is_none() {
+            unsafe { libc_printf("FAIL: could not get %d\n" as *char, j) }
+            return
+        }
+        j += 1
+    }
+    
+    // 3. Heavy backward shift deletion
+    auto k# = 0
+    while k < 1000 {
+        auto rm_opt = map#.remove(k)
+        if rm_opt.is_none() {
+            unsafe { libc_printf("FAIL: could not remove %d\n" as *char, k) }
+            return
+        }
+        k += 2
+    }
+    
+    if map.len() != 500 {
+        unsafe { libc_printf("FAIL: len should be 500, got %d\n" as *char, map.len() as i32) }
+        return
+    }
+    
+    // 4. Overwrite existing
+    map#.insert(1, String::from("val_1_new"))
+    auto opt3 = map.get(1)
+    if opt3.is_none() {
+        unsafe { libc_printf("FAIL: replace failed\n" as *char) }
+        return
+    }
+    
+    println("HashMap Robin Hood works perfectly!")
+}
+
+pub fn main() -> i32 {
+    test_robin_hood()
+    return 0
+}
