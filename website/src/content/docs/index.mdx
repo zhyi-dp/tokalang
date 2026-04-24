@@ -4,6 +4,8 @@ description: A modern programming language designed for systems engineering, pro
 template: splash
 hero:
   tagline: "The next-generation systems programming language: A unification of safety, performance, and expressiveness."
+  banner:
+    content: "🚀 v0.9.0 <strong>Pulsar</strong> is out! Featuring AOT Compilation and Hardened Memory Safety!"
   image:
     file: ../../assets/logo.svg
   actions:
@@ -21,16 +23,16 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 ## Key Innovations
 
 <CardGrid stagger>
-	<Card title="Syntactic RAII" icon="rocket">
-		Ownership is baked into the grammar. **^T** (Unique) and **~T** (Shared) pointers make resource management invisible and zero-cost.
+	<Card title="AOT Native Compilation" icon="rocket">
+		Experience lightning-fast execution via `toka run`. Features transparent auto-linking and LLVM optimization levels (-O0 to -O3) for maximum performance.
+	</Card>
+	<Card title="Safe Native Memory" icon="shield">
+		Ownership is baked into the grammar with **^T** (Unique) and **~T** (Shared) pointers. Enjoy zero-cost abstractions and hardened standard containers.
 	</Card>
 	<Card title="Attribute Token System" icon="pencil">
 		Visual chemical formulas for types. Combine **name#** (Mutable) and **Type?** (Nullable) for precise control without keyword bloat.
 	</Card>
 	<Card title="Soul-Identity Duality" icon="document">
 		Philosophically split between **Soul** (Value) and **Identity** (Address). Eliminate ambiguity between reference assignment and content mutation.
-	</Card>
-	<Card title="Async Native" icon="setting">
-		Advanced optimizations for coroutines and non-blocking I/O, powered by LLVM 20.
 	</Card>
 </CardGrid>
