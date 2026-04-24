@@ -51,8 +51,9 @@ jobs:
           ./bin/tokac -I ../tools/tokafmt ../tools/tokafmt/src/main.tk -o tokafmt.ll -O3
           
           if [ "${{ runner.os }}" = "macOS" ]; then
-            clang toka.ll -isysroot $(xcrun --show-sdk-path) -lm -o ./bin/toka -O3
-            clang tokafmt.ll -isysroot $(xcrun --show-sdk-path) -lm -o ./bin/tokafmt -O3
+            export LLVM_PATH=$(brew --prefix llvm@20 || brew --prefix llvm)
+            $LLVM_PATH/bin/clang toka.ll -isysroot $(xcrun --show-sdk-path) -lm -o ./bin/toka -O3
+            $LLVM_PATH/bin/clang tokafmt.ll -isysroot $(xcrun --show-sdk-path) -lm -o ./bin/tokafmt -O3
           else
             clang-20 toka.ll -lm -o ./bin/toka -O3
             clang-20 tokafmt.ll -lm -o ./bin/tokafmt -O3

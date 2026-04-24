@@ -6,11 +6,26 @@ set -e
 
 ROOT_DIR=$(pwd)
 BIN_DIR="$ROOT_DIR/build/bin"
-LLVM_CLANG="/usr/local/opt/llvm@20/bin/clang"
 
-if [ ! -f "$LLVM_CLANG" ]; then
-    echo "Error: LLVM 20 clang not found at $LLVM_CLANG."
-    echo "Please ensure llvm@20 is installed via Homebrew."
+# Attempt to find LLVM 20 clang path dynamically via brew
+if command -v brew >/dev/null 2>&1; then
+    LLVM_CLANG="$(brew --prefix llvm@20 2>/dev/null || brew --prefix llvm 2>/dev/null)/bin/clang"
+fi
+
+# Fallback paths
+if [ -z "$LLVM_CLANG" ] || [ ! -f "$LLVM_CLANG" ]; then
+    if [ -f "/opt/homebrew/opt/llvm@20/bin/clang" ]; then
+        LLVM_CLANG="/opt/homebrew/opt/llvm@20/bin/clang"
+    elif [ -f "/usr/local/opt/llvm@20/bin/clang" ]; then
+        LLVM_CLANG="/usr/local/opt/llvm@20/bin/clang"
+    else
+        LLVM_CLANG="clang-20"
+    fi
+fi
+
+if ! command -v "$LLVM_CLANG" >/dev/null 2>&1 && [ ! -f "$LLVM_CLANG" ]; then
+    echo "Error: LLVM 20 clang not found."
+    echo "Please ensure llvm@20 is installed via Homebrew (macOS) or apt (Linux)."
     exit 1
 fi
 
