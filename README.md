@@ -9,16 +9,18 @@
 Say goodbye to the cognitive load of explicit `<'a>` lifetime annotations and complex CMake setups. In Toka, writing high-performance, strictly safe code feels as natural as writing Python:
 
 ```rust
-// 🚀 Everyday Toka: Extreme safety, minimalist syntax
+// 🚀 Everyday Toka: Physical-level concurrency, minimalist RAII, and native error propagation
 import std/io::println
 import std/net::TcpStream
 import stdx/websocket
 
+// `async` explicitly colors the function; `stream#` lowercase variable with `#` indicates its underlying state will be mutated
 fn handle_client(stream#: TcpStream) -> async Result<(), String> {
     // Deep automatic deallocation, no implicit copies, goodbye GC pauses
     auto ws_conn# = websocket::accept_async(stream).await!
     
-    // Write high-concurrency backends like a scripting language
+    // The `!` in `.await!` is Toka's native error propagation operator.
+    // Yield control if blocked (await), bubble up instantly on error (!), eliminating verbose `if err` checks.
     ws_conn#.write_text_async("Hello from Toka!").await!
     
     // As it leaves scope, the RAII system silently and safely destroys all sockets and memory.
@@ -33,13 +35,31 @@ fn handle_client(stream#: TcpStream) -> async Result<(), String> {
 
 ---
 
+## 🎯 Is Toka For You?
+
+To respect your time, please verify if Toka fits your needs before diving in:
+
+**✅ It is an excellent choice if:**
+*   You need extreme runtime performance and minimal memory footprint (e.g., high-concurrency gateways, game backends, system-level tools).
+*   You are tired of Go/Java's GC pauses (STW), but also exhausted by **endlessly fighting the compiler** in Rust, or being forced to take detours just to implement what should be a completely natural logic flow.
+*   You want the rapid development speed of Python or TypeScript, while maintaining the low-level safety and control of C.
+
+**❌ It might NOT be for you yet if:**
+*   Your production environment mandates pure Windows Server deployment (Native Windows support is under active development; WSL2/macOS/Linux are currently recommended).
+*   You require massive out-of-the-box business-level ecosystem frameworks (like Spring Boot) — Toka's current ecosystem is more tailored toward systems-level tooling and infrastructure.
+
+---
+
 ## 💎 The 3 Pillars
 
 ### 🛡️ Absolute Safety Without Lifetime Annotations
 Pioneering the **Single-Hat Principle** and the **PAL (Pointer Aliasing & Lifecycle) Checker**, Toka eliminates dangling pointers and data races at compile time with zero runtime overhead. Enjoy 100% memory safety without fighting the compiler.
 
 ### ⚡ Zero-Cost Abstraction & Native C Interop
-Built on **LLVM 20**, Toka has **No Garbage Collection (No GC)**. Its memory layout is completely equivalent to C, allowing you to inline and call the vast existing C ecosystem seamlessly and without overhead.
+Built on **LLVM 20**, Toka has **No Garbage Collection (No GC)**. Its memory layout closely mirrors C/C++, allowing you to inline and call the vast existing C ecosystem (like SQLite, OpenGL) seamlessly and without overhead.
+
+### 🚦 Transparent Concurrency & Error Flow
+No implicit "black magic schedulers." Toka makes function costs physically explicit: standard functions and `async` (yielding) functions have clear color boundaries. Paired with the native `!` error propagation operator, error handling and async scheduling interweave flawlessly, banishing callback hell and `if err != nil` waterfalls.
 
 ### 📦 Blazing Fast Modern Toolchain
 Forget messy build scripts. Toka features the built-in `toka run` and an **AI-Native Package Manager**. A simple `toka.json` is all it takes to fetch and build dependencies globally from the edge network.
@@ -58,13 +78,19 @@ Toka elevates **Smart Pointers to Core Syntax**. "Lifecycle Management" is inter
 
 **2. Soul-Identity Duality**
 Toka philosophically separates an object into its **Soul (Content/Value)** and **Identity (Extension/Address)**.
-*   **Precise Semantics**: Access the Soul via Borrow (`&`) and manipulate the Identity via Pointer (`*`), resolving the semantic ambiguity between "reference assignment" and "content modification."
+*   **Precise Semantics**: Access the Soul via Borrow (`&`) and manipulate the Identity via Pointer (`*`), completely eliminating the semantic ambiguity between "reference assignment" and "content modification" found in traditional languages.
 
-**3. Orthogonal Attribute System**
-Say goodbye to the keyword soup of `const volatile unsigned`.
-*   **Visual Formula**: Through orthogonal suffixes like `#` (Mutable), `?` (Nullable), and `!` (Both), variable definitions look like clear chemical formulas. `T^#?` is instantly recognizable as a "Mutable, Nullable, Unique Pointer."
+**3. Orthogonal Decoupling of Mutability and Nullability**
+Say goodbye to the keyword soup of `const volatile unsigned`. Toka strictly defines attribute ownership:
+*   **Mutability is a property of the variable (`#`)**: Represents identity transfer or content modification.
+*   **Nullability is a property of the type (`?`)**: Represents the potential non-existence of the entity in memory.
+*   **Visual Formula**: `T^#?` is instantly recognizable as a "mutable, nullable, unique pointer to T."
 
-**4. Contract-Based Control Flow**
+**4. @encap Explicit Encapsulation & Resource Safety**
+Toka makes normal `shape` members transparent by default, but heavily restricts resource-holding structs (like Files or Sockets) using `@encap`.
+*   **Permission & Lifecycle Binding**: Inside an `impl Type@encap` block, you must explicitly expose interfaces (`pub`). More importantly, this is the *only* legal place to define lifecycle methods like `drop`, fundamentally preventing resource tampering and memory leaks at the contract level.
+
+**5. Contract-Based Control Flow**
 **"Everything produces a value; everything is a guarantee."**
 *   Toka enforces that control flow expressions (like `match`, `for`) must fulfill their value delivery contract on all paths. The unique `for-or` syntax guarantees that even if a loop doesn't execute, the receiver still gets a promised value.
 
@@ -102,6 +128,12 @@ We are actively building the compiler self-hosting capabilities.
     - [x] **Concurrency** (OS Threads, Mutex, MPSC Channels, `async`/`await`)
     - [x] **Standard Library** (I/O, Containers `String`/`Vec`/`Option`/`Result`)
 
+### 🚧 Next Steps & Future Roadmap
+- [ ] **Cross-Platform Support** (Native Windows MSVC/MinGW ABI Support)
+- [ ] **Developer Experience (DX) Upgrades** (LSP Language Server for real-time diagnostics, autocomplete, and jump-to-definition)
+- [ ] **Ecosystem** (Official Package Registry & `toka.json` dependency resolver)
+- [ ] **Compiler Self-Hosting** (Rewriting the Toka Compiler frontend in Toka)
+
 ## 📚 Documentation & Resources
 
 For the latest **Installation Guides**, **Tutorials**, **Code Examples**, and **API References**, please visit the official Toka language website:
@@ -138,12 +170,3 @@ Toka strives to bring the developer experience of scripting languages to systems
 
 ### 6. Extended Gratitude
 Programming language design is an endless exploration across a vast universe of ideas. Toka embraces the collective wisdom of the entire open-source community and maintains the utmost reverence for all pioneers who have pushed the boundaries of computer science forward.
-
----
-
-### Special Acknowledgement
-
-**AI-Assisted Engineering**
-The implementation of the Toka compiler—specifically the **Type System Refactoring** and **CodeGen Adaptation**—was completed in deep collaboration with **Google Gemini**.
-
-This "Human Architect + AI Pair Programmer" development model drastically accelerated Toka's evolution from a design concept to an industrial-grade implementation. While all architectural decisions, design philosophies, and core logic were led by the human author, AI provided indispensable assistance in code implementation and test verification.
