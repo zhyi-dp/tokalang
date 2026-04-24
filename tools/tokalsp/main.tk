@@ -72,32 +72,31 @@ fn send_notification(method: String, params_json: String) {
 }
 
 fn process_message(body: String) {
-    // We parse the JSON payload
     auto root#: JsonNode = JsonNode::NullNode(0)
     auto res = root#.parse_json(body.as_view())
     if res.is_err() { return }
     
-    // For now, if it's an "initialize" request, we respond.
     match root {
         auto JsonNode::ObjectNode(&map) => {
-            auto method_opt = map.get(String::from("method"))
+            auto method_opt# = map.get(String::from("method"))
             if method_opt.is_some() {
-                auto method_node = method_opt.unwrap()
+                auto method_node# = method_opt.unwrap()
+                method_opt = Option<JsonNode>::None
                 match method_node {
                     auto JsonNode::StrNode(&mstr) => {
                         auto method_str = mstr.as_view()
                         if method_str.equals(v"initialize") {
-                            auto id_opt = map.get(String::from("id"))
+                            auto id_opt# = map.get(String::from("id"))
                             if id_opt.is_some() {
-                                // Send initialize response
+                                auto id_node# = id_opt.unwrap()
+                                id_opt = Option<JsonNode>::None
                                 auto response = String::from("{\"jsonrpc\":\"2.0\",\"id\":")
-                                // Append ID
-                                match id_opt.unwrap() {
+                                match id_node {
                                     auto JsonNode::NumNode(&n) => { response#.push_view(String::from_f64(n).as_view()) }
                                     _ => { response#.push_str("null") }
                                 }
+                                id_node = JsonNode::NullNode(0)
                                 response#.push_str(",\"result\":{\"capabilities\":{\"textDocumentSync\":1}}}")
-                                
                                 auto out = stdout()
                                 auto header = String::from("Content-Length: ")
                                 header#.push_view(String::from_int(response.len() as i32).as_view())
@@ -110,73 +109,87 @@ fn process_message(body: String) {
                                 out.flush()
                             }
                         } else if method_str.equals(v"textDocument/didOpen") || method_str.equals(v"textDocument/didChange") {
-                            auto params_opt = map.get(String::from("params"))
+                            auto params_opt# = map.get(String::from("params"))
                             if params_opt.is_some() {
-                                match params_opt.unwrap() {
+                                auto params_node# = params_opt.unwrap()
+                                params_opt = Option<JsonNode>::None
+                                match params_node {
                                     auto JsonNode::ObjectNode(&pmap) => {
-                                        auto text_opt = pmap.get(String::from("textDocument"))
+                                        auto text_opt# = pmap.get(String::from("textDocument"))
                                         auto doc_uri# = String::from("")
                                         auto doc_text# = String::from("")
                                         
                                         if text_opt.is_some() {
-                                            match text_opt.unwrap() {
+                                            auto text_node# = text_opt.unwrap()
+                                            text_opt = Option<JsonNode>::None
+                                            match text_node {
                                                 auto JsonNode::ObjectNode(&tmap) => {
-                                                    auto uri_opt = tmap.get(String::from("uri"))
+                                                    auto uri_opt# = tmap.get(String::from("uri"))
                                                     if uri_opt.is_some() {
-                                                        match uri_opt.unwrap() {
+                                                        auto uri_node# = uri_opt.unwrap()
+                                                        uri_opt = Option<JsonNode>::None
+                                                        match uri_node {
                                                             auto JsonNode::StrNode(&u) => { doc_uri = u.clone() }
                                                             _ => {}
                                                         }
+                                                        uri_node = JsonNode::NullNode(0)
                                                     }
-                                                    auto text_field = tmap.get(String::from("text"))
+                                                    auto text_field# = tmap.get(String::from("text"))
                                                     if text_field.is_some() {
-                                                        match text_field.unwrap() {
+                                                        auto tf_node# = text_field.unwrap()
+                                                        text_field = Option<JsonNode>::None
+                                                        match tf_node {
                                                             auto JsonNode::StrNode(&t) => { doc_text = t.clone() }
                                                             _ => {}
                                                         }
+                                                        tf_node = JsonNode::NullNode(0)
                                                     }
                                                 }
                                                 _ => {}
                                             }
+                                            text_node = JsonNode::NullNode(0)
                                         }
                                         
-                                        // For didChange, it's inside contentChanges
                                         if method_str.equals(v"textDocument/didChange") {
-                                            auto changes_opt = pmap.get(String::from("contentChanges"))
+                                            auto changes_opt# = pmap.get(String::from("contentChanges"))
                                             if changes_opt.is_some() {
-                                                match changes_opt.unwrap() {
+                                                auto changes_node# = changes_opt.unwrap()
+                                                changes_opt = Option<JsonNode>::None
+                                                match changes_node {
                                                     auto JsonNode::ArrayNode(&arr) => {
                                                         if arr.len() > 0 {
-                                                            match arr.at(0) {
+                                                            auto first_change# = arr.at(0)
+                                                            match first_change {
                                                                 auto JsonNode::ObjectNode(&cmap) => {
-                                                                    auto text_c = cmap.get(String::from("text"))
+                                                                    auto text_c# = cmap.get(String::from("text"))
                                                                     if text_c.is_some() {
-                                                                        match text_c.unwrap() {
+                                                                        auto tc_node# = text_c.unwrap()
+                                                                        text_c = Option<JsonNode>::None
+                                                                        match tc_node {
                                                                             auto JsonNode::StrNode(&t) => { doc_text = t.clone() }
                                                                             _ => {}
                                                                         }
+                                                                        tc_node = JsonNode::NullNode(0)
                                                                     }
                                                                 }
                                                                 _ => {}
                                                             }
+                                                            first_change = JsonNode::NullNode(0)
                                                         }
                                                     }
                                                     _ => {}
                                                 }
+                                                changes_node = JsonNode::NullNode(0)
                                             }
                                         }
                                         
-                                        // If we got text, write to /tmp/tokalsp_current.tk
                                         if doc_text.len() > 0 {
                                             auto tmp_file# = File::open(String::from("/tmp/tokalsp_current.tk"), String::from("w"))
                                             if tmp_file.is_valid() {
                                                 tmp_file.write(doc_text)
                                                 tmp_file#.close()
                                                 
-                                                // Run tokac --check-json
                                                 auto json_out = execute_command(String::from("tokac --check-json /tmp/tokalsp_current.tk 2>&1"))
-                                                
-                                                // Default empty diagnostics
                                                 auto diag_json = String::from("{\"uri\":\"")
                                                 diag_json#.push_view(doc_uri.as_view())
                                                 diag_json#.push_str("\",\"diagnostics\":[")
@@ -191,32 +204,42 @@ fn process_message(body: String) {
                                                                 auto col#: i32 = 0
                                                                 auto msg# = String::from("")
                                                                 
-                                                                auto l_opt = emap.get(String::from("line"))
+                                                                auto l_opt# = emap.get(String::from("line"))
                                                                 if l_opt.is_some() {
-                                                                    match l_opt.unwrap() {
-                                                                        auto JsonNode::NumNode(&n) => { line = (n as i32) - 1 } // 0-indexed
+                                                                    auto l_node# = l_opt.unwrap()
+                                                                    l_opt = Option<JsonNode>::None
+                                                                    match l_node {
+                                                                        auto JsonNode::NumNode(&n) => { line = (n as i32) - 1 }
                                                                         _ => {}
                                                                     }
+                                                                    l_node = JsonNode::NullNode(0)
                                                                 }
-                                                                auto c_opt = emap.get(String::from("col"))
+                                                                
+                                                                auto c_opt# = emap.get(String::from("col"))
                                                                 if c_opt.is_some() {
-                                                                    match c_opt.unwrap() {
-                                                                        auto JsonNode::NumNode(&n) => { col = (n as i32) - 1 } // 0-indexed
+                                                                    auto c_node# = c_opt.unwrap()
+                                                                    c_opt = Option<JsonNode>::None
+                                                                    match c_node {
+                                                                        auto JsonNode::NumNode(&n) => { col = (n as i32) - 1 }
                                                                         _ => {}
                                                                     }
+                                                                    c_node = JsonNode::NullNode(0)
                                                                 }
-                                                                auto m_opt = emap.get(String::from("message"))
+                                                                
+                                                                auto m_opt# = emap.get(String::from("message"))
                                                                 if m_opt.is_some() {
-                                                                    match m_opt.unwrap() {
+                                                                    auto m_node# = m_opt.unwrap()
+                                                                    m_opt = Option<JsonNode>::None
+                                                                    match m_node {
                                                                         auto JsonNode::StrNode(&m) => { msg = m.clone() }
                                                                         _ => {}
                                                                     }
+                                                                    m_node = JsonNode::NullNode(0)
                                                                 }
                                                                 
                                                                 if line < 0 { line = 0 }
                                                                 if col < 0 { col = 0 }
                                                                 
-                                                                // Build diagnostic object
                                                                 diag_json#.push_str("{\"range\":{\"start\":{\"line\":")
                                                                 diag_json#.push_view(String::from_int(line).as_view())
                                                                 diag_json#.push_str(",\"character\":")
@@ -224,7 +247,7 @@ fn process_message(body: String) {
                                                                 diag_json#.push_str("},\"end\":{\"line\":")
                                                                 diag_json#.push_view(String::from_int(line).as_view())
                                                                 diag_json#.push_str(",\"character\":")
-                                                                diag_json#.push_view(String::from_int(col + 1).as_view()) // Highlight 1 char
+                                                                diag_json#.push_view(String::from_int(col + 1).as_view())
                                                                 diag_json#.push_str("}},\"severity\":1,\"message\":\"")
                                                                 diag_json#.push_view(msg.as_view())
                                                                 diag_json#.push_str("\"}")
@@ -233,7 +256,6 @@ fn process_message(body: String) {
                                                         }
                                                     }
                                                 }
-                                                
                                                 diag_json#.push_str("]}")
                                                 send_notification(String::from("textDocument/publishDiagnostics"), diag_json)
                                                 stdout().flush()
@@ -242,11 +264,13 @@ fn process_message(body: String) {
                                     }
                                     _ => {}
                                 }
+                                params_node = JsonNode::NullNode(0)
                             }
                         }
                     }
                     _ => {}
                 }
+                method_node = JsonNode::NullNode(0)
             }
         }
         _ => {}
