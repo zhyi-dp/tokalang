@@ -62,6 +62,6 @@ u as f32 = 3.14159  // Treat this memory as a float and write to it
 auto bits = u as i32 // Instantly extract the identical bit sequence as an i32!
 ```
 
-### Extreme Danger: Unions CANNOT Hold Pointers
-To guard against dangling pointers and illegal release bounds, Toka's semantic analyzer (Sema) **strictly bans** storing pointers (like Exclusive `^`, Borrowed `&`, or structs holding pointers) inside an Untagged `Union`. Such attempts yield a red-card compile rejection!
-If you must overlap pointers, use a Tagged `Enum` which provides safe `match` destructors.
+### Extreme Danger: No Unmanaged Resources (E0801)
+To guard against catastrophic memory leaks and dangling pointers, Toka's semantic analyzer (Sema) **strictly bans** storing any resource-managing types (such as `String`, dynamic arrays, Exclusive pointers `^`, or any struct with a custom `@encap/drop` lifecycle) inside an Untagged `Union`. 
+Because the runtime has no idea which variant is active during the union's destruction, automatic drop generation is disabled, yielding a red-card compile rejection (E0801)! If you must store managed resources in an untagged union, you are forced to provide an explicit `@encap` destructor for the union yourself. Otherwise, please use a Tagged `Enum` which provides safe automatic destructors via `match`.

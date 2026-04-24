@@ -46,7 +46,10 @@ auto ^a = new i32(42)
 auto ^b = cede ^a  // ^a surrenders its resources to ^b. Afterwards, ^a becomes invalid.
 ```
 
-### 2. Transference Across Function Boundaries
+### 2. Partial Move Restrictions (The Breakdown Ban)
+**You cannot forcefully strip resources out of a managed struct.** If a struct encapsulates its own lifecycle (has an `@encap` or manages memory), you are strictly forbidden from using `cede` on its internal fields (e.g., `auto x = cede my_map.inner_tree`). Doing so would shatter the struct's safe destructor chain, leaving the host object in a catastrophic, unrecoverable "partially moved" state. You must `cede` the entire host object, or borrow its contents.
+
+### 3. Transference Across Function Boundaries
 If a function signature specifically requires taking over a resource, it will mark the parameter receipt using `cede`:
 
 ```toka
