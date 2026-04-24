@@ -45,6 +45,13 @@ match result {
 ### Standard Bitwise Operators
 Standard C-style symbols for bitwise logic: `&`, `|`, `^`, `~`, `<<`, `>>`.
 
+### AOT Native Compilation
+Toka is a true statically compiled language with no virtual machine or heavy runtime. It leverages LLVM 20 to generate highly optimized native machine code.
+
+- **Zero-Cost Abstractions**: High-level language features (such as encapsulation, generics, and RAII) are fully resolved and lowered at compile-time, ensuring no additional runtime overhead.
+- **Industrial-Grade Optimization**: The compiler inherits LLVM's comprehensive optimization pipeline (supporting `-O0` to `-O3`), delivering exceptional execution efficiency.
+- **Agile Execution**: While maintaining the strict performance of AOT compilation, Toka provides an agile development workflow via the `toka run` command and transparent system-level auto-linking.
+
 ## A Quick Taste of Toka
 
 ```toka
