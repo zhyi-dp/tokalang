@@ -10,6 +10,7 @@ fn print_help() {
         libc_printf("  new <name>   Create a new Toka project (--lib for library)\n" as *char)
         libc_printf("  build        Compile current project to an executable\n" as *char)
         libc_printf("  run [file]   Compile and execute a Toka program\n" as *char)
+        libc_printf("  test         Run all tests in the tests/ directory\n" as *char)
         libc_printf("  add <url>    Add a package dependency\n" as *char)
         libc_printf("  fetch        Fetch dependencies from toka.json\n" as *char)
         libc_printf("  fmt          Format the current project\n" as *char)
@@ -199,6 +200,39 @@ fn cmd_run() -> i32 {
     }
 }
 
+fn cmd_test() -> i32 {
+    unsafe {
+        libc_printf("Running Toka tests...\n" as *char)
+        auto cmd# = String::from("cat << 'EOF' > .toka_test_runner.sh\nset -e\npassed=0\nfailed=0\n")
+        cmd#.push_str("if [ ! -d \"tests\" ]; then echo \"No tests directory found.\"; exit 0; fi\n")
+        cmd#.push_str("for test_file in $(find tests -name '*.tk'); do\n")
+        cmd#.push_str("  printf \"  \\x1b[1;36mTesting\\x1b[0m %s ... \" \"$test_file\"\n")
+        cmd#.push_str("  toka_lib_path=${TOKA_LIB:-/usr/local/lib/toka}\n")
+        cmd#.push_str("  if tokac -I . -I \"$toka_lib_path\" \"$test_file\" -o .toka_test_exe > .toka_test_out 2>&1; then\n")
+        cmd#.push_str("      if ./.toka_test_exe >> .toka_test_out 2>&1; then\n")
+        cmd#.push_str("          printf \"\\x1b[1;32m[OK]\\x1b[0m\\n\"\n")
+        cmd#.push_str("          passed=$((passed+1))\n")
+        cmd#.push_str("      else\n")
+        cmd#.push_str("          printf \"\\x1b[1;31m[FAILED (Runtime)]\\x1b[0m\\n\"\n")
+        cmd#.push_str("          cat .toka_test_out\n")
+        cmd#.push_str("          failed=$((failed+1))\n")
+        cmd#.push_str("      fi\n")
+        cmd#.push_str("  else\n")
+        cmd#.push_str("      printf \"\\x1b[1;31m[FAILED (Compile)]\\x1b[0m\\n\"\n")
+        cmd#.push_str("      cat .toka_test_out\n")
+        cmd#.push_str("      failed=$((failed+1))\n")
+        cmd#.push_str("  fi\n")
+        cmd#.push_str("  rm -f .toka_test_exe .toka_test_out\n")
+        cmd#.push_str("done\n")
+        cmd#.push_str("printf \"\\n\\x1b[1mTest Results:\\x1b[0m \\x1b[1;32m%d passed\\x1b[0m, \\x1b[1;31m%d failed\\x1b[0m\\n\" \"$passed\" \"$failed\"\n")
+        cmd#.push_str("if [ \"$failed\" -gt 0 ]; then exit 1; fi\nexit 0\n")
+        cmd#.push_str("EOF\n")
+        cmd#.push_str("bash .toka_test_runner.sh\nres=$?\nrm -f .toka_test_runner.sh\nexit $res")
+        
+        return libc_system(cmd.c_str())
+    }
+}
+
 fn cmd_clean() -> i32 {
     unsafe {
         libc_system("rm -rf target build .toka_build_exe .toka_single_exe .tokapkg" as *char)
@@ -279,6 +313,10 @@ fn main() -> i32 {
             return cmd_run_single(env::get_arg(2 + shift))
         }
         return cmd_run()
+    }
+    
+    if cmd.eq(String::from("test")) {
+        return cmd_test()
     }
     
     if cmd.eq(String::from("clean")) {
