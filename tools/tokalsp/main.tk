@@ -53,18 +53,9 @@ fn execute_command(cmd: String) -> String {
 
 fn send_notification(method: String, params_json: String) {
     auto out = stdout()
-    auto payload = String::from("{\"jsonrpc\":\"2.0\",\"method\":\"")
-    payload#.push_view(method.as_view())
-    payload#.push_str("\",\"params\":")
-    payload#.push_view(params_json.as_view())
-    payload#.push_str("}")
+    auto payload = String::fmt("{\"jsonrpc\":\"2.0\",\"method\":\"{}\",\"params\":{}}", method.c_str().as_str(), params_json.c_str().as_str())
     
-    auto header = String::from("Content-Length: ")
-    header#.push_view(String::from_int(payload.len() as i32).as_view())
-    header#.push_char(13 as char)
-    header#.push_char(10 as char)
-    header#.push_char(13 as char)
-    header#.push_char(10 as char)
+    auto header = String::fmt("Content-Length: {}\r\n\r\n", payload.len() as i32)
     
     out.write(header)
     out.write(payload)
@@ -90,20 +81,15 @@ fn process_message(body: String) {
                             if id_opt.is_some() {
                                 auto id_node# = id_opt.unwrap()
                                 id_opt = Option<JsonNode>::None
-                                auto response = String::from("{\"jsonrpc\":\"2.0\",\"id\":")
+                                auto id_str# = String::from("null")
                                 match id_node {
-                                    auto JsonNode::NumNode(&n) => { response#.push_view(String::from_f64(n).as_view()) }
-                                    _ => { response#.push_str("null") }
+                                    auto JsonNode::NumNode(&n) => { id_str = String::from_f64(n) }
+                                    _ => {}
                                 }
                                 id_node = JsonNode::NullNode(0)
-                                response#.push_str(",\"result\":{\"capabilities\":{\"textDocumentSync\":1}}}")
+                                auto response = String::fmt("{\"jsonrpc\":\"2.0\",\"id\":{},\"result\":{\"capabilities\":{\"textDocumentSync\":1}}}", id_str.c_str().as_str())
                                 auto out = stdout()
-                                auto header = String::from("Content-Length: ")
-                                header#.push_view(String::from_int(response.len() as i32).as_view())
-                                header#.push_char(13 as char)
-                                header#.push_char(10 as char)
-                                header#.push_char(13 as char)
-                                header#.push_char(10 as char)
+                                auto header = String::fmt("Content-Length: {}\r\n\r\n", response.len() as i32)
                                 out.write(header)
                                 out.write(response)
                                 out.flush()
@@ -240,17 +226,8 @@ fn process_message(body: String) {
                                                                 if line < 0 { line = 0 }
                                                                 if col < 0 { col = 0 }
                                                                 
-                                                                diag_json#.push_str("{\"range\":{\"start\":{\"line\":")
-                                                                diag_json#.push_view(String::from_int(line).as_view())
-                                                                diag_json#.push_str(",\"character\":")
-                                                                diag_json#.push_view(String::from_int(col).as_view())
-                                                                diag_json#.push_str("},\"end\":{\"line\":")
-                                                                diag_json#.push_view(String::from_int(line).as_view())
-                                                                diag_json#.push_str(",\"character\":")
-                                                                diag_json#.push_view(String::from_int(col + 1).as_view())
-                                                                diag_json#.push_str("}},\"severity\":1,\"message\":\"")
-                                                                diag_json#.push_view(msg.as_view())
-                                                                diag_json#.push_str("\"}")
+                                                                auto new_diag# = String::fmt("{\"range\":{\"start\":{\"line\":{},\"character\":{}},\"end\":{\"line\":{},\"character\":{}}},\"severity\":1,\"message\":\"{}\"}", line, col, line, col + 1, msg.c_str().as_str())
+                                                                diag_json#.push_view(new_diag.as_view())
                                                             }
                                                             _ => {}
                                                         }

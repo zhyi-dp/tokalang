@@ -1,0 +1,45 @@
+import std/io::{print, println}
+import std/string::{String}
+
+fn spark_char(val: i32) -> String {
+    if val <= 0 {
+        return cede String::from(" ")
+    }
+    if val <= 10 {
+        return cede String::from("▂")
+    }
+    if val <= 20 {
+        return cede String::from("▃")
+    }
+    return cede String::from("█")
+}
+
+fn test_formatting() {
+    auto color = s"\x1b[31m"
+    auto label = String::from("Progress")
+    auto pct = 85
+    
+    auto s# = String::fmt("{}{}: {}%", color, cede label, pct)
+    println("Formatted: {}", cede s)
+}
+
+fn main() -> i32 {
+    auto red = s"\x1b[31m"
+    auto reset = s"\x1b[0m"
+    
+    // 1. print str (P0/P1)
+    print("{}LumiCore{} ", red, reset)
+    
+    // 2. String::fmt (P2)
+    test_formatting()
+    
+    // 3. borrow checker early return (P2)
+    auto spark# = spark_char(15)
+    println("Spark: {}", cede spark)
+    
+    // 4. str repeat
+    auto line# = s"-".repeat(10)
+    println("Line: {}", cede line)
+
+    return 0
+}

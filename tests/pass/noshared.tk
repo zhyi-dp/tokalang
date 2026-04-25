@@ -74,7 +74,7 @@ fn main() -> i32 {
     }
 
     auto f# = 3.14
-    println("[{}]float is {}", log, f)
+    println("[{}]float is {}", logi++, f)
 
     auto s = "Hello Toka"
     println("[{}]string is {}", logi++, s)

@@ -1169,22 +1169,26 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
 
     m_ControlFlowStack.push_back({"", "void", nullptr, false, isReceiver});
 
-    // Save Mask State for Intersection Rule
+    // Save Mask & Moved State for Intersection Rule
     std::map<std::string, uint64_t> masksBefore;
+    std::map<std::string, bool> movedBefore;
     for (auto &pair : CurrentScope->Symbols) {
       masksBefore[pair.first] = pair.second.InitMask;
+      movedBefore[pair.first] = pair.second.Moved;
     }
 
     checkStmt(ie->Then.get());
 
     std::map<std::string, uint64_t> masksThen;
+    std::map<std::string, bool> movedThen;
     for (auto &pair : CurrentScope->Symbols) {
       masksThen[pair.first] = pair.second.InitMask;
+      movedThen[pair.first] = pair.second.Moved;
     }
 
     // Restore if narrowed
     if (narrowed) {
-      if (CurrentScope->lookup(narrowedVar, originalInfo)) { // If it was a var
+      if (CurrentScope->lookup(narrowedVar, originalInfo)) {
         SymbolInfo *infoPtr = nullptr;
         if (CurrentScope->findSymbol(narrowedVar, infoPtr)) {
           *infoPtr = originalInfo;
@@ -1206,6 +1210,9 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       for (auto &pair : masksBefore) {
         CurrentScope->Symbols[pair.first].InitMask = pair.second;
       }
+      for (auto &pair : movedBefore) {
+        CurrentScope->Symbols[pair.first].Moved = pair.second;
+      }
 
       m_ControlFlowStack.push_back({"", "void", nullptr, false, isReceiver});
       checkStmt(ie->Else.get());
@@ -1216,30 +1223,35 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
 
       // Intersection Rule
       if (thenReturns && elseReturns) {
-        // Unreachable after if
+        // Unreachable after if. Just leave the state as Else state.
       } else if (thenReturns) {
-        // State is from Else branch
+        // State is purely from Else branch. Leave as is.
       } else if (elseReturns) {
-        // State is from Then branch
+        // State is purely from Then branch
         for (auto &pair : CurrentScope->Symbols) {
           if (masksThen.count(pair.first))
             pair.second.InitMask = masksThen[pair.first];
+          if (movedThen.count(pair.first))
+            pair.second.Moved = movedThen[pair.first];
         }
       } else {
         // Actual Intersection
         for (auto &pair : CurrentScope->Symbols) {
-          uint64_t thenM =
-              masksThen.count(pair.first) ? masksThen[pair.first] : 0;
+          uint64_t thenM = masksThen.count(pair.first) ? masksThen[pair.first] : 0;
           pair.second.InitMask &= thenM;
+          bool thenMoved = movedThen.count(pair.first) ? movedThen[pair.first] : false;
+          pair.second.Moved = pair.second.Moved || thenMoved;
         }
       }
     } else {
-      // No Else: Intersection with Before state (which we just did by not
-      // initializing or by restoring)
-      // Actually, if there is no else, anything set in 'then' is NOT set after
-      // the if.
       for (auto &pair : CurrentScope->Symbols) {
         pair.second.InitMask = masksBefore[pair.first];
+        if (thenReturns) {
+            pair.second.Moved = movedBefore[pair.first];
+        } else {
+            bool thenMoved = movedThen.count(pair.first) ? movedThen[pair.first] : false;
+            pair.second.Moved = movedBefore[pair.first] || thenMoved;
+        }
       }
     }
 
@@ -4175,24 +4187,40 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
       return toka::Type::fromString("void");
   }
 
-  // 2. Intrinsics (println, print)
-  if (CallName == "println" || CallName == "std::io::println" || CallName == "print" || CallName == "std::io::print") {
-    bool visible = (CallName == "std::io::println" || CallName == "std::io::print");
-    if (!visible) {
-      SymbolInfo val;
-      if (CurrentScope->lookup(CallName, val))
-        visible = true;
+  // 2. Intrinsics (println, print, String::fmt)
+  bool isPrintln = (CallName == "println" || CallName == "std::io::println" || CallName == "print" || CallName == "std::io::print");
+  bool isStringFmt = (CallName == "String::fmt" || CallName == "std::string::String::fmt" || CallName == "fmt" || CallName == "std::string::fmt");
+
+  bool treatAsIntrinsic = false;
+  if ((isPrintln || isStringFmt) && !Call->Args.empty()) {
+      if (dynamic_cast<StringExpr*>(Call->Args[0].get())) {
+          treatAsIntrinsic = true;
+      }
+  }
+
+  if (treatAsIntrinsic) {
+    bool visible = true;
+    if (isPrintln) {
+      visible = (CallName == "std::io::println" || CallName == "std::io::print");
+      if (!visible) {
+        SymbolInfo val;
+        if (CurrentScope->lookup(CallName, val))
+          visible = true;
+      }
     }
     if (!visible) {
       error(Call, CallName + " requires at least a format string");
       return toka::Type::fromString("void");
     }
-    if (Call->Args.empty()) {
-      error(Call, CallName + " requires at least a format string");
-    }
     for (auto &Arg : Call->Args) {
       Arg = foldGenericConstant(std::move(Arg)); // [FIX]
       checkExpr(Arg.get());
+    }
+    if (isStringFmt) {
+        auto strTy = resolveType(toka::Type::fromString("String"));
+        if (!strTy) strTy = resolveType(toka::Type::fromString("std::string::String"));
+        if (!strTy) strTy = toka::Type::fromString("String");
+        return strTy;
     }
     return toka::Type::fromString("void");
   }

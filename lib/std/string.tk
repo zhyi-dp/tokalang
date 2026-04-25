@@ -24,8 +24,8 @@ import core/str::{view_str, str}
 // ------------------------------------------------------
 // 1.5 Pointer Extensions
 // ------------------------------------------------------
-impl *char {
-    pub fn as_str(self) -> str {
+impl char {
+    pub fn as_str(*self) -> str {
         unsafe {
             auto len = libc_strlen(*self) as i32
             return str(&buf = (*self as *[char]) as &[char], len = len)
@@ -672,8 +672,29 @@ impl view_str {
     pub fn to_string(self) -> String {
         return String::from_str(self)
     }
+    pub fn repeat(self, n: i32) -> String {
+        if n <= 0 || self.len() == 0 { return String::from("") }
+        unsafe {
+            auto l = self.len() * n
+            auto *p# = unsafe alloc [l + 1] char as *[char]
+            auto *src = &(self.buf()[0]) as *void
+            
+            auto i# = 0
+            while i < n {
+                auto offset = i * self.len()
+                libc_memcpy((*p as usize + offset) as *void, *src, self.len())
+                i = i + 1
+            }
+            p[l] = 0 as char
+            
+            return String(
+                *buf = *p,
+                len = l,
+                cap = l + 1
+            )
+        }
+    }
 }
-
 impl i32 {
     pub fn to_string(self) -> String {
         return String::from_int(self)
@@ -716,3 +737,4 @@ impl bool {
         return String::from("false")
     }
 }
+
