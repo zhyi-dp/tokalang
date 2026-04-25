@@ -1,4 +1,9 @@
 cmake_minimum_required(VERSION 3.13)
+
+if(APPLE)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" CACHE STRING "Minimum OS X deployment version" FORCE)
+endif()
+
 project(Toka VERSION 0.3.0 LANGUAGES C CXX)
 
 # Version Control Info

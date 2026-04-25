@@ -49,7 +49,7 @@ echo "   -> Compiling tools/toka/src/main.tk to main.ll..."
 tokac -I "$ROOT_DIR/lib" -I src src/main.tk > main.ll
 
 echo "   -> Compiling main.ll to executable with LLVM 20 Clang..."
-$LLVM_CLANG main.ll -isysroot $(xcrun --show-sdk-path) -o toka
+$LLVM_CLANG main.ll -isysroot $(xcrun --show-sdk-path) -mmacosx-version-min=12.0 -o toka
 
 echo "   -> Installing toka to $BIN_DIR/toka..."
 mkdir -p "$BIN_DIR"
@@ -70,7 +70,7 @@ echo "   -> Compiling tools/tokafmt/src/main.tk to main.ll..."
 tokac -I "$ROOT_DIR/lib" src/main.tk > main.ll
 
 echo "   -> Compiling main.ll to executable with LLVM 20 Clang..."
-$LLVM_CLANG main.ll -isysroot $(xcrun --show-sdk-path) -o tokafmt
+$LLVM_CLANG main.ll -isysroot $(xcrun --show-sdk-path) -mmacosx-version-min=12.0 -o tokafmt
 
 echo "   -> Installing tokafmt to $BIN_DIR/tokafmt..."
 cp tokafmt "$BIN_DIR/tokafmt"
@@ -89,7 +89,7 @@ echo "   -> Compiling tools/tokalsp/main.tk to main.ll..."
 tokac -I "$ROOT_DIR/lib" main.tk > main.ll
 
 echo "   -> Compiling main.ll to executable with LLVM 20 Clang..."
-$LLVM_CLANG main.ll -isysroot $(xcrun --show-sdk-path) -o tokalsp
+$LLVM_CLANG main.ll -isysroot $(xcrun --show-sdk-path) -mmacosx-version-min=12.0 -o tokalsp
 
 echo "   -> Installing tokalsp to $BIN_DIR/tokalsp..."
 cp tokalsp "$BIN_DIR/tokalsp"
