@@ -7,16 +7,19 @@ fn print_help() {
     unsafe {
         libc_printf("Toka %s\n" as *char, "0.9.2")
         libc_printf("\nUsage: toka <command> [options]\n\nCommands:\n" as *char)
-        libc_printf("  new <name>   Create a new Toka project\n" as *char)
+        libc_printf("  new <name>   Create a new Toka project (--lib for library)\n" as *char)
         libc_printf("  build        Compile current project to an executable\n" as *char)
         libc_printf("  run [file]   Compile and execute a Toka program\n" as *char)
+        libc_printf("  add <url>    Add a package dependency\n" as *char)
         libc_printf("  fetch        Fetch dependencies from toka.json\n" as *char)
+        libc_printf("  fmt          Format the current project\n" as *char)
+        libc_printf("  clean        Clean build artifacts\n" as *char)
         libc_printf("\nOptions:\n" as *char)
         libc_printf("  -v, --verbose  Enable verbose compiler output\n" as *char)
     }
 }
 
-fn cmd_new(name: String) -> i32 {
+fn cmd_new(name: String, is_lib: bool) -> i32 {
     unsafe {
         auto check_cmd# = String::from("test -d ")
         check_cmd#.push_str(name.c_str())
@@ -25,24 +28,48 @@ fn cmd_new(name: String) -> i32 {
             return 1
         }
         
-        auto cmd# = String::from("mkdir -p ")
-        cmd#.push_str(name.c_str())
-        cmd#.push_str("/src")
-        libc_system(cmd.c_str())
-        
-        // Write src/main.tk
-        auto tk_file# = String::from("echo 'import std/io::{println}\n\nfn main() -> i32 {\n    println(\"Hello, Toka!\")\n    return 0\n}' > ")
-        tk_file#.push_str(name.c_str())
-        tk_file#.push_str("/src/main.tk")
-        libc_system(tk_file.c_str())
-        
-        // Write Project.tk
-        auto proj_file# = String::from("echo 'import build::{Executable, run_build}\n\nfn main() {\n    auto app = Executable(\n        name = \"app\",\n        version = \"0.1.0\",\n        src = \"src/main.tk\",\n        deps = String::from(\"\")\n    )\n    run_build(app)\n}' > ")
-        proj_file#.push_str(name.c_str())
-        proj_file#.push_str("/Project.tk")
-        libc_system(proj_file.c_str())
-        
-        libc_printf("Created new Toka project: %s\n" as *char, name.c_str())
+        if is_lib {
+            auto cmd# = String::from("mkdir -p ")
+            cmd#.push_str(name.c_str())
+            cmd#.push_str("/lib/")
+            cmd#.push_str(name.c_str())
+            libc_system(cmd.c_str())
+            
+            auto tk_file# = String::from("echo '// Library module\n\npub fn hello() {\n    // TODO: implement\n}' > ")
+            tk_file#.push_str(name.c_str())
+            tk_file#.push_str("/lib/")
+            tk_file#.push_str(name.c_str())
+            tk_file#.push_str("/mod.tk")
+            libc_system(tk_file.c_str())
+            
+            auto proj_file# = String::from("echo 'import build::{Library, run_build}\n\nfn main() {\n    auto lib = Library(\n        name = \"")
+            proj_file#.push_str(name.c_str())
+            proj_file#.push_str("\",\n        version = \"0.1.0\",\n        src = \"lib/")
+            proj_file#.push_str(name.c_str())
+            proj_file#.push_str("/mod.tk\",\n        deps = String::from(\"\")\n    )\n    run_build(lib)\n}' > ")
+            proj_file#.push_str(name.c_str())
+            proj_file#.push_str("/Project.tk")
+            libc_system(proj_file.c_str())
+            
+            libc_printf("Created new Toka library: %s\n" as *char, name.c_str())
+        } else {
+            auto cmd# = String::from("mkdir -p ")
+            cmd#.push_str(name.c_str())
+            cmd#.push_str("/src")
+            libc_system(cmd.c_str())
+            
+            auto tk_file# = String::from("echo 'import std/io::{println}\n\nfn main() -> i32 {\n    println(\"Hello, Toka!\")\n    return 0\n}' > ")
+            tk_file#.push_str(name.c_str())
+            tk_file#.push_str("/src/main.tk")
+            libc_system(tk_file.c_str())
+            
+            auto proj_file# = String::from("echo 'import build::{Executable, run_build}\n\nfn main() {\n    auto app = Executable(\n        name = \"app\",\n        version = \"0.1.0\",\n        src = \"src/main.tk\",\n        deps = String::from(\"\")\n    )\n    run_build(app)\n}' > ")
+            proj_file#.push_str(name.c_str())
+            proj_file#.push_str("/Project.tk")
+            libc_system(proj_file.c_str())
+            
+            libc_printf("Created new Toka project: %s\n" as *char, name.c_str())
+        }
         return 0
     }
 }
@@ -172,6 +199,29 @@ fn cmd_run() -> i32 {
     }
 }
 
+fn cmd_clean() -> i32 {
+    unsafe {
+        libc_system("rm -rf target build .toka_build_exe .toka_single_exe .tokapkg" as *char)
+        libc_printf("Cleaned build artifacts.\n" as *char)
+        return 0
+    }
+}
+
+fn cmd_fmt() -> i32 {
+    unsafe {
+        libc_printf("Formatting project...\n" as *char)
+        auto res# = libc_system("tokafmt src/ lib/ tests/ Project.tk 2>/dev/null" as *char)
+        // Fallback to current directory if specific dirs fail or don't exist
+        if res != 0 {
+            res = libc_system("tokafmt . 2>/dev/null" as *char)
+        }
+        if res == 0 {
+            libc_printf("Format complete.\n" as *char)
+        }
+        return res
+    }
+}
+
 fn main() -> i32 {
     auto argc = env::args_count()
     if argc < 2 {
@@ -197,7 +247,14 @@ fn main() -> i32 {
              return 1
         }
         auto name = env::get_arg(2 + shift)
-        return cmd_new(name)
+        auto is_lib# = false
+        if argc >= 4 + shift {
+            auto flag = env::get_arg(3 + shift)
+            if flag.eq(String::from("--lib")) {
+                is_lib = true
+            }
+        }
+        return cmd_new(name, is_lib)
     }
     
     if cmd.eq(String::from("add")) {
@@ -222,6 +279,14 @@ fn main() -> i32 {
             return cmd_run_single(env::get_arg(2 + shift))
         }
         return cmd_run()
+    }
+    
+    if cmd.eq(String::from("clean")) {
+        return cmd_clean()
+    }
+    
+    if cmd.eq(String::from("fmt")) {
+        return cmd_fmt()
     }
     
     if cmd.eq(String::from("--version")) || cmd.eq(String::from("-v")) {
