@@ -1,0 +1,84 @@
+---
+title: "命令行工具与构建"
+description: "全面掌握 Toka 官方管家 (CLI)：项目脚手架、测试、格式化与自动文档生成。"
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Toka 提供了一个强大且**零配置**的官方命令行管家程序。在日常开发中，你几乎不需要直接去调用底层的 `tokac` 编译器，所有的项目管理、测试与构建工作都可以通过 `toka` 指令一键完成。
+
+## 项目脚手架 (Scaffolding)
+
+在 Toka 中创建新项目是瞬间完成的，且自动强制采用官方的最佳实践。
+
+### 1. `toka new <name>`
+创建一个新的**可执行应用程序**项目。它会自动生成一个 `src/main.tk` 绝对入口，以及一个被配置为可执行文件 (Executable) 目标的 `Project.tk`。
+
+```bash
+toka new my_app
+```
+
+### 2. `toka new <name> --lib`
+创建一个新的**第三方库 (Library)** 项目。它会自动跳过 `main.tk`，并直接为你生成官方[项目结构规范](/zh/project-structure)中所推荐的 `lib/<name>/mod.tk` 扁平化命名空间目录树。
+
+```bash
+toka new my_lib --lib
+```
+
+---
+
+## 开发与构建
+
+### 1. `toka run`
+一键编译并立即运行当前项目。它会自动读取 `Project.tk` 中的构建目标并执行。
+
+### 2. `toka run <file.tk>`
+**单文件脚本运行器**。如果你只想写一段小脚本或者快速测试一个 `.tk` 文件，无需建立整个工程目录，直接使用该指令即可编译执行。
+
+### 3. `toka build`
+仅编译项目，不执行。最终的二进制机器码可执行文件会被输出到 `target/` 或 `build/` 目录下。
+
+---
+
+## 测试与质量保证
+
+### 1. `toka test`
+极其强大的**零配置测试运行器**。
+你只需要在项目的根目录下建一个 `tests/` 文件夹，并把你的测试文件扔进去。运行 `toka test` 时，管家会自动发现所有的 `.tk` 测试文件，链接你当前项目的 `lib/` 目录进行编译，最后在终端输出极其漂亮的彩色测试报告。
+
+```bash
+toka test
+
+# 输出示例:
+# Running Toka tests...
+#   Testing tests/pass/math_test.tk ... [OK]
+# Test Results: 1 passed, 0 failed
+```
+
+### 2. `toka fmt`
+一键格式化项目内所有的 Toka 源代码。它会自动遍历 `src/`、`lib/`、`tests/` 和 `Project.tk`，确保你的整个代码库严格符合官方 Toka 编码风格规范。
+
+---
+
+## 文档生成
+
+### `toka doc`
+**全自动 API 字典生成器**。
+只需在你的 `pub fn` (公开函数) 或 `pub shape` (公开结构) 上方使用 `///` 进行注释。运行 `toka doc` 后，管家会自动提取这些签名和注释，并在项目根目录下生成一份排版极具高级感的 `docs/API.md` 文件。
+
+```toka
+/// 计算两个数字的和。
+pub fn add(a: i32, b: i32) -> i32 {
+    return a + b
+}
+```
+
+---
+
+## 工程清理与依赖
+
+### `toka clean`
+一键清理。瞬间删除项目内所有编译过程中产生的临时产物（如 `target/`, `build/`, `.toka_build_exe` 以及依赖缓存），彻底释放磁盘空间。
+
+### `toka add <url>`
+将一个远程的 Toka 依赖包添加到当前项目中，并自动抓取源代码。
