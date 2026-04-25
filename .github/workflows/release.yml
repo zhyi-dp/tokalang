@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-and-release:
-    name: Build & Release on ${{ matrix.os }}
+    name: Build & Release on ${{ matrix.display_os }}
     runs-on: ${{ matrix.os }}
     permissions:
       contents: write
@@ -16,12 +16,15 @@ jobs:
       matrix:
         include:
           - os: ubuntu-22.04
+            display_os: Linux (x64)
             name: linux-x64
             pkg_cmd: OS=linux ARCH=x64 ./tools/scripts/package_release.sh ${{ github.ref_name }}
           - os: macos-13
+            display_os: macOS (Intel)
             name: macos-x64
             pkg_cmd: OS=macos ARCH=x64 ./tools/scripts/package_release.sh ${{ github.ref_name }}
           - os: macos-latest
+            display_os: macOS (Apple Silicon)
             name: macos-arm64
             pkg_cmd: OS=macos ARCH=arm64 ./tools/scripts/package_release.sh ${{ github.ref_name }}
             
