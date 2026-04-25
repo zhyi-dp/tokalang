@@ -26,7 +26,7 @@ fi
 RELEASE_URL="https://github.com/zhyi-dp/tokalang/releases/latest/download"
 
 # To specify a specific version for beta, use the argument passed or latest
-VERSION=${1:-"latest"}
+VERSION=${1:-"v0.9.3"}
 if [ "$VERSION" = "latest" ]; then
   # Grab latest release tag via GitHub API
   echo "Fetching latest version..."
