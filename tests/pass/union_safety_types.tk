@@ -1,4 +1,5 @@
 import std/io::println
+import std/string::String
 
 // Allowed Types Union
 shape SafeUnionType (

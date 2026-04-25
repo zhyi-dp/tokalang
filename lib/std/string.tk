@@ -16,7 +16,7 @@
 // Version: 1.3.1 (In-Place Capture & Strict Morphology)
 // ==========================================
 
-import core/types::{char, usize, Addr, ADDR0}
+import core/types::{char, usize, Addr, ADDR0, OAddr}
 import core/traits::{@encap, @Hash, @PartialEq, @PartialOrd}
 import core/libc::*
 import core/str::{view_str, str}
@@ -628,19 +628,7 @@ impl String@Hash {
 
 impl String@PartialEq {
     pub fn eq(self, other: String) -> bool {
-        unsafe {
-            if self.len != other.len() { return false }
-            auto i#: usize = 0
-            auto *b1 = self.c_str()
-            auto *b2 = other.c_str()
-            while i < self.len {
-                auto *p1 = (b1 as usize + i) as *char
-                auto *p2 = (b2 as usize + i) as *char
-                if *p1 != *p2 { return false }
-                i = i + 1
-            }
-            return true
-        }
+        return self.as_str().eq(other.as_str())
     }
 }
 
@@ -738,3 +726,84 @@ impl bool {
     }
 }
 
+
+pub trait @ToString {
+    pub fn to_string(self) -> String
+}
+
+impl char {
+    pub fn to_string(self) -> String {
+        unsafe {
+            auto s# = String::from("")
+            s#.push_char(self)
+            return s
+        }
+    }
+}
+
+impl str {
+    pub fn to_string(self) -> String {
+        return String::from(self)
+    }
+}
+
+impl String {
+    pub fn to_string(self) -> String {
+        return self.clone()
+    }
+}
+
+impl OAddr {
+    pub fn to_string(self) -> String {
+        unsafe {
+            auto *buf# = unsafe alloc [32] char as *[char]
+            libc_sprintf(*buf as *char, "0x%016llX", self)
+            auto len = libc_strlen(*buf as *char)
+            return String(*buf = *buf, len = len, cap = 32)
+        }
+    }
+}
+
+impl u64 {
+    pub fn to_string(self) -> String {
+        return String::from_i64(self as i64)
+    }
+}
+
+impl usize {
+    pub fn to_string(self) -> String {
+        return String::from_i64(self as i64)
+    }
+}
+
+impl cstring {
+    pub fn to_string(self) -> String {
+        return String::from(self as *char)
+    }
+}
+
+impl u32 {
+    pub fn to_string(self) -> String { return String::from_i64(self as i64) }
+}
+impl u16 {
+    pub fn to_string(self) -> String { return String::from_i64(self as i64) }
+}
+impl u8 {
+    pub fn to_string(self) -> String { return String::from_i64(self as i64) }
+}
+impl i16 {
+    pub fn to_string(self) -> String { return String::from_i64(self as i64) }
+}
+impl i8 {
+    pub fn to_string(self) -> String { return String::from_i64(self as i64) }
+}
+impl Addr {
+    pub fn to_string(self) -> String {
+        unsafe {
+            auto *buf# = unsafe alloc [32] char as *[char]
+            libc_sprintf(*buf as *char, "0x%016llX", self as i64)
+            auto len = libc_strlen(*buf as *char)
+            return String(*buf = *buf, len = len, cap = 32)
+        }
+    }
+}

@@ -3142,152 +3142,81 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
     std::vector<llvm::Value *> callArgs;
     callArgs.push_back(nullptr); // Placeholder for format string
 
-    std::function<void(llvm::Type*, llvm::Value*, std::string)> appendFmt;
-    appendFmt = [&](llvm::Type *ty, llvm::Value *val, std::string semanticType) {
-      std::string spec = "";
-      llvm::Value *pVal = val;
+    std::function<void(llvm::Type*, llvm::Value*, std::string)> appendFmt; // Keep it declared but unused to avoid diff errors, or just remove it
 
-      if (ty->isIntegerTy(1)) { // bool
-        llvm::Value *trueStr = m_Builder.CreateGlobalString("true");
-        llvm::Value *falseStr = m_Builder.CreateGlobalString("false");
-        pVal = m_Builder.CreateSelect(val, trueStr, falseStr);
-        spec = "%s";
-      } else if (ty->isIntegerTy(8) || semanticType == "char" ||
-                 semanticType == "u8" || semanticType == "i8") {
-        spec = semanticType == "char" ? "%c" : "%d";
-        if (semanticType == "u8") {
-          pVal = m_Builder.CreateZExtOrBitCast(val, llvm::Type::getInt32Ty(m_Context));
-        } else {
-          pVal = m_Builder.CreateSExtOrBitCast(val, llvm::Type::getInt32Ty(m_Context));
-        }
-      } else if (ty->isIntegerTy(64)) {
-        if (semanticType == "OAddr") {
-          spec = "0x%016lX";
-        } else {
-          spec = (semanticType.size() > 0 && semanticType[0] == 'u') ? "%llu" : "%lld";
-        }
-      } else if (ty->isIntegerTy()) {
-        spec = (semanticType.size() > 0 && semanticType[0] == 'u') ? "%u" : "%d";
-        if (ty->getIntegerBitWidth() < 32) {
-          if (semanticType.size() > 0 && semanticType[0] == 'u')
-            pVal = m_Builder.CreateZExt(val, m_Builder.getInt32Ty());
-          else
-            pVal = m_Builder.CreateSExt(val, m_Builder.getInt32Ty());
-        }
-      } else if (ty->isDoubleTy()) {
-        spec = "%f";
-      } else if (ty->isFloatTy()) {
-        spec = "%f";
-        pVal = m_Builder.CreateFPExt(val, m_Builder.getDoubleTy());
-      } else if (semanticType == "*char" || semanticType == "cstring" ||
-                 ((semanticType == "view_str" || semanticType == "str" || semanticType == "String") && 
-                  ty->isPointerTy() && !ty->isStructTy())) {
-        spec = "%s";
-        llvm::Value *isNull = m_Builder.CreateIsNull(pVal);
-        llvm::Value *emptyStr = m_Builder.CreateGlobalString("(null)");
-        pVal = m_Builder.CreateSelect(isNull, emptyStr, pVal);
-      } else if ((semanticType.find("view_str") != std::string::npos || semanticType.find("str") != std::string::npos ||
-                  semanticType.find("String") != std::string::npos) &&
-                 ty->isStructTy() && ty->getStructNumElements() >= 2) {
-        llvm::Value *ptr = m_Builder.CreateExtractValue(val, 0);
-        llvm::Value *len = m_Builder.CreateExtractValue(val, 1);
-        llvm::Value *maxLen = llvm::ConstantInt::get(m_Builder.getInt64Ty(), 2147483647);
-        llvm::Value *isTooBig = m_Builder.CreateICmpSGT(len, maxLen);
-        llvm::Value *safeLen = m_Builder.CreateSelect(isTooBig, maxLen, len);
-        llvm::Value *len32 = m_Builder.CreateTrunc(safeLen, m_Builder.getInt32Ty());
+    llvm::Function *fromFn = m_Module->getFunction("String_from");
+    llvm::Function *pushStrFn = m_Module->getFunction("String_push_str");
+    llvm::Function *cStrFn = m_Module->getFunction("String_c_str");
+    llvm::Function *dropFn = m_Module->getFunction("encap_String_drop");
 
-        llvm::Value *isNull = m_Builder.CreateIsNull(ptr);
-        llvm::Value *emptyStr = m_Builder.CreateGlobalString("");
-        ptr = m_Builder.CreateSelect(isNull, emptyStr, ptr);
+    if (!fromFn || !pushStrFn || !cStrFn) {
+        error(call, "String formatting intrinsic requires std/string. Please import std/string::String.");
+        return nullptr;
+    }
 
-        spec = "%.*s";
-        giantFmt += spec;
-        callArgs.push_back(len32);
-        callArgs.push_back(ptr);
-        spec = ""; // Handled
-      } else if (ty->isPointerTy()) {
-        spec = "%p";
-      } else if (ty->isStructTy()) {
-        std::string sName = ty->getStructName().str();
-        if (sName.find("struct.") == 0) sName = sName.substr(7);
-        std::string targetName = semanticType;
-        if (targetName.empty() || targetName == "unknown") targetName = sName;
-        targetName = Type::stripMorphology(targetName);
-        
-        if (m_Shapes.count(targetName)) {
-            auto sh = m_Shapes[targetName];
-            if (sh->Kind == ShapeKind::Struct || sh->Kind == ShapeKind::Tuple) {
-                giantFmt += "{ ";
-                for (size_t i = 0; i < sh->Members.size() && i < ty->getStructNumElements(); ++i) {
-                    if (i > 0) giantFmt += ", ";
-                    giantFmt += sh->Members[i].Name + ": ";
-                    llvm::Value *fieldVal = m_Builder.CreateExtractValue(val, { (unsigned)i });
-                    std::string fieldSemTy = sh->Members[i].Type;
-                    if (sh->Members[i].ResolvedType) {
-                        fieldSemTy = sh->Members[i].ResolvedType->getSoulName();
-                    }
-                    appendFmt(fieldVal->getType(), fieldVal, fieldSemTy);
-                }
-                giantFmt += " }";
-                return;
-            }
-        }
+    // sVal = String::from("")
+    llvm::Value *emptyStr = m_Builder.CreateGlobalString("");
+    llvm::Value *sVal = m_Builder.CreateCall(fromFn, {emptyStr});
 
-        llvm::Value *unwrapped = pVal;
-        llvm::Type *innerTy = ty;
-        while (innerTy->isStructTy() && innerTy->getStructNumElements() > 0) {
-          unwrapped = m_Builder.CreateExtractValue(unwrapped, 0);
-          innerTy = unwrapped->getType();
-        }
-        if (innerTy->isIntegerTy()) {
-          if (innerTy->getIntegerBitWidth() > 32) {
-            spec = "%lld";
-            pVal = unwrapped;
-          } else {
-            spec = "%d";
-            pVal = m_Builder.CreateZExtOrBitCast(unwrapped, llvm::Type::getInt32Ty(m_Context));
-          }
-        } else if (innerTy->isFloatTy() || innerTy->isDoubleTy()) {
-          spec = "%f";
-          pVal = unwrapped;
-          if (innerTy->isFloatTy()) pVal = m_Builder.CreateFPExt(pVal, m_Builder.getDoubleTy());
-        } else {
-          spec = "?"; // Fallback for unknown type
-          pVal = llvm::ConstantInt::get(m_Builder.getInt32Ty(), 0);
-        }
-      } else if (ty->isArrayTy()) {
-        giantFmt += "[ ";
-        uint64_t numElems = ty->getArrayNumElements();
-        for (uint64_t i = 0; i < numElems; ++i) {
-            if (i > 0) giantFmt += ", ";
-            llvm::Value *fieldVal = m_Builder.CreateExtractValue(val, { (unsigned)i });
-            appendFmt(fieldVal->getType(), fieldVal, "");
-        }
-        giantFmt += " ]";
-        return;
-      } else {
-        spec = "?"; // Unknown
-      }
-
-      if (!spec.empty()) {
-        giantFmt += spec;
-        callArgs.push_back(pVal);
-      }
-    };
+    // sAlloca = alloca String
+    llvm::Value *sAlloca = m_Builder.CreateAlloca(sVal->getType());
+    m_Builder.CreateStore(sVal, sAlloca);
 
     while ((pos = fmt.find("{}", lastPos)) != std::string::npos) {
       std::string segment = fmt.substr(lastPos, pos - lastPos);
-      for (char c : segment) {
-        if (c == '%') giantFmt += "%%";
-        else giantFmt += c;
+      if (!segment.empty()) {
+          llvm::Value *segVal = m_Builder.CreateGlobalString(segment);
+          m_Builder.CreateCall(pushStrFn, {sAlloca, segVal});
       }
 
       // Print argument
       if (argIndex < (int)call->Args.size()) {
-        PhysEntity val_ent = genExpr(call->Args[argIndex].get());
-        llvm::Value *val = val_ent.load(m_Builder);
-        if (val) {
-          appendFmt(val->getType(), val, val_ent.typeName);
+        std::string soulTy = Type::stripMorphology(call->Args[argIndex]->ResolvedType ? call->Args[argIndex]->ResolvedType->getSoulName() : "");
+        PhysEntity argEnt = genExpr(call->Args[argIndex].get());
+        llvm::Value *argVal = argEnt.load(m_Builder);
+        
+        std::string funcName = soulTy + "_to_string";
+        llvm::Function *toStrFn = m_Module->getFunction(funcName);
+        if (!toStrFn) {
+            toStrFn = m_Module->getFunction("ToString_" + soulTy + "_to_string");
+        }
+        if (!toStrFn) {
+            for (auto const &[traitName, traitDecl] : m_Traits) {
+               std::string traitFunc = traitName + "_" + soulTy + "_to_string";
+               toStrFn = m_Module->getFunction(traitFunc);
+               if (toStrFn) break;
+            }
+        }
+        
+        llvm::Value *tmpStr = nullptr;
+        if (toStrFn && argVal) {
+            llvm::Value *finalArg = argVal;
+            if (toStrFn->arg_size() > 0) {
+                llvm::Type *targetTy = toStrFn->getArg(0)->getType();
+                if (targetTy->isPointerTy() && !argVal->getType()->isPointerTy()) {
+                    finalArg = argEnt.isAddress ? argEnt.value : nullptr;
+                    if (!finalArg) {
+                        llvm::AllocaInst *tmp = createEntryBlockAlloca(argVal->getType());
+                        m_Builder.CreateStore(argVal, tmp);
+                        finalArg = tmp;
+                    }
+                } else if (!targetTy->isPointerTy() && argVal->getType()->isPointerTy()) {
+                    finalArg = m_Builder.CreateLoad(targetTy, argVal);
+                }
+            }
+            tmpStr = m_Builder.CreateCall(toStrFn, {finalArg});
+        }
+        
+        if (tmpStr) {
+            llvm::Value *tmpAlloca = m_Builder.CreateAlloca(tmpStr->getType());
+            m_Builder.CreateStore(tmpStr, tmpAlloca);
+            
+            llvm::Value *cstrVal = m_Builder.CreateCall(cStrFn, {tmpAlloca});
+            m_Builder.CreateCall(pushStrFn, {sAlloca, cstrVal});
+            
+            if (dropFn) {
+                m_Builder.CreateCall(dropFn, {tmpAlloca});
+            }
         }
         argIndex++;
       }
@@ -3295,49 +3224,28 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
     }
 
     std::string tail = fmt.substr(lastPos);
-    for (char c : tail) {
-        if (c == '%') giantFmt += "%%";
-        else giantFmt += c;
-    }
-    if (isPrintln) {
-      giantFmt += "\n";
+    if (!tail.empty()) {
+        llvm::Value *segVal = m_Builder.CreateGlobalString(tail);
+        m_Builder.CreateCall(pushStrFn, {sAlloca, segVal});
     }
 
-    callArgs[0] = m_Builder.CreateGlobalString(giantFmt);
+    if (isPrintln) {
+        llvm::Value *segVal = m_Builder.CreateGlobalString("\n");
+        m_Builder.CreateCall(pushStrFn, {sAlloca, segVal});
+    }
 
     if (isStringFmt) {
-        auto snprintfFunc = m_Module->getOrInsertFunction("snprintf", llvm::FunctionType::get(m_Builder.getInt32Ty(), {m_Builder.getPtrTy(), m_Builder.getInt64Ty(), m_Builder.getPtrTy()}, true));
-        auto sprintfFunc = m_Module->getOrInsertFunction("sprintf", llvm::FunctionType::get(m_Builder.getInt32Ty(), {m_Builder.getPtrTy(), m_Builder.getPtrTy()}, true));
-        auto mallocFunc = m_Module->getOrInsertFunction("malloc", llvm::FunctionType::get(m_Builder.getPtrTy(), {m_Builder.getInt64Ty()}, false));
-
-        // 1. len = snprintf(null, 0, giantFmt, args...)
-        std::vector<llvm::Value *> snArgs = callArgs;
-        snArgs.insert(snArgs.begin(), llvm::ConstantInt::get(m_Builder.getInt64Ty(), 0));
-        snArgs.insert(snArgs.begin(), llvm::ConstantPointerNull::get(m_Builder.getPtrTy()));
-        llvm::Value *len32 = m_Builder.CreateCall(snprintfFunc, snArgs);
-        llvm::Value *len64 = m_Builder.CreateSExt(len32, m_Builder.getInt64Ty());
-
-        // 2. ptr = malloc(len + 1)
-        llvm::Value *allocSize = m_Builder.CreateAdd(len64, llvm::ConstantInt::get(m_Builder.getInt64Ty(), 1));
-        llvm::Value *ptr = m_Builder.CreateCall(mallocFunc, {allocSize});
-
-        // 3. sprintf(ptr, giantFmt, args...)
-        std::vector<llvm::Value *> spArgs = callArgs;
-        spArgs.insert(spArgs.begin(), ptr);
-        m_Builder.CreateCall(sprintfFunc, spArgs);
-
-        // 4. Return String { ptr, len, len + 1 }
-        llvm::Type *strTy = resolveType("std::string::String", false);
-        if (!strTy) strTy = resolveType("String", false);
-        llvm::Value *strStruct = llvm::UndefValue::get(strTy);
-        strStruct = m_Builder.CreateInsertValue(strStruct, ptr, 0);
-        strStruct = m_Builder.CreateInsertValue(strStruct, len64, 1);
-        strStruct = m_Builder.CreateInsertValue(strStruct, allocSize, 2);
-        return strStruct;
+        return m_Builder.CreateLoad(sVal->getType(), sAlloca);
     } else {
+        llvm::Value *cstrVal = m_Builder.CreateCall(cStrFn, {sAlloca});
         auto printfFunc = m_Module->getOrInsertFunction("printf", llvm::FunctionType::get(m_Builder.getInt32Ty(), {m_Builder.getPtrTy()}, true));
-        m_Builder.CreateCall(printfFunc, callArgs);
-        return llvm::ConstantInt::get(m_Builder.getInt32Ty(), 0);
+        llvm::Value *fmtStr = m_Builder.CreateGlobalString("%s");
+        m_Builder.CreateCall(printfFunc, {fmtStr, cstrVal});
+        
+        if (dropFn) {
+            m_Builder.CreateCall(dropFn, {sAlloca});
+        }
+        return nullptr;
     }
   }
 

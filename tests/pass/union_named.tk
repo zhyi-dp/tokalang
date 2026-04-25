@@ -1,4 +1,5 @@
 import std/io::println
+import std/string::String
 
 shape Register (
     as full: u32 |

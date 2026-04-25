@@ -4216,11 +4216,20 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
       Arg = foldGenericConstant(std::move(Arg)); // [FIX]
       checkExpr(Arg.get());
     }
-    if (isStringFmt) {
-        auto strTy = resolveType(toka::Type::fromString("String"));
-        if (!strTy) strTy = resolveType(toka::Type::fromString("std::string::String"));
-        if (!strTy) strTy = toka::Type::fromString("String");
-        return strTy;
+    if (isStringFmt || isPrintln) {
+      for (size_t i = 1; i < Call->Args.size(); i++) {
+        auto argTyObj = Call->Args[i]->ResolvedType;
+        std::string argTy = argTyObj ? argTyObj->getSoulName() : "";
+        auto soulTy = Type::stripMorphology(argTy);
+        if (!MethodMap.count(soulTy) || !MethodMap[soulTy].count("to_string")) {
+            error(Call->Args[i].get(), "Type '" + soulTy + "' does not implement @ToString trait or to_string method.");
+            return toka::Type::fromString("void");
+        }
+      }
+      auto strTy = resolveType(toka::Type::fromString("String"));
+      if (!strTy) strTy = resolveType(toka::Type::fromString("std::string::String"));
+      if (!strTy) strTy = toka::Type::fromString("String");
+      return strTy;
     }
     return toka::Type::fromString("void");
   }

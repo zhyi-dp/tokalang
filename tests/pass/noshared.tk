@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 import std/io::println
+import std/string::String
 import std/memory
 
 shape Point (
@@ -133,7 +134,7 @@ fn main() -> i32 {
     {
         println("Testing Raw pointer...\n")
         auto *ptr = unsafe alloc Point(x=999, y=111, z=0)
-        println("[{}]Raw Heap Point: ptr.x={}, address={}", logi++, ptr.x, *ptr)
+        println("[{}]Raw Heap Point: ptr.x={}, address={}", logi++, ptr.x, *ptr as OAddr)
         del *ptr
     }
 
