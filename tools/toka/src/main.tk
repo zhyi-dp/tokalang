@@ -5,7 +5,7 @@ import src/pkg_manager::{cmd_fetch, build_pkg_args}
 
 fn print_help() {
     unsafe {
-        libc_printf("Toka %s\n" as *char, "0.9.1")
+        libc_printf("Toka %s\n" as *char, "0.9.2")
         libc_printf("\nUsage: toka <command> [options]\n\nCommands:\n" as *char)
         libc_printf("  new <name>   Create a new Toka project\n" as *char)
         libc_printf("  build        Compile current project to an executable\n" as *char)
@@ -225,7 +225,7 @@ fn main() -> i32 {
     }
     
     if cmd.eq(String::from("--version")) || cmd.eq(String::from("-v")) {
-        unsafe { libc_printf("toka manager version 0.9.1\n" as *char) }
+        unsafe { libc_printf("toka manager version 0.9.2\n" as *char) }
         return 0
     }
     
