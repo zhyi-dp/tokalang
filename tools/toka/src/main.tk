@@ -162,7 +162,8 @@ fn cmd_build() -> i32 {
             libc_printf("Error executing Project.tk -> compile failed\n" as *char)
         }
         libc_system("rm -f .toka_build_exe" as *char)
-        return res
+        if res != 0 { return 1 }
+        return 0
     }
 }
 
@@ -187,7 +188,8 @@ fn cmd_run_single(file: String) -> i32 {
             libc_printf("Error executing %s\n" as *char, file.c_str())
         }
         libc_system("rm -f .toka_single_exe" as *char)
-        return res
+        if res != 0 { return 1 }
+        return 0
     }
 }
 
@@ -197,7 +199,9 @@ fn cmd_run() -> i32 {
     
     unsafe {
         // Find the newest executable in target/debug (excluding .ll files) and run it
-        return libc_system("exe=$(ls -t ./target/debug | grep -v '\\.ll$' | head -n1) && ./target/debug/\"$exe\"" as *char)
+        auto run_res = libc_system("exe=$(ls -t ./target/debug | grep -v '\\.ll$' | head -n1) && ./target/debug/\"$exe\"" as *char)
+        if run_res != 0 { return 1 }
+        return 0
     }
 }
 
@@ -230,7 +234,9 @@ fn cmd_test() -> i32 {
         cmd#.push_str("EOF\n")
         cmd#.push_str("bash .toka_test_runner.sh\nres=$?\nrm -f .toka_test_runner.sh\nexit $res")
         
-        return libc_system(cmd.c_str())
+        auto res = libc_system(cmd.c_str())
+        if res != 0 { return 1 }
+        return 0
     }
 }
 
@@ -271,7 +277,9 @@ fn cmd_doc() -> i32 {
         cmd#.push_str("EOF\n")
         cmd#.push_str("bash .toka_doc_generator.sh\nres=$?\nrm -f .toka_doc_generator.sh\nexit $res")
         
-        return libc_system(cmd.c_str())
+        auto res = libc_system(cmd.c_str())
+        if res != 0 { return 1 }
+        return 0
     }
 }
 
