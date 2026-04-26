@@ -3,6 +3,538 @@ import std/io::{File, print, println}
 import std/string::{String}
 import src/lexer::{Lexer}
 import src/printer::{Printer}
+import core/str::{str, _internal_str_cast}
+import core/types::{Addr}
+import core/libc::{libc_memcpy}
+
+
+
+
+
+pub shape TokenKind(
+    Unknown |
+    Identifier |
+    Number |
+    StringLit |
+    CharLit |
+    Keyword |
+    Operator |
+    Delimiter |
+    Whitespace |
+    Comment |
+    EOF
+)
+
+pub shape Token (
+    kind: TokenKind,
+    lexeme_addr: Addr,
+    lexeme_len: usize,
+    line: i32,
+    col: i32
+)
+
+impl Token {
+    pub fn new(kind: TokenKind, lexeme_addr: Addr, lexeme_len: usize, line: i32, col: i32) -> Token {
+        return Token(
+            kind = kind,
+            lexeme_addr = lexeme_addr,
+            lexeme_len = lexeme_len,
+            line = line,
+            col = col
+        )
+    }
+
+    pub fn lexeme(self) -> str {
+        unsafe {
+            auto ret# = _internal_str_cast("")
+            auto ptr_addr = self.lexeme_addr
+            libc_memcpy(&ret as *void, &ptr_addr as *void, 8)
+            
+            auto len_addr = (&ret as Addr) + 8
+            auto new_len = self.lexeme_len
+            libc_memcpy(len_addr as *void, &new_len as *void, 8)
+            
+            return ret
+        }
+    }
+}
+
+
+
+
+
+pub shape Lexer (
+    source: str,
+    pos#: i32,
+    line#: i32,
+    col#: i32
+)
+
+impl Lexer {
+    pub fn new(source: str) -> Lexer {
+        return Lexer(
+            source = source,
+            pos = 0,
+            line = 1,
+            col = 1
+        )
+    }
+
+    fn peek(self) -> char {
+        auto u_pos = self.pos as usize
+        if u_pos >= self.source.len() { return '\0' }
+        return self.source.at(u_pos).unwrap()
+    }
+
+    fn advance(self#) -> char {
+        auto u_pos = self.pos as usize
+        if u_pos >= self.source.len() { return '\0' }
+        auto c = self.source.at(u_pos).unwrap()
+        self.pos = self.pos + 1
+        if c == '\n' { // '\n'
+            self.line = self.line + 1
+            self.col = 1
+        } else {
+            self.col = self.col + 1
+        }
+        return c
+    }
+
+    fn peek_next(self) -> char {
+        auto next_pos = self.pos + 1
+        auto u_next_pos = next_pos as usize
+        if u_next_pos >= self.source.len() { return '\0' }
+        return self.source.at(u_next_pos).unwrap()
+    }
+
+    fn is_alpha(c: char) -> bool {
+        return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_' // A-Z, a-z, _
+    }
+
+    fn is_digit(c: char) -> bool {
+        return (c >= '0' && c <= '9') // 0-9
+    }
+
+    fn is_whitespace(c: char) -> bool {
+        return c == ' ' || c == '\t' || c == '\n' || c == '\r'
+    }
+
+    pub fn is_eof(self) -> bool {
+        auto u_pos = self.pos as usize
+        return u_pos >= self.source.len()
+    }
+
+    pub fn next_token(self#) -> Token {
+        if self.is_eof() {
+            return Token::new(TokenKind::EOF(), (_str_cast("")).raw_ptr() as Addr, (_str_cast("")).len(), self.line, self.col)
+        }
+
+        auto start_line = self.line
+        auto start_col = self.col
+        auto c = self.peek()
+
+        // Whitespace
+        if Lexer::is_whitespace(c) {
+            auto start_idx = self.pos
+            while Lexer::is_whitespace(self.peek()) {
+                self#.advance()
+            }
+            auto ws = self.source.substring(start_idx as usize, self.pos as usize)
+            return Token::new(TokenKind::Whitespace(), (ws).raw_ptr() as Addr, (ws).len(), start_line, start_col)
+        }
+
+        // Block Comments
+        if c == '/' && self.peek_next() == '*' { // "/*"
+            auto start_idx = self.pos
+            self#.advance() // /
+            self#.advance() // *
+            while !self.is_eof() {
+                if self.peek() == '*' && self.peek_next() == '/' {
+                    self#.advance() // *
+                    self#.advance() // /
+                    break
+                }
+                self#.advance()
+            }
+            auto comm = self.source.substring(start_idx as usize, self.pos as usize)
+            return Token::new(TokenKind::Comment(), (comm).raw_ptr() as Addr, (comm).len(), start_line, start_col)
+        }
+
+        // Line Comments
+        if c == '/' && self.peek_next() == '/' { // "//"
+            auto start_idx = self.pos
+            while self.peek() != '\0' && self.peek() != '\n' {
+                self#.advance()
+            }
+            auto comm = self.source.substring(start_idx as usize, self.pos as usize)
+            return Token::new(TokenKind::Comment(), (comm).raw_ptr() as Addr, (comm).len(), start_line, start_col)
+        }
+
+        // Identifier or Keyword
+        if Lexer::is_alpha(c) {
+            auto start_idx = self.pos
+            while Lexer::is_alpha(self.peek()) || Lexer::is_digit(self.peek()) || self.peek() == '@' { // '@' for macros
+                self#.advance()
+            }
+            auto ident = self.source.substring(start_idx as usize, self.pos as usize)
+            auto kind# = TokenKind::Identifier()
+            // In a full formatter we'd check against a list of keywords here.
+            // For now, simple keywords match
+            if ident.equals("fn") || ident.equals("return") || ident.equals("auto") || ident.equals("shape") || ident.equals("impl") {
+                kind = TokenKind::Keyword()
+            }
+            return Token::new(kind, (ident).raw_ptr() as Addr, (ident).len(), start_line, start_col)
+        }
+
+        // Number
+        if Lexer::is_digit(c) {
+            auto start_idx = self.pos
+            while Lexer::is_digit(self.peek()) || self.peek() == '.' || self.peek() == 'e' || self.peek() == 'E' {
+                auto p = self.peek()
+                if p == 'e' || p == 'E' {
+                    self#.advance()
+                    if self.peek() == '+' || self.peek() == '-' {
+                        self#.advance()
+                    }
+                } else {
+                    self#.advance()
+                }
+            }
+            auto num = self.source.substring(start_idx as usize, self.pos as usize)
+            return Token::new(TokenKind::Number(), (num).raw_ptr() as Addr, (num).len(), start_line, start_col)
+        }
+
+        // String Literal
+        if c == '"' { // '"'
+            auto start_idx = self.pos
+            self#.advance() // Consume opening quote
+            while self.peek() != '\0' && self.peek() != '"' {
+                if self.peek() == '\\' { // '\\'
+                    self#.advance()
+                }
+                self#.advance()
+            }
+            if self.peek() == '"' {
+                self#.advance() // Consume closing quote
+            }
+            auto str_val = self.source.substring(start_idx as usize, self.pos as usize)
+            return Token::new(TokenKind::StringLit(), (str_val).raw_ptr() as Addr, (str_val).len(), start_line, start_col)
+        }
+        
+        // Single Character Literal or Morphology
+        if c == '\'' { // '\''
+            auto start_idx = self.pos
+            self#.advance()
+            if self.peek() == '\\' {
+                self#.advance()
+            }
+            self#.advance()
+            if self.peek() == '\'' {
+                self#.advance()
+            }
+            auto str_val2 = self.source.substring(start_idx as usize, self.pos as usize)
+            return Token::new(TokenKind::CharLit(), (str_val2).raw_ptr() as Addr, (str_val2).len(), start_line, start_col)
+        }
+
+        // Delimiters
+        if c == '{' || c == '}' || c == '(' || c == ')' || c == '[' || c == ']' || c == ';' {
+            auto start_idx = self.pos
+            self#.advance()
+            auto delim_str = self.source.substring(start_idx as usize, self.pos as usize)
+            return Token::new(TokenKind::Delimiter(), (delim_str).raw_ptr() as Addr, (delim_str).len(), start_line, start_col)
+        }
+
+        // Operators & Morphology
+        auto start_idx_op = self.pos
+        auto n_c = self.peek_next()
+        auto is_two# = false
+        if c == '=' && n_c == '=' { is_two = true }
+        if c == '!' && n_c == '=' { is_two = true }
+        if c == '<' && n_c == '=' { is_two = true }
+        if c == '>' && n_c == '=' { is_two = true }
+        if c == '-' && n_c == '>' { is_two = true }
+        if c == '=' && n_c == '>' { is_two = true }
+        if c == '&' && n_c == '&' { is_two = true }
+        if c == '|' && n_c == '|' { is_two = true }
+        if c == ':' && n_c == ':' { is_two = true }
+
+        if is_two {
+            self#.advance()
+            self#.advance()
+        } else {
+            self#.advance()
+        }
+        auto op = self.source.substring(start_idx_op as usize, self.pos as usize)
+        return Token::new(TokenKind::Operator(), (op).raw_ptr() as Addr, (op).len(), start_line, start_col)
+    }
+}
+
+fn _str_cast(s: str) -> str { return s.clone() }
+
+
+
+
+
+
+
+
+
+fn rebuild_str(addr: Addr, len: usize) -> str {
+    unsafe {
+        auto ret# = _internal_str_cast("")
+        libc_memcpy(&ret as *void, &addr as *void, 8)
+        auto len_addr = (&ret as Addr) + 8
+        libc_memcpy(len_addr as *void, &len as *void, 8)
+        return ret
+    }
+}
+
+pub shape Printer (
+    indent_level#: i32,
+    output#: String,
+    needs_indent#: bool,
+    in_shape#: bool,
+    paren_depth#: i32
+)
+
+impl Printer {
+    pub fn new() -> Printer {
+        return Printer(
+            indent_level = 0,
+            output = String::from(""),
+            needs_indent = false,
+            in_shape = false,
+            paren_depth = 0
+        )
+    }
+
+    fn push_indent(self#) {
+        auto i# = 0
+        while i < self.indent_level {
+            self.output#.push_str("    ") // 4 spaces
+            i = i + 1
+        }
+        self.needs_indent = false
+    }
+
+    pub fn format(self#, lex#: Lexer) -> String {
+        auto last_kind# = TokenKind::Unknown()
+        auto last_lexeme# = _str_cast("")
+        auto in_import# = false
+        auto pending_space# = false
+        auto last_was_binary_op# = false
+        auto just_forced_newline# = false
+        auto pending_nl_count# = 0
+        
+        while !lex.is_eof() {
+            auto t = lex#.next_token()
+            
+            if t.kind == TokenKind::EOF() {
+                break
+            }
+            
+            auto is_namespace_brace = last_lexeme.equals("::")
+            
+            if rebuild_str(t.lexeme_addr, t.lexeme_len).equals("import") {
+                in_import = true
+            } else if rebuild_str(t.lexeme_addr, t.lexeme_len).equals("shape") {
+                self.in_shape = true
+            }
+            
+            if t.kind == TokenKind::Whitespace() {
+                auto nl_count# = 0
+                auto i# = 0 as usize
+                while i < rebuild_str(t.lexeme_addr, t.lexeme_len).len() {
+                    if rebuild_str(t.lexeme_addr, t.lexeme_len).at(i).unwrap() == '\n' {
+                        nl_count = nl_count + 1
+                    }
+                    i = i + 1
+                }
+
+                if nl_count > 0 {
+                    if just_forced_newline {
+                        nl_count = nl_count - 1
+                        just_forced_newline = false
+                    }
+                    pending_nl_count = pending_nl_count + nl_count
+                    in_import = false // Reset state
+                    pending_space = false
+                } else if !self.needs_indent {
+                    pending_space = true
+                }
+                continue
+            }
+            
+            // Space collapsing for { and else
+            if t.kind == TokenKind::Delimiter() && rebuild_str(t.lexeme_addr, t.lexeme_len).equals("{") {
+                if !is_namespace_brace {
+                    pending_nl_count = 0
+                    pending_space = true
+                }
+            } else if t.kind == TokenKind::Keyword() && rebuild_str(t.lexeme_addr, t.lexeme_len).equals("else") {
+                pending_nl_count = 0
+                pending_space = true
+            }
+            
+            // Adjust indent on closing brace/paren BEFORE printing
+            if t.kind == TokenKind::Delimiter() {
+                if rebuild_str(t.lexeme_addr, t.lexeme_len).equals("}") {
+                    if !in_import && self.indent_level > 0 {
+                        self.indent_level = self.indent_level - 1
+                        if !self.needs_indent && pending_nl_count == 0 {
+                            pending_nl_count = 1
+                        }
+                    }
+                } else if rebuild_str(t.lexeme_addr, t.lexeme_len).equals(")") || rebuild_str(t.lexeme_addr, t.lexeme_len).equals("]") {
+                    if self.indent_level > 0 {
+                        self.indent_level = self.indent_level - 1
+                    }
+                    if rebuild_str(t.lexeme_addr, t.lexeme_len).equals(")") && self.in_shape && self.paren_depth > 0 {
+                        self.paren_depth = self.paren_depth - 1
+                        if self.paren_depth == 0 {
+                            if !self.needs_indent && pending_nl_count == 0 {
+                                pending_nl_count = 1
+                            }
+                            self.in_shape = false
+                        }
+                    }
+                }
+            }
+
+            // Apply pending newlines
+            if pending_nl_count > 0 {
+                if pending_nl_count > 2 { pending_nl_count = 2 } // Keep max 1 blank line
+                auto j# = 0
+                while j < pending_nl_count {
+                    self.output#.push_str("\n")
+                    j = j + 1
+                }
+                self.needs_indent = true
+                pending_space = false
+                pending_nl_count = 0
+            }
+
+            auto did_indent# = false
+            if self.needs_indent {
+                if t.kind != TokenKind::Whitespace() {
+                    self#.push_indent()
+                    pending_space = false
+                    did_indent = true
+                    just_forced_newline = false
+                }
+            }
+
+            auto is_binary_op# = false
+            if rebuild_str(t.lexeme_addr, t.lexeme_len).equals("=") || rebuild_str(t.lexeme_addr, t.lexeme_len).equals("==") || rebuild_str(t.lexeme_addr, t.lexeme_len).equals("->") || rebuild_str(t.lexeme_addr, t.lexeme_len).equals("=>") || rebuild_str(t.lexeme_addr, t.lexeme_len).equals("+") || rebuild_str(t.lexeme_addr, t.lexeme_len).equals("-") || rebuild_str(t.lexeme_addr, t.lexeme_len).equals("*") || rebuild_str(t.lexeme_addr, t.lexeme_len).equals("/") || rebuild_str(t.lexeme_addr, t.lexeme_len).equals("<=") || rebuild_str(t.lexeme_addr, t.lexeme_len).equals(">=") || rebuild_str(t.lexeme_addr, t.lexeme_len).equals("!=") || rebuild_str(t.lexeme_addr, t.lexeme_len).equals("&&") || rebuild_str(t.lexeme_addr, t.lexeme_len).equals("||") || rebuild_str(t.lexeme_addr, t.lexeme_len).equals("as") || rebuild_str(t.lexeme_addr, t.lexeme_len).equals("|") || rebuild_str(t.lexeme_addr, t.lexeme_len).equals("&") || rebuild_str(t.lexeme_addr, t.lexeme_len).equals("^") || rebuild_str(t.lexeme_addr, t.lexeme_len).equals("<<") || rebuild_str(t.lexeme_addr, t.lexeme_len).equals(">>") {
+                is_binary_op = true
+            }
+            
+            // Special case for | at start of line (match branch)
+            if rebuild_str(t.lexeme_addr, t.lexeme_len).equals("|") && did_indent {
+                is_binary_op = false
+            }
+
+            if in_import && rebuild_str(t.lexeme_addr, t.lexeme_len).equals("/") {
+                is_binary_op = false
+            }
+
+            // Pointer vs Multiplication & Unary minus vs Binary minus
+            if rebuild_str(t.lexeme_addr, t.lexeme_len).equals("*") || rebuild_str(t.lexeme_addr, t.lexeme_len).equals("-") || rebuild_str(t.lexeme_addr, t.lexeme_len).equals("&") || rebuild_str(t.lexeme_addr, t.lexeme_len).equals("~") || rebuild_str(t.lexeme_addr, t.lexeme_len).equals("^") {
+                if last_kind == TokenKind::Operator() || last_kind == TokenKind::Keyword() || last_lexeme.equals("(") || last_lexeme.equals("[") || last_lexeme.equals(",") || last_lexeme.equals("::") || last_kind == TokenKind::Unknown() {
+                    is_binary_op = false
+                }
+            }
+
+            // Force space insertion requirements BEFORE the token
+            if t.kind == TokenKind::Operator() && is_binary_op {
+                pending_space = true
+            }
+            if t.kind == TokenKind::Delimiter() && rebuild_str(t.lexeme_addr, t.lexeme_len).equals("{") {
+                if !is_namespace_brace {
+                    pending_space = true
+                }
+            }
+            if t.kind == TokenKind::Comment() {
+                if !did_indent {
+                    pending_space = true
+                }
+            }
+            if rebuild_str(t.lexeme_addr, t.lexeme_len).equals("(") {
+                if last_lexeme.equals("if") || last_lexeme.equals("while") || last_lexeme.equals("match") || last_lexeme.equals("for") {
+                    pending_space = true
+                }
+            }
+
+            // Consume pending space
+            if pending_space && !self.needs_indent {
+                auto should_space# = true
+                if rebuild_str(t.lexeme_addr, t.lexeme_len).equals(",") || rebuild_str(t.lexeme_addr, t.lexeme_len).equals(";") || rebuild_str(t.lexeme_addr, t.lexeme_len).equals(":") || rebuild_str(t.lexeme_addr, t.lexeme_len).equals(")") || rebuild_str(t.lexeme_addr, t.lexeme_len).equals("]") || rebuild_str(t.lexeme_addr, t.lexeme_len).equals("#") {
+                    should_space = false
+                }
+                if rebuild_str(t.lexeme_addr, t.lexeme_len).equals("::") {
+                    should_space = false
+                }
+                if last_lexeme.equals("(") || last_lexeme.equals("[") || last_lexeme.equals("::") {
+                    should_space = false
+                }
+                if last_kind == TokenKind::Operator() && !last_was_binary_op {
+                    if last_lexeme.equals("*") || last_lexeme.equals("-") || last_lexeme.equals("&") || last_lexeme.equals("~") || last_lexeme.equals("^") {
+                        should_space = false
+                    }
+                }
+                if rebuild_str(t.lexeme_addr, t.lexeme_len).equals("(") && last_kind == TokenKind::Identifier() {
+                    should_space = false
+                }
+                if should_space {
+                    self.output#.push_str(" ")
+                }
+                pending_space = false
+            }
+
+            // Print the lexeme
+            self.output#.push_view_addr(t.lexeme_addr, t.lexeme_len)
+            
+            // Force space requirements AFTER the token
+            if t.kind == TokenKind::Operator() && is_binary_op {
+                pending_space = true
+            }
+            if t.kind == TokenKind::Delimiter() {
+                if rebuild_str(t.lexeme_addr, t.lexeme_len).equals(",") || rebuild_str(t.lexeme_addr, t.lexeme_len).equals(":") {
+                    pending_space = true
+                }
+            }
+            
+            last_kind = t.kind
+            last_lexeme = rebuild_str(t.lexeme_addr, t.lexeme_len).clone()
+            last_was_binary_op = is_binary_op
+            
+            // Adjust indent AFTER opening brace/paren
+            if t.kind == TokenKind::Delimiter() {
+                if rebuild_str(t.lexeme_addr, t.lexeme_len).equals("{") {
+                    if !is_namespace_brace {
+                        self.indent_level = self.indent_level + 1
+                        pending_nl_count = 1
+                        just_forced_newline = true
+                    }
+                } else if rebuild_str(t.lexeme_addr, t.lexeme_len).equals("(") || rebuild_str(t.lexeme_addr, t.lexeme_len).equals("[") {
+                    self.indent_level = self.indent_level + 1
+                    if rebuild_str(t.lexeme_addr, t.lexeme_len).equals("(") && self.in_shape {
+                        if self.paren_depth == 0 {
+                            pending_nl_count = 1
+                            just_forced_newline = true
+                        }
+                        self.paren_depth = self.paren_depth + 1
+                    }
+                }
+            }
+        }
+        
+        return self.output
+    }
+}
+
+fn _str_cast(s: str) -> str { return s.clone() }
+
 
 fn main() -> i32 {
     auto argc = env::args_count()
@@ -34,7 +566,6 @@ fn main() -> i32 {
     auto lexer# = Lexer::new(content.as_str())
     auto printer# = Printer::new()
     auto formatted_code = printer#.format(lexer)
-
-    print("{}", formatted_code.c_str())
+    print("{}", formatted_code)
     return 0
 }

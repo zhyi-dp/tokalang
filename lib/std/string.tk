@@ -297,6 +297,31 @@ impl String {
         return 1
     }
 
+    pub fn push_view_addr(self#, addr: Addr, slen: usize) -> i32 {
+        if slen == 0 { return 1 }
+        unsafe {
+            auto needed = self.len + slen
+            
+            if needed >= self.cap {
+                auto new_cap = (self.cap * 2) + slen + 1
+                
+                auto *tmp = unsafe alloc [new_cap] char
+                if *tmp == null { return 0 }
+                if self.*buf != null {
+                    libc_memcpy(*tmp as *void, self.*buf as *void, self.len)
+                }
+                self.*buf = *tmp
+                self.cap = new_cap
+            }
+            
+            auto *dst# = (self.*buf as usize + self.len) as *[char]
+            libc_memcpy(*dst as *void, addr as *void, slen)
+            self.len = needed
+            dst[slen] = 0 as char
+        }
+        return 1
+    }
+
     pub fn push_view(self#, v: view_str) -> i32 {
         if v.len() == 0 { return 1 }
         unsafe {
@@ -316,7 +341,7 @@ impl String {
             }
             
             auto *dst# = (self.*buf as usize + self.len) as *[char]
-            libc_memcpy(*dst as *void, &(v.buf()[0]) as *void, slen)
+            libc_memcpy(*dst as *void, v.raw_ptr() as *void, slen)
             self.len = needed
             dst[slen] = 0 as char
         }

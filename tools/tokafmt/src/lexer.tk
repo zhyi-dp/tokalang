@@ -65,7 +65,7 @@ impl Lexer {
 
     pub fn next_token(self#) -> Token {
         if self.is_eof() {
-            return Token::new(TokenKind::EOF(), _str_cast(""), self.line, self.col)
+            return Token::new(TokenKind::EOF(), (_str_cast("")).raw_ptr() as Addr, (_str_cast("")).len(), self.line, self.col)
         }
 
         auto start_line = self.line
@@ -79,7 +79,7 @@ impl Lexer {
                 self#.advance()
             }
             auto ws = self.source.substring(start_idx as usize, self.pos as usize)
-            return Token::new(TokenKind::Whitespace(), ws, start_line, start_col)
+            return Token::new(TokenKind::Whitespace(), (ws).raw_ptr() as Addr, (ws).len(), start_line, start_col)
         }
 
         // Block Comments
@@ -96,7 +96,7 @@ impl Lexer {
                 self#.advance()
             }
             auto comm = self.source.substring(start_idx as usize, self.pos as usize)
-            return Token::new(TokenKind::Comment(), comm, start_line, start_col)
+            return Token::new(TokenKind::Comment(), (comm).raw_ptr() as Addr, (comm).len(), start_line, start_col)
         }
 
         // Line Comments
@@ -106,7 +106,7 @@ impl Lexer {
                 self#.advance()
             }
             auto comm = self.source.substring(start_idx as usize, self.pos as usize)
-            return Token::new(TokenKind::Comment(), comm, start_line, start_col)
+            return Token::new(TokenKind::Comment(), (comm).raw_ptr() as Addr, (comm).len(), start_line, start_col)
         }
 
         // Identifier or Keyword
@@ -122,7 +122,7 @@ impl Lexer {
             if ident.equals("fn") || ident.equals("return") || ident.equals("auto") || ident.equals("shape") || ident.equals("impl") {
                 kind = TokenKind::Keyword()
             }
-            return Token::new(kind, ident, start_line, start_col)
+            return Token::new(kind, (ident).raw_ptr() as Addr, (ident).len(), start_line, start_col)
         }
 
         // Number
@@ -140,7 +140,7 @@ impl Lexer {
                 }
             }
             auto num = self.source.substring(start_idx as usize, self.pos as usize)
-            return Token::new(TokenKind::Number(), num, start_line, start_col)
+            return Token::new(TokenKind::Number(), (num).raw_ptr() as Addr, (num).len(), start_line, start_col)
         }
 
         // String Literal
@@ -157,7 +157,7 @@ impl Lexer {
                 self#.advance() // Consume closing quote
             }
             auto str_val = self.source.substring(start_idx as usize, self.pos as usize)
-            return Token::new(TokenKind::StringLit(), str_val, start_line, start_col)
+            return Token::new(TokenKind::StringLit(), (str_val).raw_ptr() as Addr, (str_val).len(), start_line, start_col)
         }
         
         // Single Character Literal or Morphology
@@ -172,7 +172,7 @@ impl Lexer {
                 self#.advance()
             }
             auto str_val2 = self.source.substring(start_idx as usize, self.pos as usize)
-            return Token::new(TokenKind::CharLit(), str_val2, start_line, start_col)
+            return Token::new(TokenKind::CharLit(), (str_val2).raw_ptr() as Addr, (str_val2).len(), start_line, start_col)
         }
 
         // Delimiters
@@ -180,7 +180,7 @@ impl Lexer {
             auto start_idx = self.pos
             self#.advance()
             auto delim_str = self.source.substring(start_idx as usize, self.pos as usize)
-            return Token::new(TokenKind::Delimiter(), delim_str, start_line, start_col)
+            return Token::new(TokenKind::Delimiter(), (delim_str).raw_ptr() as Addr, (delim_str).len(), start_line, start_col)
         }
 
         // Operators & Morphology
@@ -204,7 +204,7 @@ impl Lexer {
             self#.advance()
         }
         auto op = self.source.substring(start_idx_op as usize, self.pos as usize)
-        return Token::new(TokenKind::Operator(), op, start_line, start_col)
+        return Token::new(TokenKind::Operator(), (op).raw_ptr() as Addr, (op).len(), start_line, start_col)
     }
 }
 

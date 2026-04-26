@@ -72,6 +72,16 @@ impl ViewStrSplitIterator@encap {
 }
 
 impl ViewStrSplitIterator {
+    pub fn raw_ptr(self) -> *char {
+        if self.len == 0 { return null as *char }
+        unsafe {
+            auto cpy# = self.clone()
+            auto ret_val: usize = 0
+            libc_memcpy(&ret_val as *void, &cpy as *void, 8)
+            return ret_val as *char
+        }
+    }
+
     pub fn next(self#) -> Option<view_str> {
         if self.finished {
             return Option<view_str>::None
@@ -82,7 +92,7 @@ impl ViewStrSplitIterator {
             self.finished = true
             auto remaining = self.len - self.pos
             unsafe {
-                auto b_addr = &(self.buf[0]) as Addr
+                auto b_addr = self.raw_ptr() as Addr
                 auto ptr_addr = b_addr + self.pos
                 auto ret# = view_str(&buf = self.&buf, len = remaining)
                 libc_memcpy(&ret as *void, &ptr_addr as *void, 8)
@@ -124,7 +134,7 @@ impl ViewStrSplitIterator {
                 self.pos = i + self.sep.len
                 
                 // Construct the segment
-                auto b_addr = &(self.buf[0]) as Addr
+                auto b_addr = self.raw_ptr() as Addr
                 auto ptr_addr = b_addr + start
                 auto ret# = view_str(&buf = self.&buf, len = segment_len)
                 libc_memcpy(&ret as *void, &ptr_addr as *void, 8)
@@ -133,7 +143,7 @@ impl ViewStrSplitIterator {
                 // No more separators, emit the last part
                 self.finished = true
                 auto segment_len = self.len - start
-                auto b_addr = &(self.buf[0]) as Addr
+                auto b_addr = self.raw_ptr() as Addr
                 auto ptr_addr = b_addr + start
                 auto ret# = view_str(&buf = self.&buf, len = segment_len)
                 libc_memcpy(&ret as *void, &ptr_addr as *void, 8)
@@ -349,7 +359,7 @@ impl view_str@StringOps {
         }
         
         unsafe {
-            auto b_addr = &(self.buf[0]) as Addr
+            auto b_addr = self.raw_ptr() as Addr
             auto ptr_addr = b_addr + pos
             
             // 1. Construct safe view using original reference to satisfy PAL
@@ -397,7 +407,7 @@ impl view_str@StringOps {
             if start == 0 { return self.clone() }
             if start == self.len { return view_str(&buf = self.&buf, len = 0) }
             
-            auto b_addr = &(self.buf[0]) as Addr
+            auto b_addr = self.raw_ptr() as Addr
             auto ptr_addr = b_addr + start
             auto ret# = view_str(&buf = self.&buf, len = self.len - start)
             libc_memcpy(&ret as *void, &ptr_addr as *void, 8)
@@ -538,7 +548,10 @@ impl view_str {
     pub fn raw_ptr(self) -> *char {
         if self.len == 0 { return null as *char }
         unsafe {
-            return &(self.buf[0]) as *char
+            auto cpy# = self.clone()
+            auto ret_val: usize = 0
+            libc_memcpy(&ret_val as *void, &cpy as *void, 8)
+            return ret_val as *char
         }
     }
 

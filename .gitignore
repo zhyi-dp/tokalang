@@ -85,3 +85,5 @@ test_output*.txt
 test_pkg_demo/
 
 *.vsix
+
+scratch/

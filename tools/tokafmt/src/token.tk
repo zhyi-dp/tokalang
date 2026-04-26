@@ -1,4 +1,6 @@
-import core/str::{str}
+import core/str::{str, _internal_str_cast}
+import core/types::{Addr}
+import core/libc::{libc_memcpy}
 
 pub shape TokenKind(
     Unknown |
@@ -16,18 +18,34 @@ pub shape TokenKind(
 
 pub shape Token (
     kind: TokenKind,
-    lexeme: str,
+    lexeme_addr: Addr,
+    lexeme_len: usize,
     line: i32,
     col: i32
 )
 
 impl Token {
-    pub fn new(kind: TokenKind, lexeme: str, line: i32, col: i32) -> Token {
+    pub fn new(kind: TokenKind, lexeme_addr: Addr, lexeme_len: usize, line: i32, col: i32) -> Token {
         return Token(
             kind = kind,
-            lexeme = lexeme,
+            lexeme_addr = lexeme_addr,
+            lexeme_len = lexeme_len,
             line = line,
             col = col
         )
+    }
+
+    pub fn lexeme(self) -> str {
+        unsafe {
+            auto ret# = _internal_str_cast("")
+            auto ptr_addr = self.lexeme_addr
+            libc_memcpy(&ret as *void, &ptr_addr as *void, 8)
+            
+            auto len_addr = (&ret as Addr) + 8
+            auto new_len = self.lexeme_len
+            libc_memcpy(len_addr as *void, &new_len as *void, 8)
+            
+            return ret
+        }
     }
 }
