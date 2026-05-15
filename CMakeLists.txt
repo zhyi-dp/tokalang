@@ -73,6 +73,27 @@ find_package(LLVM REQUIRED CONFIG)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
+# Find LLD 20 intelligently
+if(NOT LLD_DIR)
+    if(APPLE)
+        if(EXISTS "/usr/local/opt/lld@20/lib/cmake/lld")
+            set(LLD_DIR "/usr/local/opt/lld@20/lib/cmake/lld")
+        elseif(EXISTS "/opt/homebrew/opt/lld@20/lib/cmake/lld")
+            set(LLD_DIR "/opt/homebrew/opt/lld@20/lib/cmake/lld")
+        endif()
+    elseif(WIN32)
+        if(EXISTS "C:/msys64/mingw64/lib/cmake/lld")
+            set(LLD_DIR "C:/msys64/mingw64/lib/cmake/lld")
+        endif()
+    endif()
+endif()
+
+if(LLD_DIR)
+    find_package(LLD REQUIRED CONFIG)
+    message(STATUS "Found LLD ${LLD_PACKAGE_VERSION}")
+    include_directories(${LLD_INCLUDE_DIRS})
+endif()
+
 include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 

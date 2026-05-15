@@ -40,23 +40,23 @@ make -C build -j8
 # Ensure the newly built tokac is in the PATH so it can compile the toka wrapper
 export PATH="$BIN_DIR:$PATH"
 
+echo "   -> Compiling Toka Runtime (toka_rt.o)..."
+$LLVM_CLANG -isysroot $(xcrun --show-sdk-path) -c lib/std/sys/toka_rt.c -o lib/std/sys/toka_rt.o
+
 echo ""
 echo "====================================="
 echo "2. Building Toka CLI Tool (toka)"
 echo "====================================="
 cd tools/toka
-echo "   -> Compiling tools/toka/src/main.tk to main.ll..."
-tokac -I "$ROOT_DIR/lib" -I src src/main.tk > main.ll
-
-echo "   -> Compiling main.ll to executable with LLVM 20 Clang..."
-$LLVM_CLANG main.ll -isysroot $(xcrun --show-sdk-path) -mmacosx-version-min=12.0 -o toka
+echo "   -> Compiling and Linking tools/toka/src/main.tk with internal LLD..."
+tokac -I "$ROOT_DIR/lib" -I src src/main.tk "$ROOT_DIR/lib/std/sys/toka_rt.o" -o toka
 
 echo "   -> Installing toka to $BIN_DIR/toka..."
 mkdir -p "$BIN_DIR"
 cp toka "$BIN_DIR/toka"
 
 # Clean up build artifacts in tools/toka
-rm -f main.ll toka
+rm -f toka
 
 # Return to root directory
 cd "$ROOT_DIR"
@@ -66,17 +66,14 @@ echo "====================================="
 echo "3. Building Toka Formatter (tokafmt)"
 echo "====================================="
 cd tools/tokafmt
-echo "   -> Compiling tools/tokafmt/src/main.tk to main.ll..."
-tokac -I "$ROOT_DIR/lib" src/main.tk > main.ll
-
-echo "   -> Compiling main.ll to executable with LLVM 20 Clang..."
-$LLVM_CLANG main.ll -isysroot $(xcrun --show-sdk-path) -mmacosx-version-min=12.0 -o tokafmt
+echo "   -> Compiling and Linking tools/tokafmt/src/main.tk with internal LLD..."
+tokac -I "$ROOT_DIR/lib" src/main.tk "$ROOT_DIR/lib/std/sys/toka_rt.o" -o tokafmt
 
 echo "   -> Installing tokafmt to $BIN_DIR/tokafmt..."
 cp tokafmt "$BIN_DIR/tokafmt"
 
 # Clean up build artifacts in tools/tokafmt
-rm -f main.ll tokafmt
+rm -f tokafmt
 
 cd "$ROOT_DIR"
 
@@ -85,17 +82,14 @@ echo "====================================="
 echo "4. Building Toka Language Server (tokalsp)"
 echo "====================================="
 cd tools/tokalsp
-echo "   -> Compiling tools/tokalsp/main.tk to main.ll..."
-tokac -I "$ROOT_DIR/lib" main.tk > main.ll
-
-echo "   -> Compiling main.ll to executable with LLVM 20 Clang..."
-$LLVM_CLANG main.ll -isysroot $(xcrun --show-sdk-path) -mmacosx-version-min=12.0 -o tokalsp
+echo "   -> Compiling and Linking tools/tokalsp/main.tk with internal LLD..."
+tokac -I "$ROOT_DIR/lib" main.tk "$ROOT_DIR/lib/std/sys/toka_rt.o" -o tokalsp
 
 echo "   -> Installing tokalsp to $BIN_DIR/tokalsp..."
 cp tokalsp "$BIN_DIR/tokalsp"
 
 # Clean up build artifacts in tools/tokalsp
-rm -f main.ll tokalsp
+rm -f tokalsp
 
 cd "$ROOT_DIR"
 

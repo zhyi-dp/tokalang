@@ -4,7 +4,39 @@ import core/str::{view_str}
 import core/libc::{libc_malloc, libc_free}
 import core/types::{usize, char, ADDR0}
 import std/serde/json::{JsonNode, to_json, JsonRes, @FromJson}
-import std/sys/libc::{libc_popen, libc_pclose, libc_fread}
+import std/sys/libc::{libc_popen, libc_pclose, libc_fread, libc_getenv}
+
+extern fn toka_setmode(fd: i32, mode: i32) -> i32
+extern fn toka_fileno(*stream: void) -> i32
+
+fn get_tmp_dir() -> String {
+    unsafe {
+        auto *t = libc_getenv("TEMP" as *char)
+        if *t != (ADDR0 as *char) {
+            return String::from_raw(*t)
+        }
+        auto *t2 = libc_getenv("TMP" as *char)
+        if *t2 != (ADDR0 as *char) {
+            return String::from_raw(*t2)
+        }
+    }
+    return String::from("/tmp")
+}
+
+fn setup_io() {
+    unsafe {
+        auto *os = libc_getenv("OS" as *char)
+        if *os != (ADDR0 as *char) {
+            auto os_str = String::from_raw(*os)
+            if os_str.as_view().starts_with(s"Windows") {
+                // _O_BINARY is 0x8000
+                // stdin is usually 0, stdout is 1
+                toka_setmode(0, 0x8000)
+                toka_setmode(1, 0x8000)
+            }
+        }
+    }
+}
 
 // Simple JSON-RPC Error response structure
 pub shape JsonRpcError (
@@ -170,12 +202,15 @@ fn process_message(body: String) {
                                         }
                                         
                                         if doc_text.len() > 0 {
-                                            auto tmp_file# = File::open(String::from("/tmp/tokalsp_current.tk"), String::from("w"))
+                                            auto tmp_dir = get_tmp_dir()
+                                            auto tmp_path = String::fmt("{}/tokalsp_current.tk", tmp_dir.c_str().as_str())
+                                            auto tmp_file# = File::open(tmp_path.clone(), String::from("w"))
                                             if tmp_file.is_valid() {
                                                 tmp_file.write(doc_text)
                                                 tmp_file#.close()
                                                 
-                                                auto json_out = execute_command(String::from("tokac --check-json /tmp/tokalsp_current.tk 2>&1"))
+                                                auto cmd = String::fmt("tokac --check-json {} 2>&1", tmp_path.c_str().as_str())
+                                                auto json_out = execute_command(cmd)
                                                 auto diag_json = String::from("{\"uri\":\"")
                                                 diag_json#.push_view(doc_uri.as_view())
                                                 diag_json#.push_str("\",\"diagnostics\":[")
@@ -256,8 +291,11 @@ fn process_message(body: String) {
 
 pub fn main() {
     auto input = stdin()
+    setup_io()
+    auto tmp_dir = get_tmp_dir()
     while true {
-        auto log# = File::open(String::from("/tmp/tokalsp.log"), String::from("a"))
+        auto log_path = String::fmt("{}/tokalsp.log", tmp_dir.c_str().as_str())
+        auto log# = File::open(log_path, String::from("a"))
         log.write(String::from("LOOP START\n"))
         log#.close()
         
@@ -289,7 +327,8 @@ pub fn main() {
             auto body = String::from_with_len(*buf, clen)
             libc_free(*buf as *void)
             
-            auto err# = File::open(String::from("/tmp/tokalsp.log"), String::from("a"))
+            auto log_path = String::fmt("{}/tokalsp.log", tmp_dir.c_str().as_str())
+            auto err# = File::open(log_path, String::from("a"))
             err.write(String::from("BODY: ["))
             err.write(body.clone())
             err.write(String::from("]\n"))

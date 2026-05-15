@@ -43,6 +43,74 @@
 
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
+#include <cstdio>
+
+#ifndef _WIN32
+#include <unistd.h>
+extern "C" int toka_setmode(int fd, int mode) { return 0; }
+extern "C" int toka_fileno(FILE *f) { return fileno(f); }
+#else
+#include <io.h>
+#include <fcntl.h>
+extern "C" int toka_setmode(int fd, int mode) { return _setmode(fd, mode); }
+extern "C" int toka_fileno(FILE *f) { return _fileno(f); }
+#endif
+
+#include "lld/Common/Driver.h"
+
+LLD_HAS_DRIVER(coff)
+LLD_HAS_DRIVER(elf)
+LLD_HAS_DRIVER(macho)
+LLD_HAS_DRIVER(mingw)
+
+bool linkWithLLD(std::string objFile, std::vector<std::string> extraObjs, std::string outputFile) {
+    std::vector<const char *> args;
+    args.push_back("toka-lld"); // dummy argv[0]
+
+#ifdef _WIN32
+    args.push_back(objFile.c_str());
+    for (const auto &extra : extraObjs) {
+        args.push_back(extra.c_str());
+    }
+    args.push_back("-o");
+    args.push_back(outputFile.c_str());
+    // For MinGW-style linking, it might need more setup but this is a start
+    return lld::mingw::link(args, llvm::outs(), llvm::errs(), false, false);
+#elif defined(__APPLE__)
+    args.push_back("-arch");
+#if defined(__arm64__) || defined(__aarch64__)
+    args.push_back("arm64");
+#else
+    args.push_back("x86_64");
+#endif
+    args.push_back("-platform_version");
+    args.push_back("macos");
+    args.push_back("12.0.0");
+    args.push_back("12.0.0");
+    
+    args.push_back("-syslibroot");
+    args.push_back("/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk");
+    
+    args.push_back(objFile.c_str());
+    for (const auto &extra : extraObjs) {
+        args.push_back(extra.c_str());
+    }
+    args.push_back("-o");
+    args.push_back(outputFile.c_str());
+    args.push_back("-lSystem");
+    return lld::macho::link(args, llvm::outs(), llvm::errs(), false, false);
+#else
+    args.push_back(objFile.c_str());
+    for (const auto &extra : extraObjs) {
+        args.push_back(extra.c_str());
+    }
+    args.push_back("-o");
+    args.push_back(outputFile.c_str());
+    args.push_back("-lc");
+    args.push_back("-lm");
+    return lld::elf::link(args, llvm::outs(), llvm::errs(), false, false);
+#endif
+}
 bool verboseMode = false;
 bool g_JsonDiagnostics = false;
 
@@ -182,7 +250,8 @@ int main(int argc, char **argv) {
     }
   }
 
-  std::vector<std::string> inputFiles;
+  std::vector<std::string> sourceFiles;
+  std::vector<std::string> objectFiles;
   std::map<std::string, std::string> pkgMap;
   bool disableBorrowCheck = false;
   bool emitObj = false;
@@ -260,12 +329,16 @@ int main(int argc, char **argv) {
     } else if (arg.rfind("-", 0) == 0) {
       // Ignore other flags for now or report error
     } else {
-      inputFiles.push_back(arg);
+      if (arg.length() > 2 && (arg.substr(arg.length() - 2) == ".o" || arg.substr(arg.length() - 2) == ".a")) {
+        objectFiles.push_back(arg);
+      } else {
+        sourceFiles.push_back(arg);
+      }
     }
   }
 
-  if (inputFiles.empty()) {
-    llvm::errs() << "Usage: tokac [options] <filename>\n";
+  if (sourceFiles.empty()) {
+    llvm::errs() << "Usage: tokac [options] <source.tk> [objects...]\n";
     return 1;
   }
 
@@ -276,7 +349,7 @@ int main(int argc, char **argv) {
   std::set<std::string> visited;
 
   std::vector<std::string> recursionStack;
-  for (const auto &file : inputFiles) {
+  for (const auto &file : sourceFiles) {
     parseSource(file, astModules, visited, recursionStack, sm, searchPaths, pkgMap);
   }
 
@@ -434,17 +507,11 @@ int main(int argc, char **argv) {
     if (verboseMode) fprintf(stderr, "Object file emitted successfully.\n");
 
     if (!compileOnly) {
-      if (verboseMode) fprintf(stderr, "Linking executable: %s\n", finalOutput.c_str());
+      if (verboseMode) fprintf(stderr, "Linking executable (internal LLD): %s\n", finalOutput.c_str());
       fflush(stderr);
-      std::string cmd;
-#ifdef _WIN32
-      cmd = "clang " + objFile + " -o " + finalOutput;
-#else
-      cmd = "cc " + objFile + " -o " + finalOutput;
-#endif
-      int ret = system(cmd.c_str());
-      if (ret != 0) {
-        llvm::errs() << "Linker error: cc failed\n";
+      
+      if (!linkWithLLD(objFile, objectFiles, finalOutput)) {
+        llvm::errs() << "Linker error: LLD failed\n";
         return 1;
       }
       std::remove(objFile.c_str());
