@@ -21,7 +21,7 @@ CodeGen/CodeGen_Decl.cpp
 # Link against LLVM libraries
 llvm_map_components_to_libnames(llvm_libs Support Core Passes Analysis Coroutines ${LLVM_TARGETS_TO_BUILD} MC Target AsmPrinter AsmParser)
 
-set(lld_names lldCommon lldELF lldMinGW lldCOFF lldMachO lldWasm)
+set(lld_names lldELF lldMinGW lldCOFF lldMachO lldWasm lldCommon)
 set(lld_libs "")
 
 foreach(libname ${lld_names})
@@ -34,4 +34,4 @@ foreach(libname ${lld_names})
     endif()
 endforeach()
 
-target_link_libraries(tokac PUBLIC ${llvm_libs} ${lld_libs})
+target_link_libraries(tokac PUBLIC ${lld_libs} ${llvm_libs})
