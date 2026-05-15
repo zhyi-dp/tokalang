@@ -36,7 +36,7 @@ impl<'K, 'V> BTreeNode<'K, 'V> {
                 while j <= n.len {
                     auto c_addr = n.children[j]
                     if addr_is_not_null(c_addr) {
-                        BTreeNode<'K, 'V>::destroy(c_addr as u64)
+                        BTreeNode<'K, 'V>::destroy(c_addr)
                     }
                     j += 1
                 }
@@ -236,7 +236,7 @@ impl<'K: @PartialOrd, 'V> BTreeMap<'K, 'V>@encap {
     pub fn clear(self#) {
         unsafe {
             if addr_is_not_null(self.root_addr) {
-                BTreeNode<'K, 'V>::destroy(self.root_addr as u64)
+                BTreeNode<'K, 'V>::destroy(self.root_addr)
                 self.root_addr = BTreeNode<'K, 'V>::new(true)
                 self.len = 0
             }

@@ -4275,7 +4275,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
               else if (MetAST->Args[i].IsUnique) tyStr = "^" + tyStr;
               else if (MetAST->Args[i].IsShared) tyStr = "~" + tyStr;
               else if (MetAST->Args[i].IsReference) tyStr = "&" + tyStr;
-              expectedTy = resolveType(toka::Type::fromString(tyStr), true);
+              expectedTy = resolveType(toka::Type::fromString(tyStr), false);
           }
           auto argTy = checkExpr(Call->Args[i].get(), expectedTy);
           if (expectedTy && !isTypeCompatible(expectedTy, argTy)) {
@@ -4326,7 +4326,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
                     else if (MetAST->Args[i].IsUnique) tyStr = "^" + tyStr;
                     else if (MetAST->Args[i].IsShared) tyStr = "~" + tyStr;
                     else if (MetAST->Args[i].IsReference) tyStr = "&" + tyStr;
-                    expectedTy = resolveType(toka::Type::fromString(tyStr), true);
+                    expectedTy = resolveType(toka::Type::fromString(tyStr), false);
                 }
                 auto argTy = checkExpr(Call->Args[i].get(), expectedTy);
                 if (expectedTy && !isTypeCompatible(expectedTy, argTy)) {
