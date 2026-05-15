@@ -831,6 +831,9 @@ void Sema::checkStmt(Stmt *S) {
     }
 
     std::string soulName = Type::stripMorphology(Destruct->TypeName);
+    if (soulName.empty() && initType && initType->isShape()) {
+      soulName = Type::stripMorphology(initType->getSoulName());
+    }
     if (!soulName.empty() && ShapeMap.count(soulName)) {
       ShapeDecl *SD = ShapeMap[soulName];
       size_t Limit = std::min(SD->Members.size(), Destruct->Variables.size());

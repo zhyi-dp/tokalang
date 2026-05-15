@@ -1062,18 +1062,23 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
               Cast->TargetType);
       }
     } else if (!srcType->equals(*targetType)) {
-      // Rule: Union Reinterpretation
+      // Rule: Union Reinterpretation & Enum Casting
       auto srcTypeResolved = resolveType(srcType);
       bool srcIsUnion = false;
+      bool srcIsEnum = false;
       std::shared_ptr<ShapeType> st = nullptr;
       if (srcTypeResolved->isShape()) {
         st = std::dynamic_pointer_cast<ShapeType>(srcTypeResolved);
         if (st->Decl && st->Decl->Kind == ShapeKind::Union) {
           srcIsUnion = true;
+        } else if (st->Decl && st->Decl->Kind == ShapeKind::Enum) {
+          srcIsEnum = true;
         }
       }
 
-      if (srcIsUnion) {
+      if (srcIsEnum && targetIsNumeric) {
+        // Enum can be cast to an integer Discriminant. Valid.
+      } else if (srcIsUnion) {
         bool found = false;
         for (const auto &M : st->Decl->Members) {
           auto mType = M.ResolvedType

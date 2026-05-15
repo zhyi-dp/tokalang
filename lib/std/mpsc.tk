@@ -1,5 +1,6 @@
 import std/sync::{Mutex, CondVar, MutexLock}
 import std/vec::{Vec}
+import std/string::{String}
 import core/result::{Result}
 import std/error::{Error}
 import core/intrinsics/atomic::*
@@ -93,13 +94,13 @@ impl<'T: @Send> Sender<'T> {
         
         auto *q# = lguard.get_ref()
         if q.closed {
-            return Result<(), Error>::Err(Error::new(1:i32, "Send on closed channel"))
+            return Result<(), Error>::Err(Error::new(1:i32, String::from("Send on closed channel")))
         }
         
         if q.capacity >= 0 {
             while q.queue.len() >= (q.capacity as u64) {
                 if q.closed {
-                    return Result<(), Error>::Err(Error::new(1:i32, "Send on closed channel"))
+                    return Result<(), Error>::Err(Error::new(1:i32, String::from("Send on closed channel")))
                 }
                 self.channel.cond_not_full.wait_cond(lguard)
             }
