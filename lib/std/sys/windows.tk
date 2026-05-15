@@ -56,7 +56,7 @@ extern fn WideCharToMultiByte(CodePage: u32, dwFlags: DWORD, *lpWideCharStr: u16
 // Helpers
 pub fn to_utf16(*s: char) -> *u16 {
     unsafe {
-        auto len = MultiByteToWideChar(CP_UTF8, 0, *s, -1, *(0:Addr as *u16), 0)
+        auto len = MultiByteToWideChar(CP_UTF8, 0, *s, -1, 0:Addr as *u16, 0)
         if len <= 0 { return 0:Addr as *u16 }
         auto *ptr = libc_malloc((len as usize) * 2) as *u16
         MultiByteToWideChar(CP_UTF8, 0, *s, -1, *ptr, len)
@@ -66,10 +66,10 @@ pub fn to_utf16(*s: char) -> *u16 {
 
 pub fn from_utf16(*w: u16) -> String {
     unsafe {
-        auto len = WideCharToMultiByte(CP_UTF8, 0, *w, -1, *(0:Addr as *char), 0, *(0:Addr as *char), 0:Addr)
+        auto len = WideCharToMultiByte(CP_UTF8, 0, *w, -1, 0:Addr as *char, 0, 0:Addr as *char, 0:Addr)
         if len <= 1 { return String::from("") }
         auto *ptr = libc_malloc(len as usize) as *char
-        WideCharToMultiByte(CP_UTF8, 0, *w, -1, *ptr, len, *(0:Addr as *char), 0:Addr)
+        WideCharToMultiByte(CP_UTF8, 0, *w, -1, *ptr, len, 0:Addr as *char, 0:Addr)
         return String::from_take(*ptr)
     }
 }
@@ -82,14 +82,14 @@ extern fn CommandLineToArgvW(*lpCmdLine: u16, *pNumArgs: i32) -> *Addr
 extern fn LocalFree(hMem: Addr) -> Addr
 
 auto g_win_argc#: i32 = 0
-auto g_win_argv#: *[Addr] = 0:Addr as *[Addr]
+auto *g_win_argv#: Addr = 0:Addr as *Addr
 
 pub fn args_impl() -> i32 {
     unsafe {
         if g_win_argc == 0 {
             auto *cmd = GetCommandLineW()
-            auto *argc_ptr = &g_win_argc
-            g_win_argv = CommandLineToArgvW(*cmd, *argc_ptr) as *[Addr]
+            auto *argc_ptr = *g_win_argc
+            *g_win_argv = CommandLineToArgvW(*cmd, *argc_ptr)
         }
         return g_win_argc
     }
@@ -100,8 +100,10 @@ pub fn get_arg_impl(i: i32) -> String {
         if g_win_argc == 0 { args_impl() }
         if i >= g_win_argc { return String::from("") }
         auto idx = i as usize
-        auto wstr = g_win_argv[idx] as *u16
-        return from_utf16(wstr)
+        auto ptr_val = (*g_win_argv as usize) + (idx * 8:usize)
+        auto *p = ptr_val as *Addr
+        auto *wstr = p as *u16
+        return from_utf16(*wstr)
     }
 }
 
@@ -115,11 +117,11 @@ pub shape WinDir (
 
 pub fn opendir_impl(path: Addr) -> Addr {
     unsafe {
-        auto wpath = to_utf16(*(path as *char))
+        auto *wpath = to_utf16(path as *char)
         // FindFirstFile needs a wildcard like \*
         auto pstr = String::from_raw(path as *char)
         auto search_path = pstr + String::from("\\*")
-        auto wsearch = to_utf16(*(search_path.c_str()))
+        auto *wsearch = to_utf16(search_path.c_str())
         
         auto *wd# = libc_malloc(sizeof(WinDir)) as *WinDir
         auto h = FindFirstFileW(*wsearch, (&(wd.find_data)) as Addr)
@@ -127,7 +129,7 @@ pub fn opendir_impl(path: Addr) -> Addr {
         libc_free(wpath as *void)
         libc_free(wsearch as *void)
         
-        if h == INVALID_HANDLE_VALUE {
+        if h as Addr == INVALID_HANDLE_VALUE {
             libc_free(*wd as *void)
             return ADDR0
         }
@@ -164,7 +166,7 @@ pub fn closedir_impl(dir_handle: Addr) {
 
 pub fn mkdir_impl(path: Addr) -> bool {
     unsafe {
-        auto wpath = to_utf16(*(path as *char))
+        auto *wpath = to_utf16(path as *char)
         auto res = CreateDirectoryW(*wpath, ADDR0)
         libc_free(wpath as *void)
         return res != 0
@@ -173,7 +175,7 @@ pub fn mkdir_impl(path: Addr) -> bool {
 
 pub fn rmdir_impl(path: Addr) -> bool {
     unsafe {
-        auto wpath = to_utf16(*(path as *char))
+        auto *wpath = to_utf16(path as *char)
         auto res = RemoveDirectoryW(*wpath)
         libc_free(wpath as *void)
         return res != 0
@@ -182,7 +184,7 @@ pub fn rmdir_impl(path: Addr) -> bool {
 
 pub fn path_exists(path: Addr) -> bool {
     unsafe {
-        auto wpath = to_utf16(*(path as *char))
+        auto *wpath = to_utf16(path as *char)
         auto res = GetFileAttributesW(*wpath)
         libc_free(wpath as *void)
         return res != 0xFFFFFFFF:u32
@@ -199,7 +201,7 @@ pub shape WinStat (
 
 pub fn stat_impl(path: Addr) -> Addr {
     unsafe {
-        auto wpath = to_utf16(*(path as *char))
+        auto *wpath = to_utf16(path as *char)
         auto attr = GetFileAttributesW(*wpath)
         if attr == 0xFFFFFFFF:u32 {
             libc_free(wpath as *void)
@@ -252,7 +254,7 @@ extern fn SetEnvironmentVariableW(*lpName: u16, *lpValue: u16) -> BOOL
 
 pub fn getcwd_impl() -> String {
     unsafe {
-        auto len = GetCurrentDirectoryW(0, *(0:Addr as *u16))
+        auto len = GetCurrentDirectoryW(0, 0:Addr as *u16)
         if len == 0 { return String::from("") }
         auto *buf = libc_malloc((len as usize) * 2) as *u16
         GetCurrentDirectoryW(len, *buf)
@@ -264,7 +266,7 @@ pub fn getcwd_impl() -> String {
 
 pub fn chdir_impl(path: Addr) -> bool {
     unsafe {
-        auto wpath = to_utf16(*(path as *char))
+        auto *wpath = to_utf16(path as *char)
         auto res = SetCurrentDirectoryW(*wpath)
         libc_free(wpath as *void)
         return res != 0
@@ -273,8 +275,8 @@ pub fn chdir_impl(path: Addr) -> bool {
 
 pub fn getenv_impl(name: String) -> Option<String> {
     unsafe {
-        auto wname = to_utf16(*(name.c_str()))
-        auto len = GetEnvironmentVariableW(*wname, *(0:Addr as *u16), 0)
+        auto *wname = to_utf16(name.c_str())
+        auto len = GetEnvironmentVariableW(*wname, 0:Addr as *u16, 0)
         if len == 0 {
             libc_free(wname as *void)
             return Option<String>::None
@@ -290,8 +292,8 @@ pub fn getenv_impl(name: String) -> Option<String> {
 
 pub fn setenv_impl(name: String, value: String) -> bool {
     unsafe {
-        auto wname = to_utf16(*(name.c_str()))
-        auto wval = to_utf16(*(value.c_str()))
+        auto *wname = to_utf16(name.c_str())
+        auto *wval = to_utf16(value.c_str())
         auto res = SetEnvironmentVariableW(*wname, *wval)
         libc_free(wname as *void)
         libc_free(wval as *void)
@@ -301,8 +303,8 @@ pub fn setenv_impl(name: String, value: String) -> bool {
 
 pub fn unsetenv_impl(name: String) -> bool {
     unsafe {
-        auto wname = to_utf16(*(name.c_str()))
-        auto res = SetEnvironmentVariableW(*wname, *(0:Addr as *u16))
+        auto *wname = to_utf16(name.c_str())
+        auto res = SetEnvironmentVariableW(*wname, 0:Addr as *u16)
         libc_free(wname as *void)
         return res != 0
     }
