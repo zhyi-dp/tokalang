@@ -73,7 +73,7 @@ PhysEntity CodeGen::genAllocExpr(const AllocExpr *ae) {
   }
 
   llvm::Value *rawPtr = m_Builder.CreateCall(allocHook, sizeVal);
-  llvm::Type *ptrTy = llvm::PointerType::getUnqual(elemTy);
+  llvm::Type *ptrTy = llvm::PointerType::getUnqual(m_Context);
   llvm::Value *castedPtr = m_Builder.CreateBitCast(rawPtr, ptrTy);
 
   if (ae->Initializer) {
@@ -171,7 +171,7 @@ void CodeGen::emitDropCascade(llvm::Value *ptrAddr, const std::string &typeName)
     if (dFn) {
       llvm::Type *elemTy = resolveType(typeName, false);
       if (elemTy) {
-        llvm::Value *typedPtr = m_Builder.CreateBitCast(ptrAddr, llvm::PointerType::getUnqual(elemTy));
+        llvm::Value *typedPtr = m_Builder.CreateBitCast(ptrAddr, llvm::PointerType::getUnqual(m_Context));
         m_Builder.CreateCall(dFn, {typedPtr});
         calledDestructor = true;
       }
@@ -253,7 +253,7 @@ void CodeGen::emitDropCascade(llvm::Value *ptrAddr, const std::string &typeName)
               }
 
               if (payloadLayoutType) {
-                  llvm::Value *variantAddr = m_Builder.CreateBitCast(payloadArrayPtr, llvm::PointerType::getUnqual(payloadLayoutType), "drop_cast");
+                  llvm::Value *variantAddr = m_Builder.CreateBitCast(payloadArrayPtr, llvm::PointerType::getUnqual(m_Context), "drop_cast");
                   for (size_t k = 0; k < payloadTypes.size(); ++k) {
                       std::string memType = payloadTypes[k];
                       bool isPointer = false;
@@ -300,7 +300,7 @@ void CodeGen::emitDropCascade(llvm::Value *ptrAddr, const std::string &typeName)
         
         // If the bare member type is a shape and not behind a pointer, cascade into it!
         if (!isPointer && m_Shapes.count(memberType)) {
-           llvm::Value *typedBase = m_Builder.CreateBitCast(ptrAddr, llvm::PointerType::getUnqual(st));
+           llvm::Value *typedBase = m_Builder.CreateBitCast(ptrAddr, llvm::PointerType::getUnqual(m_Context));
            llvm::Value *fieldPtr = m_Builder.CreateStructGEP(st, typedBase, i, "drop_cascade.gep");
            emitDropCascade(fieldPtr, memberType);
         }
@@ -416,7 +416,7 @@ llvm::Value *CodeGen::genFreeStmt(const FreeStmt *fs) {
         // GEP to element
         // ptrAddr is the base pointer (void* or T*). Cast to T*
         llvm::Value *typedBase = m_Builder.CreateBitCast(
-            ptrAddr, llvm::PointerType::getUnqual(elemTy));
+            ptrAddr, llvm::PointerType::getUnqual(m_Context));
         llvm::Value *elemPtr =
             m_Builder.CreateInBoundsGEP(elemTy, typedBase, iVar);
 
@@ -639,9 +639,8 @@ PhysEntity CodeGen::genMemberExpr(const MemberExpr *mem) {
         llvm::Value *dataAddr = m_Builder.CreateStructGEP(
             llvm::StructType::get(
                 m_Context,
-                {llvm::PointerType::getUnqual(st ? (llvm::Type *)st
-                                                 : m_Builder.getInt8Ty()),
-                 llvm::PointerType::getUnqual(m_Builder.getInt32Ty())}),
+                {llvm::PointerType::getUnqual(m_Context),
+                 llvm::PointerType::getUnqual(m_Context)}),
             objAddr, 0, "member.sh_data_gep");
         // 2. Load T*
         objAddr = m_Builder.CreateLoad(m_Builder.getPtrTy(), dataAddr,
@@ -791,7 +790,7 @@ PhysEntity CodeGen::genMemberExpr(const MemberExpr *mem) {
       destTy = llvm::Type::getInt8Ty(m_Context);
 
     fieldAddr =
-        m_Builder.CreateBitCast(objAddr, llvm::PointerType::getUnqual(destTy));
+        m_Builder.CreateBitCast(objAddr, llvm::PointerType::getUnqual(m_Context));
   }
 
   llvm::Value *finalAddr = fieldAddr;
@@ -1181,7 +1180,7 @@ llvm::Value *CodeGen::projectSoul(llvm::Value *handle, const TokaSymbol &sym) {
   // 3. Pointer Modes (Raw, Unique, Shared)
   if (sym.morphology == Morphology::Shared) {
     // allocaPtr is {T*, Ref*}*. We want T*.
-    llvm::Type *ptrTy = llvm::PointerType::getUnqual(sym.soulType);
+    llvm::Type *ptrTy = llvm::PointerType::getUnqual(m_Context);
     llvm::Type *refTy =
         llvm::PointerType::getUnqual(llvm::Type::getInt32Ty(m_Context));
     llvm::Type *structTy = llvm::StructType::get(m_Context, {ptrTy, refTy});

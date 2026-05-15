@@ -242,7 +242,7 @@ void CodeGen::cleanupScopes(size_t targetDepth) {
           if (sym.soulType) {
             llvm::Value *handlePtr =
                 m_Builder.CreateLoad(shTy, it->Alloca, "sh_cap_ptr");
-            llvm::Type *elemPtrTy = llvm::PointerType::getUnqual(sym.soulType);
+            llvm::Type *elemPtrTy = llvm::PointerType::getUnqual(m_Context);
             llvm::Type *refPtrTy =
                 llvm::PointerType::getUnqual(llvm::Type::getInt32Ty(m_Context));
             llvm::StructType *handleTy =
@@ -372,12 +372,10 @@ void CodeGen::cleanupScopes(size_t targetDepth) {
             if (freeFunc) {
               m_Builder.CreateCall(
                   freeFunc, m_Builder.CreateBitCast(
-                                data, llvm::PointerType::getUnqual(
-                                          llvm::Type::getInt8Ty(m_Context))));
+                                data, llvm::PointerType::getUnqual(m_Context)));
               m_Builder.CreateCall(
                   freeFunc, m_Builder.CreateBitCast(
-                                refPtr, llvm::PointerType::getUnqual(
-                                            llvm::Type::getInt8Ty(m_Context))));
+                                refPtr, llvm::PointerType::getUnqual(m_Context)));
             }
             m_Builder.CreateBr(afterDecBB);
 
@@ -458,8 +456,7 @@ void CodeGen::cleanupScopes(size_t targetDepth) {
           if (freeFunc) {
             m_Builder.CreateCall(
                 freeFunc, m_Builder.CreateBitCast(
-                              dataPtr, llvm::PointerType::getUnqual(
-                                       llvm::Type::getInt8Ty(m_Context))));
+                              dataPtr, llvm::PointerType::getUnqual(m_Context)));
           }
           m_Builder.CreateBr(contBB);
 
@@ -592,7 +589,7 @@ llvm::Value *CodeGen::genGuardBindStmt(const GuardBindStmt *gbs) {
       }
       
       if (payloadLayoutType) {
-          llvm::Value *variantAddr = m_Builder.CreateBitCast(payloadAddr, llvm::PointerType::getUnqual(payloadLayoutType), "variant_addr");
+          llvm::Value *variantAddr = m_Builder.CreateBitCast(payloadAddr, llvm::PointerType::getUnqual(m_Context), "variant_addr");
           for (size_t i = 0; i < gbs->Pat->SubPatterns.size(); ++i) {
               if (fieldTypes.empty() && i > 0) break;
               if (!fieldTypes.empty() && i >= fieldTypes.size()) break;
