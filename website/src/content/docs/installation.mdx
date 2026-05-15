@@ -3,11 +3,11 @@ title: Installation
 description: How to install the Toka compiler and build tool.
 ---
 
-For a fast and hassle-free setup, we provide an automated installation script that downloads pre-compiled binaries for macOS and Linux.
+For a fast and hassle-free setup, we provide pre-compiled binaries that **natively support Windows, macOS, and Linux**. Thanks to the internally integrated linker (LLD), you no longer need to configure any external C++ build environment to compile and link your executables.
 
-## Quick Install (Recommended)
+## Quick Install (macOS & Linux)
 
-To install Toka and all its associated tools (the compiler, package manager, and standard library), run the following command in your terminal:
+If you are using macOS or Linux, you can install Toka and all its associated tools (the compiler, package manager, and standard library) by running the following command in your terminal:
 
 ```bash
 curl -fsSL https://tokalang.dev/install.sh | bash
@@ -15,10 +15,17 @@ curl -fsSL https://tokalang.dev/install.sh | bash
 
 This script will automatically detect your OS and CPU architecture, download the latest stable release to `~/.toka/`, and append the executables to your `PATH` and `TOKA_LIB` variables.
 
-> 🔧 **Prerequisites:** 
-> The Toka compiler is statically linked with a powerful LLVM engine under the hood, so you **do not** need to manually install the massive LLVM toolchain. However, to complete the final linking step for executables, please ensure a standard C build environment is installed on your system:
-> - **macOS**: Simply run `xcode-select --install` in your terminal.
-> - **Linux**: Ensure `gcc` or `build-essential` is installed (e.g., `sudo apt install build-essential`).
+## Windows Installation
+
+For Windows users, Toka provides native `.exe` pre-compiled binaries:
+
+1. Go to the [GitHub Releases](https://github.com/zhyi-dp/tokalang/releases) page.
+2. Download the latest archive with the `Windows` suffix.
+3. Extract the archive to a directory of your choice (e.g., `C:\tokalang`).
+4. Add the `bin` folder inside the extracted directory to your system's `PATH` environment variable.
+5. Add the `lib` folder inside the extracted directory to a new system environment variable named `TOKA_LIB`.
+
+> 💡 **Tip:** The Windows version has been deeply refactored and adapted to the underlying Win32 API, perfectly supporting a native development and debugging experience!
 
 ## Quick Start (Hello World)
 
@@ -38,13 +45,13 @@ toka run hello.tk
 
 ## Build From Source
 
-If you wish to contribute to the compiler, or run Toka on an officially unsupported platform, you can easily build the toolchain from source.
+If you wish to contribute to the compiler's C++ core, you can easily build the toolchain from source.
 
 ### Prerequisites
 
 - **LLVM 20**: The Toka framework is heavily coupled with LLVM 20.
-- **Clang 20**: Required for linking the generated object files.
 - **CMake**: Version 3.15 or higher.
+- A C++ build toolchain for your OS (e.g., MSVC, GCC, Clang).
 
 ### Compiling
 

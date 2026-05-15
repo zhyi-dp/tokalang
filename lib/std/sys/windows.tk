@@ -213,7 +213,8 @@ pub fn stat_impl(path: Addr) -> Addr {
         auto *ws# = libc_malloc(sizeof(WinStat)) as *WinStat
         ws.size = 0 // Placeholder
         ws.mode = 0x8000 // REG
-        if (attr band FILE_ATTRIBUTE_DIRECTORY) != 0 {
+        auto is_dir = (attr band FILE_ATTRIBUTE_DIRECTORY) != 0
+        if is_dir {
             ws.mode = 0x4000 // DIR
         }
         ws.mtime = 0

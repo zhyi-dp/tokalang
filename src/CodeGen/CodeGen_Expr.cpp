@@ -4376,7 +4376,7 @@ PhysEntity CodeGen::genInitStructExpr(const InitStructExpr *init) {
       if (kind == ShapeKind::Union) {
         // Bare Union: bitcast base to member pointer type
         fieldAddr = m_Builder.CreateBitCast(
-            alloca, llvm::PointerType::getUnqual(fieldVal->getType()));
+            alloca, llvm::PointerType::getUnqual(m_Context));
       } else if (kind == ShapeKind::Enum) {
         // Tagged Union: Store tag and payload
         // 1. Tag
@@ -4388,7 +4388,7 @@ PhysEntity CodeGen::genInitStructExpr(const InitStructExpr *init) {
           llvm::Value *payloadAddr =
               m_Builder.CreateStructGEP(st, alloca, 1, "payload_addr");
           fieldAddr = m_Builder.CreateBitCast(
-              payloadAddr, llvm::PointerType::getUnqual(fieldVal->getType()));
+              payloadAddr, llvm::PointerType::getUnqual(m_Context));
         }
       } else {
         fieldAddr =
