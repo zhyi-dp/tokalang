@@ -81,15 +81,15 @@ extern fn GetCommandLineW() -> *u16
 extern fn CommandLineToArgvW(*lpCmdLine: u16, *pNumArgs: i32) -> *Addr
 extern fn LocalFree(hMem: Addr) -> Addr
 
-auto g_win_argc#: i32 = 0
-auto *#g_win_argv: Addr = 0:Addr as *Addr
+auto g_win_argc: i32 = 0
+auto g_win_argv: Addr = 0:Addr
 
 pub fn args_impl() -> i32 {
     unsafe {
         if g_win_argc == 0 {
             auto *cmd = GetCommandLineW()
-            auto *argc_ptr = *g_win_argc
-            *g_win_argv = CommandLineToArgvW(*cmd, *argc_ptr)
+            auto *#argv_mut = *(g_win_argv) as *Addr
+            argv_mut = CommandLineToArgvW(*cmd, *(g_win_argc) as *i32) as Addr
         }
         return g_win_argc
     }
@@ -100,9 +100,10 @@ pub fn get_arg_impl(i: i32) -> String {
         if g_win_argc == 0 { args_impl() }
         if i >= g_win_argc { return String::from("") }
         auto idx = i as usize
-        auto ptr_val = (*g_win_argv as usize) + (idx * 8:usize)
+        auto ptr_val = (g_win_argv as usize) + (idx * 8:usize)
         auto *p = ptr_val as *Addr
-        auto *wstr = p as *u16
+        auto str_addr = p as Addr
+        auto *wstr = str_addr as *u16
         return from_utf16(*wstr)
     }
 }
