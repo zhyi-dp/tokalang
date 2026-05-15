@@ -1373,7 +1373,7 @@ PhysEntity CodeGen::genCastExpr(const CastExpr *cast) {
       }
       // [CRITICAL] bitcast address, preserving L-Value. DO NOT LOAD.
       llvm::Value *newAddr =
-          m_Builder.CreateBitCast(addr, llvm::PointerType::get(destTy, 0));
+          m_Builder.CreateBitCast(addr, llvm::PointerType::get(m_Context, 0));
       return PhysEntity(newAddr, cast->TargetType, destTy, true);
     }
   }
@@ -2634,7 +2634,7 @@ PhysEntity CodeGen::genForExpr(const ForExpr *fe) {
     // Extract payload
     llvm::Value *payloadGEP = m_Builder.CreateStructGEP(optAlloca->getAllocatedType(), optAlloca, 1);
     elemTy = resolveType(fe->IterElementType, false);
-    llvm::Value *payloadValuePtr = m_Builder.CreateBitCast(payloadGEP, llvm::PointerType::get(elemTy, 0), "payload_cast");
+    llvm::Value *payloadValuePtr = m_Builder.CreateBitCast(payloadGEP, llvm::PointerType::get(m_Context, 0), "payload_cast");
     elem = m_Builder.CreateLoad(elemTy, payloadValuePtr, vName);
     elemPtr = payloadValuePtr;
   }
