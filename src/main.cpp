@@ -486,7 +486,7 @@ int main(int argc, char **argv) {
     auto TargetMachine = Target->createTargetMachine(TargetTriple, CPU, Features, opt, RM);
 
     codegen.getModule()->setDataLayout(TargetMachine->createDataLayout());
-    codegen.getModule()->setTargetTriple(TargetTriple);
+    codegen.getModule()->setTargetTriple(llvm::Triple(TargetTriple));
 
     std::error_code EC;
     llvm::raw_fd_ostream dest(objFile, EC, llvm::sys::fs::OF_None);
