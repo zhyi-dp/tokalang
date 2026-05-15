@@ -103,7 +103,8 @@ pub fn get_arg_impl(i: i32) -> String {
     unsafe {
         if g_win_argc == 0 { args_impl() }
         if i >= g_win_argc { return String::from("") }
-        auto wstr = g_win_argv[i as usize] as *u16
+        auto idx = i as usize
+        auto wstr = g_win_argv[idx] as *u16
         return from_utf16(wstr)
     }
 }

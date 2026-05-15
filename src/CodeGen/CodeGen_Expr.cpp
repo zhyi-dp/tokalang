@@ -5056,7 +5056,7 @@ PhysEntity CodeGen::genComptimeReflectExpr(const ComptimeReflectExpr *expr) {
       fatFieldInfoTy = getLLVMType(toka::Type::fromString("view_str")); // fallback if aliased
   }
   llvm::Value *fieldsFat = llvm::UndefValue::get(fatFieldInfoTy);
-  fieldsFat = m_Builder.CreateInsertValue(fieldsFat, m_Builder.CreateBitCast(fieldArrayAlloc, llvm::PointerType::getUnqual(fieldInfoTy)), {0});
+  fieldsFat = m_Builder.CreateInsertValue(fieldsFat, m_Builder.CreateBitCast(fieldArrayAlloc, llvm::PointerType::getUnqual(m_Context)), {0});
   fieldsFat = m_Builder.CreateInsertValue(fieldsFat, llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), SD->Members.size()), {1});
   m_Builder.CreateStore(fieldsFat, m_Builder.CreateStructGEP(typeInfoTy, typeInfoAlloc, 2));
 
