@@ -106,6 +106,12 @@ bool linkWithLLD(std::string objFile, std::vector<std::string> extraObjs, std::s
     }
     args.push_back("-o");
     args.push_back(outputFile.c_str());
+    args.push_back("-L/usr/lib/x86_64-linux-gnu");
+    args.push_back("-L/lib/x86_64-linux-gnu");
+    args.push_back("-L/usr/lib64");
+    args.push_back("-L/lib64");
+    args.push_back("-L/usr/lib");
+    args.push_back("-L/lib");
     args.push_back("-lc");
     args.push_back("-lm");
     return lld::elf::link(args, llvm::outs(), llvm::errs(), false, false);
