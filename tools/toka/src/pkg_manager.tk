@@ -15,7 +15,7 @@ pub fn cmd_fetch() -> i32 {
     auto v_str = json_str.as_str()
     
     auto root#: JsonNode = JsonNode::NullNode(0)
-    auto parse_res = root#.parse_json(v_str, 0:usize)
+    auto parse_res = root#.parse_json(v_str)
     
     if parse_res.is_err() {
         println("Error: Failed to parse toka.json.")
@@ -87,7 +87,7 @@ pub fn cmd_fetch() -> i32 {
 
                         auto index_str = index_res.unwrap()
                         auto index_root#: JsonNode = JsonNode::NullNode(0)
-                        if index_root#.parse_json(index_str.as_str(), 0:usize).is_err() {
+                        if index_root#.parse_json(index_str.as_str()).is_err() {
                             println("Error: Failed to parse registry JSON.")
                             continue
                         }
@@ -168,7 +168,7 @@ pub fn build_pkg_args() -> String {
     auto json_str = res.unwrap()
     auto v_str = json_str.as_str()
     auto root#: JsonNode = JsonNode::NullNode(0)
-    if root#.parse_json(v_str, 0:usize).is_err() {
+    if root#.parse_json(v_str).is_err() {
         return String::from("")
     }
     
