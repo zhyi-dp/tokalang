@@ -27,10 +27,10 @@ jobs:
             display_os: macOS (Apple Silicon)
             name: macos-arm64
             pkg_cmd: OS=macos ARCH=arm64 ./tools/scripts/package_release.sh ${{ github.ref_name }}
-#          - os: windows-latest
-#            display_os: Windows (x64)
-#            name: windows-x64
-#            pkg_cmd: OS=windows ARCH=x64 bash ./tools/scripts/package_release.sh ${{ github.ref_name }}
+          - os: windows-latest
+            display_os: Windows (x64)
+            name: windows-x64
+            pkg_cmd: OS=windows ARCH=x64 bash ./tools/scripts/package_release.sh ${{ github.ref_name }}
             
     steps:
       - uses: actions/checkout@v4
@@ -43,11 +43,12 @@ jobs:
           wget --timeout=15 --tries=3 https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
           sudo -E ./llvm.sh 20
+          sudo apt-get install -y liblld-20-dev lld-20
           
       - name: Install LLVM 20 (macOS)
         if: runner.os == 'macOS'
         run: |
-          brew install llvm@20 || brew install llvm
+          brew install llvm@20 lld@20 || brew install llvm lld
 
       - name: Setup MSYS2 (Windows)
         if: runner.os == 'Windows'
@@ -59,6 +60,7 @@ jobs:
             mingw-w64-x86_64-cmake
             mingw-w64-x86_64-ninja
             mingw-w64-x86_64-llvm
+            mingw-w64-x86_64-lld
             make
 
       - name: Build Toka (macOS/Linux)
@@ -68,39 +70,37 @@ jobs:
           cmake .. -DCMAKE_BUILD_TYPE=Release
           make -j4
           
-          # Build toka CLI tool and tokafmt using the newly built compiler
+          # Build toka CLI tool, tokafmt and tokalsp using the newly built compiler (Internal LLD)
           export TOKA_LIB=$GITHUB_WORKSPACE/lib
-          ./bin/tokac -I ../tools/toka ../tools/toka/src/main.tk -o toka.ll -O3
-          ./bin/tokac -I ../tools/tokafmt ../tools/tokafmt/src/main.tk -o tokafmt.ll -O3
           
+          # Compile Runtime
           if [ "${{ runner.os }}" = "macOS" ]; then
             export LLVM_PATH=$(brew --prefix llvm@20 || brew --prefix llvm)
-            $LLVM_PATH/bin/clang toka.ll -isysroot $(xcrun --show-sdk-path) -lm -o ./bin/toka -O3
-            $LLVM_PATH/bin/clang tokafmt.ll -isysroot $(xcrun --show-sdk-path) -lm -o ./bin/tokafmt -O3
+            $LLVM_PATH/bin/clang -isysroot $(xcrun --show-sdk-path) -c $GITHUB_WORKSPACE/lib/std/sys/toka_rt.c -o $GITHUB_WORKSPACE/lib/std/sys/toka_rt.o
           else
-            clang-20 toka.ll -lm -o ./bin/toka -O3
-            clang-20 tokafmt.ll -lm -o ./bin/tokafmt -O3
+            clang-20 -c $GITHUB_WORKSPACE/lib/std/sys/toka_rt.c -o $GITHUB_WORKSPACE/lib/std/sys/toka_rt.o
           fi
-          
-          rm toka.ll tokafmt.ll
+
+          ./bin/tokac -I ../lib -I ../tools/toka ../tools/toka/src/main.tk $GITHUB_WORKSPACE/lib/std/sys/toka_rt.o -o ./bin/toka -O3
+          ./bin/tokac -I ../lib ../tools/tokafmt/src/main.tk $GITHUB_WORKSPACE/lib/std/sys/toka_rt.o -o ./bin/tokafmt -O3
+          ./bin/tokac -I ../lib ../tools/tokalsp/main.tk $GITHUB_WORKSPACE/lib/std/sys/toka_rt.o -o ./bin/tokalsp -O3
 
       - name: Build Toka (Windows MSYS2)
         if: runner.os == 'Windows'
         shell: msys2 {0}
         run: |
           mkdir build && cd build
-          # Windows MSYS2 cmake usually generates "MinGW Makefiles" by default if in MINGW64 environment
           cmake .. -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
           make -j4
           
           export TOKA_LIB=$GITHUB_WORKSPACE/lib
-          ./bin/tokac.exe -I ../tools/toka ../tools/toka/src/main.tk -o toka.ll -O3
-          ./bin/tokac.exe -I ../tools/tokafmt ../tools/tokafmt/src/main.tk -o tokafmt.ll -O3
           
-          clang toka.ll -lm -o ./bin/toka.exe -O3
-          clang tokafmt.ll -lm -o ./bin/tokafmt.exe -O3
-          
-          rm toka.ll tokafmt.ll
+          # Compile Runtime
+          clang -c $GITHUB_WORKSPACE/lib/std/sys/toka_rt.c -o $GITHUB_WORKSPACE/lib/std/sys/toka_rt.o
+
+          ./bin/tokac.exe -I ../lib -I ../tools/toka ../tools/toka/src/main.tk $GITHUB_WORKSPACE/lib/std/sys/toka_rt.o -o ./bin/toka.exe -O3
+          ./bin/tokac.exe -I ../lib ../tools/tokafmt/src/main.tk $GITHUB_WORKSPACE/lib/std/sys/toka_rt.o -o ./bin/tokafmt.exe -O3
+          ./bin/tokac.exe -I ../lib ../tools/tokalsp/main.tk $GITHUB_WORKSPACE/lib/std/sys/toka_rt.o -o ./bin/tokalsp.exe -O3
 
       - name: Run Package Script
         shell: bash

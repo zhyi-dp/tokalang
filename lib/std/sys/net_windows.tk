@@ -1,0 +1,5 @@
+// Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
+// lib/std/sys/net_windows.tk
+// Placeholder for WinSock2 based networking.
+
+pub fn socket_impl() -> i32 { return -1 }

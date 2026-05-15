@@ -774,6 +774,9 @@ std::unique_ptr<ImportDecl> Parser::parseImport(bool isPub) {
 #elif defined(__APPLE__)
   if (physicalPath == "std/sys/os") physicalPath = "std/sys/macos";
   if (physicalPath == "std/sys/net") physicalPath = "std/sys/net_macos";
+#elif defined(_WIN32)
+  if (physicalPath == "std/sys/os") physicalPath = "std/sys/windows";
+  if (physicalPath == "std/sys/net") physicalPath = "std/sys/net_windows";
 #endif
 
   std::vector<ImportItem> items;
