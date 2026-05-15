@@ -4264,9 +4264,19 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
           Call->Args[i] = foldGenericConstant(std::move(Call->Args[i])); // [FIX]
           std::shared_ptr<toka::Type> expectedTy = nullptr;
           if (MetAST && i < MetAST->Args.size()) {
-              expectedTy = resolveType(toka::Type::fromString(MetAST->Args[i].Type), true);
+              std::string tyStr = MetAST->Args[i].Type;
+              if (MetAST->Args[i].HasPointer) tyStr = "*" + tyStr;
+              else if (MetAST->Args[i].IsUnique) tyStr = "^" + tyStr;
+              else if (MetAST->Args[i].IsShared) tyStr = "~" + tyStr;
+              else if (MetAST->Args[i].IsReference) tyStr = "&" + tyStr;
+              expectedTy = resolveType(toka::Type::fromString(tyStr), true);
           }
-          checkExpr(Call->Args[i].get(), expectedTy);
+          auto argTy = checkExpr(Call->Args[i].get(), expectedTy);
+          if (expectedTy && !isTypeCompatible(expectedTy, argTy)) {
+              DiagnosticEngine::report(getLoc(Call->Args[i].get()), DiagID::ERR_TYPE_MISMATCH,
+                                       "Argument " + std::to_string(i + 1) + " (actual: " + argTy->getSoulName() + ")", expectedTy->getSoulName(), argTy->getSoulName());
+              HasError = true;
+          }
         }
         auto retObj = toka::Type::fromString(MethodMap[ShapeName][VariantName]);
         auto resolvedRet = resolveType(retObj);
@@ -4305,9 +4315,19 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
                 Call->Args[i] = foldGenericConstant(std::move(Call->Args[i]));
                 std::shared_ptr<toka::Type> expectedTy = nullptr;
                 if (MetAST && i < MetAST->Args.size()) {
-                    expectedTy = resolveType(toka::Type::fromString(MetAST->Args[i].Type), true);
+                    std::string tyStr = MetAST->Args[i].Type;
+                    if (MetAST->Args[i].HasPointer) tyStr = "*" + tyStr;
+                    else if (MetAST->Args[i].IsUnique) tyStr = "^" + tyStr;
+                    else if (MetAST->Args[i].IsShared) tyStr = "~" + tyStr;
+                    else if (MetAST->Args[i].IsReference) tyStr = "&" + tyStr;
+                    expectedTy = resolveType(toka::Type::fromString(tyStr), true);
                 }
-                checkExpr(Call->Args[i].get(), expectedTy);
+                auto argTy = checkExpr(Call->Args[i].get(), expectedTy);
+                if (expectedTy && !isTypeCompatible(expectedTy, argTy)) {
+                    DiagnosticEngine::report(getLoc(Call->Args[i].get()), DiagID::ERR_TYPE_MISMATCH,
+                                             "Argument " + std::to_string(i + 1) + " (actual: " + argTy->getSoulName() + ")", expectedTy->getSoulName(), argTy->getSoulName());
+                    HasError = true;
+                }
               }
               auto retObj =
                   toka::Type::fromString(MethodMap[ShapeName][VariantName]);

@@ -2,7 +2,6 @@ import core/types::{char, Addr}
 import std/string::{String}
 import std/io::{println}
 
-// 1. Declare SQLite3 C API bindings via FFI
 extern fn sqlite3_libversion() -> *char
 extern fn sqlite3_open(*filename: char, ppDb: Addr) -> i32
 extern fn sqlite3_exec(db: Addr, *sql: char, callback: Addr, cb_arg: Addr, errmsg: Addr) -> i32
@@ -12,36 +11,28 @@ extern fn sqlite3_free(ptr: Addr) -> void
 pub fn main() -> i32 {
     println("=== Tokalang SQLite3 FFI Demo ===")
     
+    // Check SQLite Version
+    auto *version_ptr = sqlite3_libversion()
+    auto version_str = String::from(version_ptr)
+    println("SQLite Version: {}", version_str)
+    
     // Open Database
     auto db_ptr# = 0:Addr
     auto db_name = String::from_str("test.db")
-    // Pass the address of db_ptr cast to Addr (equivalent to void**)
     auto rc = sqlite3_open(db_name.c_str(), *db_ptr as Addr)
     
     if rc != 0 {
         println("Failed to open database!")
         return 1
     }
-    println("Successfully opened 'test.db'")
     
-    // Execute a simple query
-    auto sql = String::from_str("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT);")
+    auto sql = String::from_str("CREATE TABLE ...")
     auto errmsg_ptr# = 0:Addr
-    
-    // Pass 0:Addr for callback and cb_arg
     auto exec_rc = sqlite3_exec(db_ptr, sql.c_str(), 0:Addr, 0:Addr, *errmsg_ptr as Addr)
-    
     if exec_rc != 0 {
-        auto err_str = String::from(errmsg_ptr as *char)
-        println("SQL Error: {}", err_str)
         sqlite3_free(errmsg_ptr)
-    } else {
-        println("Table 'users' created or already exists!")
     }
     
-    // Close Database
     sqlite3_close(db_ptr)
-    println("Database connection closed.")
-    
     return 0
 }

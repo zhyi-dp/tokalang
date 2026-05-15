@@ -768,7 +768,7 @@ impl char {
 
 impl str {
     pub fn to_string(self) -> String {
-        return String::from(self)
+        return String::from_str(self)
     }
 }
 

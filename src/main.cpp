@@ -42,7 +42,7 @@
 #include <sstream>
 
 #include "llvm/Support/FileSystem.h"
-
+#include "llvm/Support/Path.h"
 bool verboseMode = false;
 bool g_JsonDiagnostics = false;
 
@@ -376,7 +376,10 @@ int main(int argc, char **argv) {
     if (finalOutput.empty()) {
       finalOutput = "a.out";
     }
-    objFile = "/tmp/toka_tmp_" + std::to_string(std::time(nullptr)) + ".o";
+    llvm::SmallString<128> TempPath;
+    llvm::sys::path::system_temp_directory(true, TempPath);
+    llvm::sys::path::append(TempPath, "toka_tmp_" + std::to_string(std::time(nullptr)) + ".o");
+    objFile = std::string(TempPath.c_str());
   }
 
   if (objFile.empty() && emitObj) {
@@ -433,7 +436,12 @@ int main(int argc, char **argv) {
     if (!compileOnly) {
       if (verboseMode) fprintf(stderr, "Linking executable: %s\n", finalOutput.c_str());
       fflush(stderr);
-      std::string cmd = "cc " + objFile + " -o " + finalOutput;
+      std::string cmd;
+#ifdef _WIN32
+      cmd = "clang " + objFile + " -o " + finalOutput;
+#else
+      cmd = "cc " + objFile + " -o " + finalOutput;
+#endif
       int ret = system(cmd.c_str());
       if (ret != 0) {
         llvm::errs() << "Linker error: cc failed\n";

@@ -27,6 +27,10 @@ jobs:
             display_os: macOS (Apple Silicon)
             name: macos-arm64
             pkg_cmd: OS=macos ARCH=arm64 ./tools/scripts/package_release.sh ${{ github.ref_name }}
+          - os: windows-latest
+            display_os: Windows (x64)
+            name: windows-x64
+            pkg_cmd: OS=windows ARCH=x64 bash ./tools/scripts/package_release.sh ${{ github.ref_name }}
             
     steps:
       - uses: actions/checkout@v4
@@ -45,7 +49,20 @@ jobs:
         run: |
           brew install llvm@20 || brew install llvm
 
+      - name: Setup MSYS2 (Windows)
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          install: >-
+            mingw-w64-x86_64-clang
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-llvm
+            make
+
       - name: Build Toka (macOS/Linux)
+        if: runner.os != 'Windows'
         run: |
           mkdir build && cd build
           cmake .. -DCMAKE_BUILD_TYPE=Release
@@ -66,6 +83,25 @@ jobs:
           fi
           
           rm toka.ll tokafmt.ll
+
+      - name: Build Toka (Windows MSYS2)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          mkdir build && cd build
+          # Windows MSYS2 cmake usually generates "MinGW Makefiles" by default if in MINGW64 environment
+          cmake .. -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
+          make -j4
+          
+          export TOKA_LIB=$GITHUB_WORKSPACE/lib
+          ./bin/tokac.exe -I ../tools/toka ../tools/toka/src/main.tk -o toka.ll -O3
+          ./bin/tokac.exe -I ../tools/tokafmt ../tools/tokafmt/src/main.tk -o tokafmt.ll -O3
+          
+          clang toka.ll -lm -o ./bin/toka.exe -O3
+          clang tokafmt.ll -lm -o ./bin/tokafmt.exe -O3
+          
+          rm toka.ll tokafmt.ll
+
       - name: Run Package Script
         shell: bash
         run: |
@@ -77,3 +113,4 @@ jobs:
           files: build/toka-${{ github.ref_name }}-${{ matrix.name }}.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

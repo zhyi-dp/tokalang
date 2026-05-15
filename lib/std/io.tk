@@ -102,7 +102,7 @@ impl File {
             auto last_idx = count as i32
             buf[last_idx] = 0 as char
             
-            auto s# = String::from_with_len(*buf, count as i32)
+            auto s# = String::from_with_len(*buf as *char, count as usize)
             libc_free(*buf as *void)
             
             auto res = IoStringResult::Ok(s)

@@ -26,3 +26,14 @@ Toka currently fails to correctly map the ABI (Application Binary Interface) cal
 Standard Library components (like `HashMap`) are currently circumventing this by adopting a Structure of Arrays (SOA) flat layout.
 **Proposed Fix**:
 Investigate `src/CodeGen_Type.cpp` and `src/CodeGen_Expr.cpp` to correctly lower complex product shapes to valid LLVM memory types and strictly enforce ABI parameter size attributes for returned compounds.
+
+
+### 4. Windows Native Standard Library Support (lib/std/sys/windows.tk)
+**Status**: Deprioritized / Strategic Shift to WSL2
+**Severity**: Low (Community Contribution Recommended)
+**Description**:
+While the Toka compiler can be compiled on Windows (via MSYS2/MinGW), porting the POSIX-based standard library to native Win32 API is an immense effort with low immediate ROI.
+**Strategic Decision**:
+Native Windows support is deprioritized. Windows developers are officially recommended to use Toka via **WSL2 (Windows Subsystem for Linux)**, which offers native POSIX compatibility, matching the experience of Node, Go, and Rust ecosystems.
+**Proposed Fix**:
+Update official documentation to clearly state WSL2 as the primary supported method for Windows users. Maintain MSYS2 compilation purely for cross-compilation toolchains if necessary.
