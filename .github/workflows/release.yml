@@ -118,15 +118,15 @@ jobs:
           clang -c $GITHUB_WORKSPACE/lib/std/sys/toka_rt.c -o $GITHUB_WORKSPACE/lib/std/sys/toka_rt.o
 
           cat << 'C_EOF' > test_abort.c
-#include <stdlib.h>
-int main() { abort(); }
-C_EOF
+          #include <stdlib.h>
+          int main() { abort(); }
+          C_EOF
           clang test_abort.c -o test_abort.exe
           ./test_abort.exe || echo "abort exit code: $?"
 
           cat << 'C_EOF' > test_segv.c
-int main() { int *p = 0; *p = 1; }
-C_EOF
+          int main() { int *p = 0; *p = 1; }
+          C_EOF
           clang test_segv.c -o test_segv.exe
           ./test_segv.exe || echo "segv exit code: $?"
           
