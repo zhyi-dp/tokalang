@@ -25,7 +25,7 @@ set(lld_names lldCommon lldELF lldMinGW lldCOFF lldMachO lldWasm)
 set(lld_libs "")
 
 foreach(libname ${lld_names})
-    find_library(LIB_${libname} NAMES ${libname} ${libname}-20 HINTS ${LLVM_LIBRARY_DIRS})
+    find_library(LIB_${libname} NAMES ${libname} ${libname}-20 HINTS ${LLVM_LIBRARY_DIRS} /usr/lib/llvm-20/lib /usr/lib/llvm-19/lib)
     if(LIB_${libname})
         list(APPEND lld_libs ${LIB_${libname}})
     else()

@@ -483,10 +483,18 @@ int main(int argc, char **argv) {
     auto Features = "";
     llvm::TargetOptions opt;
     std::optional<llvm::Reloc::Model> RM = llvm::Reloc::PIC_;
+#if defined(_WIN32) || defined(__MINGW32__)
+    auto TargetMachine = Target->createTargetMachine(llvm::Triple(TargetTriple), CPU, Features, opt, RM);
+#else
     auto TargetMachine = Target->createTargetMachine(TargetTriple, CPU, Features, opt, RM);
+#endif
 
     codegen.getModule()->setDataLayout(TargetMachine->createDataLayout());
+#if defined(_WIN32) || defined(__MINGW32__)
     codegen.getModule()->setTargetTriple(llvm::Triple(TargetTriple));
+#else
+    codegen.getModule()->setTargetTriple(TargetTriple);
+#endif
 
     std::error_code EC;
     llvm::raw_fd_ostream dest(objFile, EC, llvm::sys::fs::OF_None);
