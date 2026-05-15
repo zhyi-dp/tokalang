@@ -1872,25 +1872,29 @@ PhysEntity toka::CodeGen::genMethodCall(const toka::MethodCallExpr *expr) {
     }
   }
 
+  bool isStatic = (fd && (fd->Args.empty() || fd->Args[0].Name != "self"));
   // Type Check Self
-  if (callee->arg_size() > 0) {
-    llvm::Type *targetTy = callee->getArg(0)->getType();
-    if (finalObjVal->getType() != targetTy) {
-      if (finalObjVal->getType()->isPointerTy() && !targetTy->isPointerTy()) {
-        // Implicit Dereference (Pass Reference as Value - Rare for self but
-        // possible)
-        finalObjVal = m_Builder.CreateLoad(targetTy, finalObjVal);
+  if (!isStatic) {
+    if (callee->arg_size() > 0) {
+      llvm::Type *targetTy = callee->getArg(0)->getType();
+      if (finalObjVal->getType() != targetTy) {
+        if (finalObjVal->getType()->isPointerTy() && !targetTy->isPointerTy()) {
+          // Implicit Dereference (Pass Reference as Value - Rare for self but
+          // possible)
+          finalObjVal = m_Builder.CreateLoad(targetTy, finalObjVal);
+        }
       }
     }
+    args.push_back(finalObjVal);
   }
-  args.push_back(finalObjVal);
 
   // 2. Handle Arguments
   for (size_t i = 0; i < expr->Args.size(); ++i) {
     bool isCaptured = false;
-    // Arg i maps to fd->Args[i+1]
-    if (fd && i + 1 < fd->Args.size()) {
-      const auto &arg = fd->Args[i + 1];
+    size_t targetArgIdx = isStatic ? i : (i + 1);
+    // Arg i maps to fd->Args[targetArgIdx]
+    if (fd && targetArgIdx < fd->Args.size()) {
+      const auto &arg = fd->Args[targetArgIdx];
       
       // [NEW] Lifetime dependencies check
       for (const auto &dep : fd->LifeDependencies) {
@@ -1938,8 +1942,8 @@ PhysEntity toka::CodeGen::genMethodCall(const toka::MethodCallExpr *expr) {
       argVal = genExpr(expr->Args[i].get()).load(m_Builder);
 
       // Implicit By-Ref Fix for Method Arguments
-      if (argVal && callee->arg_size() > i + 1) {
-        llvm::Type *paramTy = callee->getFunctionType()->getParamType(i + 1);
+      if (argVal && callee->arg_size() > targetArgIdx) {
+        llvm::Type *paramTy = callee->getFunctionType()->getParamType(targetArgIdx);
         if (paramTy->isPointerTy() && argVal->getType()->isStructTy()) {
           llvm::AllocaInst *tmp = createEntryBlockAlloca(
               argVal->getType(), nullptr, "arg_byref_tmp");
@@ -2064,8 +2068,7 @@ llvm::Type *CodeGen::resolveType(const std::string &baseType, bool hasPointer) {
   }
 
   // Intercept primitive pointer types before aliases
-  // (Standard library might have legacy `type Addr = u64` aliases)
-  if (baseType == "Addr" || baseType == "OAddr" || baseType == "null") {
+  if (baseType == "null") {
     type = llvm::PointerType::getUnqual(m_Context);
     if (hasPointer) type = llvm::PointerType::getUnqual(m_Context);
     return type;
@@ -2270,7 +2273,8 @@ llvm::Type *CodeGen::getLLVMType(std::shared_ptr<Type> type) {
     if (prim->Name == "i32" || prim->Name == "u32" || prim->Name == "int")
       return llvm::Type::getInt32Ty(m_Context);
     if (prim->Name == "i64" || prim->Name == "u64" || prim->Name == "long" ||
-        prim->Name == "usize" || prim->Name == "isize")
+        prim->Name == "usize" || prim->Name == "isize" ||
+        prim->Name == "Addr" || prim->Name == "OAddr")
       return llvm::Type::getInt64Ty(m_Context);
     if (prim->Name == "i8" || prim->Name == "u8" || prim->Name == "byte" ||
         prim->Name == "char")
@@ -2287,7 +2291,7 @@ llvm::Type *CodeGen::getLLVMType(std::shared_ptr<Type> type) {
       return llvm::Type::getVoidTy(m_Context);
     if (prim->Name == "cstring")
       return llvm::PointerType::getUnqual(m_Context);
-    if (prim->Name == "Addr" || prim->Name == "OAddr" || prim->Name == "null")
+    if (prim->Name == "null")
       return llvm::PointerType::getUnqual(m_Context);
   }
 

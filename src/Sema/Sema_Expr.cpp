@@ -4266,6 +4266,16 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
             MetAST = MethodDecls[ShapeName][VariantName];
         }
 
+        if (MetAST) {
+            size_t expectedArgs = MetAST->Args.size();
+            if (Call->Args.size() != expectedArgs && !MetAST->IsVariadic) {
+                if (Call->Args.size() < expectedArgs) {
+                    DiagnosticEngine::report(getLoc(Call), DiagID::ERR_GENERIC_PARSE, "Static method '" + MetAST->Name + "' expects at least " + std::to_string(expectedArgs) + " arguments, got " + std::to_string(Call->Args.size()));
+                    HasError = true;
+                }
+            }
+        }
+
         for (size_t i = 0; i < Call->Args.size(); ++i) {
           Call->Args[i] = foldGenericConstant(std::move(Call->Args[i])); // [FIX]
           std::shared_ptr<toka::Type> expectedTy = nullptr;

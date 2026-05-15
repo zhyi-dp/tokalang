@@ -120,7 +120,7 @@ pub fn opendir_impl(path: Addr) -> Addr {
     unsafe {
         auto *wpath = to_utf16(path as *char)
         // FindFirstFile needs a wildcard like \*
-        auto search_path# = String::from_raw(path as *char)
+        auto search_path# = String::from(path as *char)
         auto star = String::from("\\*")
         search_path#.push_str(star.c_str())
         auto *wsearch = to_utf16(search_path.c_str())

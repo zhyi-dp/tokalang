@@ -3487,6 +3487,18 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
 
     if (funcDecl && i < funcDecl->Args.size()) {
       const auto &arg = funcDecl->Args[i];
+      
+      bool isArgUnique = arg.IsUnique;
+      bool isArgShared = arg.IsShared;
+      bool isArgRef = arg.IsReference;
+      bool hasArgPtr = arg.HasPointer;
+      if (arg.ResolvedType) {
+          isArgUnique = isArgUnique || arg.ResolvedType->isUniquePtr();
+          isArgShared = isArgShared || arg.ResolvedType->isSharedPtr();
+          isArgRef = isArgRef || arg.ResolvedType->isReference();
+          hasArgPtr = hasArgPtr || arg.ResolvedType->isPointer();
+      }
+
       // Force Capture for Unique Pointers to enable In-Place Move / Borrow
       // [ABI Fix] Force Capture for Shared Pointers to pass by Pointer
       // (avoiding ABI split)
@@ -3500,7 +3512,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
 
       // Only capture if it's a Value Type (Struct/Array/Mutable) AND NOT a
       // Pointer/Shared/Reference
-      if (!isCaptured && !arg.HasPointer && !arg.IsReference) {
+      if (!isCaptured && !hasArgPtr && !isArgRef) {
         if (arg.IsValueMutable) {
           isCaptured = true;
         } else {
@@ -3514,7 +3526,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
       // (Capture) This matches genFunction ABI where they are treated as
       // Captured Arguments. This allows the Callee to manipulate the Handle
       // (e.g. invalidating it on Move or rebinding it).
-      if (arg.IsUnique || arg.IsShared || arg.IsRebindable) {
+      if (isArgUnique || isArgShared || arg.IsRebindable) {
         isCaptured = true;
       }
     } else if (extDecl && i < extDecl->Args.size()) {

@@ -13,11 +13,11 @@ fn get_tmp_dir() -> String {
     unsafe {
         auto *t = libc_getenv("TEMP" as *char)
         if *t != (ADDR0 as *char) {
-            return String::from_raw(*t)
+            return String::from(*t)
         }
         auto *t2 = libc_getenv("TMP" as *char)
         if *t2 != (ADDR0 as *char) {
-            return String::from_raw(*t2)
+            return String::from(*t2)
         }
     }
     return String::from("/tmp")
@@ -27,7 +27,7 @@ fn setup_io() {
     unsafe {
         auto *os = libc_getenv("OS" as *char)
         if *os != (ADDR0 as *char) {
-            auto os_str = String::from_raw(*os)
+            auto os_str = String::from(*os)
             if os_str.as_view().starts_with(s"Windows") {
                 // _O_BINARY is 0x8000
                 // stdin is usually 0, stdout is 1
