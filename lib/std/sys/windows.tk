@@ -82,7 +82,7 @@ extern fn CommandLineToArgvW(*lpCmdLine: u16, *pNumArgs: i32) -> *Addr
 extern fn LocalFree(hMem: Addr) -> Addr
 
 auto g_win_argc#: i32 = 0
-auto *g_win_argv#: Addr = 0:Addr as *Addr
+auto *#g_win_argv: Addr = 0:Addr as *Addr
 
 pub fn args_impl() -> i32 {
     unsafe {
@@ -110,21 +110,22 @@ pub fn get_arg_impl(i: i32) -> String {
 // === File System ===
 
 pub shape WinDir (
-    handle: HANDLE,
-    find_data: WIN32_FIND_DATAW,
-    first: bool
+    handle#: HANDLE,
+    find_data#: WIN32_FIND_DATAW,
+    first#: bool
 )
 
 pub fn opendir_impl(path: Addr) -> Addr {
     unsafe {
         auto *wpath = to_utf16(path as *char)
         // FindFirstFile needs a wildcard like \*
-        auto pstr = String::from_raw(path as *char)
-        auto search_path = pstr + String::from("\\*")
+        auto search_path# = String::from_raw(path as *char)
+        auto star = String::from("\\*")
+        search_path#.push_str(star.c_str())
         auto *wsearch = to_utf16(search_path.c_str())
         
         auto *wd# = libc_malloc(sizeof(WinDir)) as *WinDir
-        auto h = FindFirstFileW(*wsearch, (&(wd.find_data)) as Addr)
+        auto h = FindFirstFileW(*wsearch, *(wd.find_data) as Addr)
         
         libc_free(wpath as *void)
         libc_free(wsearch as *void)
@@ -145,11 +146,11 @@ pub fn readdir_impl(dir_handle: Addr) -> Option<String> {
         auto *wd = dir_handle as *WinDir
         if wd.first {
             wd.first = false
-            return Option<String>::Some(from_utf16(&(wd.find_data.cFileName[0])))
+            return Option<String>::Some(from_utf16(*(wd.find_data.cFileName[0])))
         }
         
-        if FindNextFileW(wd.handle, (&(wd.find_data)) as Addr) != 0 {
-            return Option<String>::Some(from_utf16(&(wd.find_data.cFileName[0])))
+        if FindNextFileW(wd.handle, *(wd.find_data) as Addr) != 0 {
+            return Option<String>::Some(from_utf16(*(wd.find_data.cFileName[0])))
         }
         
         return Option<String>::None
