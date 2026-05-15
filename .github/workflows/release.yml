@@ -117,8 +117,22 @@ jobs:
           set -x
           clang -c $GITHUB_WORKSPACE/lib/std/sys/toka_rt.c -o $GITHUB_WORKSPACE/lib/std/sys/toka_rt.o
 
-          ./bin/tokac.exe -I ../lib -I ../tools/toka -c ../tools/toka/src/main.tk -o ./bin/toka.o -O3 || echo "Compile only failed"
-          ./bin/tokac.exe -I ../lib -I ../tools/toka ../tools/toka/src/main.tk $GITHUB_WORKSPACE/lib/std/sys/toka_rt.o -o ./bin/toka.exe -O3
+          cat << 'C_EOF' > test_abort.c
+#include <stdlib.h>
+int main() { abort(); }
+C_EOF
+          clang test_abort.c -o test_abort.exe
+          ./test_abort.exe || echo "abort exit code: $?"
+
+          cat << 'C_EOF' > test_segv.c
+int main() { int *p = 0; *p = 1; }
+C_EOF
+          clang test_segv.c -o test_segv.exe
+          ./test_segv.exe || echo "segv exit code: $?"
+          
+          # Just print verbose output of tokac.exe
+          ./bin/tokac.exe -v -I ../lib -I ../tools/toka -c ../tools/toka/src/main.tk -o ./bin/toka.o -O3 || echo "tokac exit code: $?"
+          
           ./bin/tokac.exe -I ../lib -I ../tools/tokafmt ../tools/tokafmt/src/main.tk $GITHUB_WORKSPACE/lib/std/sys/toka_rt.o -o ./bin/tokafmt.exe -O3
           ./bin/tokac.exe -I ../lib -I ../tools/tokalsp ../tools/tokalsp/main.tk $GITHUB_WORKSPACE/lib/std/sys/toka_rt.o -o ./bin/tokalsp.exe -O3
           set +x
