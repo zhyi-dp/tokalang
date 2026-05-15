@@ -38,6 +38,7 @@
 #include <sstream>
 
 #include "llvm/Passes/PassBuilder.h"
+#include "llvm/IR/Verifier.h"
 #include "llvm/Passes/StandardInstrumentations.h"
 #include <sstream>
 
@@ -413,6 +414,13 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  if (verboseMode) fprintf(stderr, "Running Module Verifier...\n");
+  fflush(stderr);
+  if (llvm::verifyModule(*codegen.getModule(), &llvm::errs())) {
+    llvm::errs() << "Fatal Error: LLVM IR Verification Failed!\n";
+    return 1;
+  }
+  
   if (verboseMode) fprintf(stderr, "Pass 4: Optimization (Coroutines & O2)...\n");
   fflush(stderr);
 
