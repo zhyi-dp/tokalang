@@ -19,7 +19,7 @@ CodeGen/CodeGen_Decl.cpp
 )
 
 # Link against LLVM libraries
-llvm_map_components_to_libnames(llvm_libs Support Core Passes Analysis Coroutines ${LLVM_TARGETS_TO_BUILD} MC Target AsmPrinter AsmParser Option Object TargetParser Demangle BitReader BitWriter LTO)
+llvm_map_components_to_libnames(llvm_libs Core Passes Analysis Coroutines MC MCDisassembler Target AsmPrinter AsmParser Option Object BinaryFormat TargetParser Demangle BitReader BitWriter LTO ${LLVM_TARGETS_TO_BUILD} Support)
 
 set(lld_names lldELF lldMinGW lldCOFF lldMachO lldWasm lldCommon)
 set(lld_libs "")

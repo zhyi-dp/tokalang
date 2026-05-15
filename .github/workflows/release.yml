@@ -49,6 +49,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           brew install llvm@20 lld@20 || brew install llvm lld
+          brew link --force llvm@20 || brew link --force llvm
 
       - name: Setup MSYS2 (Windows)
         if: runner.os == 'Windows'
