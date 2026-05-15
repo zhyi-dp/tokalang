@@ -130,6 +130,9 @@ jobs:
           clang test_segv.c -o test_segv.exe
           ./test_segv.exe || echo "segv exit code: $?"
           
+          # Check file type
+          file ./bin/tokac.exe || true
+          
           # Just print verbose output of tokac.exe
           ./bin/tokac.exe -v -I ../lib -I ../tools/toka -c ../tools/toka/src/main.tk -o ./bin/toka.o -O3 || echo "tokac exit code: $?"
           
