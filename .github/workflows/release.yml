@@ -62,6 +62,7 @@ jobs:
             mingw-w64-x86_64-ninja
             mingw-w64-x86_64-llvm
             mingw-w64-x86_64-lld
+            mingw-w64-x86_64-polly
             make
 
       - name: Build Toka (macOS/Linux)

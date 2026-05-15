@@ -159,7 +159,7 @@ llvm::Value *CodeGen::emitPromotion(llvm::Value *rawPtr,
   llvm::Value *rawRC =
       m_Builder.CreateCall(mallocFn, rcSz, "sh.prom_rc_malloc");
   llvm::Value *refPtr = m_Builder.CreateBitCast(
-      rawRC, llvm::PointerType::getUnqual(llvm::Type::getInt32Ty(m_Context)));
+      rawRC, llvm::PointerType::getUnqual(m_Context));
   m_Builder.CreateStore(
       llvm::ConstantInt::get(llvm::Type::getInt32Ty(m_Context), 1), refPtr);
 
@@ -291,12 +291,12 @@ PhysEntity CodeGen::emitAssignment(const Expr *lhsExpr, const Expr *rhsExpr) {
     if (symLHS) {
       if (hasRebind) {
         if (symLHS->morphology == Morphology::Shared) {
-          llvm::Type *ptrTy = llvm::PointerType::getUnqual(symLHS->soulType);
+          llvm::Type *ptrTy = llvm::PointerType::getUnqual(m_Context);
           llvm::Type *refTy =
-              llvm::PointerType::getUnqual(llvm::Type::getInt32Ty(m_Context));
+              llvm::PointerType::getUnqual(m_Context);
           destTy = llvm::StructType::get(m_Context, {ptrTy, refTy});
         } else if (symLHS->morphology == Morphology::Unique) {
-          destTy = llvm::PointerType::getUnqual(symLHS->soulType);
+          destTy = llvm::PointerType::getUnqual(m_Context);
         } else {
           destTy = symLHS->soulType;
         }
@@ -1229,9 +1229,9 @@ PhysEntity CodeGen::genUnaryExpr(const UnaryExpr *unary) {
       if (m_Symbols.count(baseName)) {
         TokaSymbol &sym = m_Symbols[baseName];
         if (sym.morphology == Morphology::Shared) {
-          llvm::Type *ptrTy = llvm::PointerType::getUnqual(sym.soulType);
+          llvm::Type *ptrTy = llvm::PointerType::getUnqual(m_Context);
           llvm::Type *refTy =
-              llvm::PointerType::getUnqual(llvm::Type::getInt32Ty(m_Context));
+              llvm::PointerType::getUnqual(m_Context);
           handleTy = llvm::StructType::get(m_Context, {ptrTy, refTy});
         } else if (sym.morphology == Morphology::Unique ||
                    sym.morphology == Morphology::Raw) {
@@ -1274,9 +1274,9 @@ PhysEntity CodeGen::genUnaryExpr(const UnaryExpr *unary) {
       if (m_Symbols.count(baseName)) {
         TokaSymbol &sym = m_Symbols[baseName];
         if (sym.morphology == Morphology::Shared) {
-          llvm::Type *ptrTy = llvm::PointerType::getUnqual(sym.soulType);
+          llvm::Type *ptrTy = llvm::PointerType::getUnqual(m_Context);
           llvm::Type *refTy =
-              llvm::PointerType::getUnqual(llvm::Type::getInt32Ty(m_Context));
+              llvm::PointerType::getUnqual(m_Context);
           handleTy = llvm::StructType::get(m_Context, {ptrTy, refTy});
         }
       }
@@ -1481,7 +1481,7 @@ PhysEntity CodeGen::genCastExpr(const CastExpr *cast) {
     llvm::Value *tmp = createEntryBlockAlloca(srcType);
     m_Builder.CreateStore(val, tmp);
     llvm::Value *castPtr =
-        m_Builder.CreateBitCast(tmp, llvm::PointerType::getUnqual(targetType));
+        m_Builder.CreateBitCast(tmp, llvm::PointerType::getUnqual(m_Context));
     // Propagate TargetType as the semantic type name
     return PhysEntity(m_Builder.CreateLoad(targetType, castPtr),
                       cast->TargetType, targetType, false);
@@ -1576,15 +1576,15 @@ PhysEntity CodeGen::genVariableExpr(const VariableExpr *var) {
 
   // [Fix] Shared Pointer Handle Type Correction
   if (isShared && soulType) {
-    llvm::Type *ptrTy = llvm::PointerType::getUnqual(soulType);
+    llvm::Type *ptrTy = llvm::PointerType::getUnqual(m_Context);
     llvm::Type *refTy =
-        llvm::PointerType::getUnqual(llvm::Type::getInt32Ty(m_Context));
+        llvm::PointerType::getUnqual(m_Context);
     soulType = llvm::StructType::get(m_Context, {ptrTy, refTy});
   } else if (var->ResolvedType && var->ResolvedType->isUniquePtr() &&
              soulType) {
     // [Fix] Unique Pointer Handle is Ptr to Soul
     // The symbol stores the Soul type (Data), but the alloca stores Data*.
-    soulType = llvm::PointerType::getUnqual(soulType);
+    soulType = llvm::PointerType::getUnqual(m_Context);
   }
 
   if (!soulType) {
@@ -1611,7 +1611,7 @@ PhysEntity CodeGen::genVariableExpr(const VariableExpr *var) {
 
   // [Fix] Handle Type Adjustment for Unique Pointers
   // if (isUnique && soulType && !soulType->isPointerTy()) {
-  //   soulType = llvm::PointerType::getUnqual(soulType);
+  //   soulType = llvm::PointerType::getUnqual(m_Context);
   // }
 
   if (!m_InLHS && soulAddr && !llvm::isa<llvm::Function>(soulAddr) &&
@@ -1940,7 +1940,7 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
 
           if (payloadLayoutType) {
             llvm::Value *variantAddr = m_Builder.CreateBitCast(
-                payloadAddr, llvm::PointerType::getUnqual(payloadLayoutType));
+                payloadAddr, llvm::PointerType::getUnqual(m_Context));
 
             for (size_t i = 0; i < arm->Pat->SubPatterns.size(); ++i) {
               // Safety check
@@ -2254,9 +2254,9 @@ PhysEntity CodeGen::genGuardExpr(const GuardExpr *guard) {
             if (m_Symbols.count(baseName)) {
                 TokaSymbol &sym = m_Symbols[baseName];
                 if (sym.morphology == Morphology::Shared) {
-                    llvm::Type *ptrTy = llvm::PointerType::getUnqual(sym.soulType);
+                    llvm::Type *ptrTy = llvm::PointerType::getUnqual(m_Context);
                     llvm::Type *refTy =
-                        llvm::PointerType::getUnqual(llvm::Type::getInt32Ty(m_Context));
+                        llvm::PointerType::getUnqual(m_Context);
                     handleTy = llvm::StructType::get(m_Context, {ptrTy, refTy});
                 } else if (sym.morphology == Morphology::Unique ||
                         sym.morphology == Morphology::Raw) {
@@ -3103,7 +3103,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
             // array. We bitcast the base address to the actual member type we
             // matched.
             ptr = m_Builder.CreateBitCast(alloca,
-                                          llvm::PointerType::getUnqual(destTy));
+                                          llvm::PointerType::getUnqual(m_Context));
           } else {
             ptr = m_Builder.CreateStructGEP(st, alloca, memberIdx);
           }
@@ -3427,7 +3427,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
               llvm::Value *payloadAddr =
                   m_Builder.CreateStructGEP(st, alloca, 1, "payload_addr");
               llvm::Value *castPtr = m_Builder.CreateBitCast(
-                  payloadAddr, llvm::PointerType::getUnqual(payloadType));
+                  payloadAddr, llvm::PointerType::getUnqual(m_Context));
 
               if (!targetVar->SubMembers.empty()) {
                 // Multi-field Tuple Payload
@@ -3666,7 +3666,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
                }
                uint64_t size = m_Module->getDataLayout().getTypeAllocSize(objTy);
                llvm::Value *heapMem = m_Builder.CreateCall(mallocFn, {llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), size)});
-               envPtrAddr = m_Builder.CreatePointerCast(heapMem, llvm::PointerType::getUnqual(objTy));
+               envPtrAddr = m_Builder.CreatePointerCast(heapMem, llvm::PointerType::getUnqual(m_Context));
                
                if (envTy->isPointerTy()) {
                    llvm::Value *loadedEnv = m_Builder.CreateLoad(objTy, val);
@@ -3809,10 +3809,10 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
             llvm::Type *fatPtrTy = resolveType(targetArgType, false);
             llvm::Value *ctxPtr = m_Builder.CreateBitCast(
                 val,
-                llvm::PointerType::getUnqual(llvm::Type::getInt8Ty(m_Context)));
+                llvm::PointerType::getUnqual(m_Context));
             llvm::Value *vtablePtr = m_Builder.CreateBitCast(
                 vtable,
-                llvm::PointerType::getUnqual(llvm::Type::getInt8Ty(m_Context)));
+                llvm::PointerType::getUnqual(m_Context));
 
             llvm::Value *fatPtr = llvm::UndefValue::get(fatPtrTy);
             fatPtr = m_Builder.CreateInsertValue(fatPtr, ctxPtr, 0);
@@ -4029,7 +4029,7 @@ PhysEntity CodeGen::genUnwrapPropagationExpr(const UnwrapPropagationExpr *expr) 
       llvm::Value *srcAlloc = createEntryBlockAlloca(unionData->getType(), nullptr, "unwrap.err.src");
       m_Builder.CreateStore(unionData, srcAlloc);
       llvm::Type *dstUnionTy = targetRetTy->getStructElementType(1);
-      llvm::Value *castSrc = m_Builder.CreateBitCast(srcAlloc, llvm::PointerType::getUnqual(dstUnionTy));
+      llvm::Value *castSrc = m_Builder.CreateBitCast(srcAlloc, llvm::PointerType::getUnqual(m_Context));
       llvm::Value *newUnionData = m_Builder.CreateLoad(dstUnionTy, castSrc);
       
       retVal = m_Builder.CreateInsertValue(retVal, newUnionData, {1});
@@ -4056,7 +4056,7 @@ PhysEntity CodeGen::genUnwrapPropagationExpr(const UnwrapPropagationExpr *expr) 
   llvm::Value *succAlloc = createEntryBlockAlloca(unionData->getType(), nullptr, "unwrap.succ.src");
   m_Builder.CreateStore(unionData, succAlloc);
   
-  llvm::Value *castPtr = m_Builder.CreateBitCast(succAlloc, llvm::PointerType::getUnqual(payloadTy));
+  llvm::Value *castPtr = m_Builder.CreateBitCast(succAlloc, llvm::PointerType::getUnqual(m_Context));
   llvm::Value *payload = m_Builder.CreateLoad(payloadTy, castPtr, "unwrap.payload");
   
   return PhysEntity(payload, expr->ResolvedType->toString(), payloadTy, false);

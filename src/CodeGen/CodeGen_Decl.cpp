@@ -131,7 +131,7 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
       }
 
       if (needsCapture) {
-        t = llvm::PointerType::getUnqual(t);
+        t = llvm::PointerType::getUnqual(m_Context);
       }
 
       if (t)
@@ -303,7 +303,7 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
 
     if (needsCapture) {
       // Argument passed by pointer
-      allocaType = llvm::PointerType::getUnqual(allocaType);
+      allocaType = llvm::PointerType::getUnqual(m_Context);
     }
 
     llvm::Value *finalStorage = nullptr;
@@ -763,7 +763,7 @@ llvm::Value *CodeGen::genVariableDecl(const VariableDecl *var) {
       if (innerTy->isArrayTy()) {
         innerTy = innerTy->getArrayElementType();
       }
-      type = llvm::PointerType::getUnqual(innerTy);
+      type = llvm::PointerType::getUnqual(m_Context);
     }
   }
   if (!type && initVal)
@@ -780,13 +780,13 @@ llvm::Value *CodeGen::genVariableDecl(const VariableDecl *var) {
   // }, regardless of what resolveType returned. This ensures all Shared
   // variables have consistent memory layout with ref counting support.
   if (var->IsShared) {
-    llvm::Type *ptrTy = llvm::PointerType::getUnqual(elemTy);
+    llvm::Type *ptrTy = llvm::PointerType::getUnqual(m_Context);
     llvm::Type *refTy =
-        llvm::PointerType::getUnqual(llvm::Type::getInt32Ty(m_Context));
+        llvm::PointerType::getUnqual(m_Context);
     type = llvm::StructType::get(m_Context, {ptrTy, refTy});
   } else if (var->IsUnique && (!type || (!type->isPointerTy() && !type->isStructTy()))) {
     // Unique variables must be pointers or fat pointer structs, never raw Soul types
-    type = llvm::PointerType::getUnqual(elemTy);
+    type = llvm::PointerType::getUnqual(m_Context);
   } else if (!type) {
     // Regular variables use the Soul type directly
     type = elemTy;
@@ -836,9 +836,9 @@ llvm::Value *CodeGen::genVariableDecl(const VariableDecl *var) {
         if (initVal->getType()->isPointerTy() &&
             llvm::isa<llvm::ConstantPointerNull>(initVal)) {
           // Null shared pointer initialization
-          llvm::Type *ptrTy = llvm::PointerType::getUnqual(elemTy);
+          llvm::Type *ptrTy = llvm::PointerType::getUnqual(m_Context);
           llvm::Type *refTy =
-              llvm::PointerType::getUnqual(llvm::Type::getInt32Ty(m_Context));
+              llvm::PointerType::getUnqual(m_Context);
           llvm::StructType *st =
               llvm::StructType::get(m_Context, {ptrTy, refTy});
           llvm::Value *u = llvm::UndefValue::get(st);
@@ -868,8 +868,7 @@ llvm::Value *CodeGen::genVariableDecl(const VariableDecl *var) {
                 llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), 4);
             llvm::Value *refPtr = m_Builder.CreateCall(mallocFn, rcSize);
             refPtr = m_Builder.CreateBitCast(
-                refPtr, llvm::PointerType::getUnqual(
-                            llvm::Type::getInt32Ty(m_Context)));
+                refPtr, llvm::PointerType::getUnqual(m_Context));
             m_Builder.CreateStore(
                 llvm::ConstantInt::get(llvm::Type::getInt32Ty(m_Context), 1),
                 refPtr);
@@ -880,7 +879,7 @@ llvm::Value *CodeGen::genVariableDecl(const VariableDecl *var) {
               // Already a pointer, use it (assume ownership transfer or raw
               // -> shared promotion)
               dataPtr = m_Builder.CreateBitCast(
-                  initVal, llvm::PointerType::getUnqual(elemTy));
+                  initVal, llvm::PointerType::getUnqual(m_Context));
             } else {
               // Value Type -> Allocate and Copy
               const llvm::DataLayout &dl = m_Module->getDataLayout();
@@ -889,14 +888,14 @@ llvm::Value *CodeGen::genVariableDecl(const VariableDecl *var) {
                   llvm::Type::getInt64Ty(m_Context), dataSz);
               dataPtr = m_Builder.CreateCall(mallocFn, valSize);
               dataPtr = m_Builder.CreateBitCast(
-                  dataPtr, llvm::PointerType::getUnqual(elemTy));
+                  dataPtr, llvm::PointerType::getUnqual(m_Context));
               m_Builder.CreateStore(initVal, dataPtr);
             }
 
             // 3. Create Handle
-            llvm::Type *ptrTy = llvm::PointerType::getUnqual(elemTy);
+            llvm::Type *ptrTy = llvm::PointerType::getUnqual(m_Context);
             llvm::Type *refTy =
-                llvm::PointerType::getUnqual(llvm::Type::getInt32Ty(m_Context));
+                llvm::PointerType::getUnqual(m_Context);
             llvm::StructType *st =
                 llvm::StructType::get(m_Context, {ptrTy, refTy});
             llvm::Value *u = llvm::UndefValue::get(st);
@@ -1008,7 +1007,7 @@ llvm::Value *CodeGen::genVariableDecl(const VariableDecl *var) {
                  }
                  uint64_t size = m_Module->getDataLayout().getTypeAllocSize(objTy);
                  llvm::Value *heapMem = m_Builder.CreateCall(mallocFn, {llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), size)});
-                 envPtrAddr = m_Builder.CreatePointerCast(heapMem, llvm::PointerType::getUnqual(objTy));
+                 envPtrAddr = m_Builder.CreatePointerCast(heapMem, llvm::PointerType::getUnqual(m_Context));
                  
                  if (envTy->isPointerTy()) {
                      llvm::Value *loadedEnv = m_Builder.CreateLoad(objTy, initVal);
@@ -1602,7 +1601,7 @@ void toka::CodeGen::genImpl(const toka::ImplDecl *decl, bool declOnly) {
     if (trait && !declOnly) {
       std::vector<llvm::Constant *> vtableMethods;
       llvm::Type *voidPtrTy =
-          llvm::PointerType::getUnqual(llvm::Type::getInt8Ty(m_Context));
+          llvm::PointerType::getUnqual(m_Context);
       for (const auto &method : trait->Methods) {
         std::string implFuncName =
             decl->TraitName + "_" + decl->TypeName + "_" + method->Name;
@@ -1722,9 +1721,9 @@ PhysEntity toka::CodeGen::genMethodCall(const toka::MethodCallExpr *expr) {
 
         // 2. Load Function Pointer from VTable
         llvm::Type *voidPtrTy =
-            llvm::PointerType::getUnqual(llvm::Type::getInt8Ty(m_Context));
+            llvm::PointerType::getUnqual(m_Context);
         llvm::Type *vtableArrayTy =
-            llvm::PointerType::getUnqual(voidPtrTy); // i8**
+            llvm::PointerType::getUnqual(m_Context); // i8**
 
         llvm::Value *vtableArray =
             m_Builder.CreateBitCast(vtablePtr, vtableArrayTy);
@@ -2068,7 +2067,7 @@ llvm::Type *CodeGen::resolveType(const std::string &baseType, bool hasPointer) {
   // (Standard library might have legacy `type Addr = u64` aliases)
   if (baseType == "Addr" || baseType == "OAddr" || baseType == "null") {
     type = llvm::PointerType::getUnqual(m_Context);
-    if (hasPointer) type = llvm::PointerType::getUnqual(type);
+    if (hasPointer) type = llvm::PointerType::getUnqual(m_Context);
     return type;
   }
 
@@ -2090,16 +2089,16 @@ llvm::Type *CodeGen::resolveType(const std::string &baseType, bool hasPointer) {
     }
     // Fat Pointer: { void* data, void* vtable }
     llvm::Type *voidPtr =
-        llvm::PointerType::getUnqual(llvm::Type::getInt8Ty(m_Context));
+        llvm::PointerType::getUnqual(m_Context);
     return llvm::StructType::get(m_Context, {voidPtr, voidPtr});
   }
 
   // Handle Shared Pointers (~Type): { T*, i32* }
   if (baseType.size() > 1 && baseType[0] == '~') {
     llvm::Type *elemTy = resolveType(baseType.substr(1), false);
-    llvm::Type *ptrTy = llvm::PointerType::getUnqual(elemTy);
+    llvm::Type *ptrTy = llvm::PointerType::getUnqual(m_Context);
     llvm::Type *refCountTy =
-        llvm::PointerType::getUnqual(llvm::Type::getInt32Ty(m_Context));
+        llvm::PointerType::getUnqual(m_Context);
     return llvm::StructType::get(m_Context, {ptrTy, refCountTy});
   }
 
@@ -2117,7 +2116,7 @@ llvm::Type *CodeGen::resolveType(const std::string &baseType, bool hasPointer) {
     llvm::Type *elemTy = resolveType(baseType.substr(offset), false);
     if (!elemTy)
       return nullptr;
-    return llvm::PointerType::getUnqual(elemTy);
+    return llvm::PointerType::getUnqual(m_Context);
   }
 
   if (baseType[0] == '[') {
@@ -2228,7 +2227,7 @@ llvm::Type *CodeGen::resolveType(const std::string &baseType, bool hasPointer) {
   else if (baseType == "f64" || baseType == "double")
     type = llvm::Type::getDoubleTy(m_Context);
   else if (baseType == "cstring")
-    type = llvm::PointerType::getUnqual(llvm::Type::getInt8Ty(m_Context));
+    type = llvm::PointerType::getUnqual(m_Context);
   else if (baseType == "void")
     type = llvm::Type::getVoidTy(m_Context);
   else if (baseType == "ptr")
@@ -2244,7 +2243,7 @@ llvm::Type *CodeGen::resolveType(const std::string &baseType, bool hasPointer) {
   }
 
   if (hasPointer && type)
-    return llvm::PointerType::getUnqual(type);
+    return llvm::PointerType::getUnqual(m_Context);
   return type;
 }
 
@@ -2287,7 +2286,7 @@ llvm::Type *CodeGen::getLLVMType(std::shared_ptr<Type> type) {
     if (prim->Name == "void")
       return llvm::Type::getVoidTy(m_Context);
     if (prim->Name == "cstring")
-      return llvm::PointerType::getUnqual(llvm::Type::getInt8Ty(m_Context));
+      return llvm::PointerType::getUnqual(m_Context);
     if (prim->Name == "Addr" || prim->Name == "OAddr" || prim->Name == "null")
       return llvm::PointerType::getUnqual(m_Context);
   }
