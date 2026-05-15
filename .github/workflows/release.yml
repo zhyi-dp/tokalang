@@ -114,11 +114,13 @@ jobs:
           ./bin/tokac.exe --version || echo "tokac version failed"
           
           # Compile Runtime
+          set -x
           clang -c $GITHUB_WORKSPACE/lib/std/sys/toka_rt.c -o $GITHUB_WORKSPACE/lib/std/sys/toka_rt.o
 
           ./bin/tokac.exe -I ../lib -I ../tools/toka ../tools/toka/src/main.tk $GITHUB_WORKSPACE/lib/std/sys/toka_rt.o -o ./bin/toka.exe -O3
           ./bin/tokac.exe -I ../lib -I ../tools/tokafmt ../tools/tokafmt/src/main.tk $GITHUB_WORKSPACE/lib/std/sys/toka_rt.o -o ./bin/tokafmt.exe -O3
           ./bin/tokac.exe -I ../lib -I ../tools/tokalsp ../tools/tokalsp/main.tk $GITHUB_WORKSPACE/lib/std/sys/toka_rt.o -o ./bin/tokalsp.exe -O3
+          set +x
 
       - name: Run Package Script
         if: startsWith(github.ref, 'refs/tags/v')
