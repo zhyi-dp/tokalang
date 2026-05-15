@@ -610,6 +610,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       isImplicitDeref = (actualName != ve->Name);
       Info = *InfoPtr;
       ve->IsMorphicExempt = Info.IsMorphicExempt; // [NEW]
+      ve->IsImplicitDeref = isImplicitDeref;      // [Fix] Mark AST node
     }
 
     if (!InfoPtr) {

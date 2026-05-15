@@ -6,14 +6,14 @@ fn main() -> i32 {
     // Unique Pointer Test
     {
         auto ^p = new i32(100)
-        println("p: {}", p)
+        println("A"); println("p: {}", p)
         {
             // 关键动作：借用发生
             // 物理过程：&p 实际上是 &(p->soul)。引用 x 直指数据。
             // 法律过程：编译器给 p 贴上 [FROZEN] 标签。
             auto &x = &p 
             
-            println("Borrowed unique: {}", x)
+            println("B"); println("Borrowed unique: {}", x)
             if x != 100 {
                 println("Assertion failed: x should be 100")
                 return 1
@@ -27,7 +27,7 @@ fn main() -> i32 {
         
         // ✅ 合法 Move
         // 注意你的语法：^p 在右值位置显式表示 Move，这非常清晰！
-        auto ^q = ^p 
+        println("C"); auto ^q = ^p 
     }
 
     // Shared Pointer Test
@@ -35,7 +35,7 @@ fn main() -> i32 {
         auto ~#s# = new i32(200) // Mutable variable s
         {
             auto &y = &s
-            println("Borrowed shared: {}", y)
+            println("D"); println("Borrowed shared: {}", y)
             // s cannot be mutated here
         }
         s = 250

@@ -182,6 +182,7 @@ public:
   bool IsValueMutable = false;
   bool IsValueNullable = false;
   bool IsValueBlocked = false; // "$" identifier attribute
+  bool IsImplicitDeref = false; // [Fix] Indicates Sema applied an implicit deref
   bool HasConstantValue = false;
   uint64_t ConstantValue = 0;
 
@@ -198,6 +199,7 @@ public:
     n->IsValueMutable = IsValueMutable;
     n->IsValueNullable = IsValueNullable;
     n->IsValueBlocked = IsValueBlocked;
+    n->IsImplicitDeref = IsImplicitDeref;
     n->HasConstantValue = HasConstantValue;
     n->ConstantValue = ConstantValue;
     n->Loc = Loc;

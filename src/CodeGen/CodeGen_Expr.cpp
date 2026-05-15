@@ -1610,9 +1610,9 @@ PhysEntity CodeGen::genVariableExpr(const VariableExpr *var) {
     isUnique = true;
 
   // [Fix] Handle Type Adjustment for Unique Pointers
-  if (isUnique && soulType && !soulType->isPointerTy()) {
-    soulType = llvm::PointerType::getUnqual(soulType);
-  }
+  // if (isUnique && soulType && !soulType->isPointerTy()) {
+  //   soulType = llvm::PointerType::getUnqual(soulType);
+  // }
 
   if (!m_InLHS && soulAddr && !llvm::isa<llvm::Function>(soulAddr) &&
       !llvm::isa<llvm::GlobalVariable>(soulAddr)) {
