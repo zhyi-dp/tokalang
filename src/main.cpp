@@ -69,14 +69,15 @@ bool linkWithLLD(std::string objFile, std::vector<std::string> extraObjs, std::s
     args.push_back("toka-lld"); // dummy argv[0]
 
 #ifdef _WIN32
-    args.push_back(objFile.c_str());
+    // Windows builds using MSYS2 or MinGW. LLD doesn't resolve default C libraries without explicit paths.
+    // Since MSYS2 paths can be dynamic (e.g., D:/a/_temp/msys64 on GitHub Actions), 
+    // we shell out to gcc which acts as the linker driver and knows all implicit library paths.
+    std::string cmd = "gcc \"" + objFile + "\"";
     for (const auto &extra : extraObjs) {
-        args.push_back(extra.c_str());
+        cmd += " \"" + extra + "\"";
     }
-    args.push_back("-o");
-    args.push_back(outputFile.c_str());
-    // For MinGW-style linking, it might need more setup but this is a start
-    return lld::mingw::link(args, llvm::outs(), llvm::errs(), false, false);
+    cmd += " -o \"" + outputFile + "\"";
+    return system(cmd.c_str()) == 0;
 #elif defined(__APPLE__)
     args.push_back("-arch");
 #if defined(__arm64__) || defined(__aarch64__)
