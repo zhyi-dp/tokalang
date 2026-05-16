@@ -66,3 +66,18 @@ void toka_panic(const char* msg, int len) {
     fflush(stderr);
     abort();
 }
+
+#include <sys/stat.h>
+void* toka_stat_impl(const char* path) {
+    struct stat* st = malloc(sizeof(struct stat));
+    if (!st) return NULL;
+    if (stat(path, st) != 0) {
+        free(st);
+        return NULL;
+    }
+    return st;
+}
+unsigned int toka_stat_mode(void* handle) { return ((struct stat*)handle)->st_mode; }
+unsigned long long toka_stat_size(void* handle) { return ((struct stat*)handle)->st_size; }
+long long toka_stat_mtime(void* handle) { return ((struct stat*)handle)->st_mtime; }
+void toka_stat_free(void* handle) { free(handle); }

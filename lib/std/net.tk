@@ -94,6 +94,8 @@ impl TcpStream {
                 return TcpStream(fd=-1, closed=true)
             }
             
+            sysnet::net_set_nonblocking_impl(fd)
+            
             auto ip_num = addr.ip.to_u32()
             auto res = sysnet::net_connect_impl(fd, ip_num, addr.port)
             

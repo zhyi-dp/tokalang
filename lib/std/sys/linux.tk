@@ -118,56 +118,30 @@ pub fn path_exists(path: Addr) -> bool {
     }
 }
 
+extern fn toka_stat_impl(path: Addr) -> Addr
+extern fn toka_stat_mode(handle: Addr) -> u32
+extern fn toka_stat_size(handle: Addr) -> u64
+extern fn toka_stat_mtime(handle: Addr) -> i64
+extern fn toka_stat_free(handle: Addr)
+
 pub fn stat_impl(path: Addr) -> Addr {
-    unsafe {
-        auto *buf# = unsafe alloc [144] byte // 144 bytes for struct stat
-        // buf is the soul (void), *buf is the handle (*void)
-        // To check for null, we compare the handle
-        if *buf == (0:Addr as *void) {
-             return ADDR0
-        }
-        
-        auto res = libc_stat(path as *char, *buf as Addr)
-        if res != 0 {
-            libc_free(*buf)
-            return ADDR0
-        }
-        
-        return *buf as Addr
-    }
+    unsafe { return toka_stat_impl(path) }
 }
 
 pub fn stat_free_impl(handle: Addr) {
-    unsafe {
-        libc_free(handle as *void)
-    }
+    unsafe { toka_stat_free(handle) }
 }
 
 pub fn stat_get_mode_impl(handle: Addr) -> u32 {
-    unsafe {
-        // st_mode offset 24 (Linux x86_64), u32
-        auto ptr_val = handle as usize + 24
-        auto *p = ptr_val as *u32
-        return p // Return soul (value)
-    }
+    unsafe { return toka_stat_mode(handle) }
 }
 
 pub fn stat_get_size_impl(handle: Addr) -> u64 {
-    unsafe {
-        // st_size offset 48 (Linux x86_64), i64
-        auto ptr_val = handle as usize + 48
-        auto *p = ptr_val as *i64
-        return p as u64 // Return soul (value)
-    }
+    unsafe { return toka_stat_size(handle) }
 }
 
 pub fn stat_get_mtime_impl(handle: Addr) -> i64 {
-    unsafe {
-        // st_mtime offset 88 (Linux x86_64), i64 (seconds)
-        auto ptr_val = handle as usize + 88
-        auto *p = ptr_val as *i64
-        return p // Return soul (value)
-    }
+    unsafe { return toka_stat_mtime(handle) }
 }
 
 // 0xF000 = 61440
