@@ -70,7 +70,12 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           mkdir build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            export LLVM_PATH=$(brew --prefix llvm@20 || brew --prefix llvm)
+            CC=$LLVM_PATH/bin/clang CXX=$LLVM_PATH/bin/clang++ cmake .. -DCMAKE_BUILD_TYPE=Release
+          else
+            CC=clang-20 CXX=clang++-20 cmake .. -DCMAKE_BUILD_TYPE=Release
+          fi
           make -j4
           
           cd ..
@@ -100,7 +105,7 @@ jobs:
         run: |
           mkdir build && cd build
           # Use Ninja for better stability on Windows CI
-          cmake .. -G "Ninja" -DCMAKE_BUILD_TYPE=Release
+          CC=clang CXX=clang++ cmake .. -G "Ninja" -DCMAKE_BUILD_TYPE=Release
           ninja
           
           cd ..
