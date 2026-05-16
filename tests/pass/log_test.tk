@@ -2,7 +2,7 @@ import std/log::{Logger, LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERROR, debug, info, 
 import std/string::{String}
 import std/io::{print_line}
 
-pub fn main() {
+pub fn main() -> i32 {
     print_line(String::from("--- Testing Global Convenience Functions ---"))
     debug(String::from("This is a debug message (visible)"))
     info(String::from("This is an info message"))
@@ -19,4 +19,5 @@ pub fn main() {
     // Warn and error SHOULD print
     logger#.warn(String::from("This should print (warn)"))
     logger#.error(String::from("This should print (error)"))
+    return 0
 }

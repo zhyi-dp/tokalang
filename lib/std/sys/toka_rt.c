@@ -1,4 +1,15 @@
 #include <stdio.h>
+#include <time.h>
+
+void* toka_localtime_r(const time_t *timep, struct tm *result) {
+#ifdef _WIN32
+    struct tm *res = localtime(timep);
+    if (res) { *result = *res; return result; }
+    return NULL;
+#else
+    return localtime_r(timep, result);
+#endif
+}
 
 #ifdef _WIN32
 #include <io.h>

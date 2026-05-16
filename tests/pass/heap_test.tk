@@ -3,7 +3,7 @@ import std/io::{print_line}
 import std/string::{String}
 import core/libc::{libc_abort}
 
-pub fn main() {
+pub fn main() -> i32 {
     print_line(String::from("Start Min-Heap"))
     auto min_cmp: fn(i32, i32) -> bool = { a, b => a < b }
     auto min_heap# = BinaryHeap<i32>::new(min_cmp)
@@ -37,4 +37,5 @@ pub fn main() {
     if max_heap#.pop().unwrap() != 2 { libc_abort() }
     if max_heap#.pop().unwrap() != 1 { libc_abort() }
     print_line(String::from("All Done"))
+    return 0
 }

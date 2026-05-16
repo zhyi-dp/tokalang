@@ -1,5 +1,24 @@
-// Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
+// Copyright (c) 2025 Toka Project. All rights reserved.
 // lib/std/sys/net_windows.tk
 // Placeholder for WinSock2 based networking.
 
-pub fn socket_impl() -> i32 { return -1 }
+import core/types::{Addr}
+
+pub fn get_last_error() -> i32 { return -1 }
+pub fn net_socket_impl() -> i32 { return -1 }
+pub fn net_setsockopt_reuse_impl(fd: i32) -> i32 { return -1 }
+pub fn get_errno_impl() -> i32 { return -1 }
+pub fn net_getsockopt_error_impl(fd: i32) -> i32 { return -1 }
+pub fn net_bind_impl(fd: i32, *ip: Addr, port: i32) -> i32 { return -1 }
+pub fn net_listen_impl(fd: i32) -> i32 { return -1 }
+pub fn net_connect_impl(fd: i32, *ip: Addr, port: i32) -> i32 { return -1 }
+pub fn net_accept_impl(fd: i32, *client_ip: Addr, *client_port: Addr) -> i32 { return -1 }
+pub fn net_close_impl(fd: i32) -> i32 { return -1 }
+pub fn net_read_impl(fd: i32, *buf: Addr, count: i32) -> i32 { return -1 }
+pub fn net_write_impl(fd: i32, *buf: Addr, count: i32) -> i32 { return -1 }
+pub fn get_eagain_impl() -> i32 { return 11 } // EWOULDBLOCK
+pub fn net_set_nonblocking_impl(fd: i32) -> i32 { return -1 }
+pub fn reactor_create_impl() -> i32 { return -1 }
+pub fn reactor_add_read_impl(reactor_fd: i32, fd: i32) -> i32 { return -1 }
+pub fn reactor_add_write_impl(reactor_fd: i32, fd: i32) -> i32 { return -1 }
+pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, max: i32) -> i32 { return -1 }

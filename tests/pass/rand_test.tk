@@ -1,7 +1,7 @@
 import std/rand::{Random}
 import core/libc::{libc_abort, libc_exit}
 
-pub fn main() {
+pub fn main() -> i32 {
     auto rng# = Random::new(42:u64, 54:u64)
     auto v1 = rng#.next_u32()
     auto v2 = rng#.next_u32()
@@ -12,4 +12,5 @@ pub fn main() {
     if v3 == 0:u64 { libc_abort() }
     
     libc_exit(0)
+    return 0
 }
