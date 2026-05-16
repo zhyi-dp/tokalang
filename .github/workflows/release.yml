@@ -72,7 +72,7 @@ jobs:
           mkdir build && cd build
           if [ "${{ runner.os }}" = "macOS" ]; then
             export LLVM_PATH=$(brew --prefix llvm@20 || brew --prefix llvm)
-            CC=$LLVM_PATH/bin/clang CXX=$LLVM_PATH/bin/clang++ cmake .. -DCMAKE_BUILD_TYPE=Release
+            CC=$LLVM_PATH/bin/clang CXX=$LLVM_PATH/bin/clang++ cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_SYSROOT=$(xcrun --show-sdk-path)
           else
             CC=clang-20 CXX=clang++-20 cmake .. -DCMAKE_BUILD_TYPE=Release
           fi
