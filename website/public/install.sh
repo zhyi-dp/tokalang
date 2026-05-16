@@ -26,14 +26,14 @@ fi
 RELEASE_URL="https://github.com/zhyi-dp/tokalang/releases/latest/download"
 
 # To specify a specific version for beta, use the argument passed or latest
-VERSION=${1:-"v0.9.4"}
+VERSION=${1:-"latest"}
 if [ "$VERSION" = "latest" ]; then
-  # Grab latest release tag via GitHub API
   echo "Fetching latest version..."
-  VERSION=$(curl -sSL "https://api.github.com/repos/zhyi-dp/tokalang/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-  if [ -z "$VERSION" ]; then
-    # Fallback if API rate limited or no latest release marked
-    VERSION="v0.9.2"
+  LATEST_URL=$(curl -sL -o /dev/null -w %{url_effective} https://github.com/zhyi-dp/tokalang/releases/latest)
+  VERSION=${LATEST_URL##*/}
+  if [ -z "$VERSION" ] || [ "$VERSION" = "latest" ]; then
+    # Fallback if redirect fails
+    VERSION="v0.9.6"
     echo "Warning: Could not determine latest version. Defaulting to $VERSION"
   fi
 fi
