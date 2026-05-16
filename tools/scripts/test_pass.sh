@@ -5,17 +5,7 @@ export ASAN_OPTIONS=detect_container_overflow=0
 
 # --- Configuration ---
 TOKAC="./build/bin/tokac"
-if which lli-20 >/dev/null 2>&1; then
-    LLI="lli-20"
-elif [ -x "/opt/homebrew/opt/llvm@20/bin/lli" ]; then
-    LLI="/opt/homebrew/opt/llvm@20/bin/lli"
-elif [ -x "/usr/local/opt/llvm@20/bin/lli" ]; then
-    LLI="/usr/local/opt/llvm@20/bin/lli"
-elif [ -x "/usr/lib/llvm-20/bin/lli" ]; then
-    LLI="/usr/lib/llvm-20/bin/lli"
-else
-    LLI=$(which lli)
-fi
+# LLI is no longer used. We natively compile the tests to binary.
 
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -32,7 +22,7 @@ run_worker() {
     safe_target=$(echo "$test_path" | tr '/' '_')
     out_dir="/tmp/tokac_tests"
     mkdir -p "$out_dir"
-    ll_file="${out_dir}/${safe_target}.ll"
+    exe_file="${out_dir}/${safe_target}.exe"
     log_file="${out_dir}/${safe_target}.log"
     
     # Capture output in a buffer to ensure atomic printing
@@ -42,27 +32,20 @@ run_worker() {
         OUTPUT="${OUTPUT}$1\n"
     }
     
-    # Step 1: Compile
-    if ! "$TOKAC" "$test_path" > "$ll_file" 2> "$log_file"; then
+    # Step 1: Compile Native
+    if ! "$TOKAC" "$test_path" -o "$exe_file" > /dev/null 2> "$log_file"; then
         append "$(printf "[${RED}FAIL${NC}] %-35s" "$file_name")"
         append "    ${RED}$test_path:1: error: Compilation failed${NC}"
         # Tail logs
         LOGS=$(tail -n 5 "$log_file" | sed 's/^/    | /')
         append "$LOGS"
         echo -ne "$OUTPUT"
-        rm -f "$log_file" "$ll_file"
+        rm -f "$log_file" "$exe_file"
         exit 1
     fi
 
-    # Set ATOMIC_ARG for Linux
-    if [ "$(uname)" == "Linux" ] && [ -f "/usr/lib/x86_64-linux-gnu/libatomic.so.1" ]; then
-        ATOMIC_ARG="-load=/usr/lib/x86_64-linux-gnu/libatomic.so.1"
-    else
-        ATOMIC_ARG=""
-    fi
-
-    # Step 2: Run
-    { "$LLI" $ATOMIC_ARG "$ll_file" >> "$log_file" 2>&1; } 2>&1 | grep -v "Abort trap"
+    # Step 2: Run Native
+    { "$exe_file" >> "$log_file" 2>&1; } 2>&1 | grep -v "Abort trap"
     exit_code=${PIPESTATUS[0]}
 
     # Step 3: Extract & Verify
@@ -129,7 +112,7 @@ run_worker() {
         else
             append "$(printf "[${GREEN}PASS${NC}] %-35s" "$file_name")"
         fi
-        rm -f "$ll_file" "$log_file"
+        rm -f "$exe_file" "$log_file"
         echo -ne "$OUTPUT"
         exit 0
     else
@@ -148,7 +131,7 @@ run_worker() {
         fi
         
         echo -ne "$OUTPUT"
-        rm -f "$ll_file" # Keep log? No, simplify cleanup.
+        rm -f "$exe_file" # Keep log? No, simplify cleanup.
         exit 1
     fi
 }

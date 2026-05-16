@@ -515,8 +515,10 @@ int main(int argc, char **argv) {
       finalOutput = "a.out";
     }
     llvm::SmallString<128> TempPath;
-    llvm::sys::path::system_temp_directory(true, TempPath);
-    llvm::sys::path::append(TempPath, "toka_tmp_" + std::to_string(std::time(nullptr)) + ".o");
+    if (auto Err = llvm::sys::fs::createTemporaryFile("toka_tmp", "o", TempPath)) {
+      llvm::errs() << "Error creating temporary file: " << Err.message() << "\n";
+      return 1;
+    }
     objFile = std::string(TempPath.c_str());
   }
 

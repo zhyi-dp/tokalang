@@ -74,11 +74,6 @@ jobs:
           make -j4
           
           cd ..
-          # Run full testing suite to verify compiler integrity
-          bash ./tools/scripts/test_pass.sh
-          cd build
-          
-          # Build toka CLI tool, tokafmt and tokalsp using the newly built compiler (Internal LLD)
           export TOKA_LIB=$GITHUB_WORKSPACE/lib
           
           # Compile Runtime
@@ -88,6 +83,12 @@ jobs:
           else
             clang-20 -c $GITHUB_WORKSPACE/lib/std/sys/toka_rt.c -o $GITHUB_WORKSPACE/lib/std/sys/toka_rt.o
           fi
+          
+          # Run full testing suite to verify compiler integrity (Native execution)
+          bash ./tools/scripts/test_pass.sh
+          cd build
+          
+          # Build toka CLI tool, tokafmt and tokalsp using the newly built compiler (Internal LLD)
 
           ./bin/tokac -I ../lib -I ../tools/toka ../tools/toka/src/main.tk $GITHUB_WORKSPACE/lib/std/sys/toka_rt.o -o ./bin/toka -O3
           ./bin/tokac -I ../lib -I ../tools/tokafmt ../tools/tokafmt/src/main.tk $GITHUB_WORKSPACE/lib/std/sys/toka_rt.o -o ./bin/tokafmt -O3
@@ -103,22 +104,23 @@ jobs:
           ninja
           
           cd ..
-          # Run full testing suite to verify compiler integrity
-          bash ./tools/scripts/test_pass.sh
-          cd build
-          
           export TOKA_LIB=$GITHUB_WORKSPACE/lib
           
-          # Debug Windows 127 Error
-          ldd ./bin/tokac.exe || echo "ldd failed"
+          # Debug Windows Environment
+          ldd ./build/bin/tokac.exe || echo "ldd failed"
           ls -la /mingw64/bin/ | grep -i polly || echo "No polly DLL"
           which clang || echo "clang not found"
           clang --version || echo "clang failed"
-          ./bin/tokac.exe --version || echo "tokac version failed"
+          ./build/bin/tokac.exe --version || echo "tokac version failed"
           
           # Compile Runtime
           set -x
           clang -c $GITHUB_WORKSPACE/lib/std/sys/toka_rt.c -o $GITHUB_WORKSPACE/lib/std/sys/toka_rt.o
+          set +x
+          
+          # Run full testing suite to verify compiler integrity (Native execution)
+          bash ./tools/scripts/test_pass.sh
+          cd build
 
           cat << 'C_EOF' > test_abort.c
           #include <stdlib.h>
