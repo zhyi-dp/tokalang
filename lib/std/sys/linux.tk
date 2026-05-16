@@ -231,9 +231,9 @@ pub fn unsetenv_impl(name: String) -> bool {
     }
 }
 
+extern fn toka_panic(msg_ptr: Addr, len: i32) -> void
 pub fn __toka_panic_handler(msg: str) {
-    // macOS 特有的实现：写 stderr + 退出
-    libc_abort()
+    unsafe { toka_panic(msg.raw_ptr() as Addr, msg.len() as i32) }
 }
 
 // === Clock API ===

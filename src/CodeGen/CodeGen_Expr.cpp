@@ -3943,7 +3943,11 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
       llvm::LoadInst *li = m_Builder.CreateLoad(valTy, argsV[0], "atomic_load");
       li->setAtomic(order.first);
       if (li->getOrdering() == llvm::AtomicOrdering::NotAtomic) li->setAtomic(llvm::AtomicOrdering::Monotonic);
-      li->setAlignment(llvm::Align(m_Module->getDataLayout().getABITypeAlign(valTy)));
+      unsigned bits = valTy->getPrimitiveSizeInBits();
+      if (bits == 0 && valTy->isPointerTy()) bits = 64;
+      unsigned alignVal = bits / 8;
+      if (alignVal == 0) alignVal = 4;
+      li->setAlignment(llvm::Align(alignVal));
       return li;
     }
 
@@ -3955,7 +3959,11 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
       if (o == llvm::AtomicOrdering::Acquire || o == llvm::AtomicOrdering::AcquireRelease) o = llvm::AtomicOrdering::Release; // Store cannot be Acquire or AcqRel
       if (o == llvm::AtomicOrdering::NotAtomic) o = llvm::AtomicOrdering::Monotonic;
       si->setAtomic(o);
-      si->setAlignment(llvm::Align(m_Module->getDataLayout().getABITypeAlign(valTy)));
+      unsigned bits = valTy->getPrimitiveSizeInBits();
+      if (bits == 0 && valTy->isPointerTy()) bits = 64;
+      unsigned alignVal = bits / 8;
+      if (alignVal == 0) alignVal = 4;
+      si->setAlignment(llvm::Align(alignVal));
       return llvm::ConstantInt::get(m_Builder.getInt32Ty(), 0);
     }
 
@@ -3969,7 +3977,11 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
       if (success == llvm::AtomicOrdering::Acquire && fail == llvm::AtomicOrdering::SequentiallyConsistent) fail = llvm::AtomicOrdering::Acquire;
 
       llvm::Type *valTy = argsV[1]->getType();
-      llvm::Align align(m_Module->getDataLayout().getABITypeAlign(valTy));
+      unsigned bits = valTy->getPrimitiveSizeInBits();
+      if (bits == 0 && valTy->isPointerTy()) bits = 64;
+      unsigned alignVal = bits / 8;
+      if (alignVal == 0) alignVal = 4;
+      llvm::Align align(alignVal);
       llvm::AtomicCmpXchgInst *cxi = m_Builder.CreateAtomicCmpXchg(argsV[0], argsV[1], argsV[2], llvm::MaybeAlign(align), success, fail);
       return cxi; // Exact {T, i1} signature match!
     }
@@ -3987,7 +3999,11 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
     if (isRMW) {
       auto order = getOrder(argsV.back());
       llvm::Type *valTy = argsV[1]->getType();
-      llvm::Align align(m_Module->getDataLayout().getABITypeAlign(valTy));
+      unsigned bits = valTy->getPrimitiveSizeInBits();
+      if (bits == 0 && valTy->isPointerTy()) bits = 64;
+      unsigned alignVal = bits / 8;
+      if (alignVal == 0) alignVal = 4;
+      llvm::Align align(alignVal);
       llvm::AtomicOrdering o = order.second ? llvm::AtomicOrdering::SequentiallyConsistent : order.first;
       if (o == llvm::AtomicOrdering::NotAtomic) o = llvm::AtomicOrdering::Monotonic;
       llvm::AtomicRMWInst *rmw = m_Builder.CreateAtomicRMW(rop, argsV[0], argsV[1], llvm::MaybeAlign(align), o);

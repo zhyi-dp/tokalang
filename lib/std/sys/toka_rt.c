@@ -35,3 +35,34 @@ __attribute__((weak)) void _start() {
 }
 #endif
 #endif
+
+#ifdef _WIN32
+#include <windows.h>
+#include <stdint.h>
+int toka_clock_realtime(int64_t *ts) {
+    FILETIME ft;
+    GetSystemTimeAsFileTime(&ft);
+    uint64_t t = ((uint64_t)ft.dwHighDateTime << 32) | ft.dwLowDateTime;
+    t -= 116444736000000000ULL;
+    ts[0] = t / 10000000;
+    ts[1] = (t % 10000000) * 100;
+    return 1;
+}
+int toka_clock_monotonic(int64_t *ts) {
+    LARGE_INTEGER freq, count;
+    if (QueryPerformanceFrequency(&freq) && QueryPerformanceCounter(&count)) {
+        ts[0] = count.QuadPart / freq.QuadPart;
+        ts[1] = ((count.QuadPart % freq.QuadPart) * 1000000000) / freq.QuadPart;
+        return 1;
+    }
+    return 0;
+}
+#endif
+
+#include <stdio.h>
+#include <stdlib.h>
+void toka_panic(const char* msg, int len) {
+    fprintf(stderr, "thread 'main' panicked at '%.*s'\n", len, msg);
+    fflush(stderr);
+    abort();
+}
