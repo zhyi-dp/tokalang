@@ -44,7 +44,7 @@ pub fn run_build(proj: Executable) -> i32 {
         auto *s = proj.*src
         
         if proj.deps.len() > 0:usize {
-            auto deps_iter = proj.deps.split(',' as char)
+            auto deps_iter = proj.deps.split(',' as i32)
             loop {
                 auto pkg_url = deps_iter#.next()
                 if pkg_url.len() == 0:usize { break }
