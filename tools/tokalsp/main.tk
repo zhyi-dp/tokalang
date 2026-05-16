@@ -1,4 +1,4 @@
-import std/io::{stdin, stdout, File, print}
+import std/io::{get_stdin, get_stdout, File, print_line}
 import std/string::{String}
 import core/str::{view_str}
 import core/libc::{libc_malloc, libc_free}
@@ -84,7 +84,7 @@ fn execute_command(cmd: String) -> String {
 }
 
 fn send_notification(method: String, params_json: String) {
-    auto out = stdout()
+    auto out = get_stdout()
     auto payload = String::fmt("{\"jsonrpc\":\"2.0\",\"method\":\"{}\",\"params\":{}}", method.c_str().as_str(), params_json.c_str().as_str())
     
     auto header = String::fmt("Content-Length: {}\r\n\r\n", payload.len() as i32)
@@ -120,7 +120,7 @@ fn process_message(body: String) {
                                 }
                                 id_node = JsonNode::NullNode(0)
                                 auto response = String::fmt("{\"jsonrpc\":\"2.0\",\"id\":{},\"result\":{\"capabilities\":{\"textDocumentSync\":1}}}", id_str.c_str().as_str())
-                                auto out = stdout()
+                                auto out = get_stdout()
                                 auto header = String::fmt("Content-Length: {}\r\n\r\n", response.len() as i32)
                                 out.write(header)
                                 out.write(response)
@@ -270,7 +270,7 @@ fn process_message(body: String) {
                                                 }
                                                 diag_json#.push_str("]}")
                                                 send_notification(String::from("textDocument/publishDiagnostics"), diag_json)
-                                                stdout().flush()
+                                                get_stdout().flush()
                                             }
                                         }
                                     }
@@ -290,7 +290,7 @@ fn process_message(body: String) {
 }
 
 pub fn main() {
-    auto input = stdin()
+    auto input = get_stdin()
     setup_io()
     auto tmp_dir = get_tmp_dir()
     while true {
