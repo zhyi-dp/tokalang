@@ -311,9 +311,9 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
             return -1
         }
         
-        auto ts_arg# = *ts_ptr
+        auto ts_arg# = *ts_ptr as Addr
         if timeout_ms < 0 {
-            ts_arg = 0:Addr as *void
+            ts_arg = 0:Addr
         } else {
             auto ts_base = *ts_ptr as usize
             auto *tv_sec# = ts_base as *i64
@@ -322,7 +322,7 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
             tv_nsec = ((timeout_ms % 1000) * 1000000) as i64
         }
         
-        auto n = kevent(reactor_fd, 0:Addr as *void, 0, *events, max, ts_arg)
+        auto n = kevent(reactor_fd, 0:Addr as *void, 0, *events, max, ts_arg as *void)
         
         // copy udata to out_events
         auto i# = 0
