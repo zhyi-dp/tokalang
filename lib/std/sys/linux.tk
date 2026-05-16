@@ -4,20 +4,18 @@ import std/string::{String}
 import core/libc::*
 import std/sys/libc::*
 
-extern fn open(*path: char, oflag: i32) -> i32
-extern fn read(fd: i32, *buf: void, count: i64) -> i64
-extern fn close(fd: i32) -> i32
+// Removed raw syscalls in favor of libc_fopen/fread
 
 // Returns the number of command-line arguments.
 pub fn args_impl() -> i32 {
     unsafe {
         auto cmd = String::from("/proc/self/cmdline")
-        auto fd = open(cmd.c_str(), 0)
-        if fd < 0 { return 0 }
+        auto file = libc_fopen(cmd.c_str(), "rb" as *char)
+        if file == ADDR0 { return 0 }
         auto *buf# = unsafe alloc [4096] byte
-        auto len = read(fd, *buf as *void, 4096:i64)
-        close(fd)
-        if len <= 0:i64 {
+        auto len = libc_fread(*buf as *void, 1, 4096, file)
+        libc_fclose(file)
+        if len <= 0:usize {
             libc_free(*buf as *void)
             return 0
         }
@@ -39,12 +37,12 @@ pub fn args_impl() -> i32 {
 pub fn get_arg_impl(index: i32) -> String {
     unsafe {
         auto cmd = String::from("/proc/self/cmdline")
-        auto fd = open(cmd.c_str(), 0)
-        if fd < 0 { return String::from("") }
+        auto file = libc_fopen(cmd.c_str(), "rb" as *char)
+        if file == ADDR0 { return String::from("") }
         auto *buf# = unsafe alloc [4096] byte
-        auto len = read(fd, *buf as *void, 4096:i64)
-        close(fd)
-        if len <= 0:i64 {
+        auto len = libc_fread(*buf as *void, 1, 4096, file)
+        libc_fclose(file)
+        if len <= 0:usize {
             libc_free(*buf as *void)
             return String::from("")
         }

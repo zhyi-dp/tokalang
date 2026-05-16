@@ -9,4 +9,18 @@ int toka_fileno(FILE *f) { return _fileno(f); }
 #include <unistd.h>
 int toka_setmode(int fd, int mode) { return 0; }
 int toka_fileno(FILE *f) { return fileno(f); }
+
+#ifdef __linux__
+extern int main(int argc, char **argv);
+__attribute__((weak)) void _start() {
+    asm volatile (
+        "pop %rdi\n"       
+        "mov %rsp, %rsi\n" 
+        "call main\n"      
+        "mov %rax, %rdi\n" 
+        "mov $60, %rax\n"  
+        "syscall\n"
+    );
+}
+#endif
 #endif

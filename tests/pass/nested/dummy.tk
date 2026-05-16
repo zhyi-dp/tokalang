@@ -1,0 +1,7 @@
+import ../dummy2::{get_zero}
+
+pub fn hello() -> i32 {
+    return get_zero()
+}
+
+fn main() -> i32 { return 0 }

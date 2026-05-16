@@ -1,0 +1,5 @@
+import ./nested/dummy::{hello}
+
+fn main() -> i32 {
+    return hello()
+}

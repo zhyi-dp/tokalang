@@ -44,6 +44,8 @@
 
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
+#include <unistd.h>
+#include <sys/stat.h>
 #include <cstdio>
 
 #ifndef _WIN32
@@ -102,20 +104,59 @@ bool linkWithLLD(std::string objFile, std::vector<std::string> extraObjs, std::s
     args.push_back("-lSystem");
     return lld::macho::link(args, llvm::outs(), llvm::errs(), false, false);
 #else
+    std::vector<std::string> argStrings;
+    auto addArg = [&](const std::string& str) {
+        argStrings.push_back(str);
+        args.push_back(argStrings.back().c_str());
+    };
+
+    std::vector<std::string> crtDirs = {
+        "/usr/lib/x86_64-linux-gnu",
+        "/usr/lib64",
+        "/lib64",
+        "/usr/lib",
+        "/lib"
+    };
+
+    auto findSysFile = [&](const std::string& name) -> std::string {
+        for (const auto& dir : crtDirs) {
+            std::string path = dir + "/" + name;
+            struct stat buffer;
+            if (stat(path.c_str(), &buffer) == 0) return path;
+        }
+        return "";
+    };
+
+    std::string crt1 = findSysFile("crt1.o");
+    std::string crti = findSysFile("crti.o");
+    std::string crtn = findSysFile("crtn.o");
+
+    std::string dynLinker = findSysFile("ld-linux-x86-64.so.2");
+    if (dynLinker.empty()) dynLinker = "/lib64/ld-linux-x86-64.so.2";
+
+    addArg("-dynamic-linker");
+    addArg(dynLinker);
+
+    if (!crt1.empty()) addArg(crt1);
+    if (!crti.empty()) addArg(crti);
+
     args.push_back(objFile.c_str());
     for (const auto &extra : extraObjs) {
         args.push_back(extra.c_str());
     }
-    args.push_back("-o");
-    args.push_back(outputFile.c_str());
-    args.push_back("-L/usr/lib/x86_64-linux-gnu");
-    args.push_back("-L/lib/x86_64-linux-gnu");
-    args.push_back("-L/usr/lib64");
-    args.push_back("-L/lib64");
-    args.push_back("-L/usr/lib");
-    args.push_back("-L/lib");
-    args.push_back("-lc");
-    args.push_back("-lm");
+
+    addArg("-o");
+    addArg(outputFile);
+
+    for (const auto& dir : crtDirs) {
+        addArg("-L" + dir);
+    }
+    
+    addArg("-lc");
+    addArg("-lm");
+
+    if (!crtn.empty()) addArg(crtn);
+
     return lld::elf::link(args, llvm::outs(), llvm::errs(), false, false);
 #endif
 }
@@ -226,7 +267,15 @@ void parseSource(const std::string &filename,
       // TODO: Handle logic import symbol filtering if we add per-module symbol
       // tables. For now, we just parse the file to register its globals.
     }
-    parseSource(imp->PhysicalPath, astModules, visited, recursionStack, sm, searchPaths, pkgMap);
+    
+    std::string importPath = imp->PhysicalPath;
+    if (importPath.rfind("./", 0) == 0 || importPath.rfind("../", 0) == 0) {
+        size_t lastSlash = resolvedPath.find_last_of('/');
+        std::string parentDir = (lastSlash == std::string::npos) ? "." : resolvedPath.substr(0, lastSlash);
+        importPath = parentDir + "/" + importPath;
+    }
+    
+    parseSource(importPath, astModules, visited, recursionStack, sm, searchPaths, pkgMap);
   }
 
   astModules.push_back(std::move(module));

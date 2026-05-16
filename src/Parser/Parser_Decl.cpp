@@ -759,6 +759,9 @@ std::unique_ptr<ImportDecl> Parser::parseImport(bool isPub) {
     } else if (match(TokenType::Dot)) {
       physicalPath += ".";
       consumed = true;
+    } else if (match(TokenType::DotDot)) {
+      physicalPath += "..";
+      consumed = true;
     } else if (match(TokenType::Slash)) {
       physicalPath += "/";
       consumed = true;
