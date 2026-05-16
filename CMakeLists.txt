@@ -95,7 +95,8 @@ if(LLD_DIR)
 endif()
 
 include_directories(${LLVM_INCLUDE_DIRS})
-add_definitions(${LLVM_DEFINITIONS})
+separate_arguments(LLVM_DEFS NATIVE_COMMAND ${LLVM_DEFINITIONS})
+add_definitions(${LLVM_DEFS})
 
 include_directories(include)
 

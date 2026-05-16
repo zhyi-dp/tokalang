@@ -537,7 +537,8 @@ int main(int argc, char **argv) {
 
     auto TargetTriple = llvm::sys::getDefaultTargetTriple();
     std::string Error;
-    auto Target = llvm::TargetRegistry::lookupTarget(TargetTriple, Error);
+    llvm::Triple TheTriple(TargetTriple);
+    auto Target = llvm::TargetRegistry::lookupTarget(TheTriple.getTriple(), TheTriple, Error);
 
     if (!Target) {
       llvm::errs() << "Target lookup error: " << Error;
