@@ -160,7 +160,7 @@ if [ "$1" == "--worker" ]; then
 fi
 
 # Orchestrator
-make -C build -j8 > /dev/null || { echo "Compiler Build Failed"; exit 1; }
+cmake --build build --parallel 8 > /dev/null || { echo "Compiler Build Failed"; exit 1; }
 
 echo "Starting Toka 'PASS' Test Suite (Parallel)..."
 echo "---------------------------------"

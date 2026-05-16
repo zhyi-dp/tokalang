@@ -73,6 +73,11 @@ jobs:
           cmake .. -DCMAKE_BUILD_TYPE=Release
           make -j4
           
+          cd ..
+          # Run full testing suite to verify compiler integrity
+          bash ./tools/scripts/test_pass.sh
+          cd build
+          
           # Build toka CLI tool, tokafmt and tokalsp using the newly built compiler (Internal LLD)
           export TOKA_LIB=$GITHUB_WORKSPACE/lib
           
@@ -96,6 +101,11 @@ jobs:
           # Use Ninja for better stability on Windows CI
           cmake .. -G "Ninja" -DCMAKE_BUILD_TYPE=Release
           ninja
+          
+          cd ..
+          # Run full testing suite to verify compiler integrity
+          bash ./tools/scripts/test_pass.sh
+          cd build
           
           export TOKA_LIB=$GITHUB_WORKSPACE/lib
           
