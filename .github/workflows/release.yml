@@ -76,13 +76,6 @@ jobs:
           # Build toka CLI tool, tokafmt and tokalsp using the newly built compiler (Internal LLD)
           export TOKA_LIB=$GITHUB_WORKSPACE/lib
           
-          # Debug Windows 127 Error
-          ldd ./bin/tokac.exe || echo "ldd failed"
-          ls -la /mingw64/bin/ | grep -i polly || echo "No polly DLL"
-          which clang || echo "clang not found"
-          clang --version || echo "clang failed"
-          ./bin/tokac.exe --version || echo "tokac version failed"
-          
           # Compile Runtime
           if [ "${{ runner.os }}" = "macOS" ]; then
             export LLVM_PATH=$(brew --prefix llvm@20 || brew --prefix llvm)
