@@ -35,6 +35,7 @@
 #include <fstream>
 #include <iostream>
 #include <set>
+#include <list>
 #include <sstream>
 
 #include "llvm/Passes/PassBuilder.h"
@@ -104,7 +105,7 @@ bool linkWithLLD(std::string objFile, std::vector<std::string> extraObjs, std::s
     args.push_back("-lSystem");
     return lld::macho::link(args, llvm::outs(), llvm::errs(), false, false);
 #else
-    std::vector<std::string> argStrings;
+    std::list<std::string> argStrings;
     auto addArg = [&](const std::string& str) {
         argStrings.push_back(str);
         args.push_back(argStrings.back().c_str());
