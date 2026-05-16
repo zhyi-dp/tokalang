@@ -2177,6 +2177,8 @@ PhysEntity CodeGen::genIfExpr(const IfExpr *ie) {
       
       if (mergeBB->use_empty()) {
           delete mergeBB;
+          llvm::BasicBlock *deadBB = llvm::BasicBlock::Create(m_Context, "comptime.dead", f);
+          m_Builder.SetInsertPoint(deadBB);
       } else {
           mergeBB->insertInto(f);
           m_Builder.SetInsertPoint(mergeBB);
@@ -2278,7 +2280,12 @@ PhysEntity CodeGen::genGuardExpr(const GuardExpr *guard) {
     return nullptr;
 
   llvm::Value *condBool = nullptr;
-  if (condVal->getType()->isPointerTy()) {
+  bool isNullableSoul = (guard->Condition->ResolvedType && guard->Condition->ResolvedType->IsNullable && !guard->Condition->ResolvedType->isPointer());
+
+  if (isNullableSoul) {
+    llvm::Value *isNullVal = m_Builder.CreateExtractValue(condVal, 1, "guard_is_null");
+    condBool = m_Builder.CreateICmpEQ(isNullVal, llvm::ConstantInt::get(isNullVal->getType(), 0), "guard_not_null");
+  } else if (condVal->getType()->isPointerTy()) {
     condBool = m_Builder.CreateIsNotNull(condVal, "guard_not_null");
   } else if (condVal->getType()->isStructTy() && condVal->getType()->getStructNumElements() == 2) {
     llvm::Value *dataPtr = m_Builder.CreateExtractValue(condVal, 0, "guard_sh_ptr");
@@ -2305,11 +2312,41 @@ PhysEntity CodeGen::genGuardExpr(const GuardExpr *guard) {
 
   m_Builder.SetInsertPoint(thenBB);
   m_CFStack.push_back({"", mergeBB, nullptr, resultAddr, m_ScopeStack.size()});
+
+  TokaSymbol oldSym;
+  bool shadowed = false;
+  std::string baseName;
+  if (isNullableSoul) {
+      if (auto *v = dynamic_cast<const VariableExpr *>(guard->Condition.get())) {
+          baseName = v->Name;
+          while (!baseName.empty() && (baseName[0] == '*' || baseName[0] == '#' || baseName[0] == '&' || baseName[0] == '^' || baseName[0] == '~' || baseName[0] == '!')) baseName = baseName.substr(1);
+          while (!baseName.empty() && (baseName.back() == '#' || baseName.back() == '?' || baseName.back() == '!')) baseName.pop_back();
+
+          if (m_Symbols.count(baseName)) {
+              oldSym = m_Symbols[baseName];
+              shadowed = true;
+              llvm::Value *payload = m_Builder.CreateExtractValue(condVal, 0, "guard_payload");
+              llvm::AllocaInst *newAlloca = createEntryBlockAlloca(payload->getType(), nullptr, baseName + "_guard");
+              m_Builder.CreateStore(payload, newAlloca);
+              TokaSymbol newSym = oldSym;
+              newSym.allocaPtr = newAlloca;
+              newSym.soulType = payload->getType();
+              newSym.mode = AddressingMode::Direct;
+              newSym.indirectionLevel = 0;
+              m_Symbols[baseName] = newSym;
+          }
+      }
+  }
+
   genStmt(guard->Then.get());
   m_CFStack.pop_back();
   llvm::BasicBlock *thenEndBB = m_Builder.GetInsertBlock();
   if (thenEndBB && !thenEndBB->getTerminator())
     m_Builder.CreateBr(mergeBB);
+
+  if (shadowed) {
+      m_Symbols[baseName] = oldSym;
+  }
 
   elseBB->insertInto(f);
   m_Builder.SetInsertPoint(elseBB);

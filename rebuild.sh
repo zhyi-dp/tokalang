@@ -41,7 +41,11 @@ make -C build -j8
 export PATH="$BIN_DIR:$PATH"
 
 echo "   -> Compiling Toka Runtime (toka_rt.o)..."
-$LLVM_CLANG -isysroot $(xcrun --show-sdk-path) -c lib/std/sys/toka_rt.c -o lib/std/sys/toka_rt.o
+if [ "$(uname)" == "Darwin" ]; then
+    $LLVM_CLANG -isysroot $(xcrun --show-sdk-path) -c lib/std/sys/toka_rt.c -o lib/std/sys/toka_rt.o
+else
+    $LLVM_CLANG -c lib/std/sys/toka_rt.c -o lib/std/sys/toka_rt.o
+fi
 
 echo ""
 echo "====================================="

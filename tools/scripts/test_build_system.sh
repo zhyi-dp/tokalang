@@ -28,7 +28,11 @@ echo "--- Compiling Toka Build Tool ---"
 $TOKAC tools/toka/src/main.tk > build/toka.ll
 
 echo "Generating toka native binary via $CLANG..."
-$CLANG build/toka.ll -isysroot $(xcrun --show-sdk-path) -o build/toka
+if [ "$(uname)" == "Darwin" ]; then
+    $CLANG build/toka.ll -isysroot $(xcrun --show-sdk-path) -o build/toka
+else
+    $CLANG build/toka.ll -o build/toka
+fi
 
 echo "--- Testing 'toka new test_project' ---"
 cd build

@@ -557,6 +557,14 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
       tmpB.CreateRet(m_CurrentCoroHandle);
   }
 
+  // Ensure all basic blocks have a terminator to satisfy LLVM verifier
+  for (llvm::BasicBlock &bb : *f) {
+      if (!bb.getTerminator()) {
+          llvm::IRBuilder<> tmpB(&bb);
+          tmpB.CreateUnreachable();
+      }
+  }
+
   return f;
 }
 

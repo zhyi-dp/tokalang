@@ -543,10 +543,17 @@ llvm::Value *CodeGen::genGuardBindStmt(const GuardBindStmt *gbs) {
     }
   }
 
+  bool isNullableSoul = (gbs->Target && gbs->Target->ResolvedType && gbs->Target->ResolvedType->IsNullable);
+
   if (expectedTag != -1) {
     llvm::Value *tagVal = m_Builder.CreateExtractValue(targetVal, 0, "tag");
     llvm::Value *cond = m_Builder.CreateICmpEQ(
         tagVal, llvm::ConstantInt::get(tagVal->getType(), expectedTag), "guard_cond");
+    m_Builder.CreateCondBr(cond, contBB, elseBB);
+  } else if (isNullableSoul) {
+    llvm::Value *isNullVal = m_Builder.CreateExtractValue(targetVal, 1, "is_null");
+    llvm::Value *cond = m_Builder.CreateICmpEQ(
+        isNullVal, llvm::ConstantInt::get(isNullVal->getType(), 0), "guard_cond_not_null");
     m_Builder.CreateCondBr(cond, contBB, elseBB);
   } else {
     m_Builder.CreateBr(contBB);
@@ -612,6 +619,11 @@ llvm::Value *CodeGen::genGuardBindStmt(const GuardBindStmt *gbs) {
               genPatternBinding(gbs->Pat->SubPatterns[i].get(), fieldAddr, fieldTy, subTypeObj);
           }
       }
+  } else if (isNullableSoul && gbs->Pat->PatternKind == MatchArm::Pattern::Variable) {
+      llvm::Value *payloadAddr = m_Builder.CreateStructGEP(targetType, targetAddr, 0, "nullable_payload_addr");
+      llvm::Type *payloadType = targetType->getStructElementType(0);
+      auto subTypeObj = gbs->Target->ResolvedType->withAttributes(gbs->Target->ResolvedType->IsWritable, false, gbs->Target->ResolvedType->IsBlocked);
+      genPatternBinding(gbs->Pat.get(), payloadAddr, payloadType, subTypeObj);
   } else if (!variant && gbs->Pat->PatternKind == MatchArm::Pattern::Variable) {
       genPatternBinding(gbs->Pat.get(), targetAddr, targetType, gbs->Target->ResolvedType);
   }
