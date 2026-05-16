@@ -49,9 +49,12 @@ toka run hello.tk
 
 ### 前置依赖
 
- - **LLVM 20**: 语言引擎底座基石。
- - **CMake**: 3.15 或更高版本。
- - 操作系统对应的 C++ 编译链工具（如 MSVC / GCC / Clang）。
+ - **LLVM 20 & LLD 20**: Toka 现已通过静态链接 LLVM 20 及其内置链接器 (LLD) 来实现零外部依赖的原生编译。因此您必须安装对应的开发头文件包。
+   - **Ubuntu/Debian**: 需安装 `llvm-20-dev` 和 `liblld-20-dev`。
+   - **macOS**: 通过 Homebrew 安装：`brew install llvm@20`（自带 LLVM 及 LLD 组件）。
+   - **Windows**: 通过 MSYS2 (MINGW64 环境) 安装：`pacman -S mingw-w64-x86_64-llvm mingw-w64-x86_64-lld`。
+ - **CMake**: 3.15 或更高版本（对于 Windows MSYS2 用户，请一并安装 `mingw-w64-x86_64-cmake` 和 `mingw-w64-x86_64-ninja`）。
+ - 操作系统对应的 C++ 编译链工具（如 MSVC / GCC / Clang。Windows MSYS2 环境请使用 `mingw-w64-x86_64-clang`）。
 
 ### 开始构建
 

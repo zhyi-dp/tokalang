@@ -49,9 +49,12 @@ If you wish to contribute to the compiler's C++ core, you can easily build the t
 
 ### Prerequisites
 
-- **LLVM 20**: The Toka framework is heavily coupled with LLVM 20.
-- **CMake**: Version 3.15 or higher.
-- A C++ build toolchain for your OS (e.g., MSVC, GCC, Clang).
+- **LLVM 20 & LLD 20**: The Toka framework statically links against LLVM 20 and its integrated linker (LLD) to achieve zero-dependency native builds. You must install the corresponding development headers.
+  - **Ubuntu/Debian**: Install `llvm-20-dev` and `liblld-20-dev` (often packaged with the LLVM 20 toolchain).
+  - **macOS**: Install via Homebrew: `brew install llvm@20` (which includes both LLVM and LLD).
+  - **Windows**: Install via MSYS2 (MINGW64 environment): `pacman -S mingw-w64-x86_64-llvm mingw-w64-x86_64-lld`.
+- **CMake**: Version 3.15 or higher (On Windows MSYS2, install `mingw-w64-x86_64-cmake` and `mingw-w64-x86_64-ninja`).
+- A C++ build toolchain for your OS (e.g., MSVC, GCC, Clang. On Windows MSYS2, use `mingw-w64-x86_64-clang`).
 
 ### Compiling
 
