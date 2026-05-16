@@ -21,4 +21,12 @@ pub fn net_set_nonblocking_impl(fd: i32) -> i32 { return -1 }
 pub fn reactor_create_impl() -> i32 { return -1 }
 pub fn reactor_add_read_impl(reactor_fd: i32, fd: i32) -> i32 { return -1 }
 pub fn reactor_add_write_impl(reactor_fd: i32, fd: i32) -> i32 { return -1 }
-pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, max: i32) -> i32 { return -1 }
+pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, max: i32) -> i32 {
+    if timeout_ms > 0 {
+        unsafe {
+            // Import the C-runtime sleep equivalent
+            core::libc::libc_usleep((timeout_ms * 1000) as u32)
+        }
+    }
+    return -1 
+}

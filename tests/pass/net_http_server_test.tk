@@ -93,19 +93,19 @@ pub fn main() -> i32 {
     unsafe {
         // Spawn server thread
         auto server_thread# = thread_spawn<i32>({ => 
-            return cede run_server(9998:u16)
+            return cede run_server(49998:u16)
         })
         
         sleep(1)
         
         // Connect and send HTTP GET
         auto ip = Ipv4Addr::new(127:u8, 0:u8, 0:u8, 1:u8)
-        auto addr = SocketAddrV4::new(ip, 9998:u16)
+        auto addr = SocketAddrV4::new(ip, 49998:u16)
         
         auto stream# = TcpStream::connect(addr)
         if !stream.is_valid() { return 1 }
         
-        auto req_line = String::from("GET /home HTTP/1.1\r\nHost: localhost:9998\r\nAccept: */*\r\n\r\n")
+        auto req_line = String::from("GET /home HTTP/1.1\r\nHost: localhost:49998\r\nAccept: */*\r\n\r\n")
         auto write_res = stream#.write_string(req_line)
         
         // Read response

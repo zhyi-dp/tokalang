@@ -41,7 +41,7 @@ fn server_task(server#: TcpListener) -> async i32 {
 
 fn client_task() -> async i32 {
     sleep_async(200).await
-    auto addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 9031)
+    auto addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 49031)
     
     auto stream# = TcpStream::connect(addr)
     if !stream.is_valid() { return 11 }
@@ -133,7 +133,7 @@ fn entry_point(listener_arg: TcpListener) -> async i32 {
 }
 
 pub fn main() -> i32 {
-    auto addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 9031)
+    auto addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 49031)
     
     auto listener# = TcpListener::bind(addr)
     if !listener.is_valid() { 

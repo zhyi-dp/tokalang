@@ -89,7 +89,7 @@ fn async_client_runner() -> async i32 {
         
         // Connect and send HTTP GET using connect_async
         auto ip = Ipv4Addr::new(127:u8, 0:u8, 0:u8, 1:u8)
-        auto addr = SocketAddrV4::new(ip, 8901:u16)
+        auto addr = SocketAddrV4::new(ip, 48901:u16)
         
         println("[Client] Connecting to Async Server...")
         auto stream# = TcpStream::connect_async(addr).await
@@ -98,7 +98,7 @@ fn async_client_runner() -> async i32 {
             return 1 
         }
         
-        auto req_line = String::from("GET /home HTTP/1.1\r\nHost: localhost:8901\r\nAccept: */*\r\n\r\n")
+        auto req_line = String::from("GET /home HTTP/1.1\r\nHost: localhost:48901\r\nAccept: */*\r\n\r\n")
         auto write_res = stream#.write_string_async(req_line).await
         
         // Read response
@@ -131,7 +131,7 @@ fn async_client_runner() -> async i32 {
 }
 
 fn entry_point() -> async i32 {
-    run_server(8901:u16).start
+    run_server(48901:u16).start
     async_client_runner().await
     return 0
 }

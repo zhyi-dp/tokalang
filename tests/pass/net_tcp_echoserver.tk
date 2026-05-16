@@ -59,15 +59,15 @@ pub fn main() -> i32 {
     unsafe {
         // Spawn server thread
         auto server_thread# = thread_spawn<i32>({ => 
-            return cede run_server(9095:u16)
+            return cede run_server(49095:u16)
         })
         
         // Wait for server to bind
         sleep(1)
         
-        println("[Client] Connecting to 127.0.0.1:9095...")
+        println("[Client] Connecting to 127.0.0.1:49095...")
         auto ip = Ipv4Addr::new(127:u8, 0:u8, 0:u8, 1:u8)
-        auto addr = SocketAddrV4::new(ip, 9095:u16)
+        auto addr = SocketAddrV4::new(ip, 49095:u16)
         
         auto stream# = TcpStream::connect(addr)
         if !stream.is_valid() {

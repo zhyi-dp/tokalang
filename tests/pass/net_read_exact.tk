@@ -32,7 +32,7 @@ fn run_server(port: u16) -> i32 {
 
 fn main() -> i32 {
     unsafe {
-        auto port = 9123:u16
+        auto port = 49123:u16
         auto server_thread# = thread_spawn<i32>({ => 
             return cede run_server(port)
         })

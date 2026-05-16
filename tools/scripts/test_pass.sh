@@ -45,7 +45,16 @@ run_worker() {
     fi
 
     # Step 2: Run Native
-    { "$exe_file" >> "$log_file" 2>&1; } 2>&1 | grep -v "Abort trap"
+    {
+        "$exe_file" >> "$log_file" 2>&1 &
+        pid=$!
+        ( sleep 10; kill -9 $pid 2>/dev/null; echo "TIMEOUT" >> "$log_file" ) &
+        killer=$!
+        wait $pid
+        sub_exit=$?
+        kill -9 $killer 2>/dev/null
+        exit $sub_exit
+    } 2>&1 | grep -v "Abort trap"
     exit_code=${PIPESTATUS[0]}
 
     # Step 3: Extract & Verify
