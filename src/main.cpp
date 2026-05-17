@@ -411,15 +411,18 @@ int main(int argc, char **argv) {
     parseSource(file, astModules, visited, recursionStack, sm, searchPaths, pkgMap);
   }
 
-  if (astModules.empty())
+  if (astModules.empty() || toka::DiagnosticEngine::hasErrors()) {
+    llvm::errs() << "\033[1;31m[FAILED]\033[0m Compilation aborted due to previous syntax or I/O errors.\n";
     return 1;
+  }
 
   if (verboseMode) llvm::errs() << "Parse Successful. Running Semantic Analysis...\n";
 
   toka::Sema sema;
   sema.setBorrowCheckEnabled(!disableBorrowCheck);
   for (const auto &ast : astModules) {
-    if (!sema.checkModule(*ast)) {
+    if (!sema.checkModule(*ast) || toka::DiagnosticEngine::hasErrors()) {
+      llvm::errs() << "\033[1;31m[FAILED]\033[0m Compilation aborted due to previous semantic errors.\n";
       return 1;
     }
   }
@@ -461,8 +464,18 @@ int main(int argc, char **argv) {
   
   codegen.finalizeGlobals();
 
-  if (codegen.hasErrors()) {
+  if (codegen.hasErrors() || toka::DiagnosticEngine::hasErrors()) {
+    llvm::errs() << "\033[1;31m[FAILED]\033[0m Compilation aborted during code generation.\n";
     return 1;
+  }
+
+  if (!compileOnly && emitObj) {
+    if (!codegen.getModule()->getFunction("main")) {
+      llvm::errs() << "\033[1;31merror[E0601]\033[0m: Entry function 'main' not found.\n"
+                   << "  \033[1;34m|\033[0m\n"
+                   << "  \033[1;34m=\033[0m note: Are you trying to compile a library? Try using the '-c' flag to skip linking.\n\n";
+      return 1;
+    }
   }
 
   if (verboseMode) fprintf(stderr, "Running Module Verifier...\n");
