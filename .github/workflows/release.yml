@@ -120,7 +120,7 @@ jobs:
           
           # Compile Runtime
           set -x
-          clang -c $GITHUB_WORKSPACE/lib/std/sys/toka_rt.c -o
+          clang -c $GITHUB_WORKSPACE/lib/std/sys/toka_rt.c -o $GITHUB_WORKSPACE/lib/std/sys/toka_rt.o
           set +x
           
           # Run full testing suite to verify compiler integrity (Native execution)
