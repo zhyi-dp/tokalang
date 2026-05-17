@@ -93,9 +93,8 @@ fn async_client_runner() -> async i32 {
         auto stream# = TcpStream::connect_async(addr).await
         auto retries# = 0
         while !stream.is_valid() {
-            if retries > 50 {
-                println("[Client] connect timeout")
-                return 1
+            if retries > 100 {
+                assert(false, "Client connect timeout after 10s")
             }
             sleep_async(100).await
             stream = TcpStream::connect_async(addr).await
