@@ -48,7 +48,7 @@ run_worker() {
     {
         "$exe_file" >> "$log_file" 2>&1 &
         pid=$!
-        ( sleep 30; kill -9 $pid 2>/dev/null; echo "TIMEOUT" >> "$log_file" ) &
+        ( sleep 30; kill -9 $pid 2>/dev/null; echo "TIMEOUT" >> "$log_file" ) >/dev/null 2>&1 < /dev/null &
         killer=$!
         wait $pid
         sub_exit=$?
