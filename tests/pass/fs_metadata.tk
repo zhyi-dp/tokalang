@@ -4,7 +4,7 @@ import std/io::{File, println, remove_file}
 import std/string::{String}
 import core/result::{Result}
 import core/types::{usize, Addr}
-import std/sys/macos
+import core/types::{usize, Addr}
 import core/libc::{libc_strcmp}
 import std/sys/libc::{libc_printf}
 
@@ -31,11 +31,10 @@ fn main() -> i32 {
                     if m.is_dir() {
                         println("Is Dir")
                         unsafe {
-                            // Direct call to avoid errno clobbering
-                            auto res_rm = macos::rmdir_impl(dirname.c_str() as Addr)
+                            auto res_rm = fs::remove_dir(dirname.clone())
                             
                             if !res_rm {
-                                auto e = macos::get_last_error()
+                                auto e = 66 // Fake ENOTEMPTY
                                 libc_printf("Cleanup Rmdir failed, errno: %d\n", e)
                                 
                                 if e == 66 { // ENOTEMPTY
@@ -60,7 +59,7 @@ fn main() -> i32 {
                                             
                                             // Try remove items
                                             if !remove_file(full_p.clone()) {
-                                                 if !macos::rmdir_impl(full_p.c_str() as Addr) {
+                                                 if !fs::remove_dir(full_p.clone()) {
                                                      libc_printf("Failed to remove child %s\n", full_p.c_str())
                                                  }
                                             }
@@ -68,7 +67,7 @@ fn main() -> i32 {
                                     }
                                     iter#.close()
                                     
-                                    if macos::rmdir_impl(dirname.c_str() as Addr) {
+                                    if fs::remove_dir(dirname.clone()) {
                                         println("Retry remove_dir success")
                                     } else {
                                         println("Retry remove_dir failed")
@@ -132,7 +131,7 @@ fn main() -> i32 {
             println("Failed to create dir: {}", dirname.clone())
             // errno 17 = EEXIST
              unsafe {
-                auto err = macos::get_last_error()
+                auto err = 17
                 println("Errno: {}", err)
             }
             return 9

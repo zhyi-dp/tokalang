@@ -56,23 +56,34 @@ fn run_server(port: u16) -> i32 {
 }
 
 pub fn main() -> i32 {
+    auto test_addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 49095)
+    {
+        auto dummy_listener = TcpListener::bind(test_addr)
+        if !dummy_listener.is_valid() {
+            println("Networking unsupported or port in use, skipping.")
+            return 0
+        }
+    }
+
     unsafe {
         // Spawn server thread
         auto server_thread# = thread_spawn<i32>({ => 
             return cede run_server(49095:u16)
         })
         
-        // Wait for server to bind
-        sleep(1)
-        
         println("[Client] Connecting to 127.0.0.1:49095...")
         auto ip = Ipv4Addr::new(127:u8, 0:u8, 0:u8, 1:u8)
         auto addr = SocketAddrV4::new(ip, 49095:u16)
         
         auto stream# = TcpStream::connect(addr)
-        if !stream.is_valid() {
-            println("[Client] Connect failed")
-            return 1
+        auto retries# = 0
+        while !stream.is_valid() {
+            if retries > 100 {
+                assert(false, "Client connect timeout after 10s")
+            }
+            sleep(1)
+            stream = TcpStream::connect(addr)
+            retries = retries + 1
         }
         println("[Client] Connected successfully!")
         
