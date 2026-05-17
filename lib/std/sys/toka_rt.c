@@ -68,6 +68,12 @@ void toka_panic(const char* msg, int len) {
 }
 
 #include <sys/stat.h>
+#ifndef _WIN32
+#include <dirent.h>
+const char* toka_readdir_name(void* entry) { return ((struct dirent*)entry)->d_name; }
+void* toka_opendir_impl(const char* path) { return opendir(path); }
+void* toka_readdir_impl(void* dir) { return readdir(dir); }
+void toka_closedir_impl(void* dir) { closedir(dir); }
 void* toka_stat_impl(const char* path) {
     struct stat* st = malloc(sizeof(struct stat));
     if (!st) return NULL;
@@ -81,3 +87,4 @@ unsigned int toka_stat_mode(void* handle) { return ((struct stat*)handle)->st_mo
 unsigned long long toka_stat_size(void* handle) { return ((struct stat*)handle)->st_size; }
 long long toka_stat_mtime(void* handle) { return ((struct stat*)handle)->st_mtime; }
 void toka_stat_free(void* handle) { free(handle); }
+#endif

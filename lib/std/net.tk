@@ -356,6 +356,7 @@ pub fn net_async_accept(listener#: TcpListener) -> async TcpStream {
             while !done {
                 auto client_fd = sysnet::net_accept_impl(listener.fd)
                 if client_fd >= 0 {
+                    sysnet::net_set_nonblocking_impl(client_fd)
                     sleep_async(0:i64).await
                     ret = TcpStream(fd=client_fd, closed=false)
                     done = true

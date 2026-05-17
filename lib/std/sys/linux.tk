@@ -74,27 +74,30 @@ pub fn get_arg_impl(index: i32) -> String {
 
 pub fn opendir_impl(path: Addr) -> Addr {
     unsafe {
-        return libc_opendir(path as *char)
+        return toka_opendir_impl(path)
     }
 }
 
+extern fn toka_opendir_impl(path: Addr) -> Addr
+extern fn toka_readdir_impl(dir: Addr) -> Addr
+extern fn toka_closedir_impl(dir: Addr)
+extern fn toka_readdir_name(entry: Addr) -> Addr
+
 pub fn readdir_impl(dir_handle: Addr) -> Option<String> {
     unsafe {
-        auto entry = libc_readdir(dir_handle) // returns Addr
+        auto entry = toka_readdir_impl(dir_handle) // returns Addr
         if entry == ADDR0 {
             return Option<String>::None
         }
         
-        // Offset 19 is common for Linux 64-bit struct dirent
-        auto *name_ptr = (entry as usize + 19) as *char
-        
+        auto *name_ptr = toka_readdir_name(entry) as *char
         return Option<String>::Some(String::from(*name_ptr))
     }
 }
 
 pub fn closedir_impl(dir_handle: Addr) {
     unsafe {
-        libc_closedir(dir_handle)
+        toka_closedir_impl(dir_handle)
     }
 }
 
