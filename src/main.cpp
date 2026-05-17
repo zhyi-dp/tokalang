@@ -82,6 +82,7 @@ bool linkWithLLD(std::string objFile, std::vector<std::string> extraObjs, std::s
     cmd += " -o \"" + outputFile + "\"";
     return system(cmd.c_str()) == 0;
 #elif defined(__APPLE__)
+    args.push_back("-w");
     args.push_back("-arch");
 #if defined(__arm64__) || defined(__aarch64__)
     args.push_back("arm64");

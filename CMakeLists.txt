@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.13)
 
 if(APPLE)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" CACHE STRING "Minimum OS X deployment version" FORCE)
+    # Suppress warnings from ld when linking LLVM binaries built for newer macOS versions
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-w")
 endif()
 
 project(TokaCompiler VERSION 0.9.6 LANGUAGES C CXX)

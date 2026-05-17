@@ -84,9 +84,9 @@ jobs:
           # Compile Runtime
           if [ "${{ runner.os }}" = "macOS" ]; then
             export LLVM_PATH=$(brew --prefix llvm@20 || brew --prefix llvm)
-            $LLVM_PATH/bin/clang -isysroot $(xcrun --show-sdk-path) -c $GITHUB_WORKSPACE/lib/std/sys/toka_rt.c -o
+            $LLVM_PATH/bin/clang -isysroot $(xcrun --show-sdk-path) -c $GITHUB_WORKSPACE/lib/std/sys/toka_rt.c -o $GITHUB_WORKSPACE/lib/std/sys/toka_rt.o
           else
-            clang-20 -c $GITHUB_WORKSPACE/lib/std/sys/toka_rt.c -o
+            clang-20 -c $GITHUB_WORKSPACE/lib/std/sys/toka_rt.c -o $GITHUB_WORKSPACE/lib/std/sys/toka_rt.o
           fi
           
           # Run full testing suite to verify compiler integrity (Native execution)
