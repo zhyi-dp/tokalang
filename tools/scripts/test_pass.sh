@@ -151,17 +151,24 @@ if [ "$1" == "--worker" ]; then
     run_worker "$2"
 fi
 
-# Orchestrator
-cmake --build build --parallel 8 > /dev/null || { echo "Compiler Build Failed"; exit 1; }
+# Determine core count dynamically for CI and local optimizations
+if command -v nproc &> /dev/null; then
+    CORES=$(nproc)
+else
+    CORES=$(sysctl -n hw.ncpu)
+fi
 
-echo "Starting Toka 'PASS' Test Suite (Parallel)..."
+# Orchestrator
+cmake --build build --parallel $CORES > /dev/null || { echo "Compiler Build Failed"; exit 1; }
+
+echo "Starting Toka 'PASS' Test Suite (Parallel: $CORES)..."
 echo "---------------------------------"
 
 RESULTS_FILE=$(mktemp)
 
-# Run parallel -P 8
+# Run parallel tests based on available cores
 export ASAN_OPTIONS=detect_container_overflow=0
-find tests/pass -name "*.tk" -print0 | xargs -0 -P 8 -n 1 "$0" --worker | tee "$RESULTS_FILE"
+find tests/pass -name "*.tk" -print0 | xargs -0 -P $CORES -n 1 "$0" --worker | tee "$RESULTS_FILE"
 
 # Stats
 # Strip ANSI codes for accurate counting
