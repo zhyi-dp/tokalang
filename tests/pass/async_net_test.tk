@@ -39,8 +39,8 @@ pub fn async_server() -> async i32 {
 }
 
 pub fn async_client() -> async i32 {
-    println("[Client] Yielding for 50ms before connecting...")
-    sleep_async(50).await
+    println("[Client] Yielding for 1000ms before connecting...")
+    sleep_async(1000).await
     
     println("[Client] Connecting to server...")
     auto addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 48899)

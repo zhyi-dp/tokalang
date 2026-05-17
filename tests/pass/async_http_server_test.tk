@@ -85,7 +85,7 @@ fn run_server(port: u16) -> async i32 {
 
 fn async_client_runner() -> async i32 {
     unsafe {
-        sleep_async(50).await
+        sleep_async(1000).await
         
         // Connect and send HTTP GET using connect_async
         auto ip = Ipv4Addr::new(127:u8, 0:u8, 0:u8, 1:u8)
