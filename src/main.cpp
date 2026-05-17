@@ -599,6 +599,46 @@ int main(int argc, char **argv) {
       if (verboseMode) fprintf(stderr, "Linking executable (internal LLD): %s\n", finalOutput.c_str());
       fflush(stderr);
       
+      std::string tokaRtPath;
+      for (const auto &p : searchPaths) {
+        std::string testPath = p;
+        if (!testPath.empty() && testPath.back() != '/') {
+          testPath += "/";
+        }
+        testPath += "std/sys/toka_rt.o";
+        if (llvm::sys::fs::exists(testPath)) {
+          tokaRtPath = testPath;
+          break;
+        }
+      }
+
+      if (tokaRtPath.empty()) {
+        if (llvm::sys::fs::exists("lib/std/sys/toka_rt.o")) {
+          tokaRtPath = "lib/std/sys/toka_rt.o";
+        } else if (llvm::sys::fs::exists("../lib/std/sys/toka_rt.o")) {
+          tokaRtPath = "../lib/std/sys/toka_rt.o";
+        } else if (llvm::sys::fs::exists("/usr/local/lib/toka/std/sys/toka_rt.o")) {
+          tokaRtPath = "/usr/local/lib/toka/std/sys/toka_rt.o";
+        }
+      }
+
+      if (tokaRtPath.empty()) {
+        llvm::errs() << "\033[1;31m[FAILED]\033[0m Core runtime 'toka_rt.o' not found in search paths. Please ensure TOKA_LIB is set correctly.\n";
+        return 1;
+      }
+      
+      bool hasRt = false;
+      for (const auto &obj : objectFiles) {
+        if (obj.find("toka_rt.o") != std::string::npos) {
+          hasRt = true;
+          break;
+        }
+      }
+      
+      if (!hasRt) {
+        objectFiles.push_back(tokaRtPath);
+      }
+
       if (!linkWithLLD(objFile, objectFiles, finalOutput)) {
         llvm::errs() << "Linker error: LLD failed\n";
         return 1;
