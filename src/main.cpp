@@ -105,60 +105,16 @@ bool linkWithLLD(std::string objFile, std::vector<std::string> extraObjs, std::s
     args.push_back("-lSystem");
     return lld::macho::link(args, llvm::outs(), llvm::errs(), false, false);
 #else
-    std::list<std::string> argStrings;
-    auto addArg = [&](const std::string& str) {
-        argStrings.push_back(str);
-        args.push_back(argStrings.back().c_str());
-    };
-
-    std::vector<std::string> crtDirs = {
-        "/usr/lib/x86_64-linux-gnu",
-        "/usr/lib64",
-        "/lib64",
-        "/usr/lib",
-        "/lib"
-    };
-
-    auto findSysFile = [&](const std::string& name) -> std::string {
-        for (const auto& dir : crtDirs) {
-            std::string path = dir + "/" + name;
-            struct stat buffer;
-            if (stat(path.c_str(), &buffer) == 0) return path;
-        }
-        return "";
-    };
-
-    std::string crt1 = findSysFile("crt1.o");
-    std::string crti = findSysFile("crti.o");
-    std::string crtn = findSysFile("crtn.o");
-
-    std::string dynLinker = findSysFile("ld-linux-x86-64.so.2");
-    if (dynLinker.empty()) dynLinker = "/lib64/ld-linux-x86-64.so.2";
-
-    addArg("-dynamic-linker");
-    addArg(dynLinker);
-
-    if (!crt1.empty()) addArg(crt1);
-    if (!crti.empty()) addArg(crti);
-
-    args.push_back(objFile.c_str());
+    // Linux and other Unix-like systems.
+    // Use the system 'cc' as the linker driver to automatically correctly resolve 
+    // crt1.o, crti.o, crtbegin.o, crtend.o, and crtn.o which are absolutely required 
+    // for proper .init_array (global constructors) execution.
+    std::string cmd = "cc \"" + objFile + "\"";
     for (const auto &extra : extraObjs) {
-        args.push_back(extra.c_str());
+        cmd += " \"" + extra + "\"";
     }
-
-    addArg("-o");
-    addArg(outputFile);
-
-    for (const auto& dir : crtDirs) {
-        addArg("-L" + dir);
-    }
-    
-    addArg("-lc");
-    addArg("-lm");
-
-    if (!crtn.empty()) addArg(crtn);
-
-    return lld::elf::link(args, llvm::outs(), llvm::errs(), false, false);
+    cmd += " -o \"" + outputFile + "\" -lm -lc";
+    return system(cmd.c_str()) == 0;
 #endif
 }
 bool verboseMode = false;
