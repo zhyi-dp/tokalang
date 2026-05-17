@@ -25,7 +25,9 @@ For Windows users, Toka provides native `.exe` pre-compiled binaries:
 4. Add the `bin` folder inside the extracted directory to your system's `PATH` environment variable.
 5. Add the `lib` folder inside the extracted directory to a new system environment variable named `TOKA_LIB`.
 
-> 💡 **Tip:** The Windows version has been deeply refactored and adapted to the underlying Win32 API, perfectly supporting a native development and debugging experience!
+> 💡 **Tip:** The Windows version has been deeply refactored and adapted to the underlying Win32 API, supporting a native development and debugging experience!
+
+> ⚠️ **Limitation Notice:** Native Windows networking via Winsock2 (e.g., `std/net`, `std/net_http`) is currently **NOT implemented** in this release and will immediately return connection failures. Full IOCP and asynchronous networking support for Windows is planned for a future update. If networking is required, please use WSL2, Linux, or macOS.
 
 ## Quick Start (Hello World)
 

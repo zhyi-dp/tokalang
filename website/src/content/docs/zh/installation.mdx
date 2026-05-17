@@ -25,7 +25,9 @@ curl -fsSL https://tokalang.dev/install.sh | bash
 4. 将解压目录下的 `bin` 文件夹添加至您的系统环境变量 `PATH` 中。
 5. 将解压目录下的 `lib` 文件夹路径添加至名为 `TOKA_LIB` 的系统环境变量中。
 
-> 💡 **提示:** Windows 版本基于底层的 Win32 API 进行了深度重构和适配，完美支持原生原生开发和调试体验！
+> 💡 **提示:** Windows 版本基于底层的 Win32 API 进行了深度重构和适配，支持原生开发和调试体验！
+
+> ⚠️ **功能限制提示:** 当前版本的 Windows **暂不支持原生的底层网络开发**（例如 `std/net`、`std/net_http`），任何网络监听或连接操作都会直接返回失败。未来版本将引入基于 IOCP 的完整异步网络支持。如果您的项目重度依赖网络，请暂时使用 WSL2、Linux 或 macOS 环境进行开发。
 
 ## 快速体验 (Hello World)
 
