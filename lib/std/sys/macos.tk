@@ -183,10 +183,10 @@ pub fn sys_clock_realtime(ts_addr: Addr) -> bool {
     // CLOCK_REALTIME (0) on macOS
     unsafe { return libc_clock_gettime(0, ts_addr) == 0 }
 }
+extern fn toka_get_last_error() -> i32
+
 pub fn get_last_error() -> i32 {
     unsafe {
-        auto *addr# = libc___error()
-        if *addr as usize == 0 { return 0 }
-        return addr
+        return toka_get_last_error()
     }
 }

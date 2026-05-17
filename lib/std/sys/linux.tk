@@ -225,11 +225,10 @@ pub fn sys_clock_realtime(ts_addr: Addr) -> bool {
     unsafe { return libc_clock_gettime(0, ts_addr) == 0 }
 }
 extern fn __errno_location() -> Addr
+extern fn toka_get_last_error() -> i32
+
 pub fn get_last_error() -> i32 {
     unsafe {
-        auto addr = __errno_location()
-        if addr == 0:Addr { return 0 }
-        auto *val# = addr as *i32
-        return val
+        return toka_get_last_error()
     }
 }

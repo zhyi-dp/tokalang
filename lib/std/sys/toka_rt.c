@@ -16,6 +16,11 @@ void* toka_localtime_r(const time_t *timep, struct tm *result) {
 #include <fcntl.h>
 int toka_setmode(int fd, int mode) { return _setmode(fd, mode); }
 int toka_fileno(FILE *f) { return _fileno(f); }
+void* opendir(const char* path) { return NULL; }
+void* readdir(void* dir) { return NULL; }
+void closedir(void* dir) {}
+int stat(const char* path, void* buf) { return -1; }
+int lstat(const char* path, void* buf) { return -1; }
 #else
 #include <unistd.h>
 int toka_setmode(int fd, int mode) { return 0; }
@@ -23,7 +28,7 @@ int toka_fileno(FILE *f) { return fileno(f); }
 
 #ifdef __linux__
 extern int main(int argc, char **argv);
-__attribute__((weak)) void _start() {
+__attribute__((naked, weak)) void _start() {
     asm volatile (
         "pop %rdi\n"       
         "mov %rsp, %rsi\n" 
@@ -70,6 +75,8 @@ void toka_panic(const char* msg, int len) {
 #include <sys/stat.h>
 #ifndef _WIN32
 #include <dirent.h>
+#include <errno.h>
+int toka_get_last_error() { return errno; }
 const char* toka_readdir_name(void* entry) { return ((struct dirent*)entry)->d_name; }
 void* toka_opendir_impl(const char* path) { return opendir(path); }
 void* toka_readdir_impl(void* dir) { return readdir(dir); }

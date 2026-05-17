@@ -2,7 +2,7 @@
 // lib/std/sys/net_windows.tk
 // Placeholder for WinSock2 based networking.
 
-import core/types::{Addr, usize, u8}
+import core/types::{Addr, usize}
 import std/sys/libc
 
 pub fn get_last_error() -> i32 { return -1 }
