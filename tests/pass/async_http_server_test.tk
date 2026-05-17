@@ -85,17 +85,21 @@ fn run_server(port: u16) -> async i32 {
 
 fn async_client_runner() -> async i32 {
     unsafe {
-        sleep_async(1000).await
-        
         // Connect and send HTTP GET using connect_async
         auto ip = Ipv4Addr::new(127:u8, 0:u8, 0:u8, 1:u8)
         auto addr = SocketAddrV4::new(ip, 48901:u16)
         
         println("[Client] Connecting to Async Server...")
         auto stream# = TcpStream::connect_async(addr).await
-        if !stream.is_valid() { 
-            println("[Client] connect failed")
-            return 1 
+        auto retries# = 0
+        while !stream.is_valid() {
+            if retries > 50 {
+                println("[Client] connect timeout")
+                return 1
+            }
+            sleep_async(100).await
+            stream = TcpStream::connect_async(addr).await
+            retries = retries + 1
         }
         
         auto req_line = String::from("GET /home HTTP/1.1\r\nHost: localhost:48901\r\nAccept: */*\r\n\r\n")
