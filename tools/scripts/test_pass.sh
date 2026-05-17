@@ -33,7 +33,7 @@ run_worker() {
     }
     
     # Step 1: Compile Native
-    if ! "$TOKAC" "$test_path" "lib/std/sys/toka_rt.o" -o "$exe_file" > /dev/null 2> "$log_file"; then
+    if ! "$TOKAC" "$test_path" -o "$exe_file" > /dev/null 2> "$log_file"; then
         append "$(printf "[${RED}FAIL${NC}] %-35s" "$file_name")"
         append "    ${RED}$test_path:1: error: Compilation failed${NC}"
         # Tail logs
