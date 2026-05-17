@@ -211,6 +211,8 @@ void parseSource(const std::string &filename,
   // 3. Try user-provided search paths and default lib/ paths
   else {
     std::vector<std::string> pathsToTry;
+    pathsToTry.push_back("lib/");
+    pathsToTry.push_back("../lib/");
     for (const auto &p : searchPaths) {
       if (!p.empty() && p.back() != '/') {
         pathsToTry.push_back(p + "/");
@@ -218,9 +220,6 @@ void parseSource(const std::string &filename,
         pathsToTry.push_back(p);
       }
     }
-    pathsToTry.push_back("lib/");
-    pathsToTry.push_back("../lib/");
-
     for (const auto &p : pathsToTry) {
       std::string libPath = p + filename;
       if (std::ifstream(libPath).good()) {
@@ -600,26 +599,32 @@ int main(int argc, char **argv) {
       fflush(stderr);
       
       std::string tokaRtPath;
-      for (const auto &p : searchPaths) {
-        std::string testPath = p;
-        if (!testPath.empty() && testPath.back() != '/') {
-          testPath += "/";
-        }
-        testPath += "std/sys/toka_rt.o";
-        if (llvm::sys::fs::exists(testPath)) {
-          tokaRtPath = testPath;
-          break;
+      
+      // 1. Prioritize local relative paths to ensure local development overrides global installations
+      if (llvm::sys::fs::exists("lib/std/sys/toka_rt.o")) {
+        tokaRtPath = "lib/std/sys/toka_rt.o";
+      } else if (llvm::sys::fs::exists("../lib/std/sys/toka_rt.o")) {
+        tokaRtPath = "../lib/std/sys/toka_rt.o";
+      }
+      
+      // 2. Search in searchPaths (including TOKA_LIB and -I)
+      if (tokaRtPath.empty()) {
+        for (const auto &p : searchPaths) {
+          std::string testPath = p;
+          if (!testPath.empty() && testPath.back() != '/') {
+            testPath += "/";
+          }
+          testPath += "std/sys/toka_rt.o";
+          if (llvm::sys::fs::exists(testPath)) {
+            tokaRtPath = testPath;
+            break;
+          }
         }
       }
 
-      if (tokaRtPath.empty()) {
-        if (llvm::sys::fs::exists("lib/std/sys/toka_rt.o")) {
-          tokaRtPath = "lib/std/sys/toka_rt.o";
-        } else if (llvm::sys::fs::exists("../lib/std/sys/toka_rt.o")) {
-          tokaRtPath = "../lib/std/sys/toka_rt.o";
-        } else if (llvm::sys::fs::exists("/usr/local/lib/toka/std/sys/toka_rt.o")) {
-          tokaRtPath = "/usr/local/lib/toka/std/sys/toka_rt.o";
-        }
+      // 3. Absolute fallback
+      if (tokaRtPath.empty() && llvm::sys::fs::exists("/usr/local/lib/toka/std/sys/toka_rt.o")) {
+        tokaRtPath = "/usr/local/lib/toka/std/sys/toka_rt.o";
       }
 
       if (tokaRtPath.empty()) {
