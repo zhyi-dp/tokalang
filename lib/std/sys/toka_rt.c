@@ -82,6 +82,7 @@ void toka_panic(const char* msg, int len) {
 #ifndef _WIN32
 #include <dirent.h>
 #include <errno.h>
+int toka_get_last_error() { return errno; }
 const char* toka_readdir_name(void* entry) { return ((struct dirent*)entry)->d_name; }
 void* toka_opendir_impl(const char* path) { return opendir(path); }
 void* toka_readdir_impl(void* dir) { return readdir(dir); }
