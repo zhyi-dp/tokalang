@@ -1,5 +1,6 @@
-import core/libc::{libc_printf}
+import std/io::{println}
 
-fn main() {
-    unsafe { libc_printf("Hello, Toka!\n" as *char) }
+fn main() -> i32 {
+    println("Hello, Toka!")
+    return 0
 }
