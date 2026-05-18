@@ -82,7 +82,9 @@ void DiagnosticEngine::reportImpl(DiagLoc loc, DiagID id,
     std::cout << "{\"file\": \"" << loc.File << "\", \"line\": " << loc.Line 
               << ", \"col\": " << loc.Col << ", \"message\": \"" << escapedMsg 
               << "\", \"code\": \"" << getCode(id) << "\", \"level\": " << (int)level << "}\n";
+#ifndef __EMSCRIPTEN__
     if (level == DiagLevel::Error) exit(0); // Exit 0 for LSP so it doesn't think it crashed
+#endif
     return;
   }
 
@@ -107,7 +109,9 @@ void DiagnosticEngine::reportImpl(DiagLoc loc, DiagID id,
   if (ErrorCount > 20) {
     std::cerr
         << "\033[1;31mfatal:\033[0m too many errors emitted, stopping now.\n";
+#ifndef __EMSCRIPTEN__
     exit(1);
+#endif
   }
 }
 
