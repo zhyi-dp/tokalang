@@ -31,6 +31,7 @@ DIAG(NOTE_GENERIC,           Note,  "N0001", "{}")
 
 // --- Sema: Type Checking & Operations ---
 DIAG(ERR_TYPE_MISMATCH,      Error, "E0408", "Cannot convert type '{}' to '{}'")
+DIAG(ERR_MISSING_AMPERSAND_RETURN, Error, "E0469", "You are trying to return the Soul ({}) of a reference, but a Handle ({}) is required. Did you mean '&{}'?")
 DIAG(ERR_INIT_TYPE_MISMATCH, Error, "E0409", "Cannot initialize variable of type '{}' with value of type '{}'")
 DIAG(ERR_USE_UNSET,          Error, "E0410", "Use of unset variable or member '{}'")
 DIAG(ERR_ESCAPE_UNSET,       Error, "E0411", "Cannot escape an unset or dirty variable '{}'")

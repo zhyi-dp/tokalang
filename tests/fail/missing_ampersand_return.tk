@@ -1,0 +1,9 @@
+fn borrow_example(x: i32) -> &i32 <- x {
+    return x
+}
+
+fn main() -> i32 {
+    auto x = 10:i32
+    auto &y = borrow_example(x)
+    return 0
+}

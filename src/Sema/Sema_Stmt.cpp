@@ -351,9 +351,26 @@ void Sema::checkStmt(Stmt *S) {
     }
 
     if (!bypassNullRet && !HasError && !isTypeCompatible(expectedRetObj, ExprTypeObj)) {
-      DiagnosticEngine::report(getLoc(Ret), DiagID::ERR_TYPE_MISMATCH, ExprType,
-                               CurrentFunctionReturnType);
-      HasError = true;
+      bool handled = false;
+      if (expectedRetObj && expectedRetObj->isReference()) {
+        if (auto *ve = dynamic_cast<VariableExpr *>(Ret->ReturnValue.get())) {
+          SymbolInfo info;
+          if (CurrentScope->lookup(ve->Name, info)) {
+            auto expectedPtr = std::static_pointer_cast<toka::PointerType>(expectedRetObj);
+            if (isTypeCompatible(expectedPtr->PointeeType, info.TypeObj)) {
+               DiagnosticEngine::report(getLoc(Ret), DiagID::ERR_MISSING_AMPERSAND_RETURN, 
+                 ExprType, CurrentFunctionReturnType, ve->Name);
+               HasError = true;
+               handled = true;
+            }
+          }
+        }
+      }
+      if (!handled) {
+        DiagnosticEngine::report(getLoc(Ret), DiagID::ERR_TYPE_MISMATCH, ExprType,
+                                 CurrentFunctionReturnType);
+        HasError = true;
+      }
     } else if (!HasError) {
 
       MorphKind targetMorph = MorphKind::None;
