@@ -18,6 +18,7 @@
 #include <vector>
 #include <map>
 #include <cctype>
+#include <cstdint>
 
 namespace toka {
 

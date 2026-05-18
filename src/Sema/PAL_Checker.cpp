@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "toka/PAL_Checker.h"
+#include <algorithm>
 
 namespace toka {
 
