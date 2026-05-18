@@ -844,9 +844,24 @@ PhysEntity CodeGen::genMemberExpr(const MemberExpr *mem) {
 
   int defHats = 0;
   if (!stName.empty() && m_Shapes.count(stName)) {
-    defHats = getHatCount(m_Shapes[stName]->Members[idx].Name) + getHatCount(m_Shapes[stName]->Members[idx].Type);
+    defHats = getHatCount(m_Shapes[stName]->Members[idx].Name);
+    if (m_Shapes[stName]->Members[idx].ResolvedType) {
+        defHats += getTypeHatCount(m_Shapes[stName]->Members[idx].ResolvedType);
+    } else {
+        defHats += getHatCount(m_Shapes[stName]->Members[idx].Type);
+    }
   }
   int accessHats = getHatCount(mem->Member);
+  bool isHatOn = (accessHats > defHats);
+  if (isHatOn) {
+    // Hat-On: We are taking the address of the member!
+    // Return it directly as an R-Value (isAddress = false) of Pointer type
+    llvm::Type *finalIrTy = m_Builder.getPtrTy();
+    if (mem->ResolvedType) {
+      finalIrTy = getLLVMType(mem->ResolvedType);
+    }
+    return PhysEntity(finalAddr, memberTypeName, finalIrTy, false);
+  }
 
   // If definition has more hats than access, we are "Hat-Off", so dereference.
   int derefCount = 0;
@@ -858,8 +873,10 @@ PhysEntity CodeGen::genMemberExpr(const MemberExpr *mem) {
   } else {
     derefCount = defHats - accessHats;
   }
+  
   if (derefCount < 0)
     derefCount = 0;
+
   for (int i = 0; i < derefCount; ++i) {
     // Current finalAddr is the address of the pointer.
     // Load it to get the target address.
