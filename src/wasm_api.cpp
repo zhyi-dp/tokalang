@@ -8,7 +8,7 @@
 #include <sstream>
 #include <iostream>
 
-extern bool g_JsonDiagnostics;
+bool g_JsonDiagnostics = false;
 
 // Intercept std::cout to capture JSON output
 class StringbufStream : public std::stringbuf {
