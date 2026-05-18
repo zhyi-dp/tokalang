@@ -49,6 +49,7 @@ jobs:
             -s WASM=1 \
             -s EXPORTED_RUNTIME_METHODS='["ccall", "cwrap", "stringToUTF8", "lengthBytesUTF8", "UTF8ToString"]' \
             -s EXPORTED_FUNCTIONS='["_check_toka_code", "_malloc", "_free"]' \
+            --embed-file ../lib@lib/ \
             -o tokacheck.js
           cp tokacheck.js ../playground/
           cp tokacheck.wasm ../playground/
