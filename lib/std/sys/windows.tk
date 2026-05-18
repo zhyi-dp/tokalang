@@ -81,15 +81,14 @@ extern fn GetCommandLineW() -> *u16
 extern fn CommandLineToArgvW(*lpCmdLine: u16, *pNumArgs: i32) -> *Addr
 extern fn LocalFree(hMem: Addr) -> Addr
 
-auto g_win_argc: i32 = 0
-auto g_win_argv: Addr = 0:Addr
+auto g_win_argc#: i32 = 0
+auto g_win_argv#: Addr = 0:Addr
 
 pub fn args_impl() -> i32 {
     unsafe {
         if g_win_argc == 0 {
             auto *cmd = GetCommandLineW()
-            auto *#argv_mut = *(g_win_argv) as *Addr
-            argv_mut = CommandLineToArgvW(*cmd, *(g_win_argc) as *i32) as Addr
+            g_win_argv = CommandLineToArgvW(*cmd, *(g_win_argc) as *i32) as Addr
         }
         return g_win_argc
     }
