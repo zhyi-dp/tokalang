@@ -1,5 +1,15 @@
-error[E0105]: Parse error: Expected '(' or '[' after shape name
- --> tests/fail/sovereign_shape.tk:14:16
+error[E0445]: Shape 'Resource' manages raw pointers but does not implement 'drop'
+ --> tests/fail/sovereign_shape.tk:14:7
    |
- 14 | shape Resource {
-   |                ^
+ 14 | shape Resource(
+   |       ^
+error[E0444]: Shape 'Resource' manages resources but does not implement 'drop'
+ --> tests/fail/sovereign_shape.tk:14:7
+   |
+ 14 | shape Resource(
+   |       ^
+error[E0458]: Shape 'Resource' manages resources (raw pointers) but does not implement 'clone'
+ --> tests/fail/sovereign_shape.tk:14:7
+   |
+ 14 | shape Resource(
+   |       ^

@@ -235,6 +235,10 @@ std::unique_ptr<BlockStmt> Parser::parseBlock() {
       block->Statements.push_back(std::move(stmt));
     else
       advance(); // Avoid infinite loop if null
+      
+    if (PanicMode) {
+      synchronize();
+    }
   }
 
   consume(TokenType::RBrace, "Expected '}'");

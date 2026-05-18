@@ -49,6 +49,10 @@ private:
   bool isEndOfStatement();
   void error(const Token &tok, const std::string &message);
   void error(const Token &tok, DiagID id);
+  void synchronize();
+
+  bool HasError = false;
+  bool PanicMode = false;
 
   // Recursive Descent Methods
   std::unique_ptr<FunctionDecl> parseFunctionDecl(bool isPub = false);

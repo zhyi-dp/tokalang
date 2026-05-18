@@ -71,8 +71,7 @@ void Parser::expectEndOfStatement() {
     }
     return;
   }
-  DiagnosticEngine::report(peek().Loc, DiagID::ERR_EXPECTED_SEMI);
-  std::exit(1);
+  error(peek(), DiagID::ERR_EXPECTED_SEMI);
 }
 
 bool Parser::isEndOfStatement() {
@@ -127,13 +126,44 @@ bool Parser::isEndOfStatement() {
 }
 
 void Parser::error(const Token &tok, const std::string &message) {
+  if (PanicMode) { return; }
+  PanicMode = true;
+  HasError = true;
   DiagnosticEngine::report(tok.Loc, DiagID::ERR_GENERIC_PARSE, message);
-  std::exit(1);
 }
 
 void Parser::error(const Token &tok, DiagID id) {
+  if (PanicMode) { return; }
+  PanicMode = true;
+  HasError = true;
   DiagnosticEngine::report(tok.Loc, id);
-  std::exit(1);
+}
+
+void Parser::synchronize() {
+  PanicMode = false;
+  while (!check(TokenType::EndOfFile)) {
+    if (previous().Kind == TokenType::Semicolon) return;
+    
+    switch (peek().Kind) {
+      case TokenType::KwPub:
+      case TokenType::KwFn:
+      case TokenType::KwLet:
+      case TokenType::KwAuto:
+      case TokenType::KwConst:
+      case TokenType::KwShape:
+      case TokenType::KwUnion:
+      case TokenType::KwPacked:
+      case TokenType::KwTrait:
+      case TokenType::KwImpl:
+      case TokenType::KwImport:
+      case TokenType::RBrace:
+        return;
+      default:
+        // continue advancing
+        break;
+    }
+    advance();
+  }
 }
 
 std::string Parser::parseTypeString() {
@@ -230,14 +260,12 @@ std::unique_ptr<Module> Parser::parseModule() {
       module->TypeAliases.push_back(parseTypeAliasDecl(isPub));
     } else if (check(TokenType::KwExtern)) {
       if (isPub) {
-        DiagnosticEngine::report(peek().Loc, DiagID::ERR_EXTERN_PUB);
-        std::exit(1);
+        error(peek(), DiagID::ERR_EXTERN_PUB);
       }
       module->Externs.push_back(parseExternDecl());
     } else if (check(TokenType::KwImpl)) {
       if (isPub) {
-        DiagnosticEngine::report(peek().Loc, DiagID::ERR_IMPL_PUB);
-        std::exit(1);
+        error(peek(), DiagID::ERR_IMPL_PUB);
       }
       module->Impls.push_back(parseImpl());
     } else if (check(TokenType::KwTrait)) {
@@ -250,11 +278,15 @@ std::unique_ptr<Module> Parser::parseModule() {
       module->Shapes.push_back(parseShape(isPub));
     } else {
       if (isPub) {
-        DiagnosticEngine::report(peek().Loc, DiagID::ERR_EXPECTED_DECL);
-        std::exit(1);
+        error(peek(), DiagID::ERR_EXPECTED_DECL);
+      } else {
+        error(peek(), "Unexpected Top Level Token: " + peek().toString());
       }
-      std::cerr << "Unexpected Top Level Token: " << peek().toString() << "\n";
       advance();
+    }
+
+    if (PanicMode) {
+        synchronize();
     }
   }
   return module;
