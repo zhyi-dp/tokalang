@@ -1,4 +1,4 @@
-[Website (tokalang.dev)](https://tokalang.dev) | [Try Toka Online (Playground)](https://tokalang.dev/playground/) | [中文](README_zh.md)
+[Website (tokalang.dev)](https://tokalang.dev) | [Try Toka Online (Playground)](https://tokalang.dev/playground) | [中文](README_zh.md)
 
 # Toka Programming Language
 
@@ -144,7 +144,7 @@ Toka currently possesses a complete language core and standard library. We are a
 
 We are thrilled to see the community building awesome things with Toka! Check out some of these community-driven projects:
 
-- [**toka-book**](https://github.com/lumicore-dev/toka-book): A comprehensive, community-driven guide to learning Toka, inspired by "The Rust Book".
+- [**toka-book**](https://github.com/lumicore-dev/toka-book) ([Read Online](https://lumicore-dev.github.io/toka-book)): A comprehensive, community-driven guide to learning Toka, inspired by "The Rust Book".
 - [**toka-ink**](https://github.com/lumicore-dev/toka-ink): A powerful, zero-dependency Terminal UI component library built entirely with Toka's string formatting capabilities.
 
 *(Built something cool with Toka? Open a PR to add your project here!)*

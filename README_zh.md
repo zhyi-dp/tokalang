@@ -1,4 +1,4 @@
-[中文官网 (tokalang.dev/zh)](https://tokalang.dev/zh) | [在线运行体验 (Playground)](https://tokalang.dev/playground/) | [English](README.md)
+[中文官网 (tokalang.dev/zh)](https://tokalang.dev/zh) | [在线运行体验 (Playground)](https://tokalang.dev/playground) | [English](README.md)
 
 # Toka 编程语言
 
@@ -144,7 +144,7 @@ Toka 目前已经具备了完整的语言核心特性与标准库，我们正在
 
 看到社区用 Toka 构建出各种有趣的项目，我们感到非常兴奋！以下是一些值得一看的社区驱动项目：
 
-- [**toka-book**](https://github.com/lumicore-dev/toka-book)：一本详尽的、由社区驱动的 Toka 学习指南（灵感来源于“The Rust Book”）。
+- [**toka-book**](https://github.com/lumicore-dev/toka-book) ([在线阅读](https://lumicore-dev.github.io/toka-book))：一本详尽的、由社区驱动的 Toka 学习指南（灵感来源于“The Rust Book”）。
 - [**toka-ink**](https://github.com/lumicore-dev/toka-ink)：一个强大的、零依赖的终端 UI 组件库，完全使用 Toka 原生的字符串格式化能力构建。
 
 *(用 Toka 做了好玩的项目？欢迎提交 PR 把你的项目展示在这里！)*
