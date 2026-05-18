@@ -30,14 +30,16 @@ jobs:
             -I../include \
             ../src/wasm_api.cpp \
             ../src/Lexer/Lexer.cpp \
-            ../src/Lexer/Token.cpp \
             ../src/Parser/Parser.cpp \
-            ../src/Parser/AST.cpp \
+            ../src/Parser/Parser_Decl.cpp \
+            ../src/Parser/Parser_Expr.cpp \
+            ../src/Parser/Parser_Stmt.cpp \
             ../src/Sema/Sema.cpp \
-            ../src/Sema/SemaExpr.cpp \
-            ../src/Sema/SemaDecl.cpp \
-            ../src/Sema/SemaType.cpp \
-            ../src/Sema/SemaStmt.cpp \
+            ../src/Sema/Sema_Expr.cpp \
+            ../src/Sema/Sema_Stmt.cpp \
+            ../src/Sema/Sema_Template.cpp \
+            ../src/Sema/Sema_Type.cpp \
+            ../src/Sema/PAL_Checker.cpp \
             ../src/DiagnosticEngine.cpp \
             ../src/Basic/SourceManager.cpp \
             ../src/Type.cpp \
