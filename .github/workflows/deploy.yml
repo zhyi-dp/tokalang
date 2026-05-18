@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'website/**'
-      - 'docs/**'
   workflow_dispatch:
 
 jobs:
@@ -24,6 +21,41 @@ jobs:
           node-version: 22
           cache: 'npm'
           cache-dependency-path: website/package-lock.json
+
+      - name: Setup Emscripten ⚙️
+        uses: mymindstorm/setup-emsdk@v14
+
+      - name: Compile Toka Playground (Wasm) 🛠️
+        run: |
+          mkdir -p build_wasm
+          cd build_wasm
+          emcc -O3 -std=c++17 \
+            -I../include \
+            ../src/wasm_api.cpp \
+            ../src/Lexer/Lexer.cpp \
+            ../src/Parser/Parser.cpp \
+            ../src/Parser/Parser_Decl.cpp \
+            ../src/Parser/Parser_Expr.cpp \
+            ../src/Parser/Parser_Stmt.cpp \
+            ../src/Sema/Sema.cpp \
+            ../src/Sema/Sema_Expr.cpp \
+            ../src/Sema/Sema_Stmt.cpp \
+            ../src/Sema/Sema_Template.cpp \
+            ../src/Sema/Sema_Type.cpp \
+            ../src/Sema/PAL_Checker.cpp \
+            ../src/DiagnosticEngine.cpp \
+            ../src/Basic/SourceManager.cpp \
+            ../src/Type.cpp \
+            -s WASM=1 \
+            -s EXPORTED_RUNTIME_METHODS='["ccall", "cwrap", "stringToUTF8", "lengthBytesUTF8", "UTF8ToString"]' \
+            -s EXPORTED_FUNCTIONS='["_check_toka_code", "_malloc", "_free"]' \
+            -o tokacheck.js
+          cp tokacheck.js ../playground/
+          cp tokacheck.wasm ../playground/
+          
+          # Move playground to Astro public directory so it gets served under /playground
+          mkdir -p ../website/public/playground
+          cp -r ../playground/* ../website/public/playground/
 
       - name: Install dependencies 📦
         working-directory: ./website
