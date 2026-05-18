@@ -88,8 +88,8 @@ pub fn args_impl() -> i32 {
     unsafe {
         if g_win_argc == 0 {
             auto *cmd = GetCommandLineW()
-            auto ptr = CommandLineToArgvW(*cmd, &g_win_argc as *i32) as Addr
-            g_win_argv = ptr
+            auto *#argv_mut = *(g_win_argv) as *Addr
+            argv_mut = CommandLineToArgvW(*cmd, *(g_win_argc) as *i32) as Addr
         }
         return g_win_argc
     }
@@ -102,7 +102,7 @@ pub fn get_arg_impl(i: i32) -> String {
         auto idx = i as usize
         auto ptr_val = (g_win_argv as usize) + (idx * 8:usize)
         auto *p = ptr_val as *Addr
-        auto str_addr = *p
+        auto str_addr = p as Addr
         auto *wstr = str_addr as *u16
         return from_utf16(*wstr)
     }
@@ -126,7 +126,7 @@ pub fn opendir_impl(path: Addr) -> Addr {
         auto *wsearch = to_utf16(search_path.c_str())
         
         auto *wd# = libc_malloc(sizeof(WinDir)) as *WinDir
-        auto h = FindFirstFileW(*wsearch, &(wd.find_data) as Addr)
+        auto h = FindFirstFileW(*wsearch, *(wd.find_data) as Addr)
         
         libc_free(wpath as *void)
         libc_free(wsearch as *void)
@@ -147,11 +147,11 @@ pub fn readdir_impl(dir_handle: Addr) -> Option<String> {
         auto *wd = dir_handle as *WinDir
         if wd.first {
             wd.first = false
-            return Option<String>::Some(from_utf16(&(wd.find_data.cFileName[0]) as *u16))
+            return Option<String>::Some(from_utf16(*(wd.find_data.cFileName[0])))
         }
         
-        if FindNextFileW(wd.handle, &(wd.find_data) as Addr) != 0 {
-            return Option<String>::Some(from_utf16(&(wd.find_data.cFileName[0]) as *u16))
+        if FindNextFileW(wd.handle, *(wd.find_data) as Addr) != 0 {
+            return Option<String>::Some(from_utf16(*(wd.find_data.cFileName[0])))
         }
         
         return Option<String>::None
