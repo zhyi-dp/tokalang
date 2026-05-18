@@ -130,9 +130,9 @@
 | `shape Point { x: i32 }` | `shape Point(x: i32)` | **铁律**：Shape 定义必须使用**圆括号** `()`。 |
 | `auto p = Point{x=1}` | `auto p = Point(x=1)` | **铁律**：初始化也必须使用**圆括号** `()`。 |
 | `println("Hello")` | `import std/io::println`<br>`println("Hello")` | `println` 不是内置关键字，必须从标准库导入。 |
-| `println("x=%d, y=%s", 1, s)` | `println("x={}, y={}", 1, s)` | **铁律**：Toka 格式化输出 (包括 `println`、字符串插值等) 严格使用前沿的 `{}` 占位语法，绝对不要使用 C 语言的 `%d`、`%s` 标志。 |
-| `auto s: view_str = "abc"` | `auto s = s"abc"` | **视角字串铁律**：普通 `"[文本]"` 推导为 `*char`。若需要携带长度的胖形态 **`view_str`**，请务必使用带 **`s` 前缀** 的字面量 `s"..."`。此外，`println` 已经内建对 `view_str` 和 `String` 的全面特化支持，可完美安全地打印其文本内容及任意无 `\0` 结尾的结构切片（再也不会输出 `?Struct?`）。 |
-| `str1 + str2` | `auto s = String::from(s1); s.push_str(s2)` | **禁止隐式堆分配铁律**：Toka **不支持** 使用 `+` 拼接字符串。因为 `+` 会导致隐式的堆内存分配，这违背了 Toka 的核心系统级哲学。请显式使用 `String` 的 `push_str()` 或 `println/print` 进行格式化。 |
+| `println("x=%d, y=%s", 1, s)` | `println("x={}, y={}", 1, s)` | **铁律**：Toka 格式化输出 (包括 `println`、字符串插值等) 严格使用前沿的 `{}` 占位语法，绝对不要使用 C 语言的 `%d`、`%s` 标志。<br>**零拷贝与格式化新特性**：<br>1. 对于 `String` 和 `view_str`，`println` 已实装真正的**零拷贝特化 (Zero-Copy)**。<br>2. 支持全新的**精细格式化语法 (Mini Formatting Language)**，语法形式为 `{:指令}`。数字支持补零（如 `{:04}`）、十六进制（如 `{:x}`）、浮点精度（如 `{:.2}`，**注意无需冗余类型符 `f`**）。<br>3. 此机制通过标准库的 `@ToFormat` 契约（`to_string_fmt(self, fmt: view_str) -> String`）实现，支持自定义 Shape 自行解析任何控制符（如 `{:json}`）。 |
+| `auto s: view_str = "abc"` | `auto s = s"abc"` | **视角字串铁律**：普通 `"[文本]"` 推导为 `*char`。若需要携带长度的胖形态 **`view_str`**，务必使用 `s"..."` 语法。**新特性**：当函数/方法明确期望接收 `view_str` 时，你可以直接传入 `String` 变量（编译器会自动且零成本地插入 `as_str()` 降级为你投影，也就是 **Auto-Deref**），彻底摆脱手动 `.as_str()` 的繁琐体验。 |
+| `str1 + str2` | `auto s = String::from(s1); s.push_str(s2)` | **禁止隐式堆分配铁律**：Toka **不支持** 使用 `+` 拼接字符串。因为 `+` 会导致隐式的堆内存分配，这违背了 Toka 的核心系统级哲学。请显式使用 `String` 的 `push_str()` (完美兼容传入 `view_str` 或 `String`) 或 `println/print` 进行格式化。 |
 | `auto p = User("Alice", 1)` | `auto p = User(name = "Alice", id = 1)` | **强烈建议**：实例化结构体（Shape）时，尽量使用**具名参数 (Named Parameters)** 进行赋值，这会触发最可靠的隐式转型且保证字段增删时的安全。如果确定按位置顺序初始化，务必对齐所有类型（或在末尾配合 `..` 使用默认值），参数较多时极不推荐顺序盲传。 |
 | `x.modify()` (如果定义需要 `self#`) | `x#.modify()` | 修改自身的方法必须在调用者上加 `#`，**哪怕 x 本身是可变的**。 |
 | `*p` (想解引用) | `p` | **铁律 (Hat Principle)**：Toka 中裸名 `p` 即为灵魂 (Soul)，自动解引用。`*p` 是戴帽操作，得到指针本身 (Handle)。与 C++ 相反。 |
