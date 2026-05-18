@@ -709,18 +709,21 @@ impl view_str {
     }
 }
 impl i32 {
+    pub fn to_string_fmt(self, fmt: view_str) -> String { return _format_i64(self as i64, fmt) }
     pub fn to_string(self) -> String {
         return String::from_int(self)
     }
 }
 
 impl i64 {
+    pub fn to_string_fmt(self, fmt: view_str) -> String { return _format_i64(self as i64, fmt) }
     pub fn to_string(self) -> String {
         return String::from_i64(self)
     }
 }
 
 impl u64 {
+    pub fn to_string_fmt(self, fmt: view_str) -> String { return _format_i64(self as i64, fmt) }
     pub fn to_string(self) -> String {
         unsafe {
              auto *buf# = libc_malloc(32) as *char
@@ -733,12 +736,14 @@ impl u64 {
 }
 
 impl f32 {
+    pub fn to_string_fmt(self, fmt: view_str) -> String { return _format_f64(self as f64, fmt) }
     pub fn to_string(self) -> String {
         return String::from_f64(self as f64)
     }
 }
 
 impl f64 {
+    pub fn to_string_fmt(self, fmt: view_str) -> String { return _format_f64(self, fmt) }
     pub fn to_string(self) -> String {
         return String::from_f64(self)
     }
@@ -754,6 +759,10 @@ impl bool {
 
 pub trait @ToString {
     pub fn to_string(self) -> String
+}
+
+pub trait @ToFormat {
+    pub fn to_string_fmt(self, fmt: view_str) -> String
 }
 
 impl char {
@@ -790,12 +799,14 @@ impl OAddr {
 }
 
 impl u64 {
+    pub fn to_string_fmt(self, fmt: view_str) -> String { return _format_i64(self as i64, fmt) }
     pub fn to_string(self) -> String {
         return String::from_i64(self as i64)
     }
 }
 
 impl usize {
+    pub fn to_string_fmt(self, fmt: view_str) -> String { return _format_i64(self as i64, fmt) }
     pub fn to_string(self) -> String {
         return String::from_i64(self as i64)
     }
@@ -808,18 +819,23 @@ impl cstring {
 }
 
 impl u32 {
+    pub fn to_string_fmt(self, fmt: view_str) -> String { return _format_i64(self as i64, fmt) }
     pub fn to_string(self) -> String { return String::from_i64(self as i64) }
 }
 impl u16 {
+    pub fn to_string_fmt(self, fmt: view_str) -> String { return _format_i64(self as i64, fmt) }
     pub fn to_string(self) -> String { return String::from_i64(self as i64) }
 }
 impl u8 {
+    pub fn to_string_fmt(self, fmt: view_str) -> String { return _format_i64(self as i64, fmt) }
     pub fn to_string(self) -> String { return String::from_i64(self as i64) }
 }
 impl i16 {
+    pub fn to_string_fmt(self, fmt: view_str) -> String { return _format_i64(self as i64, fmt) }
     pub fn to_string(self) -> String { return String::from_i64(self as i64) }
 }
 impl i8 {
+    pub fn to_string_fmt(self, fmt: view_str) -> String { return _format_i64(self as i64, fmt) }
     pub fn to_string(self) -> String { return String::from_i64(self as i64) }
 }
 impl Addr {
@@ -830,5 +846,75 @@ impl Addr {
             auto len = libc_strlen(*buf as *char)
             return String(*buf = *buf, len = len, cap = 32)
         }
+    }
+}
+
+pub fn _format_i64(val: i64, fmt: view_str) -> String {
+    unsafe {
+        if fmt.len() == 0 {
+            return String::from_i64(val)
+        }
+        
+        auto *c_fmt# = unsafe alloc [fmt.len() + 8] char as *[char]
+        c_fmt[0] = 37:char // '%'
+        auto i# = 1:usize
+        auto last_char# = fmt.buf()[fmt.len() - 1]
+        
+        auto type_char# = 100:char // 'd'
+        auto has_type# = false
+        
+        if last_char == 120:char { type_char = 120:char; has_type = true } // 'x'
+        else if last_char == 88:char { type_char = 88:char; has_type = true } // 'X'
+        else if last_char == 111:char { type_char = 111:char; has_type = true } // 'o'
+        
+        auto fmt_len# = fmt.len()
+        if has_type { fmt_len = fmt_len - 1 }
+        
+        auto j# = 0:usize
+        while j < fmt_len {
+            c_fmt[i] = fmt.buf()[j]
+            i = i + 1
+            j = j + 1
+        }
+        
+        c_fmt[i] = 108:char // 'l'
+        c_fmt[i+1] = 108:char // 'l'
+        c_fmt[i+2] = type_char
+        c_fmt[i+3] = 0:char
+        
+        auto *buf# = unsafe alloc [64] char as *[char]
+        libc_sprintf(*buf as *char, *c_fmt as *char, val)
+        
+        libc_free(*c_fmt as *void)
+        
+        auto len = libc_strlen(*buf as *char)
+        return String(*buf = *buf, len = len, cap = 64)
+    }
+}
+
+pub fn _format_f64(val: f64, fmt: view_str) -> String {
+    unsafe {
+        if fmt.len() == 0 {
+            return String::from_f64(val)
+        }
+        auto *c_fmt# = unsafe alloc [fmt.len() + 4] char as *[char]
+        c_fmt[0] = 37:char // '%'
+        auto i# = 1:usize
+        auto j# = 0:usize
+        while j < fmt.len() {
+            c_fmt[i] = fmt.buf()[j]
+            i = i + 1
+            j = j + 1
+        }
+        c_fmt[i] = 102:char // 'f'
+        c_fmt[i+1] = 0:char
+        
+        auto *buf# = unsafe alloc [64] char as *[char]
+        libc_sprintf(*buf as *char, *c_fmt as *char, val)
+        
+        libc_free(*c_fmt as *void)
+        
+        auto len = libc_strlen(*buf as *char)
+        return String(*buf = *buf, len = len, cap = 64)
     }
 }

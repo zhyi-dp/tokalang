@@ -1,0 +1,13 @@
+import std/io::println
+import std/string::String
+
+fn main() -> i32 {
+    auto val = 42
+    auto ptr_val: usize = 0xABCD
+    auto f_val = 3.14159
+    
+    println("Int padding: {:04}", val)
+    println("Hex formatting: 0x{:x}", ptr_val)
+    println("Float precision: {:.2}", f_val)
+    return 0
+}

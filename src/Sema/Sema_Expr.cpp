@@ -4234,18 +4234,50 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
       checkExpr(Arg.get());
     }
     if (isStringFmt || isPrintln) {
+      std::vector<std::string> formatSpecifiers;
+      if (auto *SE = dynamic_cast<StringExpr*>(Call->Args[0].get())) {
+          std::string fmt = SE->Value;
+          size_t lastPos = 0;
+          while (lastPos < fmt.size()) {
+              size_t startPos = fmt.find('{', lastPos);
+              if (startPos == std::string::npos) break;
+              if (startPos + 1 < fmt.size() && fmt[startPos + 1] == '{') {
+                  lastPos = startPos + 2;
+                  continue;
+              }
+              size_t endPos = fmt.find('}', startPos + 1);
+              if (endPos == std::string::npos) break;
+              
+              std::string specifier = fmt.substr(startPos + 1, endPos - startPos - 1);
+              formatSpecifiers.push_back(specifier);
+              lastPos = endPos + 1;
+          }
+      }
+
       for (size_t i = 1; i < Call->Args.size(); i++) {
         auto argTyObj = Call->Args[i]->ResolvedType;
         std::string argTy = argTyObj ? argTyObj->getSoulName() : "";
         auto soulTy = Type::stripMorphology(argTy);
         
+        bool isFmt = false;
+        if (i - 1 < formatSpecifiers.size()) {
+            std::string spec = formatSpecifiers[i - 1];
+            if (!spec.empty() && spec[0] == ':') isFmt = true;
+        }
+
         // [P3] Zero-copy println: Bypass to_string check for string types
         if (soulTy == "String" || soulTy == "view_str" || soulTy == "str") {
+            if (isFmt) {
+                error(Call->Args[i].get(), "Formatted printing is not yet supported for String/view_str. Use plain {}.");
+            }
             continue;
         }
 
-        if (!MethodMap.count(soulTy) || !MethodMap[soulTy].count("to_string")) {
-            error(Call->Args[i].get(), "Type '" + soulTy + "' does not implement @ToString trait or to_string method.");
+        std::string requiredMethod = isFmt ? "to_string_fmt" : "to_string";
+        std::string requiredTrait = isFmt ? "@ToFormat" : "@ToString";
+
+        if (!MethodMap.count(soulTy) || !MethodMap[soulTy].count(requiredMethod)) {
+            error(Call->Args[i].get(), "Type '" + soulTy + "' does not implement " + requiredTrait + " trait or " + requiredMethod + " method.");
             return toka::Type::fromString("void");
         }
       }

@@ -3199,87 +3199,134 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
     llvm::Value *sAlloca = m_Builder.CreateAlloca(sVal->getType());
     m_Builder.CreateStore(sVal, sAlloca);
 
-    while ((pos = fmt.find("{}", lastPos)) != std::string::npos) {
-      std::string segment = fmt.substr(lastPos, pos - lastPos);
-      if (!segment.empty()) {
-          llvm::Value *segVal = m_Builder.CreateGlobalString(segment);
-          m_Builder.CreateCall(pushStrFn, {sAlloca, segVal});
-      }
+    
+    while (lastPos < fmt.size()) {
+        size_t startPos = fmt.find('{', lastPos);
+        if (startPos == std::string::npos) break;
 
-      // Print argument
-      if (argIndex < (int)call->Args.size()) {
-        std::string soulTy = Type::stripMorphology(call->Args[argIndex]->ResolvedType ? call->Args[argIndex]->ResolvedType->getSoulName() : "");
-        PhysEntity argEnt = genExpr(call->Args[argIndex].get());
-        llvm::Value *argVal = argEnt.load(m_Builder);
-        
-        std::string funcName = soulTy + "_to_string";
-        llvm::Function *toStrFn = m_Module->getFunction(funcName);
-        if (!toStrFn) {
-            toStrFn = m_Module->getFunction("ToString_" + soulTy + "_to_string");
-        }
-        if (!toStrFn) {
-            for (auto const &[traitName, traitDecl] : m_Traits) {
-               std::string traitFunc = traitName + "_" + soulTy + "_to_string";
-               toStrFn = m_Module->getFunction(traitFunc);
-               if (toStrFn) break;
+        if (startPos + 1 < fmt.size() && fmt[startPos + 1] == '{') {
+            std::string segment = fmt.substr(lastPos, startPos - lastPos + 1);
+            if (!segment.empty()) {
+                llvm::Value *segVal = m_Builder.CreateGlobalString(segment);
+                m_Builder.CreateCall(pushStrFn, {sAlloca, segVal});
             }
+            lastPos = startPos + 2;
+            continue;
         }
-        
-        if (soulTy == "String" || soulTy == "view_str" || soulTy == "str") {
-            llvm::Value *finalArg = argVal;
-            if (!argVal->getType()->isPointerTy()) {
-                finalArg = argEnt.isAddress ? argEnt.value : nullptr;
-                if (!finalArg) {
-                    llvm::AllocaInst *tmp = createEntryBlockAlloca(argVal->getType());
-                    m_Builder.CreateStore(argVal, tmp);
-                    finalArg = tmp;
+
+        size_t endPos = fmt.find('}', startPos + 1);
+        if (endPos == std::string::npos) break;
+
+        std::string segment = fmt.substr(lastPos, startPos - lastPos);
+        if (!segment.empty()) {
+            llvm::Value *segVal = m_Builder.CreateGlobalString(segment);
+            m_Builder.CreateCall(pushStrFn, {sAlloca, segVal});
+        }
+
+        std::string formatSpecifier = fmt.substr(startPos + 1, endPos - startPos - 1);
+        lastPos = endPos + 1;
+
+        if (argIndex < (int)call->Args.size()) {
+            std::string soulTy = Type::stripMorphology(call->Args[argIndex]->ResolvedType ? call->Args[argIndex]->ResolvedType->getSoulName() : "");
+            PhysEntity argEnt = genExpr(call->Args[argIndex].get());
+            llvm::Value *argVal = argEnt.load(m_Builder);
+
+            bool isFmt = (!formatSpecifier.empty() && formatSpecifier[0] == ':');
+            if (isFmt) {
+                formatSpecifier = formatSpecifier.substr(1);
+            }
+            std::string funcName = soulTy + (isFmt ? "_to_string_fmt" : "_to_string");
+
+            llvm::Function *toStrFn = m_Module->getFunction(funcName);
+            if (!toStrFn) {
+                std::string traitPrefix = isFmt ? "ToFormat_" : "ToString_";
+                toStrFn = m_Module->getFunction(traitPrefix + soulTy + (isFmt ? "_to_string_fmt" : "_to_string"));
+            }
+            if (!toStrFn) {
+                for (auto const &[traitName, traitDecl] : m_Traits) {
+                    std::string traitFunc = traitName + "_" + soulTy + (isFmt ? "_to_string_fmt" : "_to_string");
+                    toStrFn = m_Module->getFunction(traitFunc);
+                    if (toStrFn) break;
                 }
             }
-            if (soulTy == "String") {
-                llvm::Value *cstrVal = m_Builder.CreateCall(cStrFn, {finalArg});
-                m_Builder.CreateCall(pushStrFn, {sAlloca, cstrVal});
-            } else { // view_str or str
-                llvm::Function *pushViewFn = m_Module->getFunction("String_push_view");
-                if (pushViewFn) {
-                    m_Builder.CreateCall(pushViewFn, {sAlloca, finalArg});
+
+            if (soulTy == "String" || soulTy == "view_str" || soulTy == "str") {
+                if (isFmt) {
+                    // String natively ignores format specifier for now, or we could pass it if we implement to_string_fmt on String
+                    // For now, treat like regular {}
                 }
-            }
-        } else {
-            llvm::Value *tmpStr = nullptr;
-            if (toStrFn && argVal) {
                 llvm::Value *finalArg = argVal;
-                if (toStrFn->arg_size() > 0) {
-                    llvm::Type *targetTy = toStrFn->getArg(0)->getType();
-                    if (targetTy->isPointerTy() && !argVal->getType()->isPointerTy()) {
-                        finalArg = argEnt.isAddress ? argEnt.value : nullptr;
-                        if (!finalArg) {
-                            llvm::AllocaInst *tmp = createEntryBlockAlloca(argVal->getType());
-                            m_Builder.CreateStore(argVal, tmp);
-                            finalArg = tmp;
-                        }
-                    } else if (!targetTy->isPointerTy() && argVal->getType()->isPointerTy()) {
-                        finalArg = m_Builder.CreateLoad(targetTy, argVal);
+                if (!argVal->getType()->isPointerTy()) {
+                    finalArg = argEnt.isAddress ? argEnt.value : nullptr;
+                    if (!finalArg) {
+                        llvm::AllocaInst *tmp = createEntryBlockAlloca(argVal->getType());
+                        m_Builder.CreateStore(argVal, tmp);
+                        finalArg = tmp;
                     }
                 }
-                tmpStr = m_Builder.CreateCall(toStrFn, {finalArg});
-            }
-            
-            if (tmpStr) {
-                llvm::Value *tmpAlloca = m_Builder.CreateAlloca(tmpStr->getType());
-                m_Builder.CreateStore(tmpStr, tmpAlloca);
+                if (soulTy == "String") {
+                    llvm::Value *cstrVal = m_Builder.CreateCall(cStrFn, {finalArg});
+                    m_Builder.CreateCall(pushStrFn, {sAlloca, cstrVal});
+                } else {
+                    llvm::Function *pushViewFn = m_Module->getFunction("String_push_view");
+                    if (pushViewFn) {
+                        m_Builder.CreateCall(pushViewFn, {sAlloca, finalArg});
+                    }
+                }
+            } else {
+                llvm::Value *tmpStr = nullptr;
+                if (toStrFn && argVal) {
+                    llvm::Value *finalArg = argVal;
+                    if (toStrFn->arg_size() > 0) {
+                        llvm::Type *targetTy = toStrFn->getArg(0)->getType();
+                        if (targetTy->isPointerTy() && !argVal->getType()->isPointerTy()) {
+                            finalArg = argEnt.isAddress ? argEnt.value : nullptr;
+                            if (!finalArg) {
+                                llvm::AllocaInst *tmp = createEntryBlockAlloca(argVal->getType());
+                                m_Builder.CreateStore(argVal, tmp);
+                                finalArg = tmp;
+                            }
+                        } else if (!targetTy->isPointerTy() && argVal->getType()->isPointerTy()) {
+                            finalArg = m_Builder.CreateLoad(targetTy, argVal);
+                        }
+                    }
+                    
+                    if (isFmt && toStrFn->arg_size() > 1) {
+                        llvm::Value *fmtStr = m_Builder.CreateGlobalString(formatSpecifier);
+                        llvm::StructType *viewStrTy = llvm::StructType::get(m_Context, std::vector<llvm::Type*>{m_Builder.getPtrTy(), m_Builder.getInt64Ty()});
+                        llvm::Value *viewStrVal = llvm::UndefValue::get(viewStrTy);
+                        viewStrVal = m_Builder.CreateInsertValue(viewStrVal, fmtStr, 0);
+                        viewStrVal = m_Builder.CreateInsertValue(viewStrVal, m_Builder.getInt64(formatSpecifier.size()), 1);
+                        
+                        llvm::AllocaInst *viewStrAlloca = createEntryBlockAlloca(viewStrTy);
+                        m_Builder.CreateStore(viewStrVal, viewStrAlloca);
+                        
+                        llvm::Value *fmtArg = viewStrAlloca;
+                        if (!toStrFn->getArg(1)->getType()->isPointerTy()) {
+                            fmtArg = m_Builder.CreateLoad(viewStrTy, viewStrAlloca);
+                        }
+                        tmpStr = m_Builder.CreateCall(toStrFn, {finalArg, fmtArg});
+                    } else {
+                        tmpStr = m_Builder.CreateCall(toStrFn, {finalArg});
+                    }
+                }
                 
-                llvm::Value *cstrVal = m_Builder.CreateCall(cStrFn, {tmpAlloca});
-                m_Builder.CreateCall(pushStrFn, {sAlloca, cstrVal});
-                
-                if (dropFn) {
-                    m_Builder.CreateCall(dropFn, {tmpAlloca});
+                if (tmpStr) {
+                    llvm::Value *tmpAlloca = m_Builder.CreateAlloca(tmpStr->getType());
+                    m_Builder.CreateStore(tmpStr, tmpAlloca);
+                    
+                    llvm::Value *cstrVal = m_Builder.CreateCall(cStrFn, {tmpAlloca});
+                    m_Builder.CreateCall(pushStrFn, {sAlloca, cstrVal});
+                    
+                    if (dropFn) {
+                        m_Builder.CreateCall(dropFn, {tmpAlloca});
+                    }
                 }
             }
+            argIndex++;
         }
-        argIndex++;
-      }
-      lastPos = pos + 2; // Skip {}
     }
+
 
     std::string tail = fmt.substr(lastPos);
     if (!tail.empty()) {
