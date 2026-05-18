@@ -14,7 +14,6 @@
 #include "toka/Sema.h"
 #include "toka/DiagnosticEngine.h"
 #include "toka/SourceManager.h"
-#include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <cctype>
 #include <functional> // [NEW] Added for std::function

@@ -18,8 +18,6 @@
 #include <vector>
 #include <map>
 #include <cctype>
-#include <llvm/IR/DerivedTypes.h>
-#include <llvm/IR/Type.h>
 
 namespace toka {
 

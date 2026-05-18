@@ -15,7 +15,6 @@
 
 #include "toka/Token.h"
 #include "toka/Type.h" // Added for ResolvedType
-#include <llvm/IR/Value.h>
 #include <memory>
 #include <string>
 #include <vector>
