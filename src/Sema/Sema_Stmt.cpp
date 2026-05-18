@@ -210,12 +210,7 @@ void Sema::checkStmt(Stmt *S) {
           if (Addr->Op == TokenType::Ampersand) {
             std::string path = getPath(Addr->RHS.get());
             if (!path.empty()) {
-                if (dynamic_cast<VariableExpr*>(Addr->RHS.get()) && Addr->RHS->ResolvedType && !Addr->RHS->ResolvedType->isReference() && !Addr->RHS->ResolvedType->isPointer() && !Addr->RHS->ResolvedType->isSharedPtr() && !Addr->RHS->ResolvedType->isUniquePtr()) {
-                    DiagnosticEngine::report(getLoc(E), DiagID::ERR_ESCAPE_LOCAL, path);
-                    HasError = true;
-                } else {
-                    returnedDeps.insert(path);
-                }
+                returnedDeps.insert(path);
             }
           } else if (auto *Paren = dynamic_cast<TupleExpr *>(E)) {
             // Parentheses around expression

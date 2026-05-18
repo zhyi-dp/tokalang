@@ -1,13 +1,13 @@
 import std/io::println
 fn get_ref(x:i32) -> &i32 {
-    return &x // EXPECT: error[E0455]:
+    return &x // EXPECT: error[E0454]:
 }
 
 fn bigger(x:i32, y:i32) -> &i32 <- x {
     if (x > y) {
         return &x
     }
-    return &y // EXPECT: error[E0455]:
+    return &y // EXPECT: error[E0454]:
 }
 
 shape RefInt <- val

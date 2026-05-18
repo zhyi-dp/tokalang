@@ -13,6 +13,11 @@ error[E0421]: Member access 'x' on non-shape type 'p'
   |
  8 |     println("p.x = {}", p.x)
   |                          ^
+error[E0406]: Type 'Unresolved(unknown)' does not implement @ToString trait or to_string method.
+ --> tests/fail/implicit_box.tk:8:26
+  |
+ 8 |     println("p.x = {}", p.x)
+  |                          ^
 error[E0421]: Member access 'x' on non-shape type 'p'
  --> tests/fail/implicit_box.tk:9:13
   |
@@ -29,6 +34,11 @@ error[E0421]: Member access 'x' on non-shape type 's1'
  15 |     s1.x = 999
    |       ^
 error[E0421]: Member access 'x' on non-shape type 's1'
+ --> tests/fail/implicit_box.tk:16:28
+   |
+ 16 |     println("s2.x = {}", s2.x)
+   |                            ^
+error[E0406]: Type 'Unresolved(unknown)' does not implement @ToString trait or to_string method.
  --> tests/fail/implicit_box.tk:16:28
    |
  16 |     println("s2.x = {}", s2.x)
