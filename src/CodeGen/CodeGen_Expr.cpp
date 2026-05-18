@@ -3225,34 +3225,55 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
             }
         }
         
-        llvm::Value *tmpStr = nullptr;
-        if (toStrFn && argVal) {
+        if (soulTy == "String" || soulTy == "view_str" || soulTy == "str") {
             llvm::Value *finalArg = argVal;
-            if (toStrFn->arg_size() > 0) {
-                llvm::Type *targetTy = toStrFn->getArg(0)->getType();
-                if (targetTy->isPointerTy() && !argVal->getType()->isPointerTy()) {
-                    finalArg = argEnt.isAddress ? argEnt.value : nullptr;
-                    if (!finalArg) {
-                        llvm::AllocaInst *tmp = createEntryBlockAlloca(argVal->getType());
-                        m_Builder.CreateStore(argVal, tmp);
-                        finalArg = tmp;
-                    }
-                } else if (!targetTy->isPointerTy() && argVal->getType()->isPointerTy()) {
-                    finalArg = m_Builder.CreateLoad(targetTy, argVal);
+            if (!argVal->getType()->isPointerTy()) {
+                finalArg = argEnt.isAddress ? argEnt.value : nullptr;
+                if (!finalArg) {
+                    llvm::AllocaInst *tmp = createEntryBlockAlloca(argVal->getType());
+                    m_Builder.CreateStore(argVal, tmp);
+                    finalArg = tmp;
                 }
             }
-            tmpStr = m_Builder.CreateCall(toStrFn, {finalArg});
-        }
-        
-        if (tmpStr) {
-            llvm::Value *tmpAlloca = m_Builder.CreateAlloca(tmpStr->getType());
-            m_Builder.CreateStore(tmpStr, tmpAlloca);
+            if (soulTy == "String") {
+                llvm::Value *cstrVal = m_Builder.CreateCall(cStrFn, {finalArg});
+                m_Builder.CreateCall(pushStrFn, {sAlloca, cstrVal});
+            } else { // view_str or str
+                llvm::Function *pushViewFn = m_Module->getFunction("String_push_view");
+                if (pushViewFn) {
+                    m_Builder.CreateCall(pushViewFn, {sAlloca, finalArg});
+                }
+            }
+        } else {
+            llvm::Value *tmpStr = nullptr;
+            if (toStrFn && argVal) {
+                llvm::Value *finalArg = argVal;
+                if (toStrFn->arg_size() > 0) {
+                    llvm::Type *targetTy = toStrFn->getArg(0)->getType();
+                    if (targetTy->isPointerTy() && !argVal->getType()->isPointerTy()) {
+                        finalArg = argEnt.isAddress ? argEnt.value : nullptr;
+                        if (!finalArg) {
+                            llvm::AllocaInst *tmp = createEntryBlockAlloca(argVal->getType());
+                            m_Builder.CreateStore(argVal, tmp);
+                            finalArg = tmp;
+                        }
+                    } else if (!targetTy->isPointerTy() && argVal->getType()->isPointerTy()) {
+                        finalArg = m_Builder.CreateLoad(targetTy, argVal);
+                    }
+                }
+                tmpStr = m_Builder.CreateCall(toStrFn, {finalArg});
+            }
             
-            llvm::Value *cstrVal = m_Builder.CreateCall(cStrFn, {tmpAlloca});
-            m_Builder.CreateCall(pushStrFn, {sAlloca, cstrVal});
-            
-            if (dropFn) {
-                m_Builder.CreateCall(dropFn, {tmpAlloca});
+            if (tmpStr) {
+                llvm::Value *tmpAlloca = m_Builder.CreateAlloca(tmpStr->getType());
+                m_Builder.CreateStore(tmpStr, tmpAlloca);
+                
+                llvm::Value *cstrVal = m_Builder.CreateCall(cStrFn, {tmpAlloca});
+                m_Builder.CreateCall(pushStrFn, {sAlloca, cstrVal});
+                
+                if (dropFn) {
+                    m_Builder.CreateCall(dropFn, {tmpAlloca});
+                }
             }
         }
         argIndex++;

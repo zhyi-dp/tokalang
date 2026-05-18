@@ -2048,6 +2048,17 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
                         if (shp->Name == "view_str" || shp->Name == "str") {
                             Met->Args[i]->ResolvedType = expectedParamTy;
                         }
+                    } else if (expectedParamTy->isShape() && argTy->isShape()) {
+                        auto shp = std::static_pointer_cast<toka::ShapeType>(expectedParamTy);
+                        auto srcShp = std::static_pointer_cast<toka::ShapeType>(argTy);
+                        if (shp->Name == "view_str" && srcShp->Name == "String") {
+                            auto methodCall = std::make_unique<MethodCallExpr>(
+                                std::move(Met->Args[i]), "as_str", std::vector<std::unique_ptr<Expr>>());
+                            methodCall->Loc = methodCall->Object->Loc;
+                            methodCall->IsCompilerInternal = true;
+                            Met->Args[i] = std::move(methodCall);
+                            checkExpr(Met->Args[i].get());
+                        }
                     }
                 }
             }
@@ -4227,6 +4238,12 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
         auto argTyObj = Call->Args[i]->ResolvedType;
         std::string argTy = argTyObj ? argTyObj->getSoulName() : "";
         auto soulTy = Type::stripMorphology(argTy);
+        
+        // [P3] Zero-copy println: Bypass to_string check for string types
+        if (soulTy == "String" || soulTy == "view_str" || soulTy == "str") {
+            continue;
+        }
+
         if (!MethodMap.count(soulTy) || !MethodMap[soulTy].count("to_string")) {
             error(Call->Args[i].get(), "Type '" + soulTy + "' does not implement @ToString trait or to_string method.");
             return toka::Type::fromString("void");
@@ -5297,6 +5314,19 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
       auto shp = std::static_pointer_cast<toka::ShapeType>(paramType);
       if (shp->Name == "view_str" || shp->Name == "str") {
         Call->Args[i]->ResolvedType = paramType;
+      }
+    } else if (paramType && argType && paramType->isShape() && argType->isShape()) {
+      auto shp = std::static_pointer_cast<toka::ShapeType>(paramType);
+      auto srcShp = std::static_pointer_cast<toka::ShapeType>(argType);
+      if (shp->Name == "view_str" && srcShp->Name == "String") {
+        // [P3] Auto-Deref from String to view_str
+        auto methodCall = std::make_unique<MethodCallExpr>(
+            std::move(Call->Args[i]), "as_str", std::vector<std::unique_ptr<Expr>>());
+        methodCall->Loc = methodCall->Object->Loc;
+        methodCall->IsCompilerInternal = true;
+        Call->Args[i] = std::move(methodCall);
+        // Force the type checking of the newly synthesized node
+        checkExpr(Call->Args[i].get());
       }
     }
   }

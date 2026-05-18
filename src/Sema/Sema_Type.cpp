@@ -818,6 +818,11 @@ bool Sema::isTypeCompatible(std::shared_ptr<toka::Type> Target,
     }
   }
 
+  // 0.5. [P3] Auto-Deref from String to view_str
+  if (Target->getSoulName() == "view_str" && Source->getSoulName() == "String") {
+    return true;
+  }
+
   // 1. Array to Pointer Decay (e.g. [10]i32 -> *i32)
   if (auto ptrT = std::dynamic_pointer_cast<toka::PointerType>(T)) {
     if (auto arrS = std::dynamic_pointer_cast<toka::ArrayType>(S)) {
