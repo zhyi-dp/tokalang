@@ -110,29 +110,44 @@ Toka 默认普通的 `shape` 对外透明，但对于持有关键资源（如 Fi
 
 ## ✅ 项目状态 (路线图)
 
-我们正在积极构建编译器的自举 (self-hosting) 能力。
+Toka 目前已经具备了完整的语言核心特性与标准库，我们正在积极构建编译器的自举 (Self-Hosting) 能力。
 
-- [x] **编译器基础设施** (Lexer, Parser, LLVM IR CodeGen)
+### 🚀 已完成的核心能力 (Completed)
+- [x] **多平台原生支持** 
+    - [x] **Linux / macOS**: 已提供完善的一等公民支持。
+    - [x] **Windows**: 新增对 MinGW/MSYS2 ABI 的底层适配，已打通核心文件系统与进程调用。
+- [x] **编译器基础设施** (Lexer, Parser, LLVM 20 IR CodeGen)
 - [x] **类型系统** (基础类型, 五态 Shape 系统, ADTs, 模式匹配)
-- [x] **内存管理** (独占/共享指针, 移动语义, 递归式释放, 指针重绑定)
-- [x] **面向对象特性** (`impl` 块, Trait 系统)
-- [x] **控制流表达式** (循环表达式, `break`/`continue` 标签)
-- [x] **模块与可见性** (物理路径与逻辑导入, `pub` 可见性)
-- [x] **语义分析 (Sema)** *(核心完成)*
+- [x] **内存管理** (独占/共享智能指针, 移动语义 (Move), 递归式释放, 指针重绑定)
+- [x] **面向对象特性** (`impl` 块, 契约分离的 Trait 系统)
+- [x] **控制流表达式** (基于值的循环表达式, `break`/`continue` 标签)
+- [x] **模块与可见性** (物理路径与逻辑导入, 精细的 `pub` 访问控制)
+- [x] **语义分析 (Sema)**
     - [x] 严格的可变性强制检查 (`#` 检查)
     - [x] 所有权与借用验证 (Ownership & Borrowing Verification)
-    - [x] 显式空安全 (Null Safety)
-    - [x] 资源安全分析 (强制含资源 Shape 实现 `drop`)
+    - [x] 显式空安全 (Explicit Null Safety)
+    - [x] 资源安全分析 (强制含资源 Shape 必须实现 `@encap/drop`)
 - [x] **高级特性**
-    - [x] **泛型 / 模板 (Generics)**
-    - [x] **并发 (Concurrency)** (原生线程, 锁, MPSC 通道, `async`/`await`)
-    - [x] **标准库 (Standard Library)** (I/O, 容器 `String`/`Vec`/`Option`/`Result`)
+    - [x] **泛型 / 模板** (支持刚性与指针形态泛型推导)
+    - [x] **原生并发** (原生 OS 线程, 锁, MPSC 消息通道, `async`/`await` 协程)
+    - [x] **标准库** (系统 I/O, 网络 Socket, 以及 `String`/`Vec`/`Option`/`Result` 等基础容器)
+- [x] **开发体验 (DX) 工具链**
+    - [x] **内置构建系统** (`toka run`, `toka build`)
+    - [x] **语言服务器 (LSP)** (官方 `tokalsp` 已稳定集成至 VS Code，支持实时诊断与智能语法高亮)
 
 ### 🚧 正在进行与未来规划 (Next Steps)
-- [ ] **跨平台支持** (Windows 原生 MSVC/MinGW ABI 适配)
-- [ ] **开发体验 (DX) 升级** (LSP 语言服务器，提供实时诊断、自动补全与跳转)
-- [ ] **生态系统** (完善官方包注册表与 `toka.json` 依赖解析器)
-- [ ] **编译器自举 (Self-Hosting)** (使用 Toka 重写 Toka 编译器前端)
+- [ ] **Windows 平台特性补齐** (原生 Windows 底层 IOCP 异步网络栈支持)
+- [ ] **生态系统建设** (完善官方包注册表与基于 `toka.json` 的全局依赖解析器)
+- [ ] **编译器自举 (Self-Hosting)** (使用 Toka 完全重写目前的 C++ 前端)
+
+## 🌟 社区与生态 (Ecosystem & Community)
+
+看到社区用 Toka 构建出各种有趣的项目，我们感到非常兴奋！以下是一些值得一看的社区驱动项目：
+
+- [**toka-book**](https://github.com/lumicore-dev/toka-book)：一本详尽的、由社区驱动的 Toka 学习指南（灵感来源于“The Rust Book”）。
+- [**toka-ink**](https://github.com/lumicore-dev/toka-ink)：一个强大的、零依赖的终端 UI 组件库，完全使用 Toka 原生的字符串格式化能力构建。
+
+*(用 Toka 做了好玩的项目？欢迎提交 PR 把你的项目展示在这里！)*
 
 ## 📚 官方文档与资源
 

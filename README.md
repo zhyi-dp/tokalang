@@ -110,29 +110,44 @@ Toka makes normal `shape` members transparent by default, but heavily restricts 
 
 ## ✅ Project Status (Roadmap)
 
-We are actively building the compiler self-hosting capabilities.
+Toka currently possesses a complete language core and standard library. We are actively building the compiler's self-hosting capabilities.
 
-- [x] **Compiler Infrastructure** (Lexer, Parser, LLVM IR CodeGen)
-- [x] **Type System** (Primitive Types, Five-State Shapes, ADTs, Pattern Matching)
-- [x] **Memory Management** (Unique/Shared Pointers, Move Semantics, Deep Drop, Pointer Rebinding)
-- [x] **Object Oriented Features** (`impl` blocks, Trait System)
-- [x] **Control Flow Expressions** (Loop expressions, Targeted labels)
-- [x] **Modules & Visibility** (Physical/Logical imports, `pub` modifier)
-- [x] **Semantic Analysis (Sema)** *(Core Completed)*
+### 🚀 Completed Core Features
+- [x] **Native Cross-Platform Support** 
+    - [x] **Linux / macOS**: First-class support fully established.
+    - [x] **Windows**: Newly added support for MinGW/MSYS2 ABI, with core system and filesystem calls stabilized.
+- [x] **Compiler Infrastructure** (Lexer, Parser, LLVM 20 IR CodeGen)
+- [x] **Type System** (Primitive Types, Five-State Shape System, ADTs, Pattern Matching)
+- [x] **Memory Management** (Unique/Shared Smart Pointers, Move Semantics, Deep Drop, Pointer Rebinding)
+- [x] **Object-Oriented Features** (`impl` blocks, Trait System)
+- [x] **Control Flow Expressions** (Value-yielding loops, targeted `break`/`continue` labels)
+- [x] **Modules & Visibility** (Physical/Logical imports, fine-grained `pub` modifiers)
+- [x] **Semantic Analysis (Sema)**
     - [x] Strict Mutability Enforcement (`#` Check)
     - [x] Ownership & Borrowing Verification (Move Semantics)
     - [x] Explicit Null Safety (`is` operator)
-    - [x] Resource Safety Analysis (Enforced `drop` for resources)
+    - [x] Resource Safety Analysis (Enforced `@encap/drop` for resources)
 - [x] **Advanced Features**
-    - [x] **Generics / Templates**
+    - [x] **Generics / Templates** (Rigid and Morphic type deduction)
     - [x] **Concurrency** (OS Threads, Mutex, MPSC Channels, `async`/`await`)
-    - [x] **Standard Library** (I/O, Containers `String`/`Vec`/`Option`/`Result`)
+    - [x] **Standard Library** (Sys I/O, Sockets, and core containers `String`/`Vec`/`Option`/`Result`)
+- [x] **Developer Experience (DX) & Tooling**
+    - [x] **Built-in Build System** (`toka run`, `toka build`)
+    - [x] **Language Server (LSP)** (Official `tokalsp` integrated with VS Code for real-time diagnostics and highlighting)
 
 ### 🚧 Next Steps & Future Roadmap
-- [ ] **Cross-Platform Support** (Native Windows MSVC/MinGW ABI Support)
-- [ ] **Developer Experience (DX) Upgrades** (LSP Language Server for real-time diagnostics, autocomplete, and jump-to-definition)
-- [ ] **Ecosystem** (Official Package Registry & `toka.json` dependency resolver)
-- [ ] **Compiler Self-Hosting** (Rewriting the Toka Compiler frontend in Toka)
+- [ ] **Windows Platform Parity** (Native IOCP async networking stack support)
+- [ ] **Ecosystem & Package Management** (Official Package Registry & `toka.json` global dependency resolver)
+- [ ] **Compiler Self-Hosting** (Rewriting the current C++ frontend entirely in Toka)
+
+## 🌟 Ecosystem & Community
+
+We are thrilled to see the community building awesome things with Toka! Check out some of these community-driven projects:
+
+- [**toka-book**](https://github.com/lumicore-dev/toka-book): A comprehensive, community-driven guide to learning Toka, inspired by "The Rust Book".
+- [**toka-ink**](https://github.com/lumicore-dev/toka-ink): A powerful, zero-dependency Terminal UI component library built entirely with Toka's string formatting capabilities.
+
+*(Built something cool with Toka? Open a PR to add your project here!)*
 
 ## 📚 Documentation & Resources
 
