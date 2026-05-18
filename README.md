@@ -1,4 +1,4 @@
-[Website (tokalang.dev)](https://tokalang.dev) | [中文](README_zh.md)
+[Website (tokalang.dev)](https://tokalang.dev) | [Try Toka Online (Playground)](https://tokalang.dev/playground/) | [中文](README_zh.md)
 
 # Toka Programming Language
 

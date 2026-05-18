@@ -1,4 +1,4 @@
-[中文官网 (tokalang.dev/zh)](https://tokalang.dev/zh) | [English](README.md)
+[中文官网 (tokalang.dev/zh)](https://tokalang.dev/zh) | [在线运行体验 (Playground)](https://tokalang.dev/playground/) | [English](README.md)
 
 # Toka 编程语言
 
