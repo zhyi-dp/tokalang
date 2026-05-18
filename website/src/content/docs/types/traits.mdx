@@ -26,6 +26,24 @@ Common built-in Traits include but are not limited to:
 - `@Hash`: The type must have an inherent `.hash()` method or the system must have a built-in one for it.
 - `@PartialEq`: The type must support the `==` operator.
 - `@Sync` / `@Send`: The type holds mathematical proof of safety for cross-thread transfers or concurrent data reads.
+- `@ToString`: The basic string conversion contract, requiring types to implement `to_string(self) -> String` for simple `{}` interpolation.
+- `@ToFormat` (New Feature): The advanced formatting contract, requiring types to implement `to_string_fmt(self, fmt: view_str) -> String`. This enables custom formatting when paired with the `println` mini formatting language (e.g., `{:04}`, `{:.2}`).
+
+## String Conversion & Formatting Traits (@ToString & @ToFormat)
+
+Toka features an incredibly modern and type-safe `{}` placeholder string interpolation and formatting system, rejecting traditional C-style formatting specifiers. This mechanism relies on two built-in standard library traits:
+
+### 1. The `@ToString` Protocol
+Used for simple `{}` placeholder interpolation without formatting parameters.
+- **Requirement**: Inherent implementation of `to_string(self) -> String`.
+- **Under the Hood**: When you print a non-string type in `println("val: {}", val)`, Sema and CodeGen dynamically locate the inherent `@ToString` trait bound.
+- **Zero-Copy Specialization**: If the target value is already a `String` or a `view_str`, Toka automatically bypasses trait calls and employs an optimized **Zero-Copy** write path, completely avoiding redundant heap allocations or cloning.
+
+### 2. The `@ToFormat` Protocol
+Used for placeholder interpolation with formatting specifiers following a colon (e.g., `{:specifier}`).
+- **Requirement**: Inherent implementation of `to_string_fmt(self, fmt: view_str) -> String`.
+- **Under the Hood**: When you use specifiers like `{:04}` (zero-padding), `{:x}` (hexadecimal), or `{:.2}` (floating-point precision), the compiler verifies whether the type implements `@ToFormat`. If validated, CodeGen slices the specifier after `:` at compile time, packages it as a temporary `view_str` (zero cost), injects it as the second argument to `to_string_fmt`, and delegates the final rendering to standard C-bridged formatting buffers.
+- **Custom Shape Formatting**: You can implement `@ToFormat` for any custom Shape to parse your own domain-specific format specifiers (e.g., teaching your struct to serialize to JSON when it sees `{:json}`).
 
 ## @encap: The Heart of Anti-Tampering
 

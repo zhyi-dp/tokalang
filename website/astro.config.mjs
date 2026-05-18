@@ -52,6 +52,7 @@ export default defineConfig({
 						{ label: 'Soul vs Identity', translations: { 'zh-CN': '灵与壳 (Soul vs Identity)' }, slug: 'concepts/soul-identity' },
 						{ label: 'Error Handling', translations: { 'zh-CN': '错误处理与传播 (!)' }, slug: 'concepts/error-handling' },
 						{ label: 'Pattern Matching', translations: { 'zh-CN': '模式匹配 (Match)' }, slug: 'concepts/pattern-matching' },
+						{ label: 'String Formatting & Printing', translations: { 'zh-CN': '格式化与打印 (println)' }, slug: 'concepts/printing' },
 					],
 				},
 				{

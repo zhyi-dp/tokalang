@@ -1,0 +1,99 @@
+---
+title: 格式化与打印 (println)
+description: Toka 语言中的现代 `{}` 占位符打印与精细化格式控制迷你语言。
+---
+
+Toka 拥有一套极其现代、安全且高性能的字符串格式化与输出系统。我们彻底抛弃了古老的 C 风格 `%d`/`%s` 占位符，取而代之的是更加直观、具备编译期安全类型检查的 `{}` 占位符体系。
+
+## 基础打印 (`println`)
+
+在 Toka 中使用打印，必须先从标准库导入 `std/io::println`：
+
+```toka
+import std/io::println
+
+pub fn main() -> i32 {
+    println("Hello, Toka!")
+    return 0
+}
+```
+
+## 占位符插值
+
+使用 `{}` 作为基础占位符，可传入任意实现了 `@ToString` 特征的实体类型进行插值：
+
+```toka
+auto name = "Alice"
+auto age = 18
+println("姓名: {}, 年龄: {}", name, age)
+```
+
+### 零拷贝特化 (Zero-Copy Optimization)
+为了极致的运行效率，当插值目标本身为 `String` 或 `view_str` 时，`println` 宏在底层绝不触发任何无意义的克隆或额外的堆内存分配，而是直接以降级指针的形式执行极速写入。
+
+---
+
+## 精细格式化迷你语言 (Mini Formatting Language)
+
+为了满足进制控制、前导补零以及浮点数精度的精细控制需求，Toka 支持形如 `{:指令}` 的**精细格式化迷你语言**。
+
+### 1. 整数前导补零 (`{:0N}`)
+用于控制输出的最小宽度，并在不足时用前导零填充：
+
+```toka
+auto val = 42
+println("补零输出: {:04}", val) // 输出: 0042
+```
+
+### 2. 进制转换 (`{:x}` / `{:X}` / `{:o}`)
+支持将整数格式化为十六进制（大小写）或八进制：
+
+```toka
+auto hex_val: usize = 0xABCD
+println("小写十六进制: 0x{:x}", hex_val) // 输出: 0xabcd
+println("大写十六进制: 0x{:X}", hex_val) // 输出: 0xABCD
+```
+
+### 3. 浮点精度控制 (`{:.N}`)
+用于精确控制浮点数（`f32`/`f64`）输出的小数位数。**注意：占位符中无需携带冗余的类型字符（如 `f`），编译器会根据数据类型自动完成推导**。
+
+```toka
+auto pi = 3.1415926
+println("保留两位小数: {:.2}", pi) // 输出: 3.14
+println("保留四位小数: {:.4}", pi) // 输出: 3.1416
+```
+
+---
+
+## 底层契约：`@ToString` 与 `@ToFormat`
+
+这套现代的格式化机制并非硬编码，而是由底层的标准库特征（Trait）驱动：
+
+| 占位符形式 | 依赖特征 | 要求实现的方法 | 运行机制 |
+| :--- | :--- | :--- | :--- |
+| `{}` | `@ToString` | `to_string(self) -> String` | Sema 和 CodeGen 会自动搜寻固有实现，并生成转换调用。 |
+| `{:指令}` | `@ToFormat` | `to_string_fmt(self, fmt: view_str) -> String` | 编译器会在编译期切片截取 `:` 之后的指令（如 `"04"`），将其打包为临时 `view_str` 传给该方法。 |
+
+### 自定义 Shape 的格式化输出
+得益于 `@ToFormat` 的高度解耦，您可以为任意自定义数据结构定制专属的格式化指令：
+
+```toka
+shape Point(x: i32, y: i32)
+
+impl Point {
+    pub fn to_string_fmt(self, fmt: view_str) -> String {
+        if fmt == s"json" {
+            // 自定义 JSON 格式化输出
+            return String::format("{{\"x\": {}, \"y\": {}}}", self.x, self.y)
+        }
+        // 默认返回普通坐标格式
+        return String::format("({}, {})", self.x, self.y)
+    }
+}
+```
+
+在主程序中即可轻松使用：
+```toka
+auto p = Point(x = 10, y = 20)
+println("JSON 格式: {:json}", p) // 输出: {"x": 10, "y": 20}
+```
