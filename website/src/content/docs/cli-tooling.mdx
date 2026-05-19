@@ -12,7 +12,7 @@ Toka ships with a powerful, zero-configuration command-line manager designed to 
 Starting a new project in Toka is instantaneous and automatically enforces best practices.
 
 ### 1. `toka new <name>`
-Creates a new **Executable Application** project. It automatically generates a `src/main.tk` entry point and a `Project.tk` file configured for building an executable binary.
+Creates a new **Executable Application** project. It automatically generates a `src/main.tk` entry point and a `package.tk` file configured for building an executable binary.
 
 ```bash
 toka new my_app
@@ -30,7 +30,7 @@ toka new my_lib --lib
 ## Development & Build
 
 ### 1. `toka run`
-Instantly compiles and executes your project. It looks for your executable definition in `Project.tk` and runs it.
+Instantly compiles and executes your project. It looks for your executable definition in `package.tk` and runs it.
 
 ### 2. `toka run <file.tk>`
 Operates as a **Single File Script Runner**. Use this if you just want to quickly test a single `.tk` file without setting up a full project directory.
@@ -56,7 +56,7 @@ toka test
 ```
 
 ### 2. `toka fmt`
-Automatically formats all Toka code in your project. It safely traverses `src/`, `lib/`, `tests/`, and `Project.tk` to ensure your codebase strictly adheres to the official Toka Style Guide.
+Automatically formats all Toka code in your project. It safely traverses `src/`, `lib/`, `tests/`, and `package.tk` to ensure your codebase strictly adheres to the official Toka Style Guide.
 
 ---
 
