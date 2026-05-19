@@ -1197,8 +1197,7 @@ FunctionDecl *Sema::instantiateGenericFunction(
   }
 
   // Recursion Guard
-  static int depth = 0;
-  if (depth > 100) {
+  if (RecursionDepth > 100) {
     DiagnosticEngine::report(
         getLoc(CallSite), DiagID::ERR_GENERIC_RECURSION_LIMIT, Template->Name);
     HasError = true;
@@ -1206,13 +1205,12 @@ FunctionDecl *Sema::instantiateGenericFunction(
   }
 
   // Check Cache
-  static std::map<std::string, FunctionDecl *> InstantiationCache;
   if (InstantiationCache.count(mangledName)) {
     return InstantiationCache[mangledName];
   }
 
   // Instantiate
-  depth++;
+  RecursionDepth++;
 
   // 1. Clone
   auto ClonedNode = Template->clone();
@@ -1480,7 +1478,7 @@ FunctionDecl *Sema::instantiateGenericFunction(
   checkFunction(Instance);
 
   exitScope();
-  depth--;
+  RecursionDepth--;
 
   InstantiationCache[mangledName] = Instance;
   return Instance;

@@ -434,7 +434,6 @@ Sema::instantiateGenericShape(std::shared_ptr<ShapeType> GenericShape) {
   // We use ShapeMap as the primary cache for instantiated decls.
   // We also have a GenericShapeCache if we want to return the same ShapeType
   // object too.
-  static std::map<std::string, std::shared_ptr<toka::Type>> GenericShapeCache;
   if (GenericShapeCache.count(mangledName)) {
     return std::dynamic_pointer_cast<ShapeType>(
         GenericShapeCache[mangledName]->withAttributes(

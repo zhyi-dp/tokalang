@@ -213,6 +213,10 @@ private:
   // Value: Vector of Pointers to the Template ImplDecls (owned by Module)
   std::map<std::string, std::vector<ImplDecl *>> GenericImplMap;
 
+  std::map<std::string, FunctionDecl *> InstantiationCache;
+  std::map<std::string, std::shared_ptr<toka::Type>> GenericShapeCache;
+  int RecursionDepth = 0;
+
   void analyzeShapes(Module &M);
   void checkShapeSovereignty();
   void computeShapeProperties(const std::string &shapeName, Module &M);

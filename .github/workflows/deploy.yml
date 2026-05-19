@@ -47,6 +47,7 @@ jobs:
             ../src/Basic/SourceManager.cpp \
             ../src/Type.cpp \
             -s WASM=1 \
+            -s ALLOW_MEMORY_GROWTH=1 \
             -s EXPORTED_RUNTIME_METHODS='["ccall", "cwrap", "stringToUTF8", "lengthBytesUTF8", "UTF8ToString"]' \
             -s EXPORTED_FUNCTIONS='["_check_toka_code", "_malloc", "_free"]' \
             --embed-file ../lib@lib/ \
