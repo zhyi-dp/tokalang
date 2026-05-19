@@ -191,7 +191,8 @@ Token Lexer::identifier() {
   int startCol = m_Column;
   int startLine = m_Line;
 
-  while (isAlpha(peek()) || isDigit(peek())) {
+  while (isAlpha(peek()) || isDigit(peek()) || 
+        (peek() == '-' && (isAlpha(peekNext()) || isDigit(peekNext())))) {
     advance();
   }
   std::string text(start, m_Current);

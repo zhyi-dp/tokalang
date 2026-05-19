@@ -366,7 +366,7 @@ impl<'T> VecIterator<'T> {
             }
             
             self.pos += 1
-            return Option<'T>::Some(self.buf[self.pos-1])
+            return Option<'T>::Some(self.buf[self.pos - 1])
         }
     }
 
