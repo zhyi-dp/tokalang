@@ -209,7 +209,10 @@ void Sema::registerGlobals(Module &M) {
       std::vector<std::string> suffixes = {
         "/" + p,
         "/" + p + ".tk",
-        "/" + p + "/mod.tk"
+        "/" + p + "/mod.tk",
+        p,
+        p + ".tk",
+        p + "/mod.tk"
       };
       
       bool matched = false;
