@@ -115,10 +115,23 @@ h1 span {
 }
 
 .editor-pane {
-    flex: 6;
+    flex: 0 0 60%;
     border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
+}
+
+.resizer {
+    width: 6px;
+    background: var(--bg-dark);
+    cursor: col-resize;
+    position: relative;
+    z-index: 10;
+    transition: background 0.2s;
+}
+
+.resizer:hover, .resizer.resizing {
+    background: var(--accent);
 }
 
 .CodeMirror {
@@ -130,7 +143,7 @@ h1 span {
 }
 
 .output-pane {
-    flex: 4;
+    flex: 1;
     display: flex;
     flex-direction: column;
     background: var(--bg-panel);
