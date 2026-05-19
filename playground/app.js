@@ -2,64 +2,99 @@ const EXAMPLES = {
     "hello": `import std/io::println
 
 fn main() -> i32 {
-    println("Hello, Toka Playground!")
+    println("Welcome to the Toka Playground!")
+    
+    // Toka variables are declared with 'auto'
+    auto name = "World"
+    println("Hello, {}!", name)
+    
     return 0
 }`,
-    "websocket": `import std/io::println
-import std/net/http
-import std/net/ws
+    "smart_ptr": `import std/io::println
 
-fn handle_connection(req: http::Request, ws^: ws::WebSocket) {
-    println("Client connected!")
-    while true {
-        let msg = await ws.recv()
-        if msg == none { break }
-        
-        // Echo back
-        await ws.send(msg)
+shape Data(id: i32)
+
+// Toka uses ~ for shared (reference counted) pointers
+fn create_data(id: i32) -> ~Data {
+    auto ~p = new Data(id = id)
+    println("Created data with id: {}", p.id)
+    return ~p 
+}
+
+fn consume_data(~p: Data) {
+    println("Consuming data with id: {}", p.id)
+}
+
+fn main() -> i32 {
+    auto ~p1 = create_data(101)
+    
+    // Shared pointers are reference counted automatically
+    consume_data(~p1)
+    
+    println("After consume_data, p1 is still valid: id={}", p1.id)
+    
+    // p1 will be automatically dropped here!
+    return 0
+}`,
+    "shape_match": `import std/io::println
+
+// Tagged Union (Enum) Definition
+shape MyResult(
+    Ok(i32) = 0 | 
+    Err(i32) = 1
+)
+
+fn process(val: i32) -> i32 {
+    auto res = MyResult::Ok(val)
+    
+    // match expression with value-merging logic
+    auto outcome = match res {
+        auto MyResult::Ok(v) => {
+            pass v * 2
+        }
+        auto MyResult::Err(e) => {
+            pass 0
+        }
     }
+    
+    return outcome
 }
 
 fn main() -> i32 {
-    println("Starting WebSocket server on port 8080...")
-    // In Playground this is syntax-checked only, won't actually bind port
+    auto b = process(10)
+    println("Result: {}", b)
     return 0
 }`,
-    "async_http": `import std/io::println
-import std/net/http
+    "async_demo": `import std/task::{sleep, block_on}
+import std/io::println
 
-async fn handler(req: http::Request) -> http::Response {
-    return http::Response(
-        status=200,
-        body="<h1>Hello from Toka Async!</h1>"
-    )
-}
-
-fn main() -> i32 {
-    let server^ = new http::Server(port=3000)
-    server.router.get("/", handler)
-    
-    // server.listen() blocks until stopped
+fn worker_a() -> async i32 {
+    println(" --> [Worker A] Resumed and running background task!")
     return 0
-}`,
-    "linked_list": `import std/io::println
-
-shape Node {
-    val: i32
-    next: ^Node?
 }
 
-fn main() -> i32 {
-    auto head^ = new Node(val=10, next=null)
-    auto second^ = new Node(val=20, next=null)
+fn worker_b() -> async i32 {
+    println(" --> [Worker B] Resumed and running background task!")
+    return 0
+}
+
+fn event_loop_sentinel() -> async i32 {
+    println("--- Queue Start Discharging ---")
+    sleep(100) 
+    println("--- Queue Exhausted ---")
+    return 0
+}
+
+pub fn main() -> async i32 {
+    println("[Async Main] Spawning background Workers...")
     
-    // Move 'second' into 'head.next'
-    head.next = second
+    worker_a().start
+    worker_b().start
     
-    // Ownership transferred! second is no longer valid here
-    // let x = second.val // This would be a compiler error!
+    // Block current coroutine and drain the event loop
+    block_on<i32>(event_loop_sentinel())
     
-    println("Success!")
+    println("[Async Main] All done!")
     return 0
 }`
 };
