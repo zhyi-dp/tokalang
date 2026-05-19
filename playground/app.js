@@ -131,34 +131,6 @@ document.addEventListener("DOMContentLoaded", () => {
         clearTimeout(checkTimeout);
         checkTimeout = setTimeout(runCheck, 500);
     });
-
-    // Add resizer logic
-    const resizer = document.getElementById("resizer");
-    const editorPane = document.getElementById("editor-pane");
-    let isResizing = false;
-
-    resizer.addEventListener("mousedown", (e) => {
-        isResizing = true;
-        resizer.classList.add("resizing");
-        document.body.style.cursor = "col-resize";
-    });
-
-    document.addEventListener("mousemove", (e) => {
-        if (!isResizing) return;
-        const containerWidth = document.querySelector(".workspace").offsetWidth;
-        let newWidth = (e.clientX / containerWidth) * 100;
-        if (newWidth < 20) newWidth = 20;
-        if (newWidth > 80) newWidth = 80;
-        editorPane.style.flex = `0 0 ${newWidth}%`;
-    });
-
-    document.addEventListener("mouseup", () => {
-        if (isResizing) {
-            isResizing = false;
-            resizer.classList.remove("resizing");
-            document.body.style.cursor = "default";
-        }
-    });
 });
 
 // The Module object is populated by Emscripten
