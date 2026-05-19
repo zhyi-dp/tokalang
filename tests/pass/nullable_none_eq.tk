@@ -1,0 +1,20 @@
+import std/io::println
+
+fn main() -> i32 {
+    auto y : i32? = none
+    
+    if y == none {
+        println("y == none works!")
+    } else {
+        assert(false, "y should be none!")
+    }
+
+    auto z : i32? = 100
+    if z != none {
+        println("z != none works!")
+    } else {
+        assert(false, "z should not be none!")
+    }
+
+    return 0
+}
