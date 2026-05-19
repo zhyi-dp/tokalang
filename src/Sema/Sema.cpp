@@ -200,12 +200,28 @@ void Sema::registerGlobals(Module &M) {
     // We need to resolve PhysicalPath to what's in ModuleMap
     // The ModuleMap is keyed by whatever FileName was set in main.cpp
     for (auto &[path, scope] : ModuleMap) {
-      if (path == Imp->PhysicalPath ||
-          (path.find(Imp->PhysicalPath) != std::string::npos &&
-           path.length() > Imp->PhysicalPath.length())) {
+      if (path == Imp->PhysicalPath) {
         target = &scope;
         break;
       }
+      
+      std::string p = Imp->PhysicalPath;
+      std::vector<std::string> suffixes = {
+        "/" + p,
+        "/" + p + ".tk",
+        "/" + p + "/mod.tk"
+      };
+      
+      bool matched = false;
+      for (const auto &suffix : suffixes) {
+        if (path.length() >= suffix.length() &&
+            path.compare(path.length() - suffix.length(), suffix.length(), suffix) == 0) {
+          target = &scope;
+          matched = true;
+          break;
+        }
+      }
+      if (matched) break;
     }
 
     if (!target) {
