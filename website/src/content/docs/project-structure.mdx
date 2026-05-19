@@ -15,7 +15,7 @@ If you are building an application that will be compiled into an executable, the
 
 ```text
 my-app/
-├── Project.tk        # Build system configuration
+├── package.tk        # Build system configuration
 ├── src/
 │   ├── main.tk       # The main entry point containing pub fn main() -> i32
 │   ├── utils.tk      # Application-specific logic
@@ -56,7 +56,7 @@ Instead, flatten your library components and group them under a unified namespac
 
 ```text
 my-lib/
-├── Project.tk
+├── package.tk
 ├── lib/
 │   └── mylib/           # The unified namespace directory
 │       ├── button.tk    # Clean, intuitive filenames
@@ -79,5 +79,5 @@ my-lib/
 ## 3. General Conventions
 
 - **File Extensions**: All Toka source files must use the `.tk` extension.
-- **Snake Case**: Directory and file names should use `snake_case` (e.g., `file_reader.tk`, `network_client/`).
+- **Snake Case (Recommended)**: Directory and file names should primarily use `snake_case` (e.g., `file_reader.tk`). Note: Toka also fully supports `kebab-case` (e.g., `network-client/`) if you prefer, though `snake_case` is the community standard.
 - **Constant Extraction**: If your library defines many constants (like ANSI color codes or mathematical constants), extract them into a dedicated file (e.g., `colors.tk` or `constants.tk`) rather than intermingling them with logic.
