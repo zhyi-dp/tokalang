@@ -1478,8 +1478,10 @@ void CodeGen::genShape(const ShapeDecl *sh) {
         error(sh, "Unresolved union member type '" + member.Type + "' in shape '" + sh->Name + "'");
         return;
       }
-      maxSize =
-          std::max(maxSize, (uint64_t)DL.getTypeAllocSize(t).getFixedValue());
+      if (!t->isVoidTy()) {
+        maxSize =
+            std::max(maxSize, (uint64_t)DL.getTypeAllocSize(t).getFixedValue());
+      }
       maxAlign = std::max(maxAlign, (uint64_t)DL.getABITypeAlign(t).value());
     }
     // Model as [maxSize x i8]

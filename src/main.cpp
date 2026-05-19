@@ -395,6 +395,40 @@ int main(int argc, char **argv) {
   if (verboseMode) fprintf(stderr, "CodeGen instantiated.\n");
   fflush(stderr);
 
+  // --- Initialize TargetMachine & DataLayout early to avoid CodeGen crashes ---
+  llvm::InitializeAllTargetInfos();
+  llvm::InitializeAllTargets();
+  llvm::InitializeAllTargetMCs();
+  llvm::InitializeAllAsmParsers();
+  llvm::InitializeAllAsmPrinters();
+
+  auto TargetTriple = llvm::sys::getDefaultTargetTriple();
+  std::string Error;
+  llvm::Triple TheTriple(TargetTriple);
+  auto Target = llvm::TargetRegistry::lookupTarget("", TheTriple, Error);
+  if (!Target) {
+    llvm::errs() << "Target lookup error: " << Error;
+    return 1;
+  }
+
+  auto CPU = "generic";
+  auto Features = "";
+  llvm::TargetOptions opt;
+  std::optional<llvm::Reloc::Model> RM = llvm::Reloc::PIC_;
+#if defined(_WIN32) || defined(__MINGW32__)
+  auto TargetMachine = Target->createTargetMachine(llvm::Triple(TargetTriple), CPU, Features, opt, RM);
+#else
+  auto TargetMachine = Target->createTargetMachine(TargetTriple, CPU, Features, opt, RM);
+#endif
+
+  codegen.getModule()->setDataLayout(TargetMachine->createDataLayout());
+#if defined(_WIN32) || defined(__MINGW32__)
+  codegen.getModule()->setTargetTriple(llvm::Triple(TargetTriple));
+#else
+  codegen.getModule()->setTargetTriple(TargetTriple);
+#endif
+  // ----------------------------------------------------------------------------
+
   std::unique_ptr<toka::Module> genericModule = sema.extractGenericRegistry();
   
   if (verboseMode) fprintf(stderr, "Pass 1: Discovery (Registration)...\n");
@@ -500,38 +534,7 @@ int main(int argc, char **argv) {
     if (verboseMode) fprintf(stderr, "Initializing TargetMachine for native emission...\n");
     fflush(stderr);
 
-    llvm::InitializeAllTargetInfos();
-    llvm::InitializeAllTargets();
-    llvm::InitializeAllTargetMCs();
-    llvm::InitializeAllAsmParsers();
-    llvm::InitializeAllAsmPrinters();
-
-    auto TargetTriple = llvm::sys::getDefaultTargetTriple();
-    std::string Error;
-    llvm::Triple TheTriple(TargetTriple);
-    auto Target = llvm::TargetRegistry::lookupTarget("", TheTriple, Error);
-
-    if (!Target) {
-      llvm::errs() << "Target lookup error: " << Error;
-      return 1;
-    }
-
-    auto CPU = "generic";
-    auto Features = "";
-    llvm::TargetOptions opt;
-    std::optional<llvm::Reloc::Model> RM = llvm::Reloc::PIC_;
-#if defined(_WIN32) || defined(__MINGW32__)
-    auto TargetMachine = Target->createTargetMachine(llvm::Triple(TargetTriple), CPU, Features, opt, RM);
-#else
-    auto TargetMachine = Target->createTargetMachine(TargetTriple, CPU, Features, opt, RM);
-#endif
-
-    codegen.getModule()->setDataLayout(TargetMachine->createDataLayout());
-#if defined(_WIN32) || defined(__MINGW32__)
-    codegen.getModule()->setTargetTriple(llvm::Triple(TargetTriple));
-#else
-    codegen.getModule()->setTargetTriple(TargetTriple);
-#endif
+    // TargetMachine is already initialized above.
 
     std::error_code EC;
     llvm::raw_fd_ostream dest(objFile, EC, llvm::sys::fs::OF_None);
