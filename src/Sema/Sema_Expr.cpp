@@ -393,7 +393,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
   }
 
   if (auto *None = dynamic_cast<NoneExpr *>(E)) {
-    return toka::Type::fromString("void");
+    return toka::Type::fromString("none");
   }
 
   if (dynamic_cast<CharLiteralExpr *>(E)) {

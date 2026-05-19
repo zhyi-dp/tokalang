@@ -209,7 +209,7 @@ public:
   bool isStringType() const override { return Name == "cstring"; }
   bool isAddrType() const override { return Name == "Addr"; }
   bool isOAddrType() const override { return Name == "OAddr"; }
-  bool isNullType() const override { return Name == "null"; }
+  bool isNullType() const override { return Name == "null" || Name == "none"; }
 };
 
 // --- Pointer Types ---

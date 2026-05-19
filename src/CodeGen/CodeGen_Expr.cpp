@@ -743,7 +743,20 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
     }
 
     // Special Case: 'expr is nullptr' (Null check)
-    if (dynamic_cast<const NullExpr *>(bin->RHS.get())) {
+    if (dynamic_cast<const NullExpr *>(bin->RHS.get()) ||
+        dynamic_cast<const NoneExpr *>(bin->RHS.get())) {
+
+      // Handle Nullable Soul Wrapper ({ T, i1 })
+      if (lhsTy->isStructTy() && lhsTy->getStructNumElements() == 2 &&
+          lhsTy->getStructElementType(1)->isIntegerTy(1)) {
+        llvm::Value *isPresent = m_Builder.CreateExtractValue(lhsVal, 1, "is_present");
+        if (bin->Op == "==") {
+          return m_Builder.CreateNot(isPresent, "is_none");
+        } else {
+          return isPresent;
+        }
+      }
+
       while (lhsVal->getType()->isStructTy() &&
              lhsVal->getType()->getStructNumElements() == 1) {
         lhsVal = m_Builder.CreateExtractValue(lhsVal, 0);
@@ -751,12 +764,16 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
 
       if (lhsVal->getType()->isIntegerTy()) {
         // ADDR0 is null?
-        return m_Builder.CreateICmpEQ(
+        llvm::Value *cmp = m_Builder.CreateICmpEQ(
             lhsVal, llvm::ConstantInt::get(lhsVal->getType(), 0),
             "is_null_int");
+        if (bin->Op == "!=") return m_Builder.CreateNot(cmp, "is_not_null_int");
+        return cmp;
       }
 
-      return m_Builder.CreateIsNull(lhsVal, "is_null");
+      llvm::Value *cmp = m_Builder.CreateIsNull(lhsVal, "is_null");
+      if (bin->Op == "!=") return m_Builder.CreateNot(cmp, "is_not_null");
+      return cmp;
     }
 
     // Implicit Case: 'expr is Type' or 'expr is pattern' (Not-Null check)
@@ -767,6 +784,7 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
   }
 
   // Standard Arithmetic and Comparisons
+  fprintf(stderr, "[genBinaryExpr] Start LHS\n"); fflush(stderr);
   PhysEntity lhs_ent = genExpr(bin->LHS.get()).load(m_Builder);
   llvm::Value *lhs = lhs_ent.load(m_Builder);
   if (!lhs) {
@@ -778,8 +796,10 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
     return nullptr;
   }
 
+  fprintf(stderr, "[genBinaryExpr] Start RHS\n"); fflush(stderr);
   PhysEntity rhs_ent = genExpr(bin->RHS.get()).load(m_Builder);
   llvm::Value *rhs = rhs_ent.load(m_Builder);
+  fprintf(stderr, "[genBinaryExpr] RHS loaded\n"); fflush(stderr);
   if (!rhs) {
     return nullptr;
   }
@@ -798,20 +818,20 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
 
   auto unwrapSmartPtr = [&](llvm::Value *val,
                             const Expr *expr) -> llvm::Value * {
-    if (!val || !expr || !expr->ResolvedType)
+    fprintf(stderr, "  [unwrapSmartPtr] start\n"); fflush(stderr);
+    if (!val || !expr || !expr->ResolvedType) {
+      fprintf(stderr, "  [unwrapSmartPtr] return early\n"); fflush(stderr);
       return val;
+    }
 
+    fprintf(stderr, "  [unwrapSmartPtr] val->getType()\n"); fflush(stderr);
     llvm::Type *currentTy = val->getType();
     bool isTargetStruct = currentTy->isStructTy();
     bool isTargetPtr = currentTy->isPointerTy();
 
-    // If we differ from ResolvedType (e.g. Sema says i32, we have {i32*,
-    // count*} or i32*) Simple heuristic: If we have a mismatch with the OTHER
-    // operand that is solved by dereferencing OR if the ResolvedType itself
-    // is not a SmartPointer/Pointer.
-
-    // Check if expr->ResolvedType is NOT a pointer/smart-ptr, but we
-    // represent one.
+    fprintf(stderr, "  [unwrapSmartPtr] ResolvedType = %s\n", expr->ResolvedType->toString().c_str()); fflush(stderr);
+    fprintf(stderr, "  [unwrapSmartPtr] isNullType = %d\n", expr->ResolvedType->isNullType()); fflush(stderr);
+    fprintf(stderr, "  [unwrapSmartPtr] semaIsValue checks\n"); fflush(stderr);
     bool semaIsValue = !expr->ResolvedType->isPointer() &&
                        !expr->ResolvedType->isReference() &&
                        !expr->ResolvedType->isSmartPointer() &&
@@ -819,11 +839,17 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
                        !expr->ResolvedType->isAddrType() &&
                        !expr->ResolvedType->isOAddrType();
 
+    fprintf(stderr, "  [unwrapSmartPtr] semaIsValue = %d\n", semaIsValue); fflush(stderr);
     if (semaIsValue) {
       if (isTargetStruct && currentTy->getStructNumElements() == 2) {
         // Shared Pointer Handle: Extract Data Ptr then Load
         llvm::Value *dataPtr =
             m_Builder.CreateExtractValue(val, 0, "smart_deref_ptr");
+            
+        if (!dataPtr->getType()->isPointerTy()) {
+          return dataPtr;
+        }
+
         // Check if loading is valid (opaque pointers make dataPtr typeless,
         // need Element Type) We rely on ResolvedType to provide the Element
         // Type
@@ -845,12 +871,38 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
     return val;
   };
 
+  if (bin->Op == "==" || bin->Op == "!=") {
+    if (dynamic_cast<const NoneExpr *>(bin->RHS.get()) || dynamic_cast<const NullExpr *>(bin->RHS.get())) {
+      if (lhs->getType()->isStructTy() && lhs->getType()->getStructNumElements() == 2 &&
+          lhs->getType()->getStructElementType(1)->isIntegerTy(1)) {
+        llvm::Value *isPresent = m_Builder.CreateExtractValue(lhs, 1, "is_present");
+        if (bin->Op == "==") return m_Builder.CreateNot(isPresent, "is_none");
+        return isPresent;
+      }
+    }
+    if (dynamic_cast<const NoneExpr *>(bin->LHS.get()) || dynamic_cast<const NullExpr *>(bin->LHS.get())) {
+      if (rhs->getType()->isStructTy() && rhs->getType()->getStructNumElements() == 2 &&
+          rhs->getType()->getStructElementType(1)->isIntegerTy(1)) {
+        llvm::Value *isPresent = m_Builder.CreateExtractValue(rhs, 1, "is_present");
+        if (bin->Op == "==") return m_Builder.CreateNot(isPresent, "is_none");
+        return isPresent;
+      }
+    }
+  }
+
+  fprintf(stderr, "[genBinaryExpr] unwrapping smart ptr LHS...\n"); fflush(stderr);
   lhs = unwrapSmartPtr(lhs, bin->LHS.get());
+  fprintf(stderr, "[genBinaryExpr] unwrapping smart ptr RHS...\n"); fflush(stderr);
   rhs = unwrapSmartPtr(rhs, bin->RHS.get());
+  fprintf(stderr, "[genBinaryExpr] unwrap complete\n"); fflush(stderr);
 
   // Refresh types after unwrap
   lhsType = lhs->getType();
   rhsType = rhs->getType();
+
+  if (bin->Op == "==" || bin->Op == "!=") {
+    // None check moved above unwrapSmartPtr
+  }
 
   bool isPtrArith =
       (lhsType->isPointerTy() && rhsType->isIntegerTy()) ||
@@ -895,6 +947,7 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
       if (lhsType != rhsType) {
         std::string ls, rs;
         llvm::raw_string_ostream los(ls), ros(rs);
+        fprintf(stderr, "[genBinaryExpr] Type mismatch handling...\n"); fflush(stderr);
         lhsType->print(los);
         rhsType->print(ros);
         error(bin, "Type mismatch in binary expression: " + ls + " vs " + rs);
@@ -902,6 +955,7 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
       }
     }
   }
+  fprintf(stderr, "[genBinaryExpr] Zero-Payload check...\n"); fflush(stderr);
   // [Fix] Zero-Payload Union Equality (Stage 0 Enums)
   // If the types are simple structs with exactly one integer field (discriminant), extract them for comparison.
   if (lhsType->isStructTy() && rhsType->isStructTy() && (bin->Op == "==" || bin->Op == "!=")) {
@@ -919,12 +973,14 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
       !lhsType->isFloatingPointTy()) {
     std::string s;
     llvm::raw_string_ostream os(s);
+    fprintf(stderr, "[genBinaryExpr] Invalid type handling...\n"); fflush(stderr);
     lhsType->print(os);
     error(bin, "Invalid type for comparison: " + os.str() +
                    ". Comparisons are only allowed for scalars "
                    "(integers/pointers).");
     return nullptr;
   }
+  fprintf(stderr, "[genBinaryExpr] Final cmp...\n"); fflush(stderr);
 
   // Final check to avoid assertion
 

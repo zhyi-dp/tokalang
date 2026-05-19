@@ -902,7 +902,7 @@ bool Sema::isTypeCompatible(std::shared_ptr<toka::Type> Target,
   }
 
   // [Chapter 6 Extension] Nullable Soul Compatibility (none -> T?)
-  if (S->isVoid() && Target->IsNullable && !Target->isPointer() &&
+  if ((S->isVoid() || S->isNullType()) && Target->IsNullable && !Target->isPointer() &&
       !Target->isSmartPointer() && !Target->isReference()) {
     return true;
   }
