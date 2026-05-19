@@ -2,8 +2,6 @@
 
 # tool/test_single.sh - Run a single Toka test case
 
-export ASAN_OPTIONS=detect_container_overflow=0,detect_leaks=0
-
 # Auto-Compile Compiler if needed
 make -C build -j8
 if [ $? -ne 0 ]; then

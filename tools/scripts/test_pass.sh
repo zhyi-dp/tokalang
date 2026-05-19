@@ -1,8 +1,6 @@
 #!/bin/bash
 # tool/test_pass.sh - Parallel Test Runner
 
-export ASAN_OPTIONS=detect_container_overflow=0,detect_leaks=0
-
 # --- Configuration ---
 TOKAC="./build/bin/tokac"
 # LLI is no longer used. We natively compile the tests to binary.
@@ -167,7 +165,6 @@ echo "---------------------------------"
 RESULTS_FILE=$(mktemp)
 
 # Run parallel tests based on available cores
-export ASAN_OPTIONS=detect_container_overflow=0,detect_leaks=0
 find tests/pass -name "*.tk" -print0 | xargs -0 -P $CORES -n 1 "$0" --worker | tee "$RESULTS_FILE"
 
 # Stats

@@ -118,6 +118,10 @@ bool linkWithLLD(std::string objFile, std::vector<std::string> extraObjs, std::s
     return system(cmd.c_str()) == 0;
 #endif
 }
+extern "C" const char *__asan_default_options() {
+  return "detect_leaks=0";
+}
+
 bool verboseMode = false;
 bool g_JsonDiagnostics = false;
 

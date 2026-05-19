@@ -784,7 +784,6 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
   }
 
   // Standard Arithmetic and Comparisons
-  fprintf(stderr, "[genBinaryExpr] Start LHS\n"); fflush(stderr);
   PhysEntity lhs_ent = genExpr(bin->LHS.get()).load(m_Builder);
   llvm::Value *lhs = lhs_ent.load(m_Builder);
   if (!lhs) {
@@ -796,10 +795,8 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
     return nullptr;
   }
 
-  fprintf(stderr, "[genBinaryExpr] Start RHS\n"); fflush(stderr);
   PhysEntity rhs_ent = genExpr(bin->RHS.get()).load(m_Builder);
   llvm::Value *rhs = rhs_ent.load(m_Builder);
-  fprintf(stderr, "[genBinaryExpr] RHS loaded\n"); fflush(stderr);
   if (!rhs) {
     return nullptr;
   }
@@ -818,20 +815,14 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
 
   auto unwrapSmartPtr = [&](llvm::Value *val,
                             const Expr *expr) -> llvm::Value * {
-    fprintf(stderr, "  [unwrapSmartPtr] start\n"); fflush(stderr);
     if (!val || !expr || !expr->ResolvedType) {
-      fprintf(stderr, "  [unwrapSmartPtr] return early\n"); fflush(stderr);
       return val;
     }
 
-    fprintf(stderr, "  [unwrapSmartPtr] val->getType()\n"); fflush(stderr);
     llvm::Type *currentTy = val->getType();
     bool isTargetStruct = currentTy->isStructTy();
     bool isTargetPtr = currentTy->isPointerTy();
 
-    fprintf(stderr, "  [unwrapSmartPtr] ResolvedType = %s\n", expr->ResolvedType->toString().c_str()); fflush(stderr);
-    fprintf(stderr, "  [unwrapSmartPtr] isNullType = %d\n", expr->ResolvedType->isNullType()); fflush(stderr);
-    fprintf(stderr, "  [unwrapSmartPtr] semaIsValue checks\n"); fflush(stderr);
     bool semaIsValue = !expr->ResolvedType->isPointer() &&
                        !expr->ResolvedType->isReference() &&
                        !expr->ResolvedType->isSmartPointer() &&
@@ -839,7 +830,6 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
                        !expr->ResolvedType->isAddrType() &&
                        !expr->ResolvedType->isOAddrType();
 
-    fprintf(stderr, "  [unwrapSmartPtr] semaIsValue = %d\n", semaIsValue); fflush(stderr);
     if (semaIsValue) {
       if (isTargetStruct && currentTy->getStructNumElements() == 2) {
         // Shared Pointer Handle: Extract Data Ptr then Load
@@ -890,11 +880,8 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
     }
   }
 
-  fprintf(stderr, "[genBinaryExpr] unwrapping smart ptr LHS...\n"); fflush(stderr);
   lhs = unwrapSmartPtr(lhs, bin->LHS.get());
-  fprintf(stderr, "[genBinaryExpr] unwrapping smart ptr RHS...\n"); fflush(stderr);
   rhs = unwrapSmartPtr(rhs, bin->RHS.get());
-  fprintf(stderr, "[genBinaryExpr] unwrap complete\n"); fflush(stderr);
 
   // Refresh types after unwrap
   lhsType = lhs->getType();
@@ -947,7 +934,6 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
       if (lhsType != rhsType) {
         std::string ls, rs;
         llvm::raw_string_ostream los(ls), ros(rs);
-        fprintf(stderr, "[genBinaryExpr] Type mismatch handling...\n"); fflush(stderr);
         lhsType->print(los);
         rhsType->print(ros);
         error(bin, "Type mismatch in binary expression: " + ls + " vs " + rs);
@@ -955,7 +941,6 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
       }
     }
   }
-  fprintf(stderr, "[genBinaryExpr] Zero-Payload check...\n"); fflush(stderr);
   // [Fix] Zero-Payload Union Equality (Stage 0 Enums)
   // If the types are simple structs with exactly one integer field (discriminant), extract them for comparison.
   if (lhsType->isStructTy() && rhsType->isStructTy() && (bin->Op == "==" || bin->Op == "!=")) {
@@ -973,14 +958,12 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
       !lhsType->isFloatingPointTy()) {
     std::string s;
     llvm::raw_string_ostream os(s);
-    fprintf(stderr, "[genBinaryExpr] Invalid type handling...\n"); fflush(stderr);
     lhsType->print(os);
     error(bin, "Invalid type for comparison: " + os.str() +
                    ". Comparisons are only allowed for scalars "
                    "(integers/pointers).");
     return nullptr;
   }
-  fprintf(stderr, "[genBinaryExpr] Final cmp...\n"); fflush(stderr);
 
   // Final check to avoid assertion
 
