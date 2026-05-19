@@ -18,7 +18,7 @@ export default defineConfig({
 				src: './src/assets/logo.svg',
 			},
 			social: [
-				{ icon: 'github', label: 'GitHub', href: 'https://github.com/zhyi-dp/tokalang' },
+				{ icon: 'github', label: 'GitHub', href: 'https://github.com/tokalang/toka' },
 			],
 			locales: {
 				root: {

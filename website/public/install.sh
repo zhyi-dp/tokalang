@@ -23,13 +23,13 @@ fi
 
 # We use 'latest' endpoint or we let user specify version.
 # For now, it curls latest.
-RELEASE_URL="https://github.com/zhyi-dp/tokalang/releases/latest/download"
+RELEASE_URL="https://github.com/tokalang/toka/releases/latest/download"
 
 # To specify a specific version for beta, use the argument passed or latest
 VERSION=${1:-"latest"}
 if [ "$VERSION" = "latest" ]; then
   echo "Fetching latest version..."
-  LATEST_URL=$(curl -sL -o /dev/null -w %{url_effective} https://github.com/zhyi-dp/tokalang/releases/latest)
+  LATEST_URL=$(curl -sL -o /dev/null -w %{url_effective} https://github.com/tokalang/toka/releases/latest)
   VERSION=${LATEST_URL##*/}
   if [ -z "$VERSION" ] || [ "$VERSION" = "latest" ]; then
     # Fallback if redirect fails
@@ -39,7 +39,7 @@ if [ "$VERSION" = "latest" ]; then
 fi
 
 TARBALL="toka-${VERSION}-${OS}-${ARCH}.tar.gz"
-DOWNLOAD_URL="https://github.com/zhyi-dp/tokalang/releases/download/${VERSION}/${TARBALL}"
+DOWNLOAD_URL="https://github.com/tokalang/toka/releases/download/${VERSION}/${TARBALL}"
 
 TOKA_DIR="$HOME/.toka"
 TMP_DIR=$(mktemp -d)
