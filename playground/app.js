@@ -168,7 +168,15 @@ function runCheck() {
         const res = JSON.parse(resultJson);
         terminal.innerHTML = "";
         
-        if (res.status === "ok") {
+        // Filter out expected WASM I/O warnings for dynamic sys modules
+        const validDiagnostics = (res.diagnostics || []).filter(diag => {
+            if (diag.code === "E0901" && diag.message.includes("std/sys/")) return false;
+            return true;
+        });
+        
+        const hasRealErrors = validDiagnostics.some(diag => diag.level === 0);
+        
+        if (res.status === "ok" || (!hasRealErrors && validDiagnostics.length === 0)) {
             status.textContent = "Syntax OK";
             status.className = "status-indicator status-ok";
             terminal.innerHTML = "<span class='diag-note'>✔ Code successfully parsed and borrow-checked!</span>";
@@ -178,14 +186,14 @@ function runCheck() {
                 editor.getAllMarks().forEach(mark => mark.clear());
             });
         } else {
-            status.textContent = "Errors Found";
-            status.className = "status-indicator status-error";
+            status.textContent = hasRealErrors ? "Errors Found" : "Warnings Found";
+            status.className = hasRealErrors ? "status-indicator status-error" : "status-indicator status-warning";
             
             // Clear old squiggles
             editor.getAllMarks().forEach(mark => mark.clear());
             
             let html = "";
-            res.diagnostics.forEach(diag => {
+            validDiagnostics.forEach(diag => {
                 const isError = diag.level === 0; // Assuming 0 is error
                 const className = isError ? "diag-error" : "diag-warning";
                 const typeStr = isError ? "error" : "warning";
@@ -204,6 +212,13 @@ function runCheck() {
                     );
                 }
             });
+            
+            if (html === "" && !hasRealErrors) {
+                html = "<span class='diag-note'>✔ Code successfully parsed and borrow-checked!</span>";
+                status.textContent = "Syntax OK";
+                status.className = "status-indicator status-ok";
+            }
+            
             terminal.innerHTML = html;
         }
     } catch (e) {
