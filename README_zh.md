@@ -134,10 +134,11 @@ Toka 目前已经具备了完整的语言核心特性与标准库，我们正在
 - [x] **开发体验 (DX) 工具链**
     - [x] **内置构建系统** (`toka run`, `toka build`)
     - [x] **语言服务器 (LSP)** (官方 `tokalsp` 已稳定集成至 VS Code，支持实时诊断与智能语法高亮)
+    - [x] **官方包管理器** (`toka` CLI 内置 `package.tk` 依赖解析与全局注册表网关)
+    - [x] **原生 Kebab-case 支持** (在底层词法层面完美融合 Lisp 风格连字符命名，并反向约束格式化)
 
 ### 🚧 正在进行与未来规划 (Next Steps)
 - [ ] **Windows 平台特性补齐** (原生 Windows 底层 IOCP 异步网络栈支持)
-- [ ] **生态系统建设** (完善官方包注册表与基于 `toka.json` 的全局依赖解析器)
 - [ ] **编译器自举 (Self-Hosting)** (使用 Toka 完全重写目前的 C++ 前端)
 
 ## 🌟 社区与生态 (Ecosystem & Community)

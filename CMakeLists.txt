@@ -6,7 +6,7 @@ if(APPLE)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-w")
 endif()
 
-project(TokaCompiler VERSION 0.9.6 LANGUAGES C CXX)
+project(TokaCompiler VERSION 0.9.7 LANGUAGES C CXX)
 
 # Version Control Info
 find_package(Git)

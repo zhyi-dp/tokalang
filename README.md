@@ -134,10 +134,11 @@ Toka currently possesses a complete language core and standard library. We are a
 - [x] **Developer Experience (DX) & Tooling**
     - [x] **Built-in Build System** (`toka run`, `toka build`)
     - [x] **Language Server (LSP)** (Official `tokalsp` integrated with VS Code for real-time diagnostics and highlighting)
+    - [x] **Package Manager** (`toka` CLI with `package.tk` dependency resolver and global registry gateway)
+    - [x] **Native Kebab-case Identifiers** (Syntactic fusion of Lisp-like naming with strict spacing rules)
 
 ### 🚧 Next Steps & Future Roadmap
 - [ ] **Windows Platform Parity** (Native IOCP async networking stack support)
-- [ ] **Ecosystem & Package Management** (Official Package Registry & `toka.json` global dependency resolver)
 - [ ] **Compiler Self-Hosting** (Rewriting the current C++ frontend entirely in Toka)
 
 ## 🌟 Ecosystem & Community

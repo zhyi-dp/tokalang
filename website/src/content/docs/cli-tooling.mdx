@@ -75,10 +75,34 @@ pub fn add(a: i32, b: i32) -> i32 {
 
 ---
 
+## Package Management & Registry (New in v0.9.7)
+
+Toka v0.9.7 introduces the **Official Toka Package Manager**. All package metadata is managed cleanly via the `package.tk` file using the native TON (Toka Object Notation) format.
+
+### `toka search <keyword>`
+Instantly searches the official Toka Registry (`pkg.tokalang.dev`) for packages. 
+Built on a high-performance, zero-ops edge CDN, it safely parses the registry catalog directly in-memory.
+
+```bash
+toka search ink
+
+# Output:
+# Search Results:
+# ---------------
+# toka-ink (0.2.1)
+#     Terminal UI component library for Toka language
+```
+
+### `toka publish`
+Packages your current project and publishes it to the official Toka Package Registry.
+*Note: Ensure your `package.tk` has a valid `name`, `version`, and `description` before publishing.*
+
+### `toka add <url_or_name>`
+Adds a remote Toka package dependency to your project and updates `package.tk`.
+
+---
+
 ## Housekeeping
 
 ### `toka clean`
 Instantly removes all temporary compilation artifacts, wiping the `target/`, `build/`, `.toka_build_exe`, and dependency cache directories to free up disk space.
-
-### `toka add <url>`
-Adds a remote Toka package dependency to your project and fetches its source code.

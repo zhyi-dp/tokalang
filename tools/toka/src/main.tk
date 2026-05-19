@@ -3,10 +3,10 @@ import std/env
 import std/io::{println, File}
 import std/fs::{read_to_string}
 import std/sys/libc::{libc_system, libc_printf, libc_setenv}
-import src/pkg_manager::{cmd_fetch, build_pkg_args, cmd_publish}
+import src/pkg_manager::{cmd_fetch, build_pkg_args, cmd_publish, cmd_search}
 
 fn print_help() {
-    println("Toka {}", "0.9.6")
+    println("Toka {}", "0.9.7")
     println("\nUsage: toka <command> [options]\n\nCommands:")
     println("  new <name>   Create a new Toka project (--lib for library)")
     println("  init         Initialize a new Toka project in the current directory")
@@ -18,6 +18,7 @@ fn print_help() {
     println("  rm <pkg>     Remove a package dependency")
     println("  up           Update package dependencies")
     println("  fetch        Fetch dependencies (Implicit in build)")
+    println("  search <q>   Search for packages in the registry")
     println("  publish      Package and publish to the Toka registry")
     println("  fmt          Format the current project")
     println("  clean        Clean build artifacts")
@@ -476,6 +477,15 @@ fn main() -> i32 {
         return cmd_fetch()
     }
     
+    if cmd.eq(String::from("search")) {
+        if argc < 3 + shift {
+             println("Error: 'toka search' requires a query string.")
+             return 1
+        }
+        auto query = env::get_arg(2 + shift)
+        return cmd_search(query)
+    }
+    
     if cmd.eq(String::from("publish")) {
         return cmd_publish()
     }
@@ -508,7 +518,7 @@ fn main() -> i32 {
     }
     
     if cmd.eq(String::from("--version")) || cmd.eq(String::from("-v")) {
-        println("toka manager version 0.9.6")
+        println("toka manager version 0.9.7")
         return 0
     }
     
