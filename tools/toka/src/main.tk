@@ -3,27 +3,26 @@ import std/env
 import std/io::{println, File}
 import std/fs::{read_to_string}
 import std/sys/libc::{libc_system, libc_printf}
-import src/pkg_manager::{cmd_fetch, build_pkg_args}
+import src/pkg_manager::{cmd_fetch, build_pkg_args, cmd_publish}
 
 fn print_help() {
-    unsafe {
-        println("Toka {}", "0.9.6")
-        println("\nUsage: toka <command> [options]\n\nCommands:")
-        println("  new <name>   Create a new Toka project (--lib for library)")
-        println("  init         Initialize a new Toka project in the current directory")
-        println("  build        Compile current project to an executable")
-        println("  run [file]   Compile and execute a Toka program")
-        println("  test         Run all tests in the tests/ directory")
-        println("  doc          Generate API documentation")
-        println("  add <url>    Add a package dependency")
-        println("  rm <pkg>     Remove a package dependency")
-        println("  up           Update package dependencies")
-        println("  fetch        Fetch dependencies (Implicit in build)")
-        println("  fmt          Format the current project")
-        println("  clean        Clean build artifacts")
-        println("\nOptions:")
-        println("  -v, --verbose  Enable verbose compiler output")
-    }
+    println("Toka {}", "0.9.6")
+    println("\nUsage: toka <command> [options]\n\nCommands:")
+    println("  new <name>   Create a new Toka project (--lib for library)")
+    println("  init         Initialize a new Toka project in the current directory")
+    println("  build        Compile current project to an executable")
+    println("  run [file]   Compile and execute a Toka program")
+    println("  test         Run all tests in the tests/ directory")
+    println("  doc          Generate API documentation")
+    println("  add <url>    Add a package dependency")
+    println("  rm <pkg>     Remove a package dependency")
+    println("  up           Update package dependencies")
+    println("  fetch        Fetch dependencies (Implicit in build)")
+    println("  publish      Package and publish to the Toka registry")
+    println("  fmt          Format the current project")
+    println("  clean        Clean build artifacts")
+    println("\nOptions:")
+    println("  -v, --verbose  Enable verbose compiler output")
 }
 
 fn generate_project_files(name: String, dest_dir: String, is_lib: bool) {
@@ -426,7 +425,7 @@ fn main() -> i32 {
     
     if cmd.eq(String::from("new")) {
         if argc < 3 + shift {
-             unsafe { println("Error: 'toka new' requires a project name.") }
+             println("Error: 'toka new' requires a project name.")
              return 1
         }
         auto name = env::get_arg(2 + shift)
@@ -453,7 +452,7 @@ fn main() -> i32 {
     
     if cmd.eq(String::from("add")) {
         if argc < 3 + shift {
-             unsafe { println("Error: 'toka add' requires a package URL.") }
+             println("Error: 'toka add' requires a package URL.")
              return 1
         }
         auto url = env::get_arg(2 + shift)
@@ -461,17 +460,21 @@ fn main() -> i32 {
     }
     
     if cmd.eq(String::from("rm")) {
-        unsafe { println("TODO: Implement toka rm") }
+        println("TODO: Implement toka rm")
         return 0
     }
     
     if cmd.eq(String::from("up")) {
-        unsafe { println("TODO: Implement toka up") }
+        println("TODO: Implement toka up")
         return 0
     }
     
     if cmd.eq(String::from("fetch")) {
         return cmd_fetch()
+    }
+    
+    if cmd.eq(String::from("publish")) {
+        return cmd_publish()
     }
     
     if cmd.eq(String::from("build")) {
@@ -502,10 +505,10 @@ fn main() -> i32 {
     }
     
     if cmd.eq(String::from("--version")) || cmd.eq(String::from("-v")) {
-        unsafe { println("toka manager version 0.9.6") }
+        println("toka manager version 0.9.6")
         return 0
     }
     
-    unsafe { println("Error: unknown command '{}'", cmd) }
+    println("Error: unknown command '{}'", cmd)
     return 1
 }

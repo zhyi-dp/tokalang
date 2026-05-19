@@ -87,3 +87,4 @@ test_pkg_demo/
 *.vsix
 
 scratch/
+toka-registry/
