@@ -68,6 +68,11 @@ pub fn run_build(proj: Executable) -> i32 {
         if libc_access(".tokapkg" as *char, 0) == 0 {
             cmd1#.push_str("-I .tokapkg ")
         }
+        auto env_pkg_args = libc_getenv("TOKA_PKG_ARGS" as *char) as Addr
+        if env_pkg_args != 0:Addr {
+            cmd1#.push_str(env_pkg_args as *char)
+            cmd1#.push_str(" ")
+        }
         cmd1#.push_str(&s)
         cmd1#.push_str(" -o target/debug/" as *char)
         cmd1#.push_str(&n)

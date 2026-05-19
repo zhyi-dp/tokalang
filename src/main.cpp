@@ -236,7 +236,17 @@ void parseSource(const std::string &filename,
         importPath = parentDir + "/" + importPath;
     }
     
-    parseSource(importPath, astModules, visited, recursionStack, sm, searchPaths, pkgMap);
+    std::vector<std::string> localSearchPaths = searchPaths;
+    size_t libPos = resolvedPath.find("/lib/");
+    if (libPos == std::string::npos) {
+        libPos = resolvedPath.find("\\lib\\");
+    }
+    if (libPos != std::string::npos) {
+        std::string pkgRoot = resolvedPath.substr(0, libPos);
+        localSearchPaths.push_back(pkgRoot);
+    }
+    
+    parseSource(importPath, astModules, visited, recursionStack, sm, localSearchPaths, pkgMap);
   }
 
   astModules.push_back(std::move(module));

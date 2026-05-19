@@ -90,6 +90,8 @@ struct SymbolInfo {
   std::string ComptimeFieldTypeStr = "";
   uint64_t ComptimeFieldOffset = 0;
   uint64_t ComptimeFieldSize = 0;
+
+  void *ASTPtr = nullptr; // Pointer to the underlying AST node (FunctionDecl, VariableDecl, ExternDecl etc.)
 };
 
 class Scope {

@@ -107,13 +107,19 @@ void Sema::registerGlobals(Module &M) {
     GlobalFunctions.push_back(
         Fn.get()); // Still keep global map for flat-checks
     // [NEW] Define locally in scope for explicit lookup
-    CurrentScope->define(Fn->Name, {toka::Type::fromString("fn")});
+    SymbolInfo fnInfo;
+    fnInfo.TypeObj = toka::Type::fromString("fn");
+    fnInfo.ASTPtr = Fn.get();
+    CurrentScope->define(Fn->Name, fnInfo);
   }
   for (auto &Ext : M.Externs) {
     ms.Externs[Ext->Name] = Ext.get();
     ExternMap[Ext->Name] = Ext.get();
     // [NEW] Define locally in scope
-    CurrentScope->define(Ext->Name, {toka::Type::fromString("extern")});
+    SymbolInfo extInfo;
+    extInfo.TypeObj = toka::Type::fromString("extern");
+    extInfo.ASTPtr = Ext.get();
+    CurrentScope->define(Ext->Name, extInfo);
   }
   for (auto &St : M.Shapes) {
     if (!St->GenericParams.empty()) {
@@ -183,6 +189,7 @@ void Sema::registerGlobals(Module &M) {
       SymbolInfo globalInfo;
       globalInfo.TypeObj = toka::Type::fromString(fullT);
       globalInfo.IsRebindable = v->IsRebindable;
+      globalInfo.ASTPtr = v;
       CurrentScope->define(v->Name, globalInfo);
     }
   }
@@ -237,51 +244,85 @@ void Sema::registerGlobals(Module &M) {
         if (item.Symbol == "*") {
           // Import all functions
           for (auto const &[name, fn] : target->Functions) {
-            SymbolInfo *existing = nullptr;
-            if (CurrentScope->Symbols.count(item.Alias.empty() ? name
-                                                               : item.Alias)) {
-              DiagnosticEngine::report(getLoc(Imp.get()),
-                                       DiagID::ERR_SYMBOL_REDEFINED,
-                                       item.Alias.empty() ? name : item.Alias);
-              if (Imp->IsImplicit) {
-                DiagnosticEngine::report(
-                    getLoc(Imp.get()), DiagID::NOTE_IMPLICIT_PRELUDE_CONFLICT,
-                    item.Alias.empty() ? name : item.Alias);
+            std::string actualName = item.Alias.empty() ? name : item.Alias;
+            if (CurrentScope->Symbols.count(actualName)) {
+              if (CurrentScope->Symbols[actualName].ASTPtr != fn) {
+                std::string existingType = CurrentScope->Symbols[actualName].TypeObj->toString();
+                if (existingType == "extern") {
+                  // Allow matching extern declaration with local definition!
+                } else {
+                  DiagnosticEngine::report(getLoc(Imp.get()),
+                                         DiagID::ERR_SYMBOL_REDEFINED,
+                                         actualName);
+                  if (Imp->IsImplicit) {
+                    DiagnosticEngine::report(
+                        getLoc(Imp.get()), DiagID::NOTE_IMPLICIT_PRELUDE_CONFLICT,
+                        actualName);
+                  }
+                  HasError = true;
+                }
               }
-              HasError = true;
             } else {
-              CurrentScope->define(item.Alias.empty() ? name : item.Alias,
-                                   {toka::Type::fromString("fn")});
+              SymbolInfo fnInfo;
+              fnInfo.TypeObj = toka::Type::fromString("fn");
+              fnInfo.ReferencedModule = target;
+              fnInfo.ASTPtr = fn;
+              CurrentScope->define(actualName, fnInfo);
+              if (Imp->IsPub) {
+                ms.Functions[actualName] = fn;
+              }
             }
           }
           // Import all shapes
           for (auto const &[name, sh] : target->Shapes) {
             ShapeMap[name] =
                 sh; // Still needs to be in global maps for resolution
+            if (Imp->IsPub) {
+              ms.Shapes[name] = sh;
+            }
           }
           // Import all aliases
           for (auto const &[name, ai] : target->TypeAliases) {
             TypeAliasMap[name] = ai;
+            if (Imp->IsPub) {
+              ms.TypeAliases[name] = ai;
+            }
           }
           // Import all traits
           for (auto const &[name, trait] : target->Traits) {
             TraitMap[name] = trait;
+            if (Imp->IsPub) {
+              ms.Traits[name] = trait;
+            }
           }
           // Import all externs
           for (auto const &[name, ext] : target->Externs) {
             ExternMap[name] = ext;
-            SymbolInfo *existing = nullptr;
             if (CurrentScope->Symbols.count(name)) {
-              DiagnosticEngine::report(getLoc(Imp.get()),
-                                       DiagID::ERR_SYMBOL_REDEFINED, name);
-              if (Imp->IsImplicit) {
-                DiagnosticEngine::report(getLoc(Imp.get()),
-                                         DiagID::NOTE_IMPLICIT_PRELUDE_CONFLICT,
-                                         name);
+              if (CurrentScope->Symbols[name].ASTPtr != ext) {
+                std::string existingType = CurrentScope->Symbols[name].TypeObj->toString();
+                if (existingType == "fn") {
+                  // Allow matching local definition with extern declaration!
+                } else {
+                  DiagnosticEngine::report(getLoc(Imp.get()),
+                                           DiagID::ERR_SYMBOL_REDEFINED, name);
+                  if (Imp->IsImplicit) {
+                    DiagnosticEngine::report(getLoc(Imp.get()),
+                                             DiagID::NOTE_IMPLICIT_PRELUDE_CONFLICT,
+                                             name);
+                  }
+                  HasError = true;
+                }
               }
-              HasError = true;
             } else {
-              CurrentScope->define(name, {toka::Type::fromString("extern")});
+              SymbolInfo extInfo;
+              extInfo.TypeObj = toka::Type::fromString("extern");
+              extInfo.ReferencedModule = target;
+              extInfo.ASTPtr = ext;
+              CurrentScope->define(name, extInfo);
+              if (Imp->IsPub) {
+                ms.Externs[name] = ext;
+              }
             }
           }
           // Import all globals (constants)
@@ -312,21 +353,26 @@ void Sema::registerGlobals(Module &M) {
             SymbolInfo globalInfo;
             globalInfo.TypeObj = toka::Type::fromString(fullType);
             globalInfo.IsRebindable = v->IsRebindable;
-            SymbolInfo *existing = nullptr;
-            if (CurrentScope->Symbols.count(item.Alias.empty() ? name
-                                                               : item.Alias)) {
-              DiagnosticEngine::report(getLoc(Imp.get()),
+            globalInfo.ReferencedModule = target;
+            globalInfo.ASTPtr = v;
+            std::string actualName = item.Alias.empty() ? name : item.Alias;
+            if (CurrentScope->Symbols.count(actualName)) {
+              if (CurrentScope->Symbols[actualName].ASTPtr != v) {
+                DiagnosticEngine::report(getLoc(Imp.get()),
                                        DiagID::ERR_SYMBOL_REDEFINED,
-                                       item.Alias.empty() ? name : item.Alias);
-              if (Imp->IsImplicit) {
-                DiagnosticEngine::report(
-                    getLoc(Imp.get()), DiagID::NOTE_IMPLICIT_PRELUDE_CONFLICT,
-                    item.Alias.empty() ? name : item.Alias);
+                                       actualName);
+                if (Imp->IsImplicit) {
+                  DiagnosticEngine::report(
+                      getLoc(Imp.get()), DiagID::NOTE_IMPLICIT_PRELUDE_CONFLICT,
+                      actualName);
+                }
+                HasError = true;
               }
-              HasError = true;
             } else {
-              CurrentScope->define(item.Alias.empty() ? name : item.Alias,
-                                   globalInfo);
+              CurrentScope->define(actualName, globalInfo);
+              if (Imp->IsPub) {
+                ms.Globals[actualName] = v;
+              }
             }
           }
         } else {
@@ -340,43 +386,80 @@ void Sema::registerGlobals(Module &M) {
           }
 
           if (target->Functions.count(item.Symbol)) {
-            SymbolInfo *existing = nullptr;
+            auto *fn = target->Functions[item.Symbol];
             if (CurrentScope->Symbols.count(name)) {
-              DiagnosticEngine::report(getLoc(Imp.get()),
-                                       DiagID::ERR_SYMBOL_REDEFINED, name);
-              if (Imp->IsImplicit) {
-                DiagnosticEngine::report(getLoc(Imp.get()),
-                                         DiagID::NOTE_IMPLICIT_PRELUDE_CONFLICT,
-                                         name);
+              if (CurrentScope->Symbols[name].ASTPtr != fn) {
+                std::string existingType = CurrentScope->Symbols[name].TypeObj->toString();
+                if (existingType == "extern") {
+                  // Allow matching extern declaration with local definition!
+                } else {
+                  DiagnosticEngine::report(getLoc(Imp.get()),
+                                           DiagID::ERR_SYMBOL_REDEFINED, name);
+                  if (Imp->IsImplicit) {
+                    DiagnosticEngine::report(getLoc(Imp.get()),
+                                             DiagID::NOTE_IMPLICIT_PRELUDE_CONFLICT,
+                                             name);
+                  }
+                  HasError = true;
+                }
               }
-              HasError = true;
             } else {
-              CurrentScope->define(name, {toka::Type::fromString("fn")});
+              SymbolInfo fnInfo;
+              fnInfo.TypeObj = toka::Type::fromString("fn");
+              fnInfo.ReferencedModule = target;
+              fnInfo.ASTPtr = fn;
+              CurrentScope->define(name, fnInfo);
+              if (Imp->IsPub) {
+                ms.Functions[name] = fn;
+              }
             }
             found = true;
           } else if (target->Shapes.count(item.Symbol)) {
             ShapeMap[name] = target->Shapes[item.Symbol];
+            if (Imp->IsPub) {
+              ms.Shapes[name] = target->Shapes[item.Symbol];
+            }
             found = true;
           } else if (target->TypeAliases.count(item.Symbol)) {
             TypeAliasMap[name] = target->TypeAliases[item.Symbol];
+            if (Imp->IsPub) {
+              ms.TypeAliases[name] = target->TypeAliases[item.Symbol];
+            }
             found = true;
           } else if (target->Traits.count(lookupSym)) {
             TraitMap[name] = target->Traits[lookupSym];
+            if (Imp->IsPub) {
+              ms.Traits[name] = target->Traits[lookupSym];
+            }
             found = true;
           } else if (target->Externs.count(item.Symbol)) {
-            ExternMap[name] = target->Externs[item.Symbol];
-            SymbolInfo *existing = nullptr;
+            auto *ext = target->Externs[item.Symbol];
+            ExternMap[name] = ext;
             if (CurrentScope->Symbols.count(name)) {
-              DiagnosticEngine::report(getLoc(Imp.get()),
-                                       DiagID::ERR_SYMBOL_REDEFINED, name);
-              if (Imp->IsImplicit) {
-                DiagnosticEngine::report(getLoc(Imp.get()),
-                                         DiagID::NOTE_IMPLICIT_PRELUDE_CONFLICT,
-                                         name);
+              if (CurrentScope->Symbols[name].ASTPtr != ext) {
+                std::string existingType = CurrentScope->Symbols[name].TypeObj->toString();
+                if (existingType == "fn") {
+                  // Allow matching local definition with extern declaration!
+                } else {
+                  DiagnosticEngine::report(getLoc(Imp.get()),
+                                           DiagID::ERR_SYMBOL_REDEFINED, name);
+                  if (Imp->IsImplicit) {
+                    DiagnosticEngine::report(getLoc(Imp.get()),
+                                             DiagID::NOTE_IMPLICIT_PRELUDE_CONFLICT,
+                                             name);
+                  }
+                  HasError = true;
+                }
               }
-              HasError = true;
             } else {
-              CurrentScope->define(name, {toka::Type::fromString("extern")});
+              SymbolInfo extInfo;
+              extInfo.TypeObj = toka::Type::fromString("extern");
+              extInfo.ReferencedModule = target;
+              extInfo.ASTPtr = ext;
+              CurrentScope->define(name, extInfo);
+              if (Imp->IsPub) {
+                ms.Externs[name] = ext;
+              }
             }
             found = true;
           } else if (target->Globals.count(item.Symbol)) {
@@ -407,18 +490,24 @@ void Sema::registerGlobals(Module &M) {
             SymbolInfo globalInfo;
             globalInfo.TypeObj = toka::Type::fromString(fullType);
             globalInfo.IsRebindable = v->IsRebindable;
-            SymbolInfo *existing = nullptr;
+            globalInfo.ReferencedModule = target;
+            globalInfo.ASTPtr = v;
             if (CurrentScope->Symbols.count(name)) {
-              DiagnosticEngine::report(getLoc(Imp.get()),
-                                       DiagID::ERR_SYMBOL_REDEFINED, name);
-              if (Imp->IsImplicit) {
+              if (CurrentScope->Symbols[name].ASTPtr != v) {
                 DiagnosticEngine::report(getLoc(Imp.get()),
-                                         DiagID::NOTE_IMPLICIT_PRELUDE_CONFLICT,
-                                         name);
+                                         DiagID::ERR_SYMBOL_REDEFINED, name);
+                if (Imp->IsImplicit) {
+                  DiagnosticEngine::report(getLoc(Imp.get()),
+                                           DiagID::NOTE_IMPLICIT_PRELUDE_CONFLICT,
+                                           name);
+                }
+                HasError = true;
               }
-              HasError = true;
             } else {
               CurrentScope->define(name, globalInfo);
+              if (Imp->IsPub) {
+                ms.Globals[name] = v;
+              }
             }
             found = true;
           }

@@ -227,6 +227,16 @@ pub fn get_stderr() -> File {
     }
 }
 
+pub fn stdout() -> File {
+    return get_stdout()
+}
+pub fn stdin() -> File {
+    return get_stdin()
+}
+pub fn stderr() -> File {
+    return get_stderr()
+}
+
 
 
 pub fn print_line(s: String) {

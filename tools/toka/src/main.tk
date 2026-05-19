@@ -2,7 +2,7 @@ import std/string::{String}
 import std/env
 import std/io::{println, File}
 import std/fs::{read_to_string}
-import std/sys/libc::{libc_system, libc_printf}
+import std/sys/libc::{libc_system, libc_printf, libc_setenv}
 import src/pkg_manager::{cmd_fetch, build_pkg_args, cmd_publish}
 
 fn print_help() {
@@ -239,6 +239,9 @@ fn cmd_build() -> i32 {
         if !pkg_args.is_empty() {
             cmd#.push_str(pkg_args.c_str())
             cmd#.push_str(" ")
+            libc_setenv("TOKA_PKG_ARGS" as *char, pkg_args.c_str(), 1)
+        } else {
+            libc_setenv("TOKA_PKG_ARGS" as *char, "" as *char, 1)
         }
         
         auto build_file# = String::from("build.tk")
