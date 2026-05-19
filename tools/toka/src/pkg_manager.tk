@@ -4,6 +4,7 @@ import std/string::{String}
 import std/fs::{read_to_string}
 import std/sys/libc::{libc_system}
 import std/vec::{Vec}
+import core/option::{Option}
 
 pub shape DepEntry(
     name: String,
@@ -344,7 +345,8 @@ import core/result::{Okay}
 pub shape PkgMeta(
     name: String = String::from(""),
     version: String = String::from(""),
-    description: String = String::from("")
+    description: String = String::from(""),
+    repository: String = String::from("")
 )
 
 impl PkgMeta@FromJson {
@@ -365,6 +367,46 @@ impl PkgMeta@FromJson {
 pub shape Catalog(
     packages: Vec<PkgMeta> = Vec<PkgMeta>::new()
 )
+
+pub fn resolve_package(query: String) -> Option<String> {
+    auto catalog_path = String::from(".toka/catalog.json")
+    
+    unsafe {
+        if libc_system("test -f .toka/catalog.json") != 0 {
+            libc_system("mkdir -p .toka")
+            libc_system("curl -sL https://pkg.tokalang.dev/catalog.json -o .toka/catalog.json > /dev/null 2>&1")
+        }
+    }
+    
+    auto res = read_to_string(catalog_path)
+    if res.is_err() {
+        return Option<String>::None
+    }
+    
+    auto content = res.unwrap()
+    auto parsed = deserialize_shape<Catalog>(content.as_view())
+    if parsed.is_err() {
+        return Option<String>::None
+    }
+    
+    auto catalog = parsed.unwrap()
+    auto i# = 0:usize
+    while i < catalog.packages.len() {
+        auto pkg = catalog.packages.get(i)
+        if pkg.name.eq(query) {
+            auto repo = pkg.repository.clone()
+            if !repo.is_empty() {
+                auto result# = repo.clone()
+                result#.push_str(":v")
+                result#.push_str(pkg.version.c_str())
+                return Option<String>::Some(result)
+            }
+        }
+        i += 1
+    }
+    
+    return Option<String>::None
+}
 
 pub fn cmd_search(query: String) -> i32 {
     println("Searching for '{}' in registry...", query)

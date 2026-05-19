@@ -3,7 +3,7 @@ import std/env
 import std/io::{println, File}
 import std/fs::{read_to_string}
 import std/sys/libc::{libc_system, libc_printf, libc_setenv}
-import src/pkg_manager::{cmd_fetch, build_pkg_args, cmd_publish, cmd_search}
+import src/pkg_manager::{cmd_fetch, build_pkg_args, cmd_publish, cmd_search, resolve_package}
 
 fn print_help() {
     println("Toka {}", "0.9.7")
@@ -138,24 +138,40 @@ import std/fs::{read_to_string}\n\nfn main() -> i32 {\n    println(\"Hello, Toka
     }
 }
 
-fn cmd_add(pkg_url: String) -> i32 {
+fn cmd_add(pkg_url_or_name: String) -> i32 {
     unsafe {
-        auto iter = pkg_url.split('/' as i32)
+        auto pkg_url# = pkg_url_or_name.clone()
         auto pkg_alias# = String::from("")
-        while !iter.is_done() {
-            auto part = iter#.next()
-            if !part.is_empty() {
-                pkg_alias = part.clone()
+        
+        // If it doesn't contain '/', it's a registry lookup
+        if !pkg_url.contains(String::from("/")) {
+            auto resolved = resolve_package(pkg_url_or_name)
+            if resolved.is_some() {
+                pkg_url = resolved.unwrap()
+                pkg_alias = pkg_url_or_name.clone()
+                println("\x1b[32m[Registry]\x1b[0m Resolved {} to {}", pkg_url_or_name, pkg_url)
+            } else {
+                println("\x1b[31m[Error]\x1b[0m Package '{}' not found in registry.", pkg_url_or_name)
+                return 1
+            }
+        } else {
+            // Direct URL parsing
+            auto iter = pkg_url.split('/' as i32)
+            while !iter.is_done() {
+                auto part = iter#.next()
+                if !part.is_empty() {
+                    pkg_alias = part.clone()
+                }
+            }
+            
+            auto colon_idx = pkg_alias.find_str(String::from(":"))
+            if colon_idx != -1 {
+                pkg_alias = pkg_alias.substring(0, colon_idx)
             }
         }
         
-        auto colon_idx = pkg_alias.find_str(String::from(":"))
-        if colon_idx != -1 {
-            pkg_alias = pkg_alias.substring(0, colon_idx)
-        }
-        
         if pkg_alias.is_empty() {
-            println("Error: Invalid package URL")
+            println("Error: Invalid package URL or name")
             return 1
         }
         
