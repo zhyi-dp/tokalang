@@ -13,7 +13,7 @@ pub fn main() -> i32 {
     
     // Check SQLite Version
     auto *version_ptr = sqlite3_libversion()
-    auto version_str = String::from(version_ptr)
+    auto version_str = String::from(*version_ptr)
     println("SQLite Version: {}", version_str)
     
     // Open Database
