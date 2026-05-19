@@ -11,6 +11,7 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			title: 'Toka Lang',
+			favicon: '/logo.svg',
 			expressiveCode: {
 				shiki: {langs: [tokaLanguage]}
 			},
