@@ -2,6 +2,8 @@
 
 # tool/test_single.sh - Run a single Toka test case
 
+export ASAN_OPTIONS=detect_container_overflow=0,detect_leaks=0
+
 # Auto-Compile Compiler if needed
 make -C build -j8
 if [ $? -ne 0 ]; then
@@ -26,56 +28,47 @@ BASE_NAME=$(basename "$TK_FILE")
 SAFE_TARGET=$(echo "$TK_FILE" | tr '/' '_')
 OUT_DIR="/tmp/tokac_tests"
 mkdir -p "$OUT_DIR"
-LL_FILE="${OUT_DIR}/${SAFE_TARGET}.ll"
+EXE_FILE="${OUT_DIR}/${SAFE_TARGET}.exe"
 LOG_FILE="${OUT_DIR}/${SAFE_TARGET}.log"
-# Configuration
+
 # --- Configuration ---
 TOKAC="./build/bin/tokac"
-if which lli-20 >/dev/null 2>&1; then
-    LLI="lli-20"
-elif [ -x "/opt/homebrew/opt/llvm@20/bin/lli" ]; then
-    LLI="/opt/homebrew/opt/llvm@20/bin/lli"
-elif [ -x "/usr/local/opt/llvm@20/bin/lli" ]; then
-    LLI="/usr/local/opt/llvm@20/bin/lli"
-elif [ -x "/usr/lib/llvm-20/bin/lli" ]; then
-    LLI="/usr/lib/llvm-20/bin/lli"
-else
-    LLI=$(which lli)
-fi
+
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[0;33m'
+NC='\033[0m'
 
 echo "[TEST] Running $TK_FILE"
-echo "  - Compiling..."
+echo "  - Compiling Native..."
 
-# Compile
-"$TOKAC" "$TK_FILE" > "$LL_FILE" 2> "$LOG_FILE"
-COMPILE_STATUS=$?
-
-if [ $COMPILE_STATUS -ne 0 ]; then
-    echo "  - Compilation FAILED (Exit Code: $COMPILE_STATUS)"
+# Compile Native
+if ! "$TOKAC" "$TK_FILE" -o "$EXE_FILE" > /dev/null 2> "$LOG_FILE"; then
+    echo -e "  - ${RED}Compilation FAILED${NC}"
     echo "  - Error Log:"
     cat "$LOG_FILE"
+    rm -f "$LOG_FILE" "$EXE_FILE"
     exit 1
 fi
 
-echo "  - Running ($LLI)..."
+echo "  - Running Native Binary..."
+
 # Shift to get extra args
 shift
 
-# Set ATOMIC_ARG for Linux
-if [ "$(uname)" == "Linux" ] && [ -f "/usr/lib/x86_64-linux-gnu/libatomic.so.1" ]; then
-    ATOMIC_ARG="-load=/usr/lib/x86_64-linux-gnu/libatomic.so.1"
-else
-    ATOMIC_ARG=""
+# Run Native
+"$EXE_FILE" "$@" 2>&1 | tee "$LOG_FILE"
+RUN_STATUS=${PIPESTATUS[0]}
+
+echo -e "  - Finished with Exit Code: ${YELLOW}$RUN_STATUS${NC}"
+
+# Check for panic if expected
+panic_log_line=$(grep "runtime error: Panic with" "$LOG_FILE" | head -n 1)
+if [ -n "$panic_log_line" ]; then
+    echo -e "  - ${RED}Panic Detected:${NC} $panic_log_line"
 fi
 
-echo "  - Running ($LLI) with args: $@"
-# Run with lli
-"$LLI" $ATOMIC_ARG "$LL_FILE" "$@"
-RUN_STATUS=$?
-
-echo "  - Finished with Exit Code: $RUN_STATUS"
-
 # Cleanup
-# rm -f "$LL_FILE" "$LOG_FILE"
+# rm -f "$EXE_FILE" "$LOG_FILE"
 
 exit $RUN_STATUS
