@@ -2,7 +2,7 @@ import std/string::{String}
 import std/env
 import std/io::{println, File}
 import std/fs::{read_to_string}
-import std/sys/libc::{libc_system, libc_printf, libc_setenv}
+import sys/libc::{libc_system, libc_printf, libc_setenv}
 import src/pkg_manager::{cmd_fetch, build_pkg_args, cmd_publish, cmd_search, resolve_package}
 
 fn print_help() {

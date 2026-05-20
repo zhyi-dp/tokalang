@@ -6,7 +6,7 @@ import core/result::{Result}
 import core/types::{usize, Addr}
 import core/types::{usize, Addr}
 import core/libc::{libc_strcmp}
-import std/sys/libc::{libc_printf}
+import sys/libc::{libc_printf}
 
 fn main() -> i32 {
     unsafe {

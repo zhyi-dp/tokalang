@@ -14,9 +14,9 @@
 
 import core/types::{usize, char, Addr}
 import core/libc::*
-import std/sys/libc::*
+import sys/libc::*
 import std/string::{String}
-import std/sys/os as sys
+import sys/os as sys
 import core/traits::{@PartialEq, @PartialOrd}
 
 // ----------------------------------------------------------------------------

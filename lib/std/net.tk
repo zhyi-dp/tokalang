@@ -5,8 +5,8 @@ import std/string::{String}
 import core/libc::*
 import core/result::{Result}
 import core/option::{Option}
-import std/sys/os as sys
-import std/sys/net as sysnet 
+import sys/os as sys
+import sys/net as sysnet 
 import std/io 
 import std/task::{get_reactor_fd, sleep_async}
 

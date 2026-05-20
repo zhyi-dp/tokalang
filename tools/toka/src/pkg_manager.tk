@@ -2,7 +2,7 @@ import std/io::{println}
 import stdx/serde/json::{JsonNode}
 import std/string::{String}
 import std/fs::{read_to_string}
-import std/sys/libc::{libc_system}
+import sys/libc::{libc_system}
 import std/vec::{Vec}
 import core/option::{Option}
 

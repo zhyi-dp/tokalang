@@ -4,12 +4,12 @@
 // This file provides the runtime task scheduler and synchronization context.
 
 import std/vec::{Vec}
-import std/sys/libc::{libc_usleep}
-import std/sys/sync as sys_sync
+import sys/libc::{libc_usleep}
+import sys/sync as sys_sync
 import std/time::{Instant}
 import core/task::{TaskHandle, __toka_coro_resume, __toka_coro_done, __toka_coro_destroy}
 import core/types::{Addr}
-import std/sys/net as sysnet
+import sys/net as sysnet
 
 pub fn current_time_ms() -> i64 {
     auto inst = Instant::now()

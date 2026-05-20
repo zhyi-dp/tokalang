@@ -2,7 +2,7 @@
 import core/types::{char, usize, Addr, ADDR0}
 import std/string::{String}
 import core/libc::*
-import std/sys/libc::*
+import sys/libc::*
 
 // Removed raw syscalls in favor of libc_fopen/fread
 

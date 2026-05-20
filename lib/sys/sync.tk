@@ -2,7 +2,7 @@
 
 import core/types::{Addr, usize, byte}
 import core/libc::{libc_malloc, libc_free}
-import std/sys/libc::{
+import sys/libc::{
     libc_pthread_mutex_init, libc_pthread_mutex_destroy, 
     libc_pthread_mutex_lock, libc_pthread_mutex_unlock,
     libc_pthread_rwlock_init, libc_pthread_rwlock_destroy, 

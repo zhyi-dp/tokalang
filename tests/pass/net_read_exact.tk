@@ -2,7 +2,7 @@ import std/io::{println}
 import std/net::{TcpListener, TcpStream, Ipv4Addr, SocketAddrV4}
 import std/string::{String}
 import core/libc
-import std/sys/os as sys
+import sys/os as sys
 import core/types
 import core/result::{Result}
 import std/thread::{thread_spawn, JoinHandle}

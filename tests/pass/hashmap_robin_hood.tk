@@ -1,7 +1,7 @@
 import std/map::{HashMap}
 import std/string::{String}
 import std/io::{println}
-import std/sys/libc::{libc_printf}
+import sys/libc::{libc_printf}
 
 fn test_robin_hood() {
     auto map# = HashMap<i32, String>::new()

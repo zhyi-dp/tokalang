@@ -42,9 +42,9 @@ export PATH="$BIN_DIR:$PATH"
 
 echo "   -> Compiling Toka Runtime (toka_rt.o)..."
 if [ "$(uname)" == "Darwin" ]; then
-    $LLVM_CLANG -isysroot $(xcrun --show-sdk-path) -c lib/std/sys/toka_rt.c -o lib/std/sys/toka_rt.o
+    $LLVM_CLANG -isysroot $(xcrun --show-sdk-path) -c lib/sys/toka_rt.c -o lib/sys/toka_rt.o
 else
-    $LLVM_CLANG -c lib/std/sys/toka_rt.c -o lib/std/sys/toka_rt.o
+    $LLVM_CLANG -c lib/sys/toka_rt.c -o lib/sys/toka_rt.o
 fi
 
 echo ""
@@ -53,7 +53,7 @@ echo "2. Building Toka CLI Tool (toka)"
 echo "====================================="
 cd tools/toka
 echo "   -> Compiling and Linking tools/toka/src/main.tk with internal LLD..."
-tokac -I "$ROOT_DIR/lib" -I src src/main.tk "$ROOT_DIR/lib/std/sys/toka_rt.o" -o toka
+tokac -I "$ROOT_DIR/lib" -I src src/main.tk "$ROOT_DIR/lib/sys/toka_rt.o" -o toka
 
 echo "   -> Installing toka to $BIN_DIR/toka..."
 mkdir -p "$BIN_DIR"
@@ -71,7 +71,7 @@ echo "3. Building Toka Formatter (tokafmt)"
 echo "====================================="
 cd tools/tokafmt
 echo "   -> Compiling and Linking tools/tokafmt/src/main.tk with internal LLD..."
-tokac -I "$ROOT_DIR/lib" src/main.tk "$ROOT_DIR/lib/std/sys/toka_rt.o" -o tokafmt
+tokac -I "$ROOT_DIR/lib" src/main.tk "$ROOT_DIR/lib/sys/toka_rt.o" -o tokafmt
 
 echo "   -> Installing tokafmt to $BIN_DIR/tokafmt..."
 cp tokafmt "$BIN_DIR/tokafmt"
@@ -87,7 +87,7 @@ echo "4. Building Toka Language Server (tokalsp)"
 echo "====================================="
 cd tools/tokalsp
 echo "   -> Compiling and Linking tools/tokalsp/main.tk with internal LLD..."
-tokac -I "$ROOT_DIR/lib" main.tk "$ROOT_DIR/lib/std/sys/toka_rt.o" -o tokalsp
+tokac -I "$ROOT_DIR/lib" main.tk "$ROOT_DIR/lib/sys/toka_rt.o" -o tokalsp
 
 echo "   -> Installing tokalsp to $BIN_DIR/tokalsp..."
 cp tokalsp "$BIN_DIR/tokalsp"

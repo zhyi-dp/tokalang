@@ -67,7 +67,7 @@ run_worker() {
 
     # Step 2: Run via LLI
     {
-        "$LLVM_LLI" --extra-object="$(pwd)/lib/std/sys/toka_rt.o" "$ll_file" >> "$log_file" 2>&1 &
+        "$LLVM_LLI" --extra-object="$(pwd)/lib/sys/toka_rt.o" "$ll_file" >> "$log_file" 2>&1 &
         pid=$!
         ( sleep 30; kill -9 $pid 2>/dev/null; echo "TIMEOUT" >> "$log_file" ) >/dev/null 2>&1 < /dev/null &
         killer=$!

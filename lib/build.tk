@@ -1,4 +1,4 @@
-import std/sys/libc::{libc_system, libc_access, libc_getenv}
+import sys/libc::{libc_system, libc_access, libc_getenv}
 import std/string::{String}
 import core/traits::{@encap}
 

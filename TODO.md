@@ -28,7 +28,7 @@ Standard Library components (like `HashMap`) are currently circumventing this by
 Investigate `src/CodeGen_Type.cpp` and `src/CodeGen_Expr.cpp` to correctly lower complex product shapes to valid LLVM memory types and strictly enforce ABI parameter size attributes for returned compounds.
 
 
-### 4. Windows Native Standard Library Support (lib/std/sys/windows.tk)
+### 4. Windows Native Standard Library Support (lib/sys/windows.tk)
 **Status**: Deprioritized / Strategic Shift to WSL2
 **Severity**: Low (Community Contribution Recommended)
 **Description**:

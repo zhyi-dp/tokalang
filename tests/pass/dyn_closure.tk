@@ -1,4 +1,4 @@
-import std/sys/libc::{libc_printf}
+import sys/libc::{libc_printf}
 
 shape HandlerEnv (
    count: i32

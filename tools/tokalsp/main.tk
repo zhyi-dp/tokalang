@@ -4,7 +4,7 @@ import core/str::{view_str}
 import core/libc::{libc_malloc, libc_free}
 import core/types::{usize, char, ADDR0}
 import stdx/serde/json::{JsonNode, to_json, JsonRes, @FromJson}
-import std/sys/libc::{libc_popen, libc_pclose, libc_fread, libc_getenv}
+import sys/libc::{libc_popen, libc_pclose, libc_fread, libc_getenv}
 
 extern fn toka_setmode(fd: i32, mode: i32) -> i32
 extern fn toka_fileno(*stream: void) -> i32

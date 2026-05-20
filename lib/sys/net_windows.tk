@@ -1,9 +1,9 @@
 // Copyright (c) 2025 Toka Project. All rights reserved.
-// lib/std/sys/net_windows.tk
+// lib/sys/net_windows.tk
 // Placeholder for WinSock2 based networking.
 
 import core/types::{Addr, usize}
-import std/sys/libc
+import sys/libc
 
 pub fn get_last_error() -> i32 { return -1 }
 pub fn net_socket_impl() -> i32 { return -1 }

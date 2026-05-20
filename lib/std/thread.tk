@@ -1,5 +1,5 @@
-import std/sys/libc::{libc_sched_yield, libc_usleep, libc_putchar}
-import std/sys/thread::{sys_thread_spawn, sys_thread_join, sys_thread_detach, unwrap_fat_pointer, sys_alloc_thread_env, sys_free_thread_env}
+import sys/libc::{libc_sched_yield, libc_usleep, libc_putchar}
+import sys/thread::{sys_thread_spawn, sys_thread_join, sys_thread_detach, unwrap_fat_pointer, sys_alloc_thread_env, sys_free_thread_env}
 import std/io::{println}
 import core/result::{Result}
 import std/error::{Error}
