@@ -17,6 +17,7 @@ import core/libc::*
 import std/sys/libc::*
 import std/string::{String}
 import std/sys/os as sys
+import core/traits::{@PartialEq, @PartialOrd}
 
 // ----------------------------------------------------------------------------
 // Duration
@@ -30,6 +31,22 @@ impl Duration@encap {
     pub *
     pub fn clone(self) -> Duration { return self }
     fn drop(self#) {}
+}
+
+impl Duration@PartialEq {
+    pub fn eq(self, other: Duration) -> bool {
+        return self.secs == other.secs && self.nanos == other.nanos
+    }
+}
+
+impl Duration@PartialOrd {
+    pub fn cmp(self, other: Duration) -> i32 {
+        if self.secs > other.secs { return 1 }
+        if self.secs < other.secs { return -1 }
+        if self.nanos > other.nanos { return 1 }
+        if self.nanos < other.nanos { return -1 }
+        return 0
+    }
 }
 
 impl Duration {
@@ -68,13 +85,40 @@ impl Duration {
     }
 
     pub fn sub(self, other: Duration) -> Duration {
-        auto self_ns = self.as_nanos()
-        auto other_ns = other.as_nanos()
-        if self_ns < other_ns {
+        if self.secs < other.secs || (self.secs == other.secs && self.nanos < other.nanos) {
             return Duration::new(0:u64, 0:u32)
         }
-        auto diff = self_ns - other_ns
-        return Duration::from_millis(diff / 1000000:u64) // lossy conversion for simple sub, ideally we'd implement from_nanos correctly
+        auto mut_secs# = self.secs
+        auto mut_nanos# = self.nanos
+        if mut_nanos < other.nanos {
+            mut_secs = mut_secs - 1
+            mut_nanos = mut_nanos + 1000000000:u32
+        }
+        return Duration(secs = mut_secs - other.secs, nanos = mut_nanos - other.nanos)
+    }
+
+    pub fn to_string(self) -> String {
+        unsafe {
+            auto buf# = [0:i8; 32]
+            auto *p = (&buf[0] as Addr) as *char
+            if self.secs > 0 {
+                auto ms = self.nanos / 1000000:u32
+                if ms > 0 {
+                    libc_snprintf(*p, 32:usize, "%llu.%03us" as *char, self.secs, ms)
+                } else {
+                    libc_snprintf(*p, 32:usize, "%llus" as *char, self.secs)
+                }
+            } else if self.nanos >= 1000000:u32 {
+                auto ms = self.nanos / 1000000:u32
+                libc_snprintf(*p, 32:usize, "%ums" as *char, ms)
+            } else if self.nanos >= 1000:u32 {
+                auto us = self.nanos / 1000:u32
+                libc_snprintf(*p, 32:usize, "%uus" as *char, us)
+            } else {
+                libc_snprintf(*p, 32:usize, "%uns" as *char, self.nanos)
+            }
+            return String::from(*p)
+        }
     }
 }
 
@@ -89,6 +133,20 @@ impl Instant@encap {
     pub *
     pub fn clone(self) -> Instant { return self }
     fn drop(self#) {}
+}
+
+impl Instant@PartialEq {
+    pub fn eq(self, other: Instant) -> bool {
+        return self.duration_since_boot == other.duration_since_boot
+    }
+}
+
+impl Instant@PartialOrd {
+    pub fn cmp(self, other: Instant) -> i32 {
+        if self.duration_since_boot > other.duration_since_boot { return 1 }
+        if self.duration_since_boot < other.duration_since_boot { return -1 }
+        return 0
+    }
 }
 
 impl Instant {
@@ -123,6 +181,14 @@ impl Instant {
         auto nanos = (diff % 1000000000:u64) as u32
         return Duration::new(secs, nanos)
     }
+
+    pub fn add(self, duration: Duration) -> Instant {
+        return Instant(duration_since_boot = self.duration_since_boot.add(duration))
+    }
+
+    pub fn sub(self, duration: Duration) -> Instant {
+        return Instant(duration_since_boot = self.duration_since_boot.sub(duration))
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -136,6 +202,20 @@ impl SystemTime@encap {
     pub *
     pub fn clone(self) -> SystemTime { return self }
     fn drop(self#) {}
+}
+
+impl SystemTime@PartialEq {
+    pub fn eq(self, other: SystemTime) -> bool {
+        return self.duration_since_epoch == other.duration_since_epoch
+    }
+}
+
+impl SystemTime@PartialOrd {
+    pub fn cmp(self, other: SystemTime) -> i32 {
+        if self.duration_since_epoch > other.duration_since_epoch { return 1 }
+        if self.duration_since_epoch < other.duration_since_epoch { return -1 }
+        return 0
+    }
 }
 
 impl SystemTime {
@@ -166,6 +246,14 @@ impl SystemTime {
         return Duration::new(secs, nanos)
     }
 
+    pub fn add(self, duration: Duration) -> SystemTime {
+        return SystemTime(duration_since_epoch = self.duration_since_epoch.add(duration))
+    }
+
+    pub fn sub(self, duration: Duration) -> SystemTime {
+        return SystemTime(duration_since_epoch = self.duration_since_epoch.sub(duration))
+    }
+
     pub fn to_datetime(self) -> DateTime {
         unsafe {
             auto secs = self.duration_since_epoch.as_secs()
@@ -189,6 +277,34 @@ impl SystemTime {
                 day    = tm_buf[3],
                 month  = tm_buf[4] + 1, // tm_mon is 0-11
                 year   = tm_buf[5] + 1900, // tm_year is years since 1900
+                wday   = tm_buf[6],
+                yday   = tm_buf[7],
+                isdst  = tm_buf[8]
+            )
+        }
+    }
+
+    pub fn to_utc(self) -> DateTime {
+        unsafe {
+            auto secs = self.duration_since_epoch.as_secs()
+            auto s_val# = secs as i64
+            
+            auto tm_buf# = [0:i32; 16]
+            auto *tm_addr = &tm_buf[0] as *void
+            
+            auto *tm_ptr = libc_gmtime_r(&s_val as *i64, *tm_addr)
+            
+            if *tm_ptr == null {
+                return DateTime(year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0, wday = 0, yday = 0, isdst = 0)
+            }
+
+            return DateTime(
+                second = tm_buf[0],
+                minute = tm_buf[1],
+                hour   = tm_buf[2],
+                day    = tm_buf[3],
+                month  = tm_buf[4] + 1,
+                year   = tm_buf[5] + 1900,
                 wday   = tm_buf[6],
                 yday   = tm_buf[7],
                 isdst  = tm_buf[8]
@@ -221,31 +337,15 @@ impl DateTime@encap {
 impl DateTime {
     // Basic formatting like "2026-04-23 08:30:00"
     pub fn to_string(self) -> String {
-        auto y_str = self.year.to_string()
-        auto m_str = self.month.to_string()
-        auto d_str = self.day.to_string()
-        auto h_str = self.hour.to_string()
-        auto min_str = self.minute.to_string()
-        auto s_str = self.second.to_string()
-        
-        auto res# = String::from("")
-        res#.push_str(y_str.c_str())
-        res#.push_str("-")
-        if self.month < 10 { res#.push_str("0") }
-        res#.push_str(m_str.c_str())
-        res#.push_str("-")
-        if self.day < 10 { res#.push_str("0") }
-        res#.push_str(d_str.c_str())
-        res#.push_str(" ")
-        if self.hour < 10 { res#.push_str("0") }
-        res#.push_str(h_str.c_str())
-        res#.push_str(":")
-        if self.minute < 10 { res#.push_str("0") }
-        res#.push_str(min_str.c_str())
-        res#.push_str(":")
-        if self.second < 10 { res#.push_str("0") }
-        res#.push_str(s_str.c_str())
-        
-        return res
+        unsafe {
+            auto buf# = [0:i8; 32]
+            auto *p = (&buf[0] as Addr) as *char
+            libc_snprintf(
+                *p, 32:usize,
+                "%04d-%02d-%02d %02d:%02d:%02d" as *char,
+                self.year, self.month, self.day, self.hour, self.minute, self.second
+            )
+            return String::from(*p)
+        }
     }
 }

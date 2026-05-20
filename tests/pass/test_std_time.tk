@@ -1,0 +1,72 @@
+import std/time::{Duration, Instant, SystemTime, DateTime}
+import std/io::{println}
+import std/string::{String}
+
+fn main() -> i32 {
+    // 1. Test Duration Precise Arithmetic
+    auto d1 = Duration::new(5:u64, 500000000:u32) // 5.5s
+    auto d2 = Duration::new(2:u64, 800000000:u32) // 2.8s
+    
+    auto sub_res = d1.sub(d2) // Should be 2s and 700000000ns
+    if sub_res.as_secs() != 2:u64 || sub_res.as_nanos() - 2700000000:u64 != 0:u64 {
+        println("Duration sub failed")
+        return 1
+    }
+    
+    // Test Underflow clamp
+    auto sub_underflow = d2.sub(d1)
+    if sub_underflow.as_nanos() != 0:u64 {
+        println("Duration sub underflow failed")
+        return 1
+    }
+
+    // 2. Test Traits (PartialEq, PartialOrd)
+    if d1.eq(d2) {
+        println("Duration eq failed")
+        return 1
+    }
+    if d1.cmp(d2) != 1 {
+        println("Duration cmp failed")
+        return 1
+    }
+    if d2.cmp(d1) != -1 {
+        println("Duration cmp failed 2")
+        return 1
+    }
+
+    // 3. Test Duration Formatting
+    if d1.to_string() != String::from("5.500s") {
+        println("Duration to_string failed")
+        return 1
+    }
+    
+    auto d3 = Duration::new(0:u64, 45000000:u32) // 45ms
+    if d3.to_string() != String::from("45ms") {
+        println("Duration to_string ms failed")
+        return 1
+    }
+
+    // 4. Test Instant math and traits
+    auto now_inst = Instant::now()
+    auto later_inst = now_inst.add(d1)
+    if later_inst.cmp(now_inst) != 1 {
+        println("Instant math/cmp failed")
+        return 1
+    }
+
+    // 5. Test SystemTime to_utc
+    auto sys_now = SystemTime::now()
+    auto local_dt = sys_now.to_datetime()
+    auto utc_dt = sys_now.to_utc()
+    
+    auto local_str = local_dt.to_string()
+    auto utc_str = utc_dt.to_string()
+    
+    if local_str.len() == 0 || utc_str.len() == 0 {
+        println("SystemTime to_utc or to_string failed")
+        return 1
+    }
+
+    println("All time tests passed!")
+    return 0
+}
