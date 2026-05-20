@@ -1,0 +1,194 @@
+// lib/stdx/url.tk
+import std/string::{String}
+import core/result::{Result, Okay}
+
+// Helper to check if a character is unreserved per RFC 3986
+fn is_unreserved(b: u8) -> bool {
+    // Alphanumeric
+    if b >= 'a' as u8 && b <= 'z' as u8 { return true }
+    if b >= 'A' as u8 && b <= 'Z' as u8 { return true }
+    if b >= '0' as u8 && b <= '9' as u8 { return true }
+    // -, _, ., ~
+    if b == '-' as u8 || b == '_' as u8 || b == '.' as u8 || b == '~' as u8 { return true }
+    return false
+}
+
+// Convert half-byte to hex char
+fn to_hex_char(b: u8) -> char {
+    if b < 10:u8 { return (b + '0' as u8) as char }
+    return (b - 10:u8 + 'A' as u8) as char
+}
+
+// Convert hex char to half-byte
+fn from_hex_char(c: char) -> i32 {
+    auto b = c as u8
+    if b >= '0' as u8 && b <= '9' as u8 { return (b - '0' as u8) as i32 }
+    if b >= 'A' as u8 && b <= 'F' as u8 { return (b - 'A' as u8 + 10:u8) as i32 }
+    if b >= 'a' as u8 && b <= 'f' as u8 { return (b - 'a' as u8 + 10:u8) as i32 }
+    return -1
+}
+
+pub fn url_encode(input: String) -> String {
+    auto res# = String::from("")
+    auto i#: usize = 0
+    auto len = input.len()
+    
+    while i < len {
+        auto b_opt = input.as_str().byte_at(i)
+        if b_opt < 0 { break }
+        auto b = b_opt as u8
+        if is_unreserved(b) {
+            res#.push_char(b as char)
+        } else {
+            res#.push_char('%')
+            res#.push_char(to_hex_char(b bshr 4))
+            res#.push_char(to_hex_char(b band 0x0F))
+        }
+        i = i + 1
+    }
+    
+    return res
+}
+
+// Helper for decoding
+fn decode_internal(input: String, plus_as_space: bool) -> Result<String, String> {
+    auto res# = String::from("")
+    auto i#: usize = 0
+    auto len = input.len()
+    
+    while i < len {
+        auto c_opt = input.as_str().at(i)
+        if c_opt.is_none() { break }
+        auto c = c_opt.unwrap()
+        if c == '%' {
+            if i + 2 >= len {
+                return Result<String, String>::Err(String::from("invalid percent encoding: truncated"))
+            }
+            auto c1_opt = input.as_str().at(i + 1)
+            auto c2_opt = input.as_str().at(i + 2)
+            if c1_opt.is_none() || c2_opt.is_none() {
+                return Result<String, String>::Err(String::from("invalid percent encoding: truncated"))
+            }
+            auto h1 = from_hex_char(c1_opt.unwrap())
+            auto h2 = from_hex_char(c2_opt.unwrap())
+            if h1 < 0 || h2 < 0 {
+                return Result<String, String>::Err(String::from("invalid percent encoding: invalid hex characters"))
+            }
+            auto b = ((h1 bshl 4) bor h2) as u8
+            res#.push_char(b as char)
+            i = i + 3
+            continue
+        } else if plus_as_space && c == '+' {
+            res#.push_char(' ')
+        } else {
+            res#.push_char(c)
+        }
+        i = i + 1
+    }
+    
+    return Result<String, String>::Ok(res)
+}
+
+pub fn url_decode(input: String) -> Result<String, String> {
+    return decode_internal(input, false)
+}
+
+pub fn query_decode(input: String) -> Result<String, String> {
+    return decode_internal(input, true)
+}
+
+pub shape Url (
+    scheme: String,
+    host: String,
+    port: u16,        // 0 if none
+    path: String,
+    query: String,
+    fragment: String
+)
+
+impl Url {
+    pub fn new() -> Url {
+        return Url(
+            scheme = String::from(""),
+            host = String::from(""),
+            port = 0:u16,
+            path = String::from(""),
+            query = String::from(""),
+            fragment = String::from("")
+        )
+    }
+}
+
+pub fn parse_url(input: String) -> Result<Url, String> {
+    auto url# = Url::new()
+    auto rest# = input
+    
+    // 1. Fragment
+    auto frag_idx_opt = rest.as_str().index_of('#')
+    if frag_idx_opt.is_some() {
+        auto frag_idx = frag_idx_opt.unwrap() as i32
+        url.fragment = rest.substring(frag_idx + 1, rest.len() as i32)
+        rest = rest.substring(0:i32, frag_idx)
+    }
+    
+    // 2. Query
+    auto query_idx_opt = rest.as_str().index_of('?')
+    if query_idx_opt.is_some() {
+        auto query_idx = query_idx_opt.unwrap() as i32
+        url.query = rest.substring(query_idx + 1, rest.len() as i32)
+        rest = rest.substring(0:i32, query_idx)
+    }
+    
+    // 3. Scheme
+    auto scheme_idx_opt = rest.as_str().index_of_str(String::from("://").as_str())
+    if scheme_idx_opt.is_some() {
+        auto scheme_idx = scheme_idx_opt.unwrap() as i32
+        url.scheme = rest.substring(0:i32, scheme_idx)
+        rest = rest.substring(scheme_idx + 3, rest.len() as i32)
+    }
+    
+    // 4. Host and Port
+    // Path starts at the first '/'
+    auto path_idx_opt = rest.as_str().index_of('/')
+    auto host_port# = String::from("")
+    
+    if path_idx_opt.is_some() {
+        auto path_idx = path_idx_opt.unwrap() as i32
+        host_port = rest.substring(0:i32, path_idx)
+        url.path = rest.substring(path_idx, rest.len() as i32)
+    } else {
+        host_port = rest
+        // If there is no path, maybe the default path is empty.
+    }
+    
+    // Parse port
+    auto port_idx_opt = host_port.as_str().index_of(':')
+    if port_idx_opt.is_some() {
+        auto port_idx = port_idx_opt.unwrap() as i32
+        url.host = host_port.substring(0:i32, port_idx)
+        auto port_str = host_port.substring(port_idx + 1, host_port.len() as i32)
+        // Convert to u16
+        auto p# = 0:i32
+        auto i#: usize = 0
+        auto plen = port_str.len()
+        while i < plen {
+            auto ch_opt = port_str.as_str().at(i)
+            if ch_opt.is_none() { break }
+            auto ch = ch_opt.unwrap()
+            if ch >= '0' && ch <= '9' {
+                p = p * 10 + (ch as u8 - '0' as u8) as i32
+            } else {
+                return Result<Url, String>::Err(String::from("invalid port number"))
+            }
+            i = i + 1
+        }
+        if p > 65535 {
+            return Result<Url, String>::Err(String::from("port out of range"))
+        }
+        url.port = p as u16
+    } else {
+        url.host = host_port
+    }
+    
+    return Result<Url, String>::Ok(url)
+}
