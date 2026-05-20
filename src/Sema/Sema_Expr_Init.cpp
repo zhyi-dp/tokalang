@@ -44,6 +44,9 @@ static std::string getStringifyPath(Expr *E) {
   if (auto *ae = dynamic_cast<AddressOfExpr *>(E)) {
     return getStringifyPath(ae->Expression.get());
   }
+  if (auto *ae = dynamic_cast<ArrayIndexExpr *>(E)) {
+    return getStringifyPath(ae->Array.get());
+  }
   return "";
 }
 

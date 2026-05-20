@@ -147,3 +147,10 @@
 | `impl Foo@encap { fn drop(self#) {} }` (仅提供 drop) | `impl Foo@encap { fn drop(self#){} pub fn clone(self) = delete }` | **铁律 (@encap 等 Trait 契约完整性)**：所有的 `@encap` 实现块**必须完整提供契约约定的全部生命周期函数**（包括 `drop` 和 `clone`）！绝不允许为了偷懒而隐式省略。如果不允许资源被拷贝复制，**必须**显式标注 `pub fn clone(self) = delete` 进行拦截，借此杜绝模糊不清的静默规则。 |
 | `shape U(as String \| as i32)` (裸联合体包含受控资源) | 为其包裹枚举或手动提供 `@encap` 析构 | **铁律 (E0801: Union 的资源禁令)**：严禁在 `Untagged Union` 内直接存放包含 `@encap/drop` 生命周期管理的类型（如 `String`、`Vec`）。因运行时无从知晓当前变体，放任自动生成 `drop` 会导致严重的段错误。除非开发者为该 Union 显式实现完整的 `@encap` 析构。 |
 | `auto x = cede map.inner` | `auto x = cede map` (整体交出) | **铁律 (Partial Move 局部夺舍禁令)**：绝对禁止使用 `cede` 强行剥夺带有生命周期托管的宿主对象（如包含 `@encap` 的复杂容器）内部属性！强行拆散闭环会导致宿主进入不可恢复的报废污染状态，破坏安全析构链。 |
+
+## **待办事项 / 核心架构坏味道记录 (TODO)**
+
+| 待办主题 | 坏味道说明 | 拟重构方案 |
+| :--- | :--- | :--- |
+| **1. 编译器与标准库强耦合解耦 (Smell #3)** | `println` / `print` 等低级 LLVM IR 组装过程高度硬编码在 `CodeGen_Expr.cpp` 中，硬性绑定标准库特定名称的 ABI 函数（如 `String_from`、`String_push_str` 等）。 | 将 `println` 等转化为更通用的宏展开或基于 Trait（契约）的代码生成机制，编译期不强绑定特定 ABI 函数名，使其与 `std/string` 彻底解耦。 |
+| **2. 基本类型“捕获语义”物理 ABI 澄清 (Smell #5)** | 物理层（Codegen）针对非可变基本类型（如 `i32`）优化为了普通 LLVM Value 传值拷贝，这与 Toka 宣称的“一切皆捕获（隐式引用传递）”的逻辑语义在物理层不一致，存在 FFI 灰色地带。 | 保持现有高效的传值优化，但在文档中明确区分 **逻辑语义（捕获）** 与 **物理 ABI 优化（基本类型传值、聚合类型引用）**，并在 FFI 规范文档中进行严谨的物理层澄清。 |
