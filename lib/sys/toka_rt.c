@@ -31,6 +31,7 @@ int toka_fileno(FILE *f) { return _fileno(f); }
 int toka_setmode(int fd, int mode) { return 0; }
 int toka_fileno(FILE *f) { return fileno(f); }
 
+#if 0
 #ifdef __linux__
 extern int main(int argc, char **argv);
 __attribute__((naked, weak)) void _start() {
@@ -43,6 +44,7 @@ __attribute__((naked, weak)) void _start() {
         "syscall\n"
     );
 }
+#endif
 #endif
 #endif
 
@@ -73,8 +75,17 @@ int toka_clock_monotonic(int64_t *ts) {
 #include <stdio.h>
 #include <stdlib.h>
 void toka_panic(const char* msg, int len) {
-    fprintf(stderr, "thread 'main' panicked at '%.*s'\n", len, msg);
-    fflush(stderr);
+    const char *prefix = "thread 'main' panicked at '";
+    const char *suffix = "'\n";
+#ifdef _WIN32
+    _write(2, prefix, 27);
+    _write(2, msg, len);
+    _write(2, suffix, 2);
+#else
+    write(2, prefix, 27);
+    write(2, msg, len);
+    write(2, suffix, 2);
+#endif
     abort();
 }
 
@@ -123,3 +134,16 @@ unsigned int toka_resolve_ipv4(const char* host) {
     freeaddrinfo(res);
     return ip;
 }
+
+void toka_print_str(const char* s) {
+    printf("%s", s);
+}
+
+void toka_print_i32(int val) {
+    printf("%d", val);
+}
+
+void toka_print_f64(double val) {
+    printf("%g", val);
+}
+

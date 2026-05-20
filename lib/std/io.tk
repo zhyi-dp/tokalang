@@ -17,7 +17,16 @@ import core/libc::*
 import sys/libc::*
 import core/result::{Result}
 
-// Intrinsic
+// Intrinsic (Legacy 备份)
+extern fn print_legacy(fmt: str, ...) -> void
+extern fn println_legacy(fmt: str, ...) -> void
+
+// 底层物理流式输出 C 函数
+extern fn toka_print_str(s: str) -> void
+extern fn toka_print_i32(val: i32) -> void
+extern fn toka_print_f64(val: f64) -> void
+
+// 终极零魔法、强校验、编译期展开 print/println 导出接口
 extern fn print(fmt: str, ...) -> void
 extern fn println(fmt: str, ...) -> void
 

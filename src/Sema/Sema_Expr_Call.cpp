@@ -93,11 +93,116 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
   }
 
   // 2. Intrinsics (println, print, String::fmt)
+  bool isPrintlnLegacy = (CallName == "println_legacy" || CallName == "std::io::println_legacy" || CallName == "print_legacy" || CallName == "std::io::print_legacy");
   bool isPrintln = (CallName == "println" || CallName == "std::io::println" || CallName == "print" || CallName == "std::io::print");
   bool isStringFmt = (CallName == "String::fmt" || CallName == "std::string::String::fmt" || CallName == "fmt" || CallName == "std::string::fmt");
 
+  // New non-magical zero-overhead println/print Sema validation
+  if (isPrintln) {
+      bool visible = false;
+      if (CallName == "std::io::println" || CallName == "std::io::print") {
+          visible = true;
+      } else {
+          SymbolInfo val;
+          if (CurrentScope->lookup(CallName, val)) {
+              visible = true;
+          }
+      }
+
+      if (!visible) {
+          DiagnosticEngine::report(getLoc(Call), DiagID::ERR_UNDECLARED, CallName);
+          HasError = true;
+          return toka::Type::fromString("unknown");
+      }
+
+      if (Call->Args.empty()) {
+          error(Call, CallName + " requires at least a format string argument.");
+          return toka::Type::fromString("void");
+      }
+
+      Call->Args[0] = foldGenericConstant(std::move(Call->Args[0]));
+      checkExpr(Call->Args[0].get());
+
+      std::string fmt = "";
+      if (auto *SE = dynamic_cast<StringExpr*>(Call->Args[0].get())) {
+          fmt = SE->Value;
+      } else if (auto *VSE = dynamic_cast<ViewStringExpr*>(Call->Args[0].get())) {
+          fmt = VSE->Value;
+      } else {
+          error(Call->Args[0].get(), CallName + " format argument must be a string literal");
+          return toka::Type::fromString("void");
+      }
+
+      std::vector<std::string> formatSpecifiers;
+      size_t lastPos = 0;
+      while (lastPos < fmt.size()) {
+          size_t startPos = fmt.find('{', lastPos);
+          if (startPos == std::string::npos) break;
+          if (startPos + 1 < fmt.size() && fmt[startPos + 1] == '{') {
+              lastPos = startPos + 2;
+              continue;
+          }
+          size_t endPos = fmt.find('}', startPos + 1);
+          if (endPos == std::string::npos) break;
+
+          std::string specifier = fmt.substr(startPos + 1, endPos - startPos - 1);
+          formatSpecifiers.push_back(specifier);
+          lastPos = endPos + 1;
+      }
+
+      size_t expectedArgs = formatSpecifiers.size();
+      size_t providedArgs = Call->Args.size() - 1;
+      if (expectedArgs != providedArgs) {
+          error(Call, "Format string placeholder count (" + std::to_string(expectedArgs) + 
+                      ") does not match provided arguments count (" + std::to_string(providedArgs) + ")");
+          return toka::Type::fromString("void");
+      }
+
+      for (size_t i = 1; i < Call->Args.size(); i++) {
+          Call->Args[i] = foldGenericConstant(std::move(Call->Args[i]));
+          auto argTyObj = checkExpr(Call->Args[i].get());
+          if (!argTyObj) continue;
+
+          if (argTyObj->isPointer()) {
+              continue;
+          }
+
+          std::string argTy = argTyObj->getSoulName();
+          auto soulTy = Type::stripMorphology(argTy);
+
+          bool isFmt = false;
+          std::string spec = formatSpecifiers[i - 1];
+          if (!spec.empty() && spec[0] == ':') {
+              isFmt = true;
+              spec = spec.substr(1);
+          }
+
+          if (soulTy == "String" || soulTy == "view_str" || soulTy == "str") {
+              if (isFmt) {
+                  error(Call->Args[i].get(), "Formatted printing is not yet supported for String/view_str. Use plain {}.");
+              }
+              continue;
+          }
+
+          bool isBuiltinPrintable = (soulTy == "i32" || soulTy == "f64" || soulTy == "bool" || soulTy == "char" || soulTy == "i64" || soulTy == "u32" || soulTy == "u64" || soulTy == "usize" || soulTy == "f32");
+          if (isBuiltinPrintable && !isFmt) {
+              continue;
+          }
+
+          std::string requiredMethod = isFmt ? "to_string_fmt" : "to_string";
+          std::string requiredTrait = isFmt ? "@ToFormat" : "@ToString";
+
+          if (!MethodMap.count(soulTy) || !MethodMap[soulTy].count(requiredMethod)) {
+              error(Call->Args[i].get(), "Type '" + soulTy + "' does not implement " + requiredTrait + " trait or " + requiredMethod + " method.");
+              return toka::Type::fromString("void");
+          }
+      }
+
+      return toka::Type::fromString("void");
+  }
+
   bool treatAsIntrinsic = false;
-  if ((isPrintln || isStringFmt) && !Call->Args.empty()) {
+  if ((isPrintlnLegacy || isStringFmt) && !Call->Args.empty()) {
       if (dynamic_cast<StringExpr*>(Call->Args[0].get())) {
           treatAsIntrinsic = true;
       }
@@ -105,8 +210,9 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
 
   if (treatAsIntrinsic) {
     bool visible = true;
-    if (isPrintln) {
-      visible = (CallName == "std::io::println" || CallName == "std::io::print");
+    if (isPrintlnLegacy) {
+      visible = (CallName == "std::io::println_legacy" || CallName == "std::io::print_legacy" || 
+                 CallName == "println_legacy" || CallName == "print_legacy");
       if (!visible) {
         SymbolInfo val;
         if (CurrentScope->lookup(CallName, val))
@@ -121,7 +227,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
       Arg = foldGenericConstant(std::move(Arg)); // [FIX]
       checkExpr(Arg.get());
     }
-    if (isStringFmt || isPrintln) {
+    if (isStringFmt || isPrintlnLegacy) {
       std::vector<std::string> formatSpecifiers;
       if (auto *SE = dynamic_cast<StringExpr*>(Call->Args[0].get())) {
           std::string fmt = SE->Value;

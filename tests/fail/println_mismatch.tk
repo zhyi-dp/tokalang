@@ -1,0 +1,8 @@
+import std/io::println
+
+pub fn main() -> i32 {
+    auto x = 42
+    // Expected compilation failure: placeholder count (2) does not match provided arguments count (1)
+    println("Value is {} and square is {}", x)
+    return 0
+}
