@@ -7,7 +7,7 @@ import core/result::{Result}
 import core/option::{Option}
 import sys/os as sys
 import sys/net as sysnet 
-import std/io 
+import std/io::{@Reader, @Writer}
 import std/task::{get_reactor_fd, sleep_async}
 
 extern fn __builtin_coro_current_handle() -> *void
@@ -182,6 +182,16 @@ impl TcpStream@encap {
 }
 
 impl TcpStream {
+    pub fn take(self#) -> TcpStream {
+        auto s = TcpStream(
+            fd = self.fd,
+            closed = self.closed
+        )
+        self.fd = -1
+        self.closed = true
+        return s
+    }
+
     pub fn connect(addr: SocketAddrV4) -> TcpStream {
         unsafe {
             auto fd = sysnet::net_socket_impl()
@@ -526,4 +536,16 @@ pub fn net_async_write(stream#: TcpStream, *buf: u8, len: usize) -> async Result
         }
     }
     return ret
+}
+
+impl TcpStream@Reader {
+    pub fn read_bytes(self#, *buf: u8, len: usize) -> Result<usize, String> {
+        return self#.read(*buf, len)
+    }
+}
+
+impl TcpStream@Writer {
+    pub fn write_bytes(self#, *buf: u8, len: usize) -> Result<usize, String> {
+        return self#.write(*buf, len)
+    }
 }

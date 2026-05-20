@@ -80,6 +80,18 @@ impl File {
     pub fn is_valid(self) -> bool {
         return self.opened
     }
+
+    pub fn take(self#) -> File {
+        auto f = File(
+            *handle = self.*handle,
+            opened = self.opened,
+            owned = self.owned
+        )
+        self.opened = false
+        self.owned = false
+        self.*handle = ADDR0 as *void
+        return f
+    }
     
     pub fn close(self#) {
         unsafe {
@@ -276,5 +288,35 @@ pub fn remove_file(path: String) -> bool {
 pub fn rename_file(old_path: String, new_path: String) -> bool {
     unsafe {
         return libc_rename(old_path.c_str(), new_path.c_str()) == 0
+    }
+}
+
+// ------------------------------------------------------
+// 6. Reader and Writer Traits
+// ------------------------------------------------------
+
+pub trait @Reader {
+    pub fn read_bytes(self#, *buf: u8, len: usize) -> Result<usize, String>
+}
+
+pub trait @Writer {
+    pub fn write_bytes(self#, *buf: u8, len: usize) -> Result<usize, String>
+}
+
+impl File@Reader {
+    pub fn read_bytes(self#, *buf: u8, len: usize) -> Result<usize, String> {
+        return self.read(*buf, len)
+    }
+}
+
+impl File@Writer {
+    pub fn write_bytes(self#, *buf: u8, len: usize) -> Result<usize, String> {
+        unsafe {
+            if !self.opened {
+                return Result<usize, String>::Err(String::from("File not open"))
+            }
+            auto n = libc_fwrite(*buf as *void, 1, len, self.*handle)
+            return Result<usize, String>::Ok(n as usize)
+        }
     }
 }

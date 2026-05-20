@@ -1,0 +1,54 @@
+import std/io::{File, println, remove_file}
+import std/string::{String}
+import std/bufio::{BufferedReader, BufferedWriter}
+
+pub fn main() -> i32 {
+    auto path = String::from("test_bufio_temp.tmp")
+    
+    // 1. Test Writing with BufferedWriter
+    {
+        auto raw_f# = File::open(path.clone(), String::from("w"))
+        assert(raw_f.opened, "Failed to open raw file for writing")
+        
+        auto writer# = BufferedWriter<File>::new(raw_f#.take())
+        
+        writer#.write_string(String::from("Line 1: Hello from standard bufio!\n")).unwrap()
+        writer#.write_string(String::from("Line 2: Fast buffered writing without syscall storm.\n")).unwrap()
+        writer#.write_string(String::from("Line 3: Finished.\n")).unwrap()
+        
+        writer#.flush().unwrap()
+    }
+    
+    // 2. Test Reading with BufferedReader
+    {
+        auto raw_f# = File::open(path.clone(), String::from("r"))
+        assert(raw_f.opened, "Failed to open raw file for reading")
+        
+        auto reader# = BufferedReader<File>::new(raw_f#.take())
+        
+        // Read Line 1
+        auto l1_res = reader#.read_line().unwrap()
+        println("L1: {}", l1_res.c_str())
+        assert(l1_res.eq(String::from("Line 1: Hello from standard bufio!\n")), "L1 mismatch")
+        
+        // Read Line 2
+        auto l2_res = reader#.read_line().unwrap()
+        println("L2: {}", l2_res.c_str())
+        assert(l2_res.eq(String::from("Line 2: Fast buffered writing without syscall storm.\n")), "L2 mismatch")
+        
+        // Read Line 3
+        auto l3_res = reader#.read_line().unwrap()
+        println("L3: {}", l3_res.c_str())
+        assert(l3_res.eq(String::from("Line 3: Finished.\n")), "L3 mismatch")
+        
+        // Read EOF
+        auto l4_res = reader#.read_line().unwrap()
+        println("L4 (EOF): '{}'", l4_res.c_str())
+        assert(l4_res.eq(String::from("")), "L4 EOF mismatch")
+    }
+    
+    // Cleanup
+    remove_file(path)
+    println("BufferedWriter and BufferedReader test passed successfully!")
+    return 0
+}
