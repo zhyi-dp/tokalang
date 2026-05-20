@@ -39,6 +39,12 @@ jobs:
             ../src/Parser/Parser_Stmt.cpp \
             ../src/Sema/Sema.cpp \
             ../src/Sema/Sema_Expr.cpp \
+            ../src/Sema/Sema_Expr_Member.cpp \
+            ../src/Sema/Sema_Expr_Unary.cpp \
+            ../src/Sema/Sema_Expr_Binary.cpp \
+            ../src/Sema/Sema_Expr_Call.cpp \
+            ../src/Sema/Sema_Expr_Init.cpp \
+            ../src/Sema/Sema_Expr_Closure.cpp \
             ../src/Sema/Sema_Stmt.cpp \
             ../src/Sema/Sema_Template.cpp \
             ../src/Sema/Sema_Type.cpp \

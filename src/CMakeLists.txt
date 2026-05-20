@@ -7,6 +7,12 @@ Parser/Parser_Expr.cpp
 Sema/Sema.cpp
 Sema/Sema_Type.cpp
 Sema/Sema_Expr.cpp
+Sema/Sema_Expr_Member.cpp
+Sema/Sema_Expr_Unary.cpp
+Sema/Sema_Expr_Binary.cpp
+Sema/Sema_Expr_Call.cpp
+Sema/Sema_Expr_Init.cpp
+Sema/Sema_Expr_Closure.cpp
 Sema/Sema_Stmt.cpp
 Sema/Sema_Template.cpp
 Sema/PAL_Checker.cpp

@@ -1,0 +1,570 @@
+// Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+#include "toka/AST.h"
+#include "toka/DiagnosticEngine.h"
+#include "toka/Sema.h"
+#include "toka/SourceManager.h"
+#include "toka/Type.h"
+#include <algorithm>
+#include <iostream>
+#include <map>
+#include <memory>
+#include <set>
+#include <string>
+#include <vector>
+
+namespace toka {
+
+static SourceLocation getLoc(ASTNode *Node) { return Node->Loc; }
+
+static std::string getStringifyPath(Expr *E) {
+  if (!E)
+    return "";
+  if (auto *ve = dynamic_cast<VariableExpr *>(E)) {
+    return ve->Name;
+  }
+  if (auto *me = dynamic_cast<MemberExpr *>(E)) {
+    std::string member = toka::Type::stripMorphology(me->Member);
+    return getStringifyPath(me->Object.get()) + "." + member;
+  }
+  if (auto *ue = dynamic_cast<UnaryExpr *>(E)) {
+    return getStringifyPath(ue->RHS.get());
+  }
+  if (auto *ae = dynamic_cast<AddressOfExpr *>(E)) {
+    return getStringifyPath(ae->Expression.get());
+  }
+  return "";
+}
+
+std::shared_ptr<toka::Type> Sema::checkMemberExpr(MemberExpr *Memb) {
+  std::string path = getStringifyPath(Memb);
+  bool isNarrowed = m_NarrowedPaths.count(path);
+
+  // [Ch 5] Single Hat Principle & Terminal Marking Trace
+  bool oldIntermediate = m_InIntermediatePath;
+  m_InIntermediatePath = true; // Sub-indices are intermediate
+
+  // [FIX] Peeling for Semantic Access (Internal)
+  std::shared_ptr<toka::Type> objTypeObj;
+
+  // Rule: Intermediate paths MUST NOT have explicit pointer sigils or
+  // write sigils Check if current Memb is intermediate or terminal
+  bool isTerminal = m_IsAssignmentTarget; // Only terminals can have # or ~^*&
+
+  bool savedDisable = m_DisableSoulCollapse;
+  m_DisableSoulCollapse = true;
+  bool savedMemberBase = m_IsMemberBase;
+  m_IsMemberBase = true;
+  Memb->Object = foldGenericConstant(std::move(Memb->Object)); // [Phase 2]
+  objTypeObj = checkExpr(Memb->Object.get());
+  m_IsMemberBase = savedMemberBase;
+  m_DisableSoulCollapse = savedDisable;
+  m_InIntermediatePath = oldIntermediate;
+
+  // Unset Check for Member Access
+  if (!m_InLHS) {
+    if (auto *objVar = dynamic_cast<VariableExpr *>(Memb->Object.get())) {
+      SymbolInfo *Info = nullptr;
+      std::string actualObjName = objVar->Name;
+      if (CurrentScope->findVariableWithDeref(objVar->Name, Info, actualObjName)) {
+        // [Rule] Borrowing check for Member Access
+        if (!m_InIntermediatePath && !path.empty()) {
+           std::string conflictPath = PALCheckerState.verifyAccess(path);
+           if (!conflictPath.empty()) {
+               DiagnosticEngine::report(getLoc(Memb), DiagID::ERR_BORROW_MUT, conflictPath);
+               HasError = true;
+           }
+        }
+
+        if (Info->TypeObj && Info->TypeObj->isShape()) {
+          // Determine which mask to check: InitMask (for values) or
+          // DirtyReferentMask (for references)
+          uint64_t maskToCheck = Info->InitMask;
+          if (Info->IsReference()) {
+            maskToCheck = Info->DirtyReferentMask;
+          }
+
+          std::string soul = Info->TypeObj->getSoulName();
+          if (ShapeMap.count(soul)) {
+            ShapeDecl *SD = ShapeMap[soul];
+            for (int i = 0; i < (int)SD->Members.size(); ++i) {
+              if (SD->Members[i].Name == Memb->Member) {
+                if (i < 64 && !(maskToCheck & (1ULL << i))) {
+                  DiagnosticEngine::report(getLoc(Memb), DiagID::ERR_USE_UNSET,
+                                           objVar->Name + "." + Memb->Member);
+                  HasError = true;
+                }
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  std::string ObjTypeFull = objTypeObj->toString();
+
+  // Visibility Check for Private Member (Robust check using EncapMap
+  // exists later in loop)
+
+  if (ObjTypeFull == "module") {
+    // It's a module access
+    if (auto *objVar = dynamic_cast<VariableExpr *>(Memb->Object.get())) {
+      SymbolInfo modSpec;
+      if (CurrentScope->lookup(objVar->Name, modSpec) &&
+          modSpec.ReferencedModule) {
+        ModuleScope *target = (ModuleScope *)modSpec.ReferencedModule;
+        if (target->Functions.count(Memb->Member)) {
+          return toka::Type::fromString("fn");
+        }
+        if (target->Globals.count(Memb->Member)) {
+          return toka::Type::fromString(
+              resolveType(target->Globals[Memb->Member]->TypeName));
+        }
+      }
+    }
+  }
+
+  // std::cerr << "DEBUG: checkMemberExpr Object=" <<
+  // objTypeObj->toString()
+  //           << " IsNullable=" << objTypeObj->IsNullable
+  //           << " isNarrowed=" << isNarrowed << "\n";
+
+  // [Ch 6.2] LHS Write Exemption
+  bool isLHSTarget = m_InLHS && m_IsAssignmentTarget;
+  if (objTypeObj->IsNullable && !isLHSTarget) {
+    DiagnosticEngine::report(getLoc(Memb), DiagID::ERR_NULL_ACCESS,
+                             objTypeObj->toString());
+    HasError = true;
+  }
+
+  // [Ch 5.5] Implicit Dereference for soul access
+  // If Object is a pointer but we use '.', we must treat it as
+  // accessing the soul. Exception: Identity properties or methods.
+  if (objTypeObj->isPointer() || objTypeObj->isSmartPointer()) {
+    objTypeObj = objTypeObj->getSoulType();
+  }
+
+  std::string ObjType =
+      toka::Type::stripMorphology(resolveType(objTypeObj, true)->toString());
+
+  if (ShapeMap.count(ObjType)) {
+    ShapeDecl *SD = ShapeMap[ObjType];
+    std::string requestedMember = Memb->Member;
+    std::string requestedPrefix = "";
+    if (!requestedMember.empty()) {
+      size_t prefixEnd = 0;
+      if (requestedMember.size() >= 2 && requestedMember.substr(0, 2) == "??") {
+        prefixEnd = 2;
+      } else {
+        while (prefixEnd < requestedMember.size() &&
+               (requestedMember[prefixEnd] == '*' ||
+                requestedMember[prefixEnd] == '^' ||
+                requestedMember[prefixEnd] == '~' ||
+                requestedMember[prefixEnd] == '&' ||
+                requestedMember[prefixEnd] == '?' ||
+                requestedMember[prefixEnd] == '#' ||
+                requestedMember[prefixEnd] == '!')) {
+          prefixEnd++;
+        }
+      }
+      requestedPrefix = requestedMember.substr(0, prefixEnd);
+      requestedMember = requestedMember.substr(prefixEnd);
+    }
+
+    // [Ch 5] Single Hat & Terminal Audit: Except for ?? assertion
+    if (m_InIntermediatePath && !requestedPrefix.empty() &&
+        requestedPrefix != "??") {
+      error(Memb, "Pointer morphology and permission symbols are only allowed "
+                  "at the terminal of an access chain, got '" +
+                      requestedPrefix + "'");
+    }
+
+    for (int i = 0; i < (int)SD->Members.size(); ++i) {
+      const auto &Field = SD->Members[i];
+      if (toka::Type::stripMorphology(Field.Name) == requestedMember) {
+        Memb->Index = i; // [FIX] Set index for CodeGen
+        Memb->IsMorphicExempt = Field.IsMorphicExempt; // [NEW]
+        // Visibility Check: God-eye view (same file)
+        std::string membFile =
+            DiagnosticEngine::SrcMgr->getFullSourceLoc(Memb->Loc).FileName;
+        std::string sdFile =
+            DiagnosticEngine::SrcMgr->getFullSourceLoc(SD->Loc).FileName;
+
+        if (membFile != sdFile) {
+          // Check EncapMap
+          std::string baseObjType = ObjType;
+          if (baseObjType.find("_M_") != std::string::npos) {
+              baseObjType = baseObjType.substr(0, baseObjType.find("_M_"));
+          }
+          std::string accessType = EncapMap.count(ObjType) ? ObjType : (EncapMap.count(baseObjType) ? baseObjType : "");
+
+          if (!accessType.empty()) {
+            bool accessible = false;
+            for (const auto &entry : EncapMap[accessType]) {
+              bool fieldMatches = false;
+              if (entry.IsExclusion) {
+                fieldMatches = true;
+                for (const auto &f : entry.Fields) {
+                  if (f == requestedMember) {
+                    fieldMatches = false;
+                    break;
+                  }
+                }
+              } else {
+                for (const auto &f : entry.Fields) {
+                  if (f == requestedMember) {
+                    fieldMatches = true;
+                    break;
+                  }
+                }
+              }
+
+              if (fieldMatches) {
+                if (entry.Level == EncapEntry::Global) {
+                  accessible = true;
+                } else if (entry.Level == EncapEntry::Crate) {
+                  accessible = true;
+                } else if (entry.Level == EncapEntry::Path) {
+                  if (membFile.find(entry.TargetPath) != std::string::npos) {
+                    accessible = true;
+                  }
+                }
+              }
+              if (accessible)
+                break;
+            }
+
+            if (!accessible) {
+              error(Memb, DiagID::ERR_MEMBER_PRIVATE, requestedMember, ObjType);
+            }
+          }
+        }
+
+        // Return type based on Toka 1.3 Pointer-Value Duality
+        std::string fullType = Sema::synthesizePhysicalType(Field);
+        std::shared_ptr<toka::Type> fieldType =
+            toka::Type::fromString(fullType);
+
+        // [Ch 5.4] Insulation: Pointers physically break permission
+        // inheritance
+        bool isSoulInsulated = fieldType->isPointer() ||
+                               fieldType->isSmartPointer() ||
+                               fieldType->isReference();
+
+        // 1. Determine Soul Writability
+        bool finalSoulWritable = false;
+        if (Field.IsValueMutable) {
+          finalSoulWritable = true;
+        } else if (Field.IsValueBlocked) {
+          finalSoulWritable = false;
+        } else {
+          // [Toka 1.3] Inheritance: Pointers usually block.
+          // EXCEPTION: If we are on the LHS, or if the usage explicitly
+          // showed # (handled via Postfix wrapper) Since
+          // checkMemberExpr doesn't see the Postfix wrapper easily, we
+          // rely on m_InLHS or m_IsAssignmentTarget.
+          bool permitInheritance = !isSoulInsulated;
+          finalSoulWritable =
+              permitInheritance ? objTypeObj->IsWritable : false;
+        }
+
+        // [Toka 1.3] Unit Variant Support: Allow omission of
+        // parentheses
+        if (SD->Kind == ShapeKind::Enum || SD->Kind == ShapeKind::Union) {
+          bool isUnit = (Field.Type == "void" || Field.Type.empty());
+          if (isUnit) {
+            Memb->IsStatic =
+                true; // Mark as static for CodeGen to generate constant
+            // Use fieldType directly? No, fieldType is void.
+            // We return the Object Type (The Enum Type) as the value.
+            // Ensure no writability or nullability permissions are
+            // blindly inherited for value.
+            return objTypeObj->withAttributes(false, false);
+          }
+        }
+
+        // Apply soul writing to the fieldType itself if it's a pointer
+        if (finalSoulWritable) {
+          if (auto pt = fieldType->getPointeeType())
+            pt->IsWritable = true;
+          else
+            fieldType->IsWritable = true;
+        }
+
+        if (requestedPrefix.empty() && !m_DisableSoulCollapse) {
+          // obj.field (Hat-Off) -> Soul Collapse.
+          return fieldType->getSoulType()->withAttributes(
+              finalSoulWritable, isNarrowed ? false : fieldType->IsNullable);
+        } else {
+          // Hatted Access (Identity Access) Or disabled soul collapse (e.g. valid terminal assignment base)
+          // Use fieldType directly as the base (preserving its
+          // morphologies)
+          std::shared_ptr<toka::Type> result = fieldType;
+
+          // [Toka 1.3] Handle Inheritance:
+          // The Identity pointer (Handle) inherits its own writable
+          // status from self#
+          if (!result->IsBlocked) {
+            result->IsWritable = result->IsWritable || objTypeObj->IsWritable;
+          }
+
+          // Parse intent from requestedPrefix
+          bool intentWritable =
+              requestedPrefix.find('#') != std::string::npos ||
+              requestedPrefix.find('!') != std::string::npos;
+          bool intentNullable = false;
+          if (requestedPrefix != "??") {
+            intentNullable = requestedPrefix.find('?') != std::string::npos ||
+                             requestedPrefix.find('!') != std::string::npos;
+          }
+
+          // If requested prefix exists, ensure morphology matches or
+          // wrap it
+          if (!requestedPrefix.empty() && requestedPrefix != "??") {
+            std::string baseMorph =
+                toka::Type::stripMorphology(requestedPrefix);
+            // If requestedPrefix was just attributes (like '??' or
+            // '#'), baseMorph is empty. But here requestedPrefix is
+            // like '*#' or
+            // '^'. Actually, stripMorphology(requestedPrefix) where
+            // requestedPrefix is '*#' returns empty string? Let's check
+            // Type.cpp stripMorphology. It strips all @$#!?*^~&. Wait,
+            // if requestedPrefix is '*#', stripMorphology returns "".
+            // That's not helpful. I need the base sigil.
+
+            char sigil = 0;
+            for (char c : requestedPrefix) {
+              if (c == '*' || c == '^' || c == '~' || c == '&') {
+                sigil = c;
+                break;
+              }
+            }
+
+            if (sigil != 0) {
+              bool matches = false;
+              if (sigil == '&' && fieldType->isReference())
+                matches = true;
+              else if (sigil == '^' && fieldType->isUniquePtr())
+                matches = true;
+              else if (sigil == '~' && fieldType->isSharedPtr())
+                matches = true;
+              else if (sigil == '*' && fieldType->isRawPointer())
+                matches = true;
+
+              if (!matches) {
+                // [Constitution 1.3] Smart Pointer Soul Borrowing
+                // If the user requests '&' but the field is a unique/shared pointer,
+                // and they didn't write '&^' or '&~', they want a reference to the SOUL.
+                if (sigil == '&' && requestedPrefix == "&" && 
+                    (fieldType->isUniquePtr() || fieldType->isSharedPtr())) {
+                     result = std::make_shared<ReferenceType>(fieldType->getSoulType());
+                } else {
+                  // Shield/Wrap the type with the requested morphology
+                  if (sigil == '&')
+                    result = std::make_shared<ReferenceType>(fieldType);
+                  else if (sigil == '^')
+                    result = std::make_shared<UniquePointerType>(fieldType);
+                  else if (sigil == '~')
+                    result = std::make_shared<SharedPointerType>(fieldType);
+                  else if (sigil == '*')
+                    result = std::make_shared<RawPointerType>(fieldType);
+                }
+              }
+            }
+          }
+
+          if (requestedPrefix == "??") {
+            // Identity Assertion (Ch 6.1)
+            if (!fieldType->isPointer() && !fieldType->isSmartPointer()) {
+              error(Memb, "Identity assertion '??" "' can only be applied to "
+                          "pointers, got '" +
+                              fieldType->toString() + "'");
+            }
+            result = fieldType->withAttributes(fieldType->IsWritable, false);
+          }
+
+          // 2. Determine Handle Writability
+          bool finalHandleWritable = false;
+          if (Field.IsRebindBlocked) {
+            finalHandleWritable = false;
+          } else if (intentWritable) {
+            // Explicitly requested #/! -> check authorization
+            finalHandleWritable = objTypeObj->IsWritable;
+          } else if (Field.IsRebindable) {
+            finalHandleWritable = result->IsWritable;
+          } else {
+            // Default: Inherit Handle Writability from Object Soul
+            // (Bloodline)
+            finalHandleWritable = objTypeObj->IsWritable;
+          }
+
+          return result->withAttributes(
+              finalHandleWritable, intentNullable ? true : result->IsNullable);
+        }
+      }
+    }
+    error(Memb, DiagID::ERR_NO_SUCH_MEMBER, ObjType, Memb->Member);
+
+    return toka::Type::fromString("unknown");
+  } else {
+    auto soulType = objTypeObj;
+    while (soulType && (soulType->isPointer() || soulType->isReference() ||
+                        soulType->isSmartPointer())) {
+      soulType = soulType->getPointeeType();
+    }
+
+    auto resSoul = resolveType(soulType, true);
+    if (auto TT = std::dynamic_pointer_cast<toka::TupleType>(resSoul)) {
+      // Tuple access: .0, .1
+      try {
+        int idx = std::stoi(Memb->Member);
+        if (idx >= 0 && idx < (int)TT->Elements.size()) {
+          Memb->Index = idx; // Set index for CodeGen
+          auto elemType = TT->Elements[idx];
+          // [Toka 1.3] Tuple Inheritance: Elements inherit writability
+          // from the tuple container
+          bool finalWritable = elemType->IsWritable || objTypeObj->IsWritable;
+          return elemType->withAttributes(finalWritable, elemType->IsNullable);
+        } else {
+          error(Memb, DiagID::ERR_TUPLE_INDEX_OOB, Memb->Member,
+                std::to_string(TT->Elements.size()));
+        }
+      } catch (...) {
+        error(Memb, DiagID::ERR_MEMBER_NOT_FOUND, Memb->Member, "tuple");
+      }
+      return toka::Type::fromString("unknown");
+    } else if (ObjType != "unknown") {
+      error(Memb, DiagID::ERR_NOT_A_STRUCT, Memb->Member, ObjType);
+    }
+  }
+  return toka::Type::fromString("unknown");
+}
+
+std::shared_ptr<toka::Type> Sema::checkIndexExpr(ArrayIndexExpr *Idx) {
+  // 1. Validate Indices (must be integer loops)
+  for (auto &idxExpr : Idx->Indices) {
+    idxExpr = foldGenericConstant(std::move(idxExpr)); // [FIX]
+    auto idxType = checkExpr(idxExpr.get());
+    if (!idxType->isInteger()) {
+      error(Idx,
+            "array index must be integer, got '" + idxType->toString() + "'");
+    }
+  }
+
+  // 2. Resolve Base Type
+  std::shared_ptr<toka::Type> baseType = nullptr;
+
+  // [Constitution] Indexing targets Identity (Pointer/Array), not Soul.
+  if (auto *Var = dynamic_cast<VariableExpr *>(Idx->Array.get())) {
+    SymbolInfo *Info = nullptr;
+    std::string actualName = Var->Name;
+    if (CurrentScope->findVariableWithDeref(Var->Name, Info, actualName)) {
+      baseType = Info->TypeObj;
+      if (Info->IsMutable()) {
+        baseType = baseType->withAttributes(true, baseType->IsNullable);
+      }
+    } else {
+      baseType = checkExpr(Idx->Array.get());
+    }
+  } else {
+    bool old = m_DisableSoulCollapse;
+    m_DisableSoulCollapse = true;
+    baseType = checkExpr(Idx->Array.get());
+    m_DisableSoulCollapse = old;
+  }
+
+  if (!baseType || baseType->isUnknown())
+    return toka::Type::fromString("unknown");
+
+  std::shared_ptr<toka::Type> resultType = nullptr;
+  baseType = resolveType(baseType, true);
+
+  if (baseType->isArray()) {
+    resultType = baseType->getArrayElementType();
+  } else if (baseType->isPointer()) {
+    // Pointer indexing dispatch:
+    // 1. Hatted Base (*p[i] or self.*buf[i]) -> Handle Arithmetic (Stride) ->
+    // Returns Pointer
+    // 2. Unhatted Base (p[i] or self.buf[i]) -> Soul Access (Deref) -> Returns
+    // Value
+
+    auto ptrMorph = baseType->getMorphology();
+    auto pointee = baseType->getPointeeType();
+    bool isSafeSlice = false;
+    if (pointee) {
+        if (std::dynamic_pointer_cast<toka::SliceType>(resolveType(pointee, true))) {
+             if (ptrMorph == toka::Type::Morphology::Unique || ptrMorph == toka::Type::Morphology::Shared) {
+                 isSafeSlice = true;
+             }
+        }
+    }
+
+    if (!m_InUnsafeContext && !isSafeSlice) {
+      error(Idx, "raw pointer indexing requires unsafe context");
+    }
+
+    MorphKind morph = getSyntacticMorphology(Idx->Array.get());
+    bool isHatted = (morph == MorphKind::Raw || morph == MorphKind::Unique ||
+                     morph == MorphKind::Shared);
+
+    if (isHatted) {
+      // [Fix] Handle Indexing (Pointer Arithmetic)
+      if (Idx->Indices.size() != 1) {
+        error(Idx, "pointer handle indexing supports only one index");
+      }
+      resultType = baseType;
+    } else {
+      // [Default] Soul Indexing (Value Access)
+      auto pointee = baseType->getPointeeType();
+      if (pointee) {
+        auto resolvedPointee = resolveType(pointee, true);
+        if (auto slice = std::dynamic_pointer_cast<toka::SliceType>(resolvedPointee)) {
+          // [Safety Pillar 3] Uninit subscript ban
+          if (slice->ElementType->isUninit() && !m_InUnsafeContext) {
+             error(Idx, "Cannot safely subscript into an uninitialized slice. Wrap in unsafe block if initialized via external mechanisms.");
+          }
+          resultType = slice->ElementType->withAttributes(baseType->IsWritable || slice->IsWritable || slice->ElementType->IsWritable, slice->ElementType->IsNullable);
+        } else if (auto arr = std::dynamic_pointer_cast<toka::ArrayType>(resolvedPointee)) {
+          resultType = arr->ElementType->withAttributes(baseType->IsWritable || arr->IsWritable || arr->ElementType->IsWritable, arr->ElementType->IsNullable);
+        } else {
+          error(Idx, "Array indexing '[]' is only permitted on arrays '[T; N]' or slices '*[T]'. Cannot index single-element pointer '" + baseType->toString() + "'.");
+          std::cerr << "DEBUG: E0406 generated for node type " << Idx->toString() << "\n";
+          resultType = pointee;
+        }
+      }
+    }
+  } else {
+    error(Idx, "type '" + baseType->toString() + "' is not indexable");
+    return toka::Type::fromString("unknown");
+  }
+
+  if (!resultType)
+    return toka::Type::fromString("unknown");
+
+  // [Ch 5.4] Permission Inheritance:
+  // Arrays inherit writability from their handle.
+  // Pointers do NOT inherit from handle; they use their own Pointee
+  // attributes (Insulation).
+  if (baseType->isArray()) {
+    bool isBaseWritable = baseType->IsWritable;
+    resultType =
+        resultType->withAttributes(isBaseWritable, resultType->IsNullable);
+  }
+
+  return resultType;
+}
+
+} // namespace toka

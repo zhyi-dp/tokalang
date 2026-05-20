@@ -1,0 +1,854 @@
+// Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+#include "toka/AST.h"
+#include "toka/DiagnosticEngine.h"
+#include "toka/Sema.h"
+#include "toka/SourceManager.h"
+#include "toka/Type.h"
+#include <algorithm>
+#include <iostream>
+#include <map>
+#include <memory>
+#include <set>
+#include <string>
+#include <vector>
+
+namespace toka {
+
+static SourceLocation getLoc(ASTNode *Node) { return Node->Loc; }
+
+static std::string getStringifyPath(Expr *E) {
+  if (!E)
+    return "";
+  if (auto *ve = dynamic_cast<VariableExpr *>(E)) {
+    return ve->Name;
+  }
+  if (auto *me = dynamic_cast<MemberExpr *>(E)) {
+    std::string member = toka::Type::stripMorphology(me->Member);
+    return getStringifyPath(me->Object.get()) + "." + member;
+  }
+  if (auto *ue = dynamic_cast<UnaryExpr *>(E)) {
+    return getStringifyPath(ue->RHS.get());
+  }
+  if (auto *ae = dynamic_cast<AddressOfExpr *>(E)) {
+    return getStringifyPath(ae->Expression.get());
+  }
+  return "";
+}
+
+// Stage 5: Object-Oriented Binary Expression Check
+std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
+  // 1. Resolve Operands using New API
+  // [Toka 1.3] Evaluation Order: Check RHS first to avoid LHS
+  // borrows/moves blocking RHS usage (e.g. &#cursor = cursor.&next)
+  Bin->RHS = foldGenericConstant(std::move(Bin->RHS));
+  m_LastBorrowSource = ""; // [NEW] Clear stale borrow source
+  auto rhsType = checkExpr(Bin->RHS.get());
+  std::string rhsBorrowSource = ""; 
+  if (!getStringifyPath(Bin->RHS.get()).empty()) {
+      rhsBorrowSource = m_LastBorrowSource;
+  }
+
+  bool isAssign = (Bin->Op == "=" || Bin->Op == "+=" || Bin->Op == "-=" ||
+                   Bin->Op == "*=" || Bin->Op == "/=" || Bin->Op == "%=");
+  bool oldLHS = m_InLHS;
+  m_InLHS = isAssign;
+
+  if (isAssign) {
+    // [Toka 1.3] Identify potential borrower name (LHS)
+    std::string lhsName = "";
+    Expr *curr = Bin->LHS.get();
+    while (auto *C = dynamic_cast<CastExpr *>(curr))
+      curr = C->Expression.get();
+    if (auto *V = dynamic_cast<VariableExpr *>(curr)) {
+      lhsName = V->Name;
+    } else if (auto *U = dynamic_cast<UnaryExpr *>(curr)) {
+      if (U->Op == TokenType::Ampersand) { // &cursor = ...
+        if (auto *RV = dynamic_cast<VariableExpr *>(U->RHS.get()))
+          lhsName = RV->Name;
+      }
+    }
+    m_ControlFlowStack.push_back({lhsName, "void", nullptr, false, false});
+  }
+
+  if (!isAssign)
+    Bin->LHS = foldGenericConstant(std::move(Bin->LHS));
+
+  bool oldTarget = m_IsAssignmentTarget;
+  if (isAssign) {
+    m_IsAssignmentTarget = true;
+  }
+
+  auto lhsType = checkExpr(Bin->LHS.get());
+  if (isAssign)
+    m_ControlFlowStack.pop_back();
+  m_InLHS = oldLHS;
+  m_IsAssignmentTarget = oldTarget;
+
+  if (isAssign && lhsType && lhsType->IsWritable && !rhsBorrowSource.empty()) {
+      if (!PALCheckerState.upgradeBorrow(rhsBorrowSource)) {
+          error(Bin, DiagID::ERR_BORROW_MUT, rhsBorrowSource);
+      }
+  }
+
+  if (!lhsType || !rhsType)
+    return toka::Type::fromString("unknown");
+
+  std::string LHS = lhsType->toString(); // For error messages
+  std::string RHS = rhsType->toString();
+
+  if (LHS == "unknown" || RHS == "unknown" || 
+      LHS.find("Unresolved") == 0 || RHS.find("Unresolved") == 0) {
+    return toka::Type::fromString("unknown");
+  }
+
+  // [Optimization] Literal Adaptation
+  // Allow mixed comparison like (i64 < 2) by auto-casting the literal
+  // to the explicit type.
+  Expr *lhsExpr = Bin->LHS.get();
+  Expr *rhsExpr = Bin->RHS.get();
+
+  // Strip parens if needed (simple check)
+  // For now direct NumberExpr check
+  auto *lhsNum = dynamic_cast<NumberExpr *>(lhsExpr);
+  auto *rhsNum = dynamic_cast<NumberExpr *>(rhsExpr);
+
+  if (resolveType(lhsType, true)->isInteger() && rhsNum && !lhsNum) {
+    // Left is Strong Integer, Right is Literal -> Adapt Right
+    Bin->RHS->ResolvedType = lhsType;
+    rhsType = lhsType;
+    RHS = rhsType->toString();
+  } else if (resolveType(rhsType, true)->isInteger() && lhsNum && !rhsNum) {
+    // Right is Strong Integer, Left is Literal -> Adapt Left
+    Bin->LHS->ResolvedType = rhsType;
+    lhsType = rhsType;
+    LHS = lhsType->toString();
+  } else if (resolveType(rhsType, true)->isInteger() && lhsNum && !rhsNum) {
+    // Right is Strong Integer, Left is Literal -> Adapt Left
+    Bin->LHS->ResolvedType = rhsType;
+    lhsType = rhsType;
+    LHS = lhsType->toString();
+  }
+
+  // Generic Implicit Dereference for Smart Pointers (Soul Interaction)
+  // If one side is Smart Pointer and other side matches its Pointee,
+  // decay Smart Pointer.
+  if (lhsType->isUniquePtr() || lhsType->isSharedPtr()) {
+    if (auto inner = lhsType->getPointeeType()) {
+      if (isTypeCompatible(inner, rhsType)) {
+        lhsType = inner;
+        Bin->LHS->ResolvedType = lhsType; // PERSIST for CodeGen
+        LHS = lhsType->toString();
+      }
+    }
+  } else if (rhsType->isUniquePtr() || rhsType->isSharedPtr()) {
+    if (auto inner = rhsType->getPointeeType()) {
+      if (isTypeCompatible(lhsType, inner)) {
+        rhsType = inner;
+        Bin->RHS->ResolvedType = rhsType; // PERSIST for CodeGen
+        RHS = rhsType->toString();
+      }
+    }
+  }
+  bool isRefAssign = false;
+  bool isUnsetInit = false;
+  if (m_IsUnsetInitCall) {
+    isRefAssign = true;
+    isUnsetInit = true;
+    m_IsUnsetInitCall = false;
+  }
+
+  // Rebinding Logic: Unwrap &ref on LHS
+  if (Bin->Op == "=") {
+    if (auto *UnLHS = dynamic_cast<UnaryExpr *>(Bin->LHS.get())) {
+      if (UnLHS->Op == TokenType::Ampersand) {
+        if (lhsType->isReference() && lhsType->getPointeeType() &&
+            lhsType->getPointeeType()->isReference()) {
+          lhsType = lhsType->getPointeeType();
+        }
+      }
+    }
+  }
+
+  // Assignment Logic
+  if (Bin->Op == "=") {
+    // [Auto-Clone] Inject clone() if RHS is L-Value and has clone
+    tryInjectAutoClone(Bin->RHS);
+    // Update cached type/ptr after potential injection
+    rhsType = Bin->RHS->ResolvedType;
+    rhsExpr = Bin->RHS.get();
+    RHS = rhsType->toString();
+
+    // Move Logic
+    Expr *RHSExpr = Bin->RHS.get();
+    if (auto *Unary = dynamic_cast<UnaryExpr *>(RHSExpr)) {
+      if (Unary->Op == TokenType::Caret)
+        RHSExpr = Unary->RHS.get();
+    }
+
+    if (auto *RHSVar = dynamic_cast<VariableExpr *>(RHSExpr)) {
+      SymbolInfo *RHSInfoPtr = nullptr;
+      std::string actualRHSName = RHSVar->Name;
+      if (CurrentScope->findVariableWithDeref(RHSVar->Name, RHSInfoPtr, actualRHSName) &&
+          RHSInfoPtr->IsUnique()) {
+        std::string conflictPath = PALCheckerState.verifyMutation(actualRHSName);
+        if (!conflictPath.empty()) {
+            error(Bin, DiagID::ERR_MOVE_BORROWED, conflictPath);
+        }
+        CurrentScope->markMoved(actualRHSName);
+      }
+    }
+    
+    Expr *RHSScan = RHSExpr;
+    while (true) {
+        if (auto *un = dynamic_cast<UnaryExpr *>(RHSScan)) {
+            RHSScan = un->RHS.get();
+        } else if (auto *ce = dynamic_cast<CedeExpr *>(RHSScan)) {
+            RHSScan = ce->Value.get();
+        } else {
+            break;
+        }
+    }
+
+    if (auto *Memb = dynamic_cast<MemberExpr *>(RHSScan)) {
+      // [Move Restriction Rule] Prohibit moving member out of shape
+      // that has drop() Rule applies if we are moving any resource
+      bool memberIsResource = rhsType->isUniquePtr();
+      if (!memberIsResource && rhsType->isShape()) {
+          std::string rhsSoul = toka::Type::stripMorphology(rhsType->getSoulName());
+          if (m_ShapeProps.count(rhsSoul) && m_ShapeProps[rhsSoul].HasDrop) {
+              memberIsResource = true;
+          }
+      }
+
+      if (memberIsResource) {
+        auto objType = checkExpr(Memb->Object.get());
+        std::shared_ptr<toka::Type> soulType = objType->getSoulType();
+        std::string soul = toka::Type::stripMorphology(soulType->getSoulName());
+        if (m_ShapeProps.count(soul) && m_ShapeProps[soul].HasDrop) {
+          error(Bin, DiagID::ERR_MOVE_MEMBER_DROP, Memb->Member, soul);
+          HasError = true;
+        }
+      }
+    }
+
+    // [New] Assign to VariableExpr: Clear Moved State
+    Expr *LHSScan = Bin->LHS.get();
+    while (auto *un = dynamic_cast<UnaryExpr *>(LHSScan)) {
+      LHSScan = un->RHS.get();
+    }
+    if (auto *LHSVar = dynamic_cast<VariableExpr *>(LHSScan)) {
+      std::string actualLHSName = LHSVar->Name;
+      SymbolInfo *LHSInfoPtr = nullptr;
+      CurrentScope->findVariableWithDeref(LHSVar->Name, LHSInfoPtr, actualLHSName);
+      CurrentScope->resetMoved(actualLHSName);
+    }
+
+    // Reference Assignment
+    // [Constitution] Reference Rebinding Detection
+    // If the LHS resolved to a Reference type (due to explicit hatted
+    // syntax
+    // &#z), then it's a rebinding. If it collapsed to the Soul
+    // (Hat-Off), it's Soul modification.
+    if (lhsType->isReference()) {
+      isRefAssign = true;
+    }
+  }
+
+  if (isAssign) {
+    // Smart Pointer NewExpr Special Case
+    bool isSmartNew = false;
+    bool isImplicitDerefAssign = false;
+
+    if (dynamic_cast<NewExpr *>(Bin->RHS.get())) {
+      if (lhsType->isUniquePtr() || lhsType->isSharedPtr()) {
+        auto inner = lhsType->getPointeeType();
+        auto rhsInner = rhsType->getPointeeType(); // new returns ^T
+        if (inner && rhsInner && isTypeCompatible(inner, rhsInner)) {
+          isSmartNew = true;
+        }
+      }
+    }
+
+    // Implicit Dereference Assignment Logic (Soul Mutation)
+    if (!isSmartNew && !isRefAssign &&
+        (lhsType->isUniquePtr() || lhsType->isSharedPtr())) {
+      auto inner = lhsType->getPointeeType();
+      // If RHS matches Inner, we are assigning to the Soul (implicit *s
+      // = val)
+      if (inner && isTypeCompatible(inner, rhsType)) {
+        lhsType = inner; // Decay to Pointee Type for Writability Check
+        isImplicitDerefAssign = true;
+      }
+    }
+
+    // [Constitution 1.3] Covenant-based Writability Check
+    bool isLHSWritable = false;
+    bool isRebind = false;
+
+    // Detect Rebind: Assigning to the pointer variable/handle itself
+    // e.g. "p = ..." where p is smart pointer, or "~#p = ..."
+    // Constitution 1.3: Reference rebinding is ALSO a Reseat operation.
+    if (!isImplicitDerefAssign) {
+      if (lhsType->isPointer() || lhsType->isSmartPointer() || isRefAssign) {
+        isRebind = true;
+      }
+    }
+
+    Expr *Traverse = Bin->LHS.get();
+    while (true) {
+      if (auto *M = dynamic_cast<MemberExpr *>(Traverse)) {
+        Traverse = M->Object.get();
+      } else if (auto *Idx = dynamic_cast<ArrayIndexExpr *>(Traverse)) {
+        Traverse = Idx->Array.get();
+      } else if (auto *Un = dynamic_cast<UnaryExpr *>(Traverse)) {
+        Traverse = Un->RHS.get();
+      } else if (auto *Post = dynamic_cast<PostfixExpr *>(Traverse)) {
+        if (Post->Op == TokenType::DoubleQuestion) {
+          Traverse = Post->LHS.get();
+        } else {
+          break;
+        }
+      } else {
+        break;
+      }
+    }
+
+    if (auto *Var = dynamic_cast<VariableExpr *>(Traverse)) {
+      SymbolInfo *InfoPtr = nullptr;
+      std::string actualName = Var->Name;
+      if (CurrentScope->findVariableWithDeref(Var->Name, InfoPtr, actualName)) {
+        std::string lhsPath = getStringifyPath(Bin->LHS.get());
+        if (!isUnsetInit && !lhsPath.empty()) {
+            std::string conflictPath = PALCheckerState.verifyMutation(lhsPath);
+            bool authorized = false;
+            
+            if (!conflictPath.empty()) {
+               SymbolInfo info;
+               std::string borrower = "";
+               if (!m_ControlFlowStack.empty())
+                 borrower = m_ControlFlowStack.back().Label;
+                 
+               if (CurrentScope->lookup(actualName, info) && info.BorrowedFrom == conflictPath) {
+                  authorized = true;
+               } else if (!borrower.empty()) {
+                   SymbolInfo borrowerInfo;
+                   if (CurrentScope->lookup(borrower, borrowerInfo) && borrowerInfo.BorrowedFrom == conflictPath) {
+                      authorized = true;
+                   } else if (actualName == borrower) {
+                      authorized = true;
+                   }
+               }
+            }
+            
+            if (!conflictPath.empty() && !authorized) {
+                toka::PathState conflictState = PALCheckerState.getState(conflictPath);
+                if (conflictState == toka::PathState::BorrowedShared) {
+                    error(Bin, DiagID::ERR_BORROW_IMMUT, conflictPath);
+                } else {
+                    error(Bin, DiagID::ERR_BORROW_MUT, conflictPath);
+                }
+            }
+        }
+
+        // [Unset Safety] allow initialization
+        if (InfoPtr->InitMask != ~0ULL)
+          isLHSWritable = true;
+
+        if (InfoPtr->IsReference()) {
+          if (InfoPtr->DirtyReferentMask != ~0ULL)
+            isLHSWritable = true;
+        } else {
+          if (InfoPtr->InitMask != ~0ULL)
+            isLHSWritable = true;
+        }
+        
+        if (InfoPtr->IsMutable()) {
+            isLHSWritable = true;
+        }
+      }
+    }
+
+    // [Fix] Global Permission Check: If Sema says it's writable, it's
+    // writable
+    if (lhsType->IsWritable) {
+      isLHSWritable = true;
+    } else if (auto *Post = dynamic_cast<PostfixExpr *>(Traverse)) {
+      if (Post->Op == TokenType::TokenWrite || Post->Op == TokenType::Bang) {
+        isLHSWritable = true;
+      }
+    } else if (auto *Un = dynamic_cast<UnaryExpr *>(Traverse)) {
+      // [Constitution] Explicit Rebind/Access check
+      if (Un->Op == TokenType::Star) { // *p
+        isLHSWritable = true; // Pointer deref allows mutation if target
+                              // type allows (checked below via Soul)
+      } else if (Un->Op == TokenType::Caret || Un->Op == TokenType::Tilde ||
+                 Un->Op == TokenType::Ampersand ||
+                 Un->Op == TokenType::Star) { // ^p, ~p, &p, *p
+        // These are Rebindable handles or access handles.
+        // If they are on the LHS without a deref, they are rebinds.
+        if (isRebind) {
+          // Check if the UnaryExpr itself carries the rebind intent (#
+          // or
+          // !)
+          if (Un->IsRebindable) {
+            isLHSWritable = true;
+          }
+        } else {
+          isLHSWritable = true; // Soul view
+        }
+      }
+    }
+
+    if (isUnsetInit)
+      isLHSWritable = true;
+
+    if (!isLHSWritable) {
+      error(Bin, "Cannot assign to immutable entity. Missing writable token "
+                 "'#' or '!'.");
+      HasError = true;
+    }
+
+    // [Constitution] Soul Permission Elevation Audit
+    // RHS soul must not exceed LHS soul's permissions if they share
+    // objects (Shared/Ref)
+    if (lhsType->isSharedPtr() || lhsType->isReference()) {
+      auto lhsSoul = lhsType->getPointeeType();
+      auto rhsSoul = rhsType->getPointeeType();
+      if (lhsSoul && rhsSoul) {
+        // Check suffix: if RHS soul is Immutable ($/?) and LHS soul is
+        // Writable
+        // (#/!) -> Error
+        if (!rhsSoul->IsWritable && lhsSoul->IsWritable) {
+          // [Identity Exemption] Fresh allocations from 'new' can
+          // satisfy writable souls.
+          if (dynamic_cast<NewExpr *>(Bin->RHS.get())) {
+            // OK: Freshly baked bread is always warm.
+          } else {
+            error(Bin, "Covenant Violation: Cannot elevate write "
+                       "permission from "
+                       "ReadOnly soul to Writable container.");
+            HasError = true;
+          }
+        }
+      }
+    }
+
+    // [FIX] Unset Safety: Allow writing to immutable fields if they are
+    // unset [FIX] Unset Safety: Allow writing to immutable fields if
+    // they are unset
+    bool isLHSUnset = false;
+    if (auto *M = dynamic_cast<MemberExpr *>(Bin->LHS.get())) {
+      Expr *Traverse = M->Object.get();
+      while (auto *InnerM = dynamic_cast<MemberExpr *>(Traverse))
+        Traverse = InnerM->Object.get();
+
+      if (auto *ObjVar = dynamic_cast<VariableExpr *>(Traverse)) {
+        SymbolInfo *ObjInfo = nullptr;
+        if (CurrentScope->findSymbol(ObjVar->Name, ObjInfo)) {
+          // Follow BorrowedFrom chain to find the actual shape instance
+          SymbolInfo *EffectiveInfo = ObjInfo;
+          int depth = 0;
+          while (!EffectiveInfo->BorrowedFrom.empty() && depth < 10) {
+            SymbolInfo *Next = nullptr;
+            if (CurrentScope->findSymbol(EffectiveInfo->BorrowedFrom, Next))
+              EffectiveInfo = Next;
+            else
+              break;
+            depth++;
+          }
+
+          std::shared_ptr<toka::Type> actualType = EffectiveInfo->TypeObj;
+          while (actualType &&
+                 (actualType->isReference() || actualType->isPointer())) {
+            actualType = actualType->getPointeeType();
+          }
+
+          if (actualType && actualType->isShape()) {
+            std::string sName = actualType->getSoulName();
+            if (ShapeMap.count(sName)) {
+              ShapeDecl *SD = ShapeMap[sName];
+              for (int i = 0; i < (int)SD->Members.size(); ++i) {
+                std::string sanDef =
+                    toka::Type::stripMorphology(SD->Members[i].Name);
+                std::string sanMemb = toka::Type::stripMorphology(M->Member);
+                if (sanDef == sanMemb) {
+                  uint64_t bit = (1ULL << i);
+                  bool isUnset = !(EffectiveInfo->InitMask & bit) &&
+                                 !(EffectiveInfo->DirtyReferentMask & bit);
+
+                  if (isUnset) {
+                    isLHSUnset = true;
+                  }
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Constitution 1.3: Only elevate soul permission if it's a
+    // Mutation, not a Reseat (Rebind).
+    if (!isRebind && (isLHSWritable || isLHSUnset))
+      lhsType =
+          lhsType->withAttributes(true, lhsType->IsNullable); // Valid Mutation
+
+    if (!lhsType->IsWritable && !isRefAssign) {
+      error(Bin->LHS.get(), DiagID::ERR_IMMUTABLE_MOD, LHS);
+    }
+
+    auto lhsCompatType = lhsType->withAttributes(false, lhsType->IsNullable);
+
+    // [FIX] Reference Rebinding Morphology Mirror
+    // [NEW] Lifetime Safety Check: Scope(LHS_Object) >=
+    // Scope(RHS_Dependency)
+    std::string targetObjName = "";
+    Expr *lhsObj = Bin->LHS.get();
+    while (auto *me = dynamic_cast<MemberExpr *>(lhsObj)) {
+      lhsObj = me->Object.get();
+    }
+    if (auto *ve = dynamic_cast<VariableExpr *>(lhsObj)) {
+      targetObjName = ve->Name;
+    }
+
+    if (!targetObjName.empty()) {
+      SymbolInfo *targetInfo = nullptr;
+      if (CurrentScope->findSymbol(targetObjName, targetInfo)) {
+        std::set<std::string> rhsDeps = m_LastLifeDependencies;
+        if (!m_LastBorrowSource.empty())
+          rhsDeps.insert(m_LastBorrowSource);
+        if (auto *rv = dynamic_cast<VariableExpr *>(Bin->RHS.get())) {
+          SymbolInfo *ri = nullptr;
+          if (CurrentScope->findSymbol(rv->Name, ri)) {
+            for (const auto &d : ri->LifeDependencySet)
+              rhsDeps.insert(d);
+          }
+        }
+
+        int targetDepth = getScopeDepth(targetObjName);
+        for (const auto &dep : rhsDeps) {
+          int depDepth = getScopeDepth(dep);
+          if (targetDepth < depDepth) { // outer < inner => error
+            error(Bin, DiagID::ERR_BORROW_LIFETIME, targetObjName, dep);
+          }
+          targetInfo->LifeDependencySet.insert(dep);
+        }
+      }
+    }
+    m_LastBorrowSource = "";
+    m_LastLifeDependencies.clear();
+
+    if (isRefAssign && !isUnsetInit) {
+      // If LHS is Ref (&#), RHS must be Ref (&)
+      if (!rhsType->isReference()) {
+        error(Bin->RHS.get(), DiagID::ERR_MORPHOLOGY_MISMATCH, "&",
+              rhsType->toString());
+      }
+      // Compare types after stripping one layer of Reference
+      auto target = lhsType->getPointeeType();
+      auto source = rhsType->getPointeeType();
+      if (target && source && isTypeCompatible(target, source)) {
+        // OK
+      } else {
+        error(Bin, DiagID::ERR_TYPE_MISMATCH, RHS + " (ref)", LHS);
+      }
+      return lhsType;
+    }
+
+    // Strict Pointer Morphology Check
+    if (!isRefAssign) {
+      // Skip check if LHS is explicit dereference (*p = val) which
+      // targets Value, not Pointer Identity.
+      bool isDerefAssign = false;
+      if (auto *Un = dynamic_cast<UnaryExpr *>(Bin->LHS.get())) {
+        if (Un->Op == TokenType::Star)
+          isDerefAssign = true;
+      }
+
+      if (!isDerefAssign) {
+        // Determine Target Morphology (LHS)
+        MorphKind targetMorph = MorphKind::None;
+        // We need to look at the LHS expression structure
+        // If LHS is *p or ^p etc.
+        targetMorph = getSyntacticMorphology(Bin->LHS.get());
+
+        // If LHS is a variable declaration, we don't handle it here
+        // (handled in checkVariableDecl). But this is assignment to
+        // existing variable. If LHS is 'p' (VariableExpr) and p is a
+        // pointer type, Morph is None (hidden). If p is pointer,
+        // targetMorph=None. SourceMorph check... User rule: "auto ^p =
+        // x" (Invalid). "auto p = ^x" (Invalid). "p = q" (Hidden =
+        // Hidden)? "Strict explicit morphology matching". If LHS has no
+        // sigil, but is a pointer type? "auto p = ^x". p is pointer.
+        // LHS sigil None. RHS sigil Unique. Mismatch. Correct. So
+        // `getSyntacticMorphology` returning None for VariableExpr is
+        // correct.
+
+        // Determine if either side is morphic exempt.
+        auto isExempt = [](Expr *E) {
+            if (!E) return false;
+            while (E) {
+                if (E->IsMorphicExempt) return true;
+                if (auto *Un = dynamic_cast<UnaryExpr *>(E)) { E = Un->RHS.get(); }
+                else if (auto *Idx = dynamic_cast<ArrayIndexExpr *>(E)) { E = Idx->Array.get(); }
+                else { break; }
+            }
+            return false;
+        };
+
+        MorphKind sourceMorph = getSyntacticMorphology(Bin->RHS.get());
+        if (!isExempt(Bin->LHS.get()) && !isExempt(Bin->RHS.get())) {
+          checkStrictMorphology(Bin, targetMorph, sourceMorph, LHS);
+        }
+      }
+    }
+
+    bool bypassNullAssign = false;
+    if (m_InUnsafeContext && lhsCompatType && lhsCompatType->isRawPointer() && rhsType && rhsType->isNullType()) {
+        bypassNullAssign = true;
+    }
+
+    if (!bypassNullAssign && !isRefAssign && !isSmartNew &&
+        !isTypeCompatible(lhsCompatType, rhsType) && LHS != "unknown" &&
+        RHS != "unknown") {
+      error(Bin, DiagID::ERR_TYPE_MISMATCH, RHS + " (assign)", LHS);
+    }
+
+    // [Fix] Update InitMask logic for 'unset' variables
+    Expr *LHSExpr = Bin->LHS.get();
+
+    // Helper lambda for back-propagation
+    auto propagateInit = [&](std::string startVar, uint64_t updateBits,
+                             bool isPartial) {
+      std::string current = startVar;
+      // Limit depth to avoid infinite loops in circular refs (though
+      // illegal in Toka)
+      int depth = 0;
+      while (!current.empty() && depth < 20) {
+        SymbolInfo *Sym = nullptr;
+        std::string actualName;
+        if (!CurrentScope->findVariableWithDeref(current, Sym, actualName))
+          break;
+
+        // Update the symbol itself (if it's the source or a ref in
+        // chain)
+        if (Sym->IsReference()) {
+          if (isPartial)
+            Sym->DirtyReferentMask |= updateBits;
+          else
+            Sym->DirtyReferentMask = ~0ULL;
+        } else {
+          if (isPartial)
+            Sym->InitMask = ~0ULL;
+          else
+            Sym->InitMask |= updateBits;
+        }
+
+        // Move to next upstream source
+        if (Sym->IsReference()) {
+          current = Sym->BorrowedFrom;
+        } else {
+          break; // Reached root
+        }
+        depth++;
+      }
+    };
+
+    if (auto *Var = dynamic_cast<VariableExpr *>(LHSExpr)) {
+      SymbolInfo *Info = nullptr;
+      std::string actualName;
+      if (CurrentScope->findVariableWithDeref(Var->Name, Info, actualName)) {
+        // Full Assignment to Variable (or Reference)
+        // If it's a reference, we propagate Cleanliness to Source
+        if (Info->IsReference()) {
+          Info->DirtyReferentMask = ~0ULL;
+          if (!Info->BorrowedFrom.empty()) {
+            propagateInit(Info->BorrowedFrom, ~0ULL, false);
+          }
+        } else {
+          Info->InitMask = ~0ULL;
+        }
+      }
+    } else if (auto *Memb = dynamic_cast<MemberExpr *>(LHSExpr)) {
+      // Partial Initialization via Member
+      Expr *Obj = Memb->Object.get();
+      if (auto *Var = dynamic_cast<VariableExpr *>(Obj)) {
+        SymbolInfo *Info = nullptr;
+        std::string actualName;
+        if (CurrentScope->findVariableWithDeref(Var->Name, Info, actualName)) {
+          std::shared_ptr<toka::Type> actualType = Info->TypeObj;
+          // If reference, peel to find Shape
+          if (actualType && actualType->isReference()) {
+            actualType = actualType->getPointeeType();
+          }
+
+          if (actualType && actualType->isShape()) {
+            std::string sName = actualType->getSoulName();
+            if (ShapeMap.count(sName)) {
+              ShapeDecl *SD = ShapeMap[sName];
+
+              // Find which bit to set
+              uint64_t bitsToSet = 0;
+              for (int i = 0; i < (int)SD->Members.size(); ++i) {
+                if (SD->Members[i].Name == Memb->Member) {
+                  bitsToSet = (1ULL << i);
+                  break;
+                }
+              }
+
+              if (bitsToSet != 0) {
+                // Apply locally
+                if (Info->IsReference()) {
+                  Info->DirtyReferentMask |= bitsToSet;
+                  // Propagate Up
+                  if (!Info->BorrowedFrom.empty()) {
+                    propagateInit(Info->BorrowedFrom, bitsToSet, true);
+                  }
+                } else {
+                  Info->InitMask |= bitsToSet;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return lhsType;
+  }
+
+  // General Binary Ops
+  if (Bin->Op == "&&" || Bin->Op == "||") {
+    if (!lhsType->isBoolean() || !rhsType->isBoolean()) {
+      error(Bin, DiagID::ERR_INVALID_OP, Bin->Op, lhsType->toString(),
+            rhsType->toString());
+    }
+    return toka::Type::fromString("bool");
+  }
+
+  if (lhsType->isPointer() && (Bin->Op == "+" || Bin->Op == "-")) {
+    if (!m_InUnsafeContext) {
+      error(Bin,
+            DiagID::ERR_UNSAFE_ALLOC_CTX); // Reuse for ptr arithmetic
+    }
+    auto ptrType = std::dynamic_pointer_cast<toka::PointerType>(resolveType(lhsType, true));
+    std::string elemType = "unknown";
+    if (ptrType) {
+      auto pointee = resolveType(ptrType->getPointeeType(), true);
+      if (auto slice = std::dynamic_pointer_cast<toka::SliceType>(pointee)) {
+        elemType = slice->ElementType->toString();
+      } else if (auto arr = std::dynamic_pointer_cast<toka::ArrayType>(pointee)) {
+        elemType = arr->ElementType->toString();
+      } else {
+        elemType = pointee->toString();
+      }
+    }
+    return toka::Type::fromString("*[" + elemType + "]");
+  }
+
+  if (Bin->Op == "==" || Bin->Op == "!=" || Bin->Op == "<" || Bin->Op == ">" ||
+      Bin->Op == "<=" || Bin->Op == ">=") {
+    bool bypassNullCmp = false;
+    if (m_InUnsafeContext) {
+        if (lhsType && lhsType->isRawPointer() && rhsType && rhsType->isNullType()) bypassNullCmp = true;
+        if (rhsType && rhsType->isRawPointer() && lhsType && lhsType->isNullType()) bypassNullCmp = true;
+    }
+
+    // [Phase 2] Syntactic Sugar / Operator Overloading for == and !=
+    if ((Bin->Op == "==" || Bin->Op == "!=") && !bypassNullCmp) {
+      auto shapeLRes = resolveType(lhsType, true);
+      if (shapeLRes->isShape()) {
+        std::string sName = shapeLRes->getSoulName();
+        if (MethodMap.count(sName) && MethodMap[sName].count("eq")) {
+          if (isTypeCompatible(lhsType, rhsType) || isTypeCompatible(rhsType, lhsType)) {
+            Bin->OverloadedMethod = "eq";
+            return toka::Type::fromString("bool");
+          }
+        }
+      }
+    }
+
+    if (!bypassNullCmp && !isTypeCompatible(lhsType, rhsType) &&
+        !isTypeCompatible(rhsType, lhsType)) {
+      error(Bin, DiagID::ERR_INVALID_OP, Bin->Op, LHS, RHS);
+    }
+    // Strict Integer Check
+    auto lRes = resolveType(lhsType);
+    auto rRes = resolveType(rhsType);
+    if (!lRes->withAttributes(false, false)
+             ->equals(*rRes->withAttributes(false, false))) {
+      if (lhsType->isInteger() && rhsType->isInteger()) {
+        error(Bin, "comparison operands must have exact same type ('" + LHS +
+                       "' vs '" + RHS + "')");
+      }
+    }
+    return toka::Type::fromString("bool");
+  }
+
+  if (Bin->Op == "+" || Bin->Op == "-" || Bin->Op == "*" || Bin->Op == "/" ||
+      Bin->Op == "%") {
+    bool isValid = false;
+    auto lRes = resolveType(lhsType, true);
+    if (lRes->isInteger() || lRes->isFloatingPoint()) {
+      if (Bin->Op == "%" && lRes->isFloatingPoint()) {
+        error(Bin, "operand of '%' must be integer, got float");
+      }
+      isValid = true;
+    }
+
+    if (!isValid) {
+      error(Bin,
+            "operands of '" + Bin->Op + "' must be numeric, got '" + LHS + "'");
+    }
+    return lhsType->withAttributes(false, lhsType->IsNullable);
+  }
+
+  if (Bin->Op == "band" || Bin->Op == "bor" || Bin->Op == "bxor" ||
+      Bin->Op == "bshl" || Bin->Op == "bshr" ||
+      Bin->Op == "&" || Bin->Op == "|" || Bin->Op == "^" ||
+      Bin->Op == "<<" || Bin->Op == ">>") {
+    if (!resolveType(lhsType, true)->isInteger() ||
+        !resolveType(rhsType, true)->isInteger()) {
+      error(Bin, "operands of '" + Bin->Op + "' must be integers");
+    }
+    return lhsType->withAttributes(false, lhsType->IsNullable);
+  }
+
+  if (Bin->Op == "is" || Bin->Op == "is!") {
+    // [Fix] Disable soul collapse for the LHS of 'is' so we can check
+    // the the pointer/handle itself.
+    bool oldDisable = m_DisableSoulCollapse;
+    m_DisableSoulCollapse = true;
+    auto lhsType = checkExpr(Bin->LHS.get());
+    m_DisableSoulCollapse = oldDisable;
+
+    auto rhsType = checkExpr(Bin->RHS.get());
+    // Basic validation for 'is' / 'is!'
+    if (auto *rhsVar = dynamic_cast<VariableExpr *>(Bin->RHS.get())) {
+      // If RHS is just a Shape name, it's NOT a valid pattern (should
+      // be a variable or variant)
+      if (ShapeMap.count(rhsVar->Name)) {
+        error(Bin->RHS.get(), "'" + rhsVar->Name +
+                                  "' is a shape, not a valid pattern for 'is'");
+      }
+    }
+    return toka::Type::fromString("bool");
+  }
+
+  return toka::Type::fromString("unknown");
+}
+
+} // namespace toka

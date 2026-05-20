@@ -1,0 +1,349 @@
+// Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+#include "toka/AST.h"
+#include "toka/DiagnosticEngine.h"
+#include "toka/Sema.h"
+#include "toka/SourceManager.h"
+#include "toka/Type.h"
+#include <algorithm>
+#include <iostream>
+#include <map>
+#include <memory>
+#include <set>
+#include <string>
+#include <vector>
+
+namespace toka {
+
+[[maybe_unused]] static SourceLocation getLoc(ASTNode *Node) { return Node->Loc; }
+
+[[maybe_unused]] static std::string getStringifyPath(Expr *E) {
+  if (!E)
+    return "";
+  if (auto *ve = dynamic_cast<VariableExpr *>(E)) {
+    return ve->Name;
+  }
+  if (auto *me = dynamic_cast<MemberExpr *>(E)) {
+    std::string member = toka::Type::stripMorphology(me->Member);
+    return getStringifyPath(me->Object.get()) + "." + member;
+  }
+  if (auto *ue = dynamic_cast<UnaryExpr *>(E)) {
+    return getStringifyPath(ue->RHS.get());
+  }
+  if (auto *ae = dynamic_cast<AddressOfExpr *>(E)) {
+    return getStringifyPath(ae->Expression.get());
+  }
+  return "";
+}
+
+// Implementation of tryInjectAutoClone
+void Sema::tryInjectAutoClone(std::unique_ptr<Expr> &expr) {
+  if (!expr)
+    return;
+
+  // Guard: Not if inside clone method (infinite recursion prevention)
+  // Check strict name "clone" or namespaced "::clone"
+  if (CurrentFunction) {
+    if (CurrentFunction->Name == "clone")
+      return;
+    if (CurrentFunction->Name.size() >= 7 &&
+        CurrentFunction->Name.compare(CurrentFunction->Name.size() - 7, 7,
+                                      "::clone") == 0) {
+      return;
+    }
+  }
+
+  // 1. Must be L-Value
+  if (!isLValue(expr.get()))
+    return;
+
+  // 2. Resolve Type
+  auto type = expr->ResolvedType;
+  if (!type) {
+    // Should not happen in typical check* flow, but safe fallback
+    type = checkExpr(expr.get());
+  }
+
+  // 3. Filter Types
+  if (type->isPointer() || type->isReference())
+    return; // Pointers/Refs copy identity
+  if (!type->isShape())
+    return; // Only Shapes can have clone
+
+  // 4. Check for 'clone' method existence
+  std::string typeName = type->getSoulName();
+  bool hasClone = false;
+
+  // Inherent methods
+  if (MethodDecls.count(typeName) && MethodDecls[typeName].count("clone")) {
+    hasClone = true;
+  }
+  // Trait methods (specifically @encap or similar)
+  if (!hasClone) {
+    // Check @encap (most common)
+    if (ImplMap.count(typeName + "@encap") &&
+        ImplMap[typeName + "@encap"].count("clone")) {
+      hasClone = true;
+    }
+    // Check potential @Clone trait if added in future
+    else if (ImplMap.count(typeName + "@Clone") &&
+             ImplMap[typeName + "@Clone"].count("clone")) {
+      hasClone = true;
+    }
+  }
+
+  // 5. Inject
+  if (hasClone) {
+    auto loc = expr->Loc;
+    std::vector<std::unique_ptr<Expr>> args;
+    auto cloneCall = std::make_unique<MethodCallExpr>(std::move(expr), "clone",
+                                                      std::move(args));
+    cloneCall->Loc = loc;
+    cloneCall->IsCompilerInternal =
+        true; // [Auto-Clone] Mark as internal for priv access
+    // Arguments are empty for clone()
+
+    // Replace expression
+    expr = std::move(cloneCall);
+
+    // Re-check to resolve types of the new MethodCall
+    checkExpr(expr.get());
+  }
+}
+
+std::shared_ptr<toka::Type> Sema::checkClosureExpr(ClosureExpr *Clo) {
+  if (!Clo->SynthesizedShapeName.empty()) {
+      return toka::Type::fromString(Clo->SynthesizedShapeName);
+  }
+
+  static int closureCounter = 0;
+  std::string UniqueName = "__Closure_" + std::to_string(closureCounter++);
+  Clo->SynthesizedShapeName = UniqueName;
+
+  auto oldAccessed = m_AccessedVariables;
+  m_AccessedVariables.clear();
+  
+  auto oldFuncRetType = CurrentFunctionReturnType;
+  CurrentFunctionReturnType = Clo->ReturnType;
+
+  enterScope();
+  
+  // Synthesize Params and Generic Parameters for the `__invoke` method
+  std::vector<GenericParam> invokeGenerics;
+  std::vector<FunctionDecl::Arg> closureParams;
+  
+  if (Clo->HasExplicitArgs) {
+      for (size_t i = 0; i < Clo->ArgNames.size(); ++i) {
+          std::string tName;
+          if (i < Clo->InjectedParamTypes.size()) {
+             tName = Clo->InjectedParamTypes[i]->getSoulName();
+          } else {
+             tName = "T" + std::to_string(i);
+             invokeGenerics.push_back({tName});
+          }
+          
+          FunctionDecl::Arg arg;
+          arg.Name = Clo->ArgNames[i];
+          arg.Type = tName;
+          closureParams.push_back(std::move(arg));
+      }
+  } else if (Clo->MaxImplicitArgIndex >= 0) {
+      for (int i = 0; i <= Clo->MaxImplicitArgIndex; ++i) {
+          std::string tName;
+          if (i < Clo->InjectedParamTypes.size()) {
+             tName = Clo->InjectedParamTypes[i]->getSoulName();
+          } else {
+             tName = "T" + std::to_string(i);
+             invokeGenerics.push_back({tName});
+          }
+          
+          FunctionDecl::Arg arg;
+          arg.Name = "_arg" + std::to_string(i); // Matches VariableExpr generated by parser
+          arg.Type = tName;
+          closureParams.push_back(std::move(arg));
+      }
+  }
+
+  // Define params in scope
+  for (auto &p : closureParams) {
+    if (p.Type.size() > 100) {
+      std::cerr << "TRACE: suspiciously large p.Type: " << p.Type.substr(0, 50) << "...\n";
+    } else {
+      std::cerr << "TRACE: closure param type is " << p.Type << "\n";
+    }
+    p.ResolvedType = toka::Type::fromString(p.Type); // Dynamic (fallback to T0 if generic)
+    SymbolInfo info;
+    info.TypeObj = p.ResolvedType;
+    CurrentScope->define(p.Name, info);
+  }
+
+  // Check Body (this will recursively call checkExpr which populates m_AccessedVariables)
+  if (Clo->Body) {
+      bool oldPrecompute = m_IsPrecomputingCaptures;
+      m_IsPrecomputingCaptures = true;
+      checkStmt(Clo->Body.get());
+      m_IsPrecomputingCaptures = oldPrecompute;
+  }
+
+  // Determine Captures
+  std::vector<ShapeMember> members;
+  for (const auto& varName : m_AccessedVariables) {
+     SymbolInfo *infoPtr = nullptr;
+     std::string actualName;
+     // Exclude current closure scope params; check if it exists in the environment (CurrentScope)!
+     bool isParam = false;
+     for (auto &p : closureParams) {
+         if (p.Name == varName) { isParam = true; break; }
+     }
+     if (isParam) {
+         std::cerr << "[TRACE] checkClosureExpr skipped param: " << varName << "\n";
+         continue;
+     }
+
+     if (CurrentScope->findVariableWithDeref(varName, infoPtr, actualName)) {
+         std::cerr << "[TRACE] checkClosureExpr captured: " << varName << " type: " << infoPtr->TypeObj->toString() << "\n";
+        
+        bool isExplicit = false;
+        CaptureMode explicitMode = CaptureMode::ImplicitBorrow;
+        
+        for (auto& cap : Clo->ExplicitCaptures) {
+           std::string rawName = cap.Name;
+           while(!rawName.empty() && (rawName[0]=='~' || rawName[0]=='^' || rawName[0]=='*' || rawName[0]=='&' || rawName[0]=='?' || rawName[0]=='#')) {
+              rawName = rawName.substr(1);
+           }
+           if (rawName == varName || cap.Name == "*") {
+              isExplicit = true;
+              explicitMode = cap.Mode;
+              break;
+           }
+        }
+        
+        if (!isExplicit) {
+           Clo->ImplicitCaptures.push_back(varName);
+        }
+
+        ShapeMember sm;
+        sm.Name = varName;
+        
+        if (isExplicit && (explicitMode == CaptureMode::ExplicitCede || explicitMode == CaptureMode::ExplicitCopy)) {
+            sm.Type = infoPtr->TypeObj->toString(); 
+            sm.ResolvedType = infoPtr->TypeObj; // [Fix] Pre-resolve
+            if (explicitMode == CaptureMode::ExplicitCede) {
+                // Mark original variable as Consumed/Moved in the parent scope!
+                CurrentScope->Parent->markMoved(varName);
+            }
+        } else {
+            // Implicit capture means Borrow (Reference)
+            sm.Type = "&" + infoPtr->TypeObj->toString();
+            sm.ResolvedType = std::make_shared<toka::ReferenceType>(infoPtr->TypeObj); // [Fix] Pre-resolve reference
+        }
+
+        members.push_back(sm);
+     }
+  }
+
+  exitScope();
+  m_AccessedVariables = oldAccessed;
+  CurrentFunctionReturnType = oldFuncRetType;
+
+  // Construct synthetic ShapeDecl
+  auto SyntheticShape = std::make_unique<ShapeDecl>(
+      false, UniqueName, std::vector<GenericParam>{}, ShapeKind::Struct, members);
+  SyntheticShape->Loc = Clo->Loc;
+  
+  auto retTy = std::make_shared<toka::ShapeType>(UniqueName);
+  retTy->resolve(SyntheticShape.get());
+
+  ShapeMap[UniqueName] = SyntheticShape.get();
+  // MOVED DOWN: SyntheticShapes.push_back(std::move(SyntheticShape));
+
+  std::vector<FunctionDecl::Arg> invokeArgs;
+  FunctionDecl::Arg selfArg;
+  selfArg.Name = "self";
+  selfArg.Type = "&" + UniqueName;
+  selfArg.ResolvedType = std::make_shared<toka::ReferenceType>(retTy);
+  selfArg.IsReference = true;
+  invokeArgs.push_back(std::move(selfArg));
+
+  for (const auto& p : closureParams) {
+     invokeArgs.push_back(p.clone());
+  }
+
+  std::string invokeRetType = Clo->ReturnType;
+  if (invokeRetType.empty() || invokeRetType == "unknown") {
+      invokeRetType = CurrentFunctionReturnType; 
+  }
+  auto invokeFunc = std::make_unique<FunctionDecl>(false, "__invoke", std::move(invokeArgs), std::move(Clo->Body), invokeRetType);
+  invokeFunc->GenericParams = invokeGenerics; // [NEW] Attach generic parameters
+  invokeFunc->ResolvedReturnType = toka::Type::fromString(invokeRetType);
+
+  // [Fix] Closure Body Semantic Checking
+  // We must type-check the body here so all AST nodes receive ResolvedType.
+  // We create a temporary scope to inject 'self', parameters, and captured fields
+  // so that accessing a captured field doesn't trigger "Use of moved value" from the outer scope.
+  enterScope();
+  
+  // 1. Inject 'self' and original params
+  for (auto &arg : invokeFunc->Args) {
+    SymbolInfo Info;
+    Info.TypeObj = arg.ResolvedType ? arg.ResolvedType : toka::Type::fromString(arg.Type);
+    CurrentScope->define(arg.Name, Info);
+  }
+  
+  // 2. Inject captured variables as perfectly valid locals
+  for (auto &memb : SyntheticShape->Members) {
+    std::cerr << "[TRACE] INJECTING CAPTURED MEMB: " << memb.Name << " ResolvedType: " << (memb.ResolvedType ? "YES" : "NO") << " Depth: " << CurrentScope->Depth << "\n";
+    if (memb.ResolvedType) {
+       SymbolInfo Info;
+       Info.TypeObj = memb.ResolvedType; // Pre-resolved!
+       // If it's a reference capture, the user writes `x`, but it's a reference under the hood. 
+       // We want it to be considered as the exact physical type.
+       CurrentScope->define(memb.Name, Info);
+     }
+  }
+
+  // 3. Check the body
+  if (invokeFunc->Body) {
+      std::string savedRet = CurrentFunctionReturnType;
+      FunctionDecl *savedFn = CurrentFunction;
+      CurrentFunction = invokeFunc.get();
+      CurrentFunctionReturnType = invokeRetType;
+
+      checkStmt(invokeFunc->Body.get());
+
+      CurrentFunctionReturnType = savedRet;
+      CurrentFunction = savedFn;
+  }
+  
+  exitScope();
+
+  // Now we can safely move SyntheticShape to permanent storage
+  ShapeMap[UniqueName] = SyntheticShape.get();
+  SyntheticShapes.push_back(std::move(SyntheticShape));
+
+  ImplMap[UniqueName]["__invoke"] = invokeFunc.get();
+  MethodDecls[UniqueName]["__invoke"] = invokeFunc.get();
+
+  std::vector<std::unique_ptr<FunctionDecl>> implMethods;
+  implMethods.push_back(std::move(invokeFunc));
+  auto implDecl = std::make_unique<ImplDecl>(UniqueName, std::move(implMethods));
+
+  if (GenericInstancesModule) {
+      GenericInstancesModule->Impls.push_back(std::move(implDecl));
+  }
+
+  return toka::Type::fromString(UniqueName);
+}
+
+} // namespace toka
