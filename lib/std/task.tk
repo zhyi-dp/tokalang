@@ -4,6 +4,7 @@
 // This file provides the runtime task scheduler and synchronization context.
 
 import std/vec::{Vec}
+import std/io::{println}
 import sys/libc::{libc_usleep}
 import sys/sync as sys_sync
 import std/time::{Instant}
@@ -180,7 +181,7 @@ pub fn __toka_spawn_blocking(*task: void) {
             if top_opt.is_none() { break }
             auto t = top_opt.unwrap()
             if now >= t.expire_at {
-                // println("[Loop] Time reached for timer handle, pushing to task queue!")
+                println("  [scheduler] Time reached for timer handle, pushing to task queue!")
                 g_task_queue#.push(TaskPtr(addr=t.addr))
                 g_timer_queue#.pop()
             } else {
@@ -201,9 +202,9 @@ pub fn __toka_spawn_blocking(*task: void) {
             unlock_queue()
             
             auto addr = popped.addr
-            // println("[Loop] Resuming task from queue!")
+            println("  [scheduler] Resuming task from queue!")
             __toka_coro_resume(addr as *void)
-            // println("[Loop] Task yielded back!")
+            println("  [scheduler] Task yielded back!")
             continue
         }
         unlock_queue()
@@ -213,11 +214,18 @@ pub fn __toka_spawn_blocking(*task: void) {
         auto d_i#: usize = 0
         auto keep_d#: usize = 0
         auto d_len = g_detached_tasks.len()
+        if d_len > 0 {
+            println("  [scheduler] Garbage collection starting for {} detached tasks", d_len)
+        }
         while d_i < d_len {
             auto detached_val = g_detached_tasks.get(d_i)
+            println("  [scheduler] Checking detached task: {}", detached_val)
             if __toka_coro_done(detached_val as *void) {
+                println("  [scheduler] Detached task is done, destroying it: {}", detached_val)
                 __toka_coro_destroy(detached_val as *void)
+                println("  [scheduler] Detached task destroyed successfully")
             } else {
+                println("  [scheduler] Detached task is not done, keeping it: {}", detached_val)
                 g_detached_tasks#.set(keep_d, detached_val)
                 keep_d += 1
             }
@@ -247,12 +255,14 @@ pub fn __toka_spawn_blocking(*task: void) {
         
         if timeout_ms < 0 { timeout_ms = 0 }
 
+        println("  [scheduler] Entering reactor_wait_impl with timeout: {}", timeout_ms)
         // Block on the reactor
         unsafe {
             auto events_buf# = [0:Addr; 64]
             auto *events_ptr = &events_buf[0] as *Addr
             
             auto n = sysnet::reactor_wait_impl(g_reactor_fd, timeout_ms, *events_ptr, 64)
+            println("  [scheduler] reactor_wait_impl returned: {}", n)
             
             if n > 0 {
                 lock_queue()
@@ -287,4 +297,8 @@ pub fn sleep(ms: i32) {
 pub fn block_on<T>(handle#: TaskHandle<T>) -> T {
     __toka_spawn_blocking(handle.*coro_handle)
     return handle.wait
+}
+
+pub fn detach_forget<T>(handle#: TaskHandle<T>) {
+    handle.*coro_handle = null as *void
 }

@@ -1,0 +1,182 @@
+// Copyright (c) 2026 YiZhonghua<zhyi@dpai.com>. All rights reserved.
+
+import std/io::{println}
+import std/context::{background, with_cancel, with_timeout, with_value, @Context, BackgroundContext, CancelContext, TimeoutContext, ValueContext}
+import std/task::{sleep_async, block_on, current_time_ms}
+
+fn test_cancel() -> async i32 {
+    println("1. Starting test_cancel...")
+    auto bg = background()
+    println("2. Background context created")
+    auto res = with_cancel<BackgroundContext>(cede bg)
+    println("3. with_cancel completed")
+    auto ctx# = res.ctx
+    auto canceler = res.canceler.clone()
+    println("4. canceler cloned")
+    
+    assert(!ctx.is_canceled(), "Context should not be canceled initially")
+    println("5. Initial cancellation check passed")
+    
+    canceler.call()
+    println("6. canceler.call() completed")
+    
+    assert(ctx.is_canceled(), "Context should be canceled after cancel call")
+    println("7. Canceled check passed")
+    auto err_opt = ctx.err()
+    assert(err_opt.is_some(), "Context err should be Some")
+    assert(err_opt.unwrap() == String::from("context canceled"), "Context err mismatch")
+    println("8. Err check passed")
+    
+    auto done_rx_opt = ctx#.done()
+    assert(done_rx_opt.is_some(), "Context done rx should be Some")
+    auto done_rx# = done_rx_opt.unwrap()
+    println("9. done rx obtained")
+    
+    auto recv_res = done_rx#.recv()
+    println("10. done_rx#.recv() completed")
+    assert(recv_res.is_ok(), "Receiver recv should be OK")
+    assert(recv_res.unwrap().is_none(), "Receiver recv should be None (closed)")
+    println("11. recv check passed")
+    
+    println("test_cancel passed!")
+    return 0
+}
+
+fn worker(rx#: Receiver<bool>) -> async i32 {
+    println("  [worker] entering worker")
+    while true {
+        auto should_break# = false
+        auto res = rx#.try_recv()
+        match res {
+            auto Result::Ok(opt) => {
+                match opt {
+                    auto Option::Some(val) => {
+                        should_break = true
+                    }
+                    auto Option::None() => {}
+                }
+            }
+            _ => {}
+        }
+        if should_break {
+            break
+        }
+        sleep_async(1).await
+    }
+    println("  [worker] worker exiting successfully")
+    return 0
+}
+
+fn test_timeout() -> async i32 {
+    println("1. Starting test_timeout...")
+    auto bg = background()
+    println("2. Background context created")
+    auto res = with_timeout<BackgroundContext>(cede bg, 20)
+    println("3. with_timeout completed")
+    auto ctx# = res.ctx
+    auto canceler = res.canceler.clone()
+    println("4. Context and canceler obtained")
+    
+    auto start = current_time_ms()
+    println("5. start time recorded: {}", start)
+    
+    auto done_rx_opt = ctx#.done()
+    assert(done_rx_opt.is_some(), "Context done rx should be Some")
+    auto done_rx# = done_rx_opt.unwrap()
+    
+    auto h = worker(cede done_rx).start
+    println("6. Worker task started")
+    h.await
+    println("7. Worker task awaited")
+    
+    auto end = current_time_ms()
+    auto elapsed = end - start
+    
+    println("Elapsed time: {} ms", elapsed)
+    assert(elapsed >= 20:i64, "Elapsed time should be at least 20 ms")
+    println("8. assert elapsed time passed")
+    
+    canceler.call()
+    println("test_timeout passed!")
+    return 0
+}
+
+fn test_propagation() -> async i32 {
+    println("  [test_prop] starting test_propagation")
+    auto bg = background()
+    auto parent_res = with_cancel<BackgroundContext>(cede bg)
+    auto parent_ctx# = parent_res.ctx
+    auto parent_canceler = parent_res.canceler.clone()
+    
+    println("  [test_prop] checking if parent is canceled initially")
+    assert(!parent_ctx.is_canceled(), "Parent should not be canceled")
+    
+    println("  [test_prop] creating child context")
+    auto child_res = with_cancel<CancelContext<BackgroundContext>>(cede parent_ctx)
+    auto child_ctx# = child_res.ctx
+    auto child_canceler = child_res.canceler.clone()
+    
+    println("  [test_prop] checking if child is canceled initially")
+    assert(!child_ctx.is_canceled(), "Child should not be canceled")
+    
+    println("  [test_prop] calling parent_canceler.call()")
+    parent_canceler.call()
+    
+    println("  [test_prop] parent_canceler.call() returned. sleeping 5ms")
+    // Yield to allow propagate_cancel background task to run
+    sleep_async(5).await
+    
+    println("  [test_prop] woke up from sleep. checking if child is canceled")
+    assert(child_ctx.is_canceled(), "Child should be canceled via propagation")
+    
+    println("  [test_prop] calling child_canceler.call()")
+    child_canceler.call()
+    println("test_propagation passed!")
+    return 0
+}
+
+fn test_value() -> async i32 {
+    auto bg = background()
+    auto ctx1 = with_value<BackgroundContext>(cede bg, String::from("key1"), String::from("val1"))
+    auto ctx2 = with_value<ValueContext<BackgroundContext>>(cede ctx1, String::from("key2"), String::from("val2"))
+    
+    auto v1 = ctx2.value(String::from("key1"))
+    assert(v1.is_some(), "key1 should be found")
+    assert(v1.unwrap() == String::from("val1"), "key1 value mismatch")
+    
+    auto v2 = ctx2.value(String::from("key2"))
+    assert(v2.is_some(), "key2 should be found")
+    assert(v2.unwrap() == String::from("val2"), "key2 value mismatch")
+    
+    auto v3 = ctx2.value(String::from("key3"))
+    assert(v3.is_none(), "key3 should not be found")
+    
+    println("test_value passed!")
+    return 0
+}
+
+fn main_async() -> async i32 {
+    println("Starting test_cancel...")
+    auto _ = test_cancel().await
+    println("test_cancel returned!")
+    
+    println("Starting test_timeout...")
+    auto _ = test_timeout().await
+    println("test_timeout returned!")
+    
+    println("Starting test_propagation...")
+    auto _ = test_propagation().await
+    println("test_propagation returned!")
+    
+    println("Starting test_value...")
+    auto _ = test_value().await
+    println("test_value returned!")
+    
+    println("All std/context tests passed!")
+    return 0
+}
+
+pub fn main() -> i32 {
+    auto h = main_async().start
+    return block_on<i32>(h)
+}

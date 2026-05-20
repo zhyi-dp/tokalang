@@ -14,6 +14,17 @@ impl<'T: @Send> Mutex<'T>@Sync {}
 impl<'T: @Send> Mutex<'T>@Send {}
 
 impl<'T: @Send> Mutex<'T> {
+    pub fn get_handle(self#) -> Addr {
+        return self.handle
+    }
+    
+    pub fn get_raw_addr(self#) -> Addr {
+        unsafe {
+            auto *mut_ptr# = ((*self) as *Mutex<'T>)
+            return *mut_ptr as Addr
+        }
+    }
+    
     pub fn new(data: cede 'T) -> Mutex<'T> {
         return Mutex<'T>(
             handle = sys_mutex_create(),
