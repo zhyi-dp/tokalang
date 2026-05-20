@@ -2,15 +2,10 @@
 
 import core/libc::{libc_exit}
 
-// IMPORTANT NOTICE ABOUT RESOURCE MANAGEMENT (@encap TYPES)
-// Currently, the Toka compiler performs shallow bit-copies during Sum Shape
-// pattern matching (like match and unwrap). Because of this limitation,
-// deep move/cede semantics for resources are not fully implemented inside Sum Shapes.
-// Do NOT wrap `@encap` types (such as `File`, `TcpStream`, `Child`) in `Result` or `Option`,
-// as `unwrap()` will create a shallow copy and cause double-free (SIGSEGV) crashes
-// when the RAII drop handler is triggered multiple times. 
-// Standard library resources should instead return by value and implement an `is_valid()` check.
 
+// The Toka compiler natively supports Deep Move / Cede semantics for Resources
+// wrapped in Sum Shapes like Result or Option. When extracting a value using
+// `match cede` or `.unwrap()`, the original container's state will automatically
 pub shape Result<'T, 'E> (
     Ok('T) = 1 |
     Err('E) = 0 |
@@ -29,22 +24,24 @@ impl<'T, 'E> Result<'T, 'E> {
         return self.is_ok() == false
     }
 
-    pub fn unwrap(self) -> 'T {
-        match self {
+    pub fn unwrap(cede self) -> 'T {
+        match cede self {
             auto Result<'T, 'E>::Ok('val) => return 'val
             _ => {
                 libc_exit(1)
-                return self.unwrap()
+                auto dummy = Result<'T, 'E>::Err(uninit)
+                return dummy.unwrap()
             }
         }
     }
 
-    pub fn unwrap_err(self) -> 'E {
-        match self {
+    pub fn unwrap_err(cede self) -> 'E {
+        match cede self {
             auto Result<'T, 'E>::Err('e) => return 'e
             _ => {
                 libc_exit(1)
-                return self.unwrap_err()
+                auto dummy = Result<'T, 'E>::Ok(uninit)
+                return dummy.unwrap_err()
             }
         }
     }

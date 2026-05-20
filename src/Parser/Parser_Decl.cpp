@@ -377,8 +377,11 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
       if (check(TokenType::DotDotDot))
         break;
 
+      bool isCeded = match(TokenType::KwCede);
+
       if (firstArg && match(TokenType::KwSelf)) {
         FunctionDecl::Arg arg;
+        arg.IsCeded = isCeded;
         arg.Name = "self";
         arg.Type = "Self"; // Default
         arg.HasPointer = false;
@@ -447,6 +450,7 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
         argType = parseTypeString();
       }
       FunctionDecl::Arg arg;
+      arg.IsCeded = isCeded;
       arg.Name = argName.Text;
       arg.Type = argType;
       arg.HasPointer = hasPointer;
@@ -695,6 +699,7 @@ std::unique_ptr<ExternDecl> Parser::parseExternDecl() {
     do {
       if (check(TokenType::DotDotDot))
         break;
+      bool isCeded = match(TokenType::KwCede);
       bool isPtrNullable = match(TokenType::KwNul);
       bool hasPointer = match(TokenType::Caret) || match(TokenType::Star);
       Token argName = consume(TokenType::Identifier, "Expected argument name");
@@ -703,6 +708,7 @@ std::unique_ptr<ExternDecl> Parser::parseExternDecl() {
         argType = parseTypeString();
       }
       ExternDecl::Arg arg;
+      arg.IsCeded = isCeded;
       arg.Name = argName.Text;
       arg.Type = argType;
       arg.HasPointer = hasPointer;

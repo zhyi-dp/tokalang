@@ -1495,6 +1495,7 @@ public:
     bool IsRebindBlocked = false; // "$" pointer attribute
     bool IsValueBlocked = false;  // "$" identifier attribute
     bool IsMorphicExempt = false; // [NEW] Exempt from strict hat rules
+    bool IsCeded = false;         // [NEW] Ownership consumed by callee
 
     std::shared_ptr<toka::Type> ResolvedType;
     std::unique_ptr<Expr> DefaultValue;
@@ -1514,6 +1515,7 @@ public:
       a.IsRebindBlocked = IsRebindBlocked;
       a.IsValueBlocked = IsValueBlocked;
       a.IsMorphicExempt = IsMorphicExempt;
+      a.IsCeded = IsCeded;
       a.ResolvedType = ResolvedType;
       a.DefaultValue = cloneNode(DefaultValue);
       return a;
@@ -1649,6 +1651,9 @@ public:
     bool IsRebindBlocked = false;
     bool IsValueBlocked = false;
     bool IsMorphicExempt = false;
+    bool IsCeded = false;
+
+    std::shared_ptr<toka::Type> ResolvedType;
     std::unique_ptr<Expr> DefaultValue;
 
     Arg clone() const {
@@ -1665,6 +1670,9 @@ public:
       a.IsValueNullable = IsValueNullable;
       a.IsRebindBlocked = IsRebindBlocked;
       a.IsValueBlocked = IsValueBlocked;
+      a.IsMorphicExempt = IsMorphicExempt;
+      a.IsCeded = IsCeded;
+      a.ResolvedType = ResolvedType;
       a.DefaultValue = cloneNode(DefaultValue);
       return a;
     }

@@ -384,7 +384,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
     expr = std::move(node);
   } else if (match(TokenType::KwCede)) {
     Token tok = previous();
-    auto val = parseExpr();
+    auto val = parseExpr(0, allowTrailingClosure);
     auto node = std::make_unique<CedeExpr>(std::move(val));
     node->setLocation(tok, m_CurrentFile);
     expr = std::move(node);

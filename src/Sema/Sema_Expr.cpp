@@ -2009,6 +2009,14 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
                     error(Met, DiagID::ERR_IMPLICIT_RESOURCE_COPY, soulType, Met->Method);
                 }
             }
+            
+            // [NEW] Cede Ownership check for Method Call
+            if (FD->Args[0].IsCeded) {
+                std::string objPath = getStringifyPath(Met->Object.get());
+                if (!objPath.empty()) {
+                    CurrentScope->markMoved(objPath);
+                }
+            }
         }
 
         // [Rule] Borrowing check for Method Call
@@ -2041,6 +2049,13 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
                 auto argTy = checkExpr(Met->Args[i].get(), expectedParamTy);
                 
                 if (expectedParamTy) {
+                    if (FD->Args[i + 1].IsCeded) {
+                        bool isCallerCeded = dynamic_cast<CedeExpr*>(Met->Args[i].get()) != nullptr;
+                        if (!isCallerCeded) {
+                            error(Met->Args[i].get(), "Argument must be explicitly passed with 'cede' because the method consumes it");
+                        }
+                    }
+
                     if (!isTypeCompatible(expectedParamTy, argTy)) {
                         error(Met->Args[i].get(), "Type mismatch in method argument " + std::to_string(i + 1) + ": expected " + expectedParamTy->toString() + ", got " + argTy->toString());
                     } else if (expectedParamTy->isShape() && argTy->isRawPointer()) {
@@ -5307,6 +5322,21 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
     }
 
     auto argType = checkExpr(Call->Args[i].get(), paramType);
+    
+    // [NEW] Enforce explicit cede for normal function calls
+    bool isCededParam = false;
+    if (Fn && i < Fn->Args.size()) {
+        isCededParam = Fn->Args[i].IsCeded;
+    } else if (Ext && i < Ext->Args.size()) {
+        isCededParam = Ext->Args[i].IsCeded;
+    }
+
+    if (isCededParam) {
+        bool isCallerCeded = dynamic_cast<CedeExpr*>(Call->Args[i].get()) != nullptr;
+        if (!isCallerCeded) {
+            error(Call->Args[i].get(), "Argument must be explicitly passed with 'cede' because the function consumes it");
+        }
+    }
 
     if (IsVariadic && i >= ParamTypes.size())
       continue;

@@ -1819,6 +1819,8 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
   // [New] Match expressions create their own temporary scope
   m_ScopeStack.push_back({});
 
+  bool isCeded = dynamic_cast<const CedeExpr*>(expr->Target.get()) != nullptr;
+
   PhysEntity targetVal_ent = genExpr(expr->Target.get());
   llvm::Value *targetVal = targetVal_ent.load(m_Builder);
   llvm::Type *targetType = targetVal->getType();
@@ -2008,6 +2010,23 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
                                 fieldTy, subTypeObj);
             }
           }
+        }
+
+        // [New] Destructive Match Mutation (State Collapse)
+        // If the match target was ceded, and the matched pattern is extracting the payload,
+        // we automatically mutate the original container's tag to 'Moved' to prevent double-free.
+        if (isCeded && baseShapeName != "" && m_Shapes.count(baseShapeName)) {
+            int movedTag = -1;
+            for (size_t i = 0; i < sh->Members.size(); ++i) {
+                if (sh->Members[i].Name == "Moved") {
+                    movedTag = sh->Members[i].TagValue != -1 ? sh->Members[i].TagValue : (int)i;
+                    break;
+                }
+            }
+            if (movedTag != -1) {
+                llvm::Value *tagAddr = m_Builder.CreateStructGEP(targetType, targetAddr, 0);
+                m_Builder.CreateStore(llvm::ConstantInt::get(llvm::Type::getInt8Ty(m_Context), movedTag), tagAddr);
+            }
         }
 
         m_CFStack.push_back(
@@ -4162,6 +4181,28 @@ PhysEntity CodeGen::genUnwrapPropagationExpr(const UnwrapPropagationExpr *expr) 
 
   llvm::Value *tagVal = m_Builder.CreateExtractValue(baseVal, {0}, "unwrap.tag");
   llvm::Value *isOk = m_Builder.CreateICmpEQ(tagVal, llvm::ConstantInt::get(tagVal->getType(), 1), "unwrap.is_ok");
+
+  // [NEW] Destructive Match Mutation for ! Operator (Early Return / Unwrap)
+  // The ! operator extracts the payload out of the container implicitly.
+  // We must mutate the original container's tag to 'Moved' to prevent double-free
+  // when the current scope ends or returns early.
+  if (baseEnt.isAddress) {
+      std::string baseShapeName = toka::Type::stripMorphology(expr->Base->ResolvedType->toString());
+      if (baseShapeName.find("_M_") != std::string::npos) baseShapeName = baseShapeName.substr(0, baseShapeName.find("_M_"));
+      if (m_Shapes.count(baseShapeName)) {
+          int movedTag = -1;
+          for (size_t i = 0; i < m_Shapes[baseShapeName]->Members.size(); ++i) {
+              if (m_Shapes[baseShapeName]->Members[i].Name == "Moved") {
+                  movedTag = m_Shapes[baseShapeName]->Members[i].TagValue != -1 ? m_Shapes[baseShapeName]->Members[i].TagValue : (int)i;
+                  break;
+              }
+          }
+          if (movedTag != -1) {
+              llvm::Value *tagAddr = m_Builder.CreateStructGEP(baseVal->getType(), baseEnt.value, 0);
+              m_Builder.CreateStore(llvm::ConstantInt::get(llvm::Type::getInt8Ty(m_Context), movedTag), tagAddr);
+          }
+      }
+  }
 
   llvm::Function *f = m_Builder.GetInsertBlock()->getParent();
   llvm::BasicBlock *failBB = llvm::BasicBlock::Create(m_Context, "unwrap.fail", f);
