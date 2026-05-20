@@ -139,7 +139,7 @@ impl Parser {
         while i < self.defs.len() {
             auto d = self.defs.get(i)
             if d.name == name { return Option<FlagDef>::Some(d) }
-            i = i + 1:usize
+            i = i + 1
         }
         return Option<FlagDef>::None()
     }
@@ -150,7 +150,7 @@ impl Parser {
         while i < self.defs.len() {
             auto d = self.defs.get(i)
             if d.short_name == short_name { return Option<FlagDef>::Some(d) }
-            i = i + 1:usize
+            i = i + 1
         }
         return Option<FlagDef>::None()
     }
@@ -164,10 +164,10 @@ impl Parser {
         auto c0# = 0:char
         unsafe { c0 = buf[0] }
         if c0 == 45:char { // '-'
-            sign = -1:i64
-            i = 1:usize
+            sign = -1
+            i = 1
         } else if c0 == 43:char { // '+'
-            i = 1:usize
+            i = 1
         }
         
         auto val# = 0:i64
@@ -178,9 +178,9 @@ impl Parser {
             if c < 48:char || c > 57:char {
                 return Result<i64, String>::Err(String::from("invalid integer format"))
             }
-            val = val * 10:i64 + ((c as i64) - 48:i64)
+            val = val * 10 + ((c as i64) - 48)
             has_digits = true
-            i = i + 1:usize
+            i = i + 1
         }
         if !has_digits { return Result<i64, String>::Err(String::from("no digits found")) }
         return Result<i64, String>::Ok(val * sign)
@@ -194,7 +194,7 @@ impl Parser {
         while i < self.defs.len() {
             auto d = self.defs.get(i)
             parsed.values#.insert(d.name, d.default_val)
-            i = i + 1:usize
+            i = i + 1
         }
 
         // 2. Parse arguments
@@ -212,7 +212,7 @@ impl Parser {
 
             if arg == String::from("--") {
                 only_positional = true
-                arg_idx = arg_idx + 1:usize
+                arg_idx = arg_idx + 1
                 continue
             }
 
@@ -327,7 +327,7 @@ impl Parser {
                     match def.default_val {
                         auto FlagValue::Bool(_) => {
                             // bool switch
-                            if has_val && c_idx == short_block.len() - 1:usize {
+                            if has_val && c_idx == short_block.len() - 1 {
                                 // Only allow '=' on the last short char
                                 if val_str == String::from("true") || val_str == String::from("1") {
                                     parsed.values#.insert(def.name, FlagValue::Bool(true))
@@ -390,7 +390,7 @@ impl Parser {
                 parsed.pos_args#.push(arg)
             }
             
-            arg_idx = arg_idx + 1:usize
+            arg_idx = arg_idx + 1
         }
         
         return Result<ParsedArgs, String>::Ok(parsed)
