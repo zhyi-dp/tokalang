@@ -1,0 +1,14 @@
+import core/result::{Result}
+import core/libc::{libc_exit}
+
+pub fn main() -> i32 {
+    auto res = Result<i32, i32>::Ok(123)
+    
+    // First unwrap implicitly cedes 'res'
+    auto val1 = res.unwrap()
+    
+    // Second unwrap should fail statically because 'res' is moved
+    auto val2 = res.unwrap() 
+    
+    return val2
+}

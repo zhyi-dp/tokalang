@@ -1,0 +1,16 @@
+import core/result::{Result}
+import core/libc::{libc_exit}
+
+shape Payload(val: i32)
+
+pub fn consume_payload(cede p: Payload) -> i32 {
+    auto v = p.val
+    return v
+}
+
+pub fn main() -> i32 {
+    auto p = Payload(val=42)
+    // Error: consume_payload requires cede, but we pass p normally
+    auto v = consume_payload(p)
+    return 0
+}

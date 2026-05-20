@@ -1,0 +1,5 @@
+error[E0406]: Argument must be explicitly passed with 'cede' because the function consumes it
+ --> tests/fail/cede_param_missing.tk:14:30
+   |
+ 14 |     auto v = consume_payload(p)
+   |                              ^
