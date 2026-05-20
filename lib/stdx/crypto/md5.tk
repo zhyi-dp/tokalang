@@ -1,5 +1,5 @@
 import std/string::{String}
-import std/encoding/hex
+import stdx/encoding/hex
 
 pub shape Md5 (
     state: [u32; 4],

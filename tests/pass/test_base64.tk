@@ -1,4 +1,4 @@
-import std/encoding/base64::{encode_str}
+import stdx/encoding/base64::{encode_str}
 import std/io::{println}
 import std/string::{String}
 

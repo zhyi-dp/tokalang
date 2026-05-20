@@ -1,5 +1,5 @@
 import std/string::{String}
-import std/encoding/hex
+import stdx/encoding/hex
 
 pub shape Sha1 (
     state: [u32; 5],

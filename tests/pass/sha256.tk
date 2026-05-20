@@ -1,4 +1,4 @@
-import std/crypto/sha256::{Sha256}
+import stdx/crypto/sha256::{Sha256}
 import std/string::{String}
 import std/io::{println}
 
