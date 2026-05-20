@@ -29,8 +29,8 @@ impl<'T, 'E> Result<'T, 'E> {
             auto Result<'T, 'E>::Ok('val) => return 'val
             _ => {
                 libc_exit(1)
-                auto dummy = Result<'T, 'E>::Err(uninit)
-                return dummy.unwrap()
+                auto *p = 0 as *'T
+                return p
             }
         }
     }
@@ -40,8 +40,8 @@ impl<'T, 'E> Result<'T, 'E> {
             auto Result<'T, 'E>::Err('e) => return 'e
             _ => {
                 libc_exit(1)
-                auto dummy = Result<'T, 'E>::Ok(uninit)
-                return dummy.unwrap_err()
+                auto *e = 0 as *'E
+                return e
             }
         }
     }

@@ -1,0 +1,20 @@
+error[E0402]: Use of undeclared identifier 'max-size-100'
+ --> tests/fail/kebab_subtraction_ambiguity.tk:5:16
+  |
+ 5 |   auto error = max-size-100
+  |                ^
+note: Did you mean subtraction? Subtraction operator '-' requires spaces around it to avoid ambiguity with kebab-case identifiers.
+ --> tests/fail/kebab_subtraction_ambiguity.tk:5:16
+  |
+ 5 |   auto error = max-size-100
+  |                ^
+error[E0402]: Use of undeclared identifier 'max-size-100'
+ --> tests/fail/kebab_subtraction_ambiguity.tk:5:16
+  |
+ 5 |   auto error = max-size-100
+  |                ^
+note: Did you mean subtraction? Subtraction operator '-' requires spaces around it to avoid ambiguity with kebab-case identifiers.
+ --> tests/fail/kebab_subtraction_ambiguity.tk:5:16
+  |
+ 5 |   auto error = max-size-100
+  |                ^

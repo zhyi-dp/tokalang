@@ -635,12 +635,17 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
         auto resolved = resolveType(possible);
         if (auto shapeT =
                 std::dynamic_pointer_cast<toka::ShapeType>(resolved)) {
-          // Success: Resolved to a type name (e.g. Option_M_i32)
-          return shapeT;
+          if (shapeT->isResolved()) {
+            // Success: Resolved to a type name (e.g. Option_M_i32)
+            return shapeT;
+          }
         }
       }
 
       error(ve, DiagID::ERR_UNDECLARED, ve->Name);
+      if (ve->Name.find('-') != std::string::npos) {
+        error(ve, DiagID::NOTE_GENERIC, "Did you mean subtraction? Subtraction operator '-' requires spaces around it to avoid ambiguity with kebab-case identifiers.");
+      }
       return toka::Type::fromString("unknown");
     }
     if (Info.Moved && !m_InLHS) {

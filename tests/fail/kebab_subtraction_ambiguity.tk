@@ -1,0 +1,7 @@
+import std/io::println
+fn main() -> i32 {
+  auto max-size = 1024
+  auto user-name = "Toka"
+  auto error = max-size-100
+  return 0
+}
