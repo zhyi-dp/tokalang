@@ -317,3 +317,92 @@ impl<'T: @Send> CondVar<'T> {
     }
 }
 
+// ------------------------------------------------------
+// 4. Once (One-Time Execution Utility)
+// ------------------------------------------------------
+
+/// A synchronization primitive that can be used to run a function exactly once.
+pub shape Once(
+    mutex: Mutex<bool>,
+    done#: bool
+)
+
+impl Once {
+    pub fn new() -> Once {
+        return Once(
+            mutex = Mutex<bool>::new(false),
+            done = false
+        )
+    }
+
+    pub fn make() -> ^Once {
+        return new Once(
+            mutex = Mutex<bool>::new(false),
+            done = false
+        )
+    }
+
+    pub fn call(self#, f: fn()) {
+        if self.done {
+            return
+        }
+        
+        auto lock = self.mutex.lock().unwrap()
+        if self.done {
+            return
+        }
+        
+        f()
+        self.done = true
+    }
+}
+
+// ------------------------------------------------------
+// 5. WaitGroup (Multi-Task Coordination Barrier)
+// ------------------------------------------------------
+
+/// A WaitGroup waits for a collection of threads or tasks to finish.
+pub shape WaitGroup(
+    mutex: Mutex<i32>,
+    cond: CondVar<i32>
+)
+
+impl WaitGroup {
+    pub fn new() -> WaitGroup {
+        return WaitGroup(
+            mutex = Mutex<i32>::new(0),
+            cond = CondVar<i32>::new()
+        )
+    }
+
+    pub fn make() -> ^WaitGroup {
+        return new WaitGroup(
+            mutex = Mutex<i32>::new(0),
+            cond = CondVar<i32>::new()
+        )
+    }
+
+    pub fn add(self#, delta: i32) {
+        auto lock = self.mutex.lock().unwrap()
+        auto *val# = lock.get_ref()
+        val = val + delta
+        if val <= 0 {
+            self.cond.notify_all()
+        }
+    }
+
+    pub fn done(self#) {
+        self#.add(-1)
+    }
+
+    pub fn wait_all(self) {
+        auto lock = self.mutex.lock().unwrap()
+        auto *val = lock.get_ref()
+        loop {
+            if val <= 0 { break }
+            self.cond.wait_cond(lock)
+        }
+    }
+}
+
+

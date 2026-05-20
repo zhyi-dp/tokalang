@@ -1,0 +1,47 @@
+import std/sync::{Mutex, WaitGroup}
+import std/thread::{thread_spawn, yield_now}
+import std/io::{println}
+
+shape SharedWork(
+    finished_count: i32
+)
+
+pub fn main() -> i32 {
+    auto init_work = SharedWork(finished_count = 0)
+    auto data# = Mutex<SharedWork>::new(init_work)
+    auto wg# = WaitGroup::new()
+    
+    wg#.add(3)
+    
+    auto task = { =>
+        yield_now()
+        
+        auto lock = data#.lock().unwrap()
+        auto *val# = lock.get_ref()
+        val.finished_count = val.finished_count + 1
+        println("Thread finished work piece")
+        
+        wg#.done()
+        return cede 0
+    }
+    
+    auto t1# = thread_spawn<i32>(task)
+    auto t2# = thread_spawn<i32>(task)
+    auto t3# = thread_spawn<i32>(task)
+    
+    println("Main thread waiting on WaitGroup...")
+    wg.wait_all()
+    println("Main thread woke up from WaitGroup!")
+    
+    auto lock = data#.lock().unwrap()
+    auto *val = lock.get_ref()
+    println("Completed tasks count: {}", val.finished_count)
+    assert(val.finished_count == 3, "Expected completed tasks count to be 3")
+    
+    t1#.join().unwrap()
+    t2#.join().unwrap()
+    t3#.join().unwrap()
+    
+    println("WaitGroup test passed!")
+    return 0
+}
