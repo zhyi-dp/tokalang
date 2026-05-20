@@ -216,15 +216,7 @@ Sema::MorphKind Sema::getSyntacticMorphology(Expr *E) {
 
   // Unary Ops: ^, *, ~, &
   if (auto *U = dynamic_cast<UnaryExpr *>(E)) {
-    // [Constitution] Hat-Off Transduction for Member Access
-    // If the hat wraps an Arrow Member Access (^p->x), the hat is consumed
-    // by the Arrow-Context logic to validate access to 'x'. The result of the
-    // expression is the field 'x' (Value), not a Pointer.
-    // Thus, syntactic morphology should return None (Value), not Unique/etc.
-    if (auto *M = dynamic_cast<MemberExpr *>(U->RHS.get())) {
-      if (M->IsArrow)
-        return MorphKind::None;
-    }
+
 
     switch (U->Op) {
     case TokenType::Star:
@@ -2941,21 +2933,7 @@ std::shared_ptr<toka::Type> Sema::checkMemberExpr(MemberExpr *Memb) {
 
 // Stage 4: Object-Oriented Shims
 std::shared_ptr<toka::Type> Sema::checkUnaryExpr(UnaryExpr *Unary) {
-  // [FIX] Context-Aware Arrow Access (Precedence Handling)
-  // If we are wrapping a MemberExpr with Arrow, pass the sigil down.
-  // This MUST happen before checkExpr(Unary->RHS) to set the context
-  // properly.
-  if (auto *Memb = dynamic_cast<MemberExpr *>(Unary->RHS.get())) {
-    if (Memb->IsArrow) {
-      if (Unary->Op == TokenType::Star || Unary->Op == TokenType::Caret ||
-          Unary->Op == TokenType::Tilde || Unary->Op == TokenType::Ampersand) {
-        m_OuterPointerSigil = Unary->Op;            // Set context
-        auto res = checkExpr(Memb);                 // Check inner
-        m_OuterPointerSigil = TokenType::TokenNone; // Reset
-        return res;
-      }
-    }
-  }
+
 
   // [FIX] Enforce Hat-on-Member rule (Chain Restrict)
   // `~m.a` translates to Unary(~, MemberExpr(m, a)). This is strictly banned.

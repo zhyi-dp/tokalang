@@ -286,9 +286,7 @@ private:
   bool m_IsMemberBase =
       false; // [NEW] Track if we are checking the base of a member access
   bool m_IsConsumingEffect = false; // [NEW] Track if current eval context consumes async/wait effects
-  TokenType m_OuterPointerSigil =
-      TokenType::TokenNone; // [NEW] Track outer pointer sigil for nested member
-                            // access
+
   bool m_AllowPermissionSuffix = false; // [NEW] Track explicit method call context
   bool m_ExpectedWritability = false;   // [NEW] Contextual expectation for borrow exclusivity
 

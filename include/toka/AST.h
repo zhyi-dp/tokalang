@@ -432,18 +432,17 @@ class MemberExpr : public Expr {
 public:
   std::unique_ptr<Expr> Object;
   std::string Member;
-  bool IsArrow;
   bool IsStatic;
   int Index = -1;
   MemberExpr(std::unique_ptr<Expr> obj, const std::string &member,
-             bool isArrow = false, bool isStatic = false)
-      : Object(std::move(obj)), Member(member), IsArrow(isArrow),
+             bool isStatic = false)
+      : Object(std::move(obj)), Member(member),
         IsStatic(isStatic) {}
   std::string toString() const override {
-    return Object->toString() + (IsArrow ? "->" : ".") + Member;
+    return Object->toString() + "." + Member;
   }
   std::unique_ptr<ASTNode> clone() const override {
-    auto n = std::make_unique<MemberExpr>(cloneNode(Object), Member, IsArrow,
+    auto n = std::make_unique<MemberExpr>(cloneNode(Object), Member,
                                           IsStatic);
     n->Index = Index;
     n->Loc = Loc;

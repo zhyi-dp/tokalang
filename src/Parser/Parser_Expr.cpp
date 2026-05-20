@@ -884,8 +884,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
         } else {
           auto obj = std::make_unique<VariableExpr>(name.Text + genericSuffix);
           obj->setLocation(name, m_CurrentFile);
-          auto node = std::make_unique<MemberExpr>(std::move(obj), member.Text, false,
-                                              true);
+          auto node = std::make_unique<MemberExpr>(std::move(obj), member.Text, true);
           node->setLocation(name, m_CurrentFile);
           expr = std::move(node);
         }
