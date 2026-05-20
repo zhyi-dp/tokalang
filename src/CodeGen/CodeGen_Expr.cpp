@@ -5390,12 +5390,15 @@ PhysEntity CodeGen::genAwaitExpr(const AwaitExpr *awaitExpr) {
     m_Builder.CreateBr(readyBB);
     
     m_Builder.SetInsertPoint(readyBB);
+    llvm::Value *targetVal = nullptr;
     if (!targetInnerTy->isVoidTy()) {
         llvm::Value *targetValPtr = m_Builder.CreateStructGEP(targetPromiseType, targetPromisePtrRaw, 2, "target.val.ptr");
-        llvm::Value *targetVal = m_Builder.CreateLoad(targetInnerTy, targetValPtr, "target.val");
-        return PhysEntity(targetVal, awaitExpr->ResolvedType->toString(), targetInnerTy, false);
+        targetVal = m_Builder.CreateLoad(targetInnerTy, targetValPtr, "target.val");
     }
     
+    if (targetVal) {
+        return PhysEntity(targetVal, awaitExpr->ResolvedType->toString(), targetInnerTy, false);
+    }
     return PhysEntity(llvm::Constant::getNullValue(m_Builder.getInt32Ty()), "void", targetInnerTy, false);
 }
 

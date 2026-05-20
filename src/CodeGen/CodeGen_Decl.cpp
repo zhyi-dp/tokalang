@@ -222,6 +222,7 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
       m_CurrentCoroHandle = m_Builder.CreateCall(beginFn, {m_CurrentCoroId, alloc});
       
       m_CurrentCoroSuspendRetBB = llvm::BasicBlock::Create(m_Context, "coro.suspend.ret");
+      m_CurrentCoroCleanupBB = llvm::BasicBlock::Create(m_Context, "coro.cleanup.ret");
       
       llvm::Value *statePtr = m_Builder.CreateStructGEP(promiseType, m_CurrentCoroPromise, 0);
       m_Builder.CreateStore(m_Builder.getInt8(0), statePtr);
@@ -233,6 +234,7 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
       m_CurrentCoroId = nullptr;
       m_CurrentCoroPromiseType = nullptr;
       m_CurrentCoroSuspendRetBB = nullptr;
+      m_CurrentCoroCleanupBB = nullptr;
       m_CurrentCoroFinalSuspendBB = nullptr;
   }
 
@@ -554,6 +556,13 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
       llvm::IRBuilder<> tmpB(m_CurrentCoroSuspendRetBB);
       llvm::Function *endFn = llvm::Intrinsic::getOrInsertDeclaration(m_Module.get(), llvm::Intrinsic::coro_end);
       tmpB.CreateCall(endFn, {m_CurrentCoroHandle, tmpB.getInt1(false), llvm::ConstantTokenNone::get(m_Context)});
+      tmpB.CreateRet(m_CurrentCoroHandle);
+  }
+  if (func->Effect == EffectKind::Async && m_CurrentCoroCleanupBB) {
+      f->insert(f->end(), m_CurrentCoroCleanupBB);
+      llvm::IRBuilder<> tmpB(m_CurrentCoroCleanupBB);
+      llvm::Function *endFn = llvm::Intrinsic::getOrInsertDeclaration(m_Module.get(), llvm::Intrinsic::coro_end);
+      tmpB.CreateCall(endFn, {m_CurrentCoroHandle, tmpB.getInt1(true), llvm::ConstantTokenNone::get(m_Context)});
       tmpB.CreateRet(m_CurrentCoroHandle);
   }
 

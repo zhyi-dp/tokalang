@@ -312,8 +312,10 @@ CodeGen::GenContext CodeGen::saveContext() {
   ctx.CurrentCoroHandle = m_CurrentCoroHandle;
   ctx.CurrentCoroPromise = m_CurrentCoroPromise;
   ctx.CurrentCoroId = m_CurrentCoroId;
+  ctx.CurrentCoroPromiseType = m_CurrentCoroPromiseType;
   ctx.CurrentCoroRetTy = m_CurrentCoroRetTy;
   ctx.CurrentCoroSuspendRetBB = m_CurrentCoroSuspendRetBB;
+  ctx.CurrentCoroCleanupBB = m_CurrentCoroCleanupBB;
   ctx.CurrentCoroFinalSuspendBB = m_CurrentCoroFinalSuspendBB;
   return ctx;
 }
@@ -327,8 +329,10 @@ void CodeGen::restoreContext(const GenContext &ctx) {
   m_CurrentCoroHandle = ctx.CurrentCoroHandle;
   m_CurrentCoroPromise = ctx.CurrentCoroPromise;
   m_CurrentCoroId = ctx.CurrentCoroId;
+  m_CurrentCoroPromiseType = ctx.CurrentCoroPromiseType;
   m_CurrentCoroRetTy = ctx.CurrentCoroRetTy;
   m_CurrentCoroSuspendRetBB = ctx.CurrentCoroSuspendRetBB;
+  m_CurrentCoroCleanupBB = ctx.CurrentCoroCleanupBB;
   m_CurrentCoroFinalSuspendBB = ctx.CurrentCoroFinalSuspendBB;
   if (ctx.InsertBlock) {
     if (ctx.InsertPoint != ctx.InsertBlock->end())

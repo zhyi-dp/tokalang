@@ -681,7 +681,11 @@ void CodeGen::genCoroutineReturn(llvm::Value *retVal) {
         m_Builder.CreateUnreachable();
         
         m_Builder.SetInsertPoint(cleanupBB);
-        m_Builder.CreateUnreachable();
+        if (m_CurrentCoroCleanupBB) {
+            m_Builder.CreateBr(m_CurrentCoroCleanupBB);
+        } else {
+            m_Builder.CreateUnreachable();
+        }
         
         // Restore insert point
         m_Builder.SetInsertPoint(savedBB);
