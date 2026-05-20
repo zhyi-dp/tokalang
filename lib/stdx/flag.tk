@@ -5,9 +5,12 @@ import core/result::{Result}
 import std/string::{String}
 import std/io
 
+extern fn libc_sscanf(*s: char, *format: char, ...) -> i32
+
 pub shape FlagValue (
     Bool(bool) |
     Int(i64) |
+    Float(f64) |
     Str(String)
 )
 
@@ -34,6 +37,15 @@ impl ParsedArgs {
         match val.unwrap() {
             auto FlagValue::Int(v) => return v
             _ => return 0
+        }
+    }
+
+    pub fn get_float(self, name: String) -> f64 {
+        auto val = self.values.get(name)
+        if val.is_none() { return 0.0 }
+        match val.unwrap() {
+            auto FlagValue::Float(v) => return v
+            _ => return 0.0
         }
     }
 
@@ -79,6 +91,10 @@ impl Parser {
         self.defs#.push(FlagDef(name=name, short_name=short, desc=desc, default_val=FlagValue::Bool(default_val)))
     }
 
+    pub fn add_float(self#, name: String, short: char, default_val: f64, desc: String) {
+        self.defs#.push(FlagDef(name=name, short_name=short, desc=desc, default_val=FlagValue::Float(default_val)))
+    }
+
     pub fn add_string(self#, name: String, short: char, default_val: String, desc: String) {
         self.defs#.push(FlagDef(name=name, short_name=short, desc=desc, default_val=FlagValue::Str(default_val)))
     }
@@ -120,6 +136,9 @@ impl Parser {
                 }
                 auto FlagValue::Int(iv) => {
                     line#.push_str(iv.to_string().c_str())
+                }
+                auto FlagValue::Float(fv) => {
+                    line#.push_str(fv.to_string().c_str())
                 }
                 auto FlagValue::Str(&s) => {
                     line#.push_char(34:char) // '"'
@@ -184,6 +203,16 @@ impl Parser {
         }
         if !has_digits { return Result<i64, String>::Err(String::from("no digits found")) }
         return Result<i64, String>::Ok(val * sign)
+    }
+
+    fn parse_f64(s: String) -> Result<f64, String> {
+        if s.len() == 0 { return Result<f64, String>::Err(String::from("empty string")) }
+        auto val# = 0.0:f64
+        auto count = libc_sscanf(s.c_str() as *char, "%lf" as *char, &val as *void)
+        if count != 1 {
+            return Result<f64, String>::Err(String::from("invalid float format"))
+        }
+        return Result<f64, String>::Ok(val)
     }
 
     pub fn parse(self, args: Vec<String>) -> Result<ParsedArgs, String> {
@@ -279,6 +308,26 @@ impl Parser {
                         }
                         parsed.values#.insert(def.name, FlagValue::Int(parse_res.unwrap()))
                     }
+                    auto FlagValue::Float(_) => {
+                        // Requires value
+                        if !has_val {
+                            if arg_idx + 1 >= args.len() {
+                                auto err_msg# = String::from("option --")
+                                err_msg#.push_str(key.c_str())
+                                err_msg#.push_str(" requires a value")
+                                return Result<ParsedArgs, String>::Err(err_msg)
+                            }
+                            arg_idx = arg_idx + 1
+                            val_str = args.get(arg_idx)
+                        }
+                        auto parse_res = Parser::parse_f64(val_str)
+                        if parse_res.is_err() {
+                            auto err_msg# = String::from("invalid float value for --")
+                            err_msg#.push_str(key.c_str())
+                            return Result<ParsedArgs, String>::Err(err_msg)
+                        }
+                        parsed.values#.insert(def.name, FlagValue::Float(parse_res.unwrap()))
+                    }
                     auto FlagValue::Str(&_s) => {
                         if !has_val {
                             if arg_idx + 1 >= args.len() {
@@ -363,6 +412,32 @@ impl Parser {
                                 return Result<ParsedArgs, String>::Err(err_msg)
                             }
                             parsed.values#.insert(def.name, FlagValue::Int(parse_res.unwrap()))
+                        }
+                        auto FlagValue::Float(_) => {
+                            // requires value
+                            if c_idx != short_block.len() - 1 {
+                                auto err_msg# = String::from("short option requiring value must be last in group: -")
+                                err_msg#.push_str(short_block.c_str())
+                                return Result<ParsedArgs, String>::Err(err_msg)
+                            }
+                            if !has_val {
+                                if arg_idx + 1 >= args.len() {
+                                    auto err_msg# = String::from("option -")
+                                    err_msg#.push_char(c)
+                                    err_msg#.push_str(" requires a value")
+                                    return Result<ParsedArgs, String>::Err(err_msg)
+                                }
+                                arg_idx = arg_idx + 1
+                                val_str = args.get(arg_idx)
+                            }
+                            
+                            auto parse_res = Parser::parse_f64(val_str)
+                            if parse_res.is_err() {
+                                auto err_msg# = String::from("invalid float value for -")
+                                err_msg#.push_char(c)
+                                return Result<ParsedArgs, String>::Err(err_msg)
+                            }
+                            parsed.values#.insert(def.name, FlagValue::Float(parse_res.unwrap()))
                         }
                         auto FlagValue::Str(&_s) => {
                             if c_idx != short_block.len() - 1:usize {

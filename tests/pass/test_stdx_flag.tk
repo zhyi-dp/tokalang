@@ -8,6 +8,7 @@ fn main() -> i32 {
     auto parser = Parser::new(String::from("test-server"), String::from("A test server"))
     parser#.add_int(String::from("port"), 'p', 8080, String::from("Port to listen on"))
     parser#.add_bool(String::from("verbose"), 'v', false, String::from("Enable verbose output"))
+    parser#.add_float(String::from("timeout"), 't', 30.0, String::from("Timeout in seconds"))
     parser#.add_string(String::from("config"), 'c', String::from("config.toml"), String::from("Config file path"))
 
     auto args# = Vec<String>::new()
@@ -15,6 +16,7 @@ fn main() -> i32 {
     args#.push(String::from("-p"))
     args#.push(String::from("9090"))
     args#.push(String::from("--verbose"))
+    args#.push(String::from("--timeout=2.5"))
     args#.push(String::from("--config=custom.toml"))
     args#.push(String::from("start"))
     args#.push(String::from("web"))
@@ -38,6 +40,12 @@ fn main() -> i32 {
     auto verbose = parsed_args.get_bool(String::from("verbose"))
     if !verbose {
         println("verbose assertion failed")
+        return 1
+    }
+
+    auto timeout = parsed_args.get_float(String::from("timeout"))
+    if timeout != 2.5 {
+        println("timeout assertion failed")
         return 1
     }
 
