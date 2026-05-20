@@ -1,5 +1,5 @@
 import std/io::{println}
-import std/serde/json::{JsonNode}
+import stdx/json::{JsonNode}
 import std/string::{String}
 import std/fs::{read_to_string}
 import std/sys/libc::{libc_system}
@@ -339,7 +339,7 @@ pub fn cmd_publish() -> i32 {
     return 0
 }
 
-import std/serde/json::{deserialize_shape, JsonRes, FromJson, json_skip_value}
+import stdx/json::{deserialize_shape, JsonRes, FromJson, json_skip_value}
 import core/result::{Okay}
 
 pub shape PkgMeta(

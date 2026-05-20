@@ -1,4 +1,4 @@
-import std/serde/json::{JsonNode, to_json, deserialize_shape, ToJson, serialize_shape}
+import stdx/json::{JsonNode, to_json, deserialize_shape, ToJson, serialize_shape}
 import std/string::{String}
 import std/io::{println}
 import std/vec::{Vec}

@@ -1,0 +1,6 @@
+import build::{Executable, run_build}
+
+fn main() -> i32 {
+    auto app# = Executable::make("test_pkg_demo_2" as *char, "src/main.tk" as *char)
+    return run_build(app)
+}
