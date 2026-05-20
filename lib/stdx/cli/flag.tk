@@ -1,5 +1,5 @@
 import std/vec::{Vec}
-import std/map::{HashMap}
+import std/hash_map::{HashMap}
 import core/option::{Option}
 import core/result::{Result}
 import std/string::{String}

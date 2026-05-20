@@ -1,4 +1,4 @@
-import std/set::HashSet
+import std/hash_set::HashSet
 import std/io::println
 import std/string::String
 

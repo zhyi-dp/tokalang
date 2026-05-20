@@ -1,4 +1,4 @@
-import std/core_ext::*
+import std/panic::*
 import core/option::{Option}
 import core/result::{Result}
 import core/memory::{copy_memory, set_memory, compare_memory}

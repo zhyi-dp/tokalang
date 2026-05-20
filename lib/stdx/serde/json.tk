@@ -3,7 +3,7 @@
 
 import std/string::{String}
 import core/str::{str, view_str}
-import std/map::{HashMap}
+import std/hash_map::{HashMap}
 import std/vec::{Vec}
 import std/math
 import core/libc::{libc_memset}

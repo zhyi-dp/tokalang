@@ -1,7 +1,7 @@
 
 import std/io::{println, File}
 import std/string::{String}
-import std/map::{HashMap, HashMapIterator}
+import std/hash_map::{HashMap, HashMapIterator}
 import std/vec::{Vec}
 import core/libc::*
 
