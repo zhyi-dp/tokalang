@@ -5,8 +5,6 @@ import core/result::{Result}
 import std/string::{String}
 import std/io
 
-extern fn libc_sscanf(*s: char, *format: char, ...) -> i32
-
 pub shape FlagValue (
     Bool(bool) |
     Int(i64) |
@@ -205,16 +203,6 @@ impl Parser {
         return Result<i64, String>::Ok(val * sign)
     }
 
-    fn parse_f64(s: String) -> Result<f64, String> {
-        if s.len() == 0 { return Result<f64, String>::Err(String::from("empty string")) }
-        auto val# = 0.0:f64
-        auto count = libc_sscanf(s.c_str() as *char, "%lf" as *char, &val as *void)
-        if count != 1 {
-            return Result<f64, String>::Err(String::from("invalid float format"))
-        }
-        return Result<f64, String>::Ok(val)
-    }
-
     pub fn parse(self, args: Vec<String>) -> Result<ParsedArgs, String> {
         auto parsed# = ParsedArgs::new()
         
@@ -320,7 +308,7 @@ impl Parser {
                             arg_idx = arg_idx + 1
                             val_str = args.get(arg_idx)
                         }
-                        auto parse_res = Parser::parse_f64(val_str)
+                        auto parse_res = val_str.parse_f64()
                         if parse_res.is_err() {
                             auto err_msg# = String::from("invalid float value for --")
                             err_msg#.push_str(key.c_str())
@@ -431,7 +419,7 @@ impl Parser {
                                 val_str = args.get(arg_idx)
                             }
                             
-                            auto parse_res = Parser::parse_f64(val_str)
+                            auto parse_res = val_str.parse_f64()
                             if parse_res.is_err() {
                                 auto err_msg# = String::from("invalid float value for -")
                                 err_msg#.push_char(c)

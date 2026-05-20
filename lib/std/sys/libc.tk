@@ -27,7 +27,7 @@ extern fn libc_feof(*stream: void) -> i32
 extern fn libc_fprintf(*stream: void, *format: char, ...) -> i32
 extern fn libc_printf(*format: char, ...) -> i32
 extern fn libc_fscanf(*stream: void, *format: char, ...) -> i32
-extern fn libc_sscanf(*s: char, *format: char, ...) -> i32
+
 
 extern fn libc_gettimeofday(*tv: void, *tz: void) -> i32
 extern fn libc_clock_gettime(clock_id: i32, tp: Addr) -> i32

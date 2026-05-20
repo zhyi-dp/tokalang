@@ -423,6 +423,16 @@ impl String {
         }
     }
     
+    pub fn parse_f64(self) -> Result<f64, String> {
+        if self.len == 0 { return Result<f64, String>::Err(String::from("empty string")) }
+        auto val# = 0.0:f64
+        auto count = libc_sscanf(self.c_str() as *char, "%lf" as *char, &val as *void)
+        if count != 1 {
+            return Result<f64, String>::Err(String::from("invalid float format"))
+        }
+        return Result<f64, String>::Ok(val)
+    }
+    
     // === Utilities ===
     
     fn is_whitespace(c: char) -> bool {
