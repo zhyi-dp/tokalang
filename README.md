@@ -12,7 +12,7 @@ Say goodbye to the cognitive load of explicit `<'a>` lifetime annotations and co
 // 🚀 Everyday Toka: Physical-level concurrency, minimalist RAII, and native error propagation
 import std/io::println
 import std/net::TcpStream
-import stdx/websocket
+import stdx/net/websocket
 
 // `async` explicitly colors the function; `stream#` lowercase variable with `#` indicates its underlying state will be mutated
 fn handle_client(stream#: TcpStream) -> async Result<(), String> {

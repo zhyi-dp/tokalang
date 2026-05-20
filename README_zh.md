@@ -12,7 +12,7 @@
 // 🚀 Toka 的日常：物理级并发，极简的符号 RAII 与原生异常传播
 import std/io::println
 import std/net::TcpStream
-import stdx/websocket
+import stdx/net/websocket
 
 // `async` 显式染色；`stream#` 小写变量加 `#` 表示该变量的底层状态会被操作修改
 fn handle_client(stream#: TcpStream) -> async Result<(), String> {

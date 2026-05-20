@@ -27,7 +27,7 @@ curl -fsSL https://tokalang.dev/install.sh | bash
 
 > 💡 **提示:** Windows 版本基于底层的 Win32 API 进行了深度重构和适配，支持原生开发和调试体验！
 
-> ⚠️ **功能限制提示:** 当前版本的 Windows **暂不支持原生的底层网络开发**（例如 `std/net`、`stdx/http`），任何网络监听或连接操作都会直接返回失败。未来版本将引入基于 IOCP 的完整异步网络支持。如果您的项目重度依赖网络，请暂时使用 WSL2、Linux 或 macOS 环境进行开发。
+> ⚠️ **功能限制提示:** 当前版本的 Windows **暂不支持原生的底层网络开发**（例如 `std/net`、`stdx/net/http`），任何网络监听或连接操作都会直接返回失败。未来版本将引入基于 IOCP 的完整异步网络支持。如果您的项目重度依赖网络，请暂时使用 WSL2、Linux 或 macOS 环境进行开发。
 
 ## 快速体验 (Hello World)
 

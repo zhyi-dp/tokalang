@@ -1,4 +1,4 @@
-import stdx/url::{url_encode, url_decode, query_decode, parse_url}
+import stdx/net/url::{url_encode, url_decode, query_decode, parse_url}
 import std/string::{String}
 import core/result::{Okay}
 import std/io::{println}

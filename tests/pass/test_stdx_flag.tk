@@ -1,4 +1,4 @@
-import stdx/flag::{Parser, ParsedArgs}
+import stdx/cli/flag::{Parser, ParsedArgs}
 import std/vec::{Vec}
 import std/string::{String}
 import core/result::{Result}

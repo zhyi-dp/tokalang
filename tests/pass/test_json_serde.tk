@@ -1,4 +1,4 @@
-import stdx/json::{to_json, deserialize_shape, ToJson, serialize_shape}
+import stdx/serde/json::{to_json, deserialize_shape, ToJson, serialize_shape}
 import std/string::{String}
 import std/io::{println}
 

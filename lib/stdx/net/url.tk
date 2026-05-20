@@ -1,4 +1,4 @@
-// lib/stdx/url.tk
+// lib/stdx/net/url.tk
 import std/string::{String}
 import core/result::{Result, Okay}
 

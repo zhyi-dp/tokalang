@@ -3,7 +3,7 @@ import std/io::{println, print}
 import std/sys/libc::{libc_fflush, libc_printf}
 import std/string::{String}
 import core/str::{str, view_str}
-import stdx/json::{JsonNode}
+import stdx/serde/json::{JsonNode}
 
 fn put(s: String) {
     auto fmt = String::from("%s")
