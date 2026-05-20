@@ -1,4 +1,4 @@
-import core/result::{Result, Okay}
+import core/result::{Result, Result}
 import std/string::String
 import std/io::println
 

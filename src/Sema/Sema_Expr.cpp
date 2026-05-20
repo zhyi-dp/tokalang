@@ -2183,10 +2183,10 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     auto shapeT = std::static_pointer_cast<toka::ShapeType>(baseObj);
     std::string soul = shapeT->Decl ? shapeT->Decl->Name : shapeT->getSoulName();
 
-    bool isOkay = soul == "Okay" || soul.find("Okay_") == 0;
-    bool isMaybe = soul == "Maybe" || soul.find("Maybe_") == 0;
+    bool isResult = soul == "Result" || soul.find("Result_") == 0;
+    bool isOption = soul == "Option" || soul.find("Option_") == 0;
 
-    if (!isOkay && !isMaybe) {
+    if (!isResult && !isOption) {
       error(Unwrap, "Unwrap operator '!' requires Result<T, E> or Option<T> but got: " + soul);
       return toka::Type::fromString("unknown");
     }
@@ -2234,15 +2234,15 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     }
     fnRetT = resolveType(fnRetT, false);
     
-    if (isOkay) {
+    if (isResult) {
       if (!fnRetT->isShape()) {
         error(Unwrap, "Function must return Result when unwrapping a Result with '!'");
         return payloadT;
       }
       auto retShape = std::static_pointer_cast<toka::ShapeType>(fnRetT);
       std::string fnRetSoul = retShape->Decl ? retShape->Decl->Name : retShape->getSoulName();
-      bool fnIsOkay = fnRetSoul == "Okay" || fnRetSoul.find("Okay_") == 0;
-      if (!fnIsOkay) {
+      bool fnIsResult = fnRetSoul == "Result" || fnRetSoul.find("Result_") == 0;
+      if (!fnIsResult) {
         error(Unwrap, "Function must return Result when unwrapping a Result with '!'");
         return payloadT;
       }
@@ -2266,14 +2266,14 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
            error(Unwrap, "Function error return type '" + retErrT->toString() + "' is incompatible with unwrapped error type '" + errT->toString() + "'");
         }
       }
-    } else if (isMaybe) {
+    } else if (isOption) {
       if (!fnRetT->isShape()) {
         error(Unwrap, "Function must return Option when unwrapping an Option with '!'");
       } else {
         auto retShape = std::static_pointer_cast<toka::ShapeType>(fnRetT);
         std::string fnRetSoul = retShape->Decl ? retShape->Decl->Name : retShape->getSoulName();
-        bool fnIsMaybe = fnRetSoul == "Maybe" || fnRetSoul.find("Maybe_") == 0;
-        if (!fnIsMaybe) {
+        bool fnIsOption = fnRetSoul == "Option" || fnRetSoul.find("Option_") == 0;
+        if (!fnIsOption) {
           error(Unwrap, "Function must return Option when unwrapping an Option with '!'");
         }
       }

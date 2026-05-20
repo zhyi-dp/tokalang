@@ -260,13 +260,13 @@ impl TcpStream {
             auto *current_ptr = (*buf as Addr + total as u64) as *u8
             auto res = self#.read(*current_ptr, len - total)
             match res {
-                auto Okay::Ok(n) => {
+                auto Result::Ok(n) => {
                     if n == 0:usize {
                         return Result<usize, String>::Err(String::from("Unexpected EOF during read_exact"))
                     }
                     total = total + n
                 }
-                auto Okay::Err(&e) => {
+                auto Result::Err(&e) => {
                     return Result<usize, String>::Err(e.clone())
                 }
             }
@@ -324,13 +324,13 @@ impl TcpStream {
             auto *current_ptr = (*buf as Addr + total as u64) as *u8
             auto res = self#.read_async(*current_ptr, len - total).await
             match res {
-                auto Okay::Ok(n) => {
+                auto Result::Ok(n) => {
                     if n == 0:usize {
                         return Result<usize, String>::Err(String::from("Unexpected EOF during read_exact_async"))
                     }
                     total = total + n
                 }
-                auto Okay::Err(&e) => {
+                auto Result::Err(&e) => {
                     return Result<usize, String>::Err(e.clone())
                 }
             }

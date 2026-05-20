@@ -1,17 +1,17 @@
 import std/net::{Ipv4Addr, resolve_ipv4}
 import std/string::{String}
-import core/result::{Okay}
+import core/result::{Result}
 import std/io::{println}
 
 pub fn main() -> i32 {
     // 1. Resolve localhost
     auto local_res = resolve_ipv4(String::from("localhost"))
     match local_res {
-        auto Okay::Err(&e) => {
+        auto Result::Err(&e) => {
             println("resolve localhost failed")
             return 1
         }
-        auto Okay::Ok(&ip) => {
+        auto Result::Ok(&ip) => {
             // Should be 127.0.0.x
             if ip.octets[0] != 127:u8 {
                 println("localhost is not 127.x.x.x")
@@ -24,11 +24,11 @@ pub fn main() -> i32 {
     // 2. Resolve IP string (getaddrinfo handles this too)
     auto ip_res = resolve_ipv4(String::from("8.8.8.8"))
     match ip_res {
-        auto Okay::Err(&e) => {
+        auto Result::Err(&e) => {
             println("resolve 8.8.8.8 failed")
             return 1
         }
-        auto Okay::Ok(&ip) => {
+        auto Result::Ok(&ip) => {
             if ip.octets[0] != 8:u8 || ip.octets[1] != 8:u8 || ip.octets[2] != 8:u8 || ip.octets[3] != 8:u8 {
                 println("8.8.8.8 resolved incorrectly")
                 return 1

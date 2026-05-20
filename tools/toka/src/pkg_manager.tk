@@ -340,7 +340,7 @@ pub fn cmd_publish() -> i32 {
 }
 
 import stdx/serde/json::{deserialize_shape, JsonRes, FromJson, json_skip_value}
-import core/result::{Okay}
+import core/result::{Result}
 
 pub shape PkgMeta(
     name: String = String::from(""),
@@ -353,7 +353,7 @@ impl PkgMeta@FromJson {
     pub fn parse_json(self#, json: view_str) -> JsonRes {
         auto res = deserialize_shape<PkgMeta>(json)
         match res {
-            auto Okay<PkgMeta, view_str>::Ok(&obj) => {
+            auto Result<PkgMeta, view_str>::Ok(&obj) => {
                 self = cede obj
                 return json_skip_value(json)
             }

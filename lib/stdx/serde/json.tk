@@ -569,9 +569,9 @@ impl<'T: @FromJson> Vec<'T>@FromJson {
     }
 }
 
-pub fn deserialize_shape<'T>(json_str: view_str) -> Okay<'T, view_str> {
+pub fn deserialize_shape<'T>(json_str: view_str) -> Result<'T, view_str> {
     auto res# = json_skip_whitespace(json_str)
-    if res.len() == 0 || res.byte_at(0) != 123 { return Okay<'T, view_str>::Err("Expected {") }
+    if res.len() == 0 || res.byte_at(0) != 123 { return Result<'T, view_str>::Err("Expected {") }
     res = res.substr(1, res.len() - 1)
     
     auto obj# = 'T(..)
@@ -580,7 +580,7 @@ pub fn deserialize_shape<'T>(json_str: view_str) -> Okay<'T, view_str> {
         res = json_skip_whitespace(res)
         if res.len() > 0 && res.byte_at(0) == 125 { res = res.substr(1, res.len() - 1); break }
         if !first {
-            if res.len() == 0 || res.byte_at(0) != 44 { return Okay<'T, view_str>::Err("Expected ,") }
+            if res.len() == 0 || res.byte_at(0) != 44 { return Result<'T, view_str>::Err("Expected ,") }
             res = res.substr(1, res.len() - 1)
         }
         first = false
@@ -588,7 +588,7 @@ pub fn deserialize_shape<'T>(json_str: view_str) -> Okay<'T, view_str> {
         auto key_view# = s""
         res = key_view#.parse_json(res)!
         res = json_skip_whitespace(res)
-        if res.len() == 0 || res.byte_at(0) != 58 { return Okay<'T, view_str>::Err("Expected :") }
+        if res.len() == 0 || res.byte_at(0) != 58 { return Result<'T, view_str>::Err("Expected :") }
         res = res.substr(1, res.len() - 1)
         auto found# = false
         for f in reflect<'T>().fields {
@@ -602,7 +602,7 @@ pub fn deserialize_shape<'T>(json_str: view_str) -> Okay<'T, view_str> {
         }
         if !found { res = json_skip_value(res)! }
     }
-    return Okay<'T, view_str>::Ok(cede obj)
+    return Result<'T, view_str>::Ok(cede obj)
 }
 
 impl JsonNode@FromJson {

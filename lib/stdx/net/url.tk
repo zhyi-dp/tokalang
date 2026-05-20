@@ -1,6 +1,6 @@
 // lib/stdx/net/url.tk
 import std/string::{String}
-import core/result::{Result, Okay}
+import core/result::{Result, Result}
 
 // Helper to check if a character is unreserved per RFC 3986
 fn is_unreserved(b: u8) -> bool {

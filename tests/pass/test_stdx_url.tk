@@ -1,6 +1,6 @@
 import stdx/net/url::{url_encode, url_decode, query_decode, parse_url}
 import std/string::{String}
-import core/result::{Okay}
+import core/result::{Result}
 import std/io::{println}
 
 pub fn main() -> i32 {
@@ -16,11 +16,11 @@ pub fn main() -> i32 {
     // 2. Decode Test
     auto decoded_res = url_decode(encoded)
     match decoded_res {
-        auto Okay::Err(&e) => {
+        auto Result::Err(&e) => {
             println("decode failed: {}", e)
             return 1
         }
-        auto Okay::Ok(&d) => {
+        auto Result::Ok(&d) => {
             if d != raw {
                 println("decode mismatch: {}", d)
                 return 1
@@ -31,11 +31,11 @@ pub fn main() -> i32 {
     // 3. Query Decode (plus as space)
     auto q_raw = String::from("hello+world%2Bfoo")
     match query_decode(q_raw) {
-        auto Okay::Err(&e) => {
+        auto Result::Err(&e) => {
             println("query_decode failed: {}", e)
             return 1
         }
-        auto Okay::Ok(&d) => {
+        auto Result::Ok(&d) => {
             if d != String::from("hello world+foo") {
                 println("query_decode mismatch: {}", d)
                 return 1
@@ -46,11 +46,11 @@ pub fn main() -> i32 {
     // 4. URL Parse Test
     auto url_res = parse_url(String::from("https://example.com:8080/path/to/api?query=1#frag"))
     match url_res {
-        auto Okay::Err(&e) => {
+        auto Result::Err(&e) => {
             println("parse_url failed: {}", e)
             return 1
         }
-        auto Okay::Ok(&u) => {
+        auto Result::Ok(&u) => {
             if u.scheme != String::from("https") { return 1 }
             if u.host != String::from("example.com") { return 1 }
             if u.port != 8080:u16 { return 1 }
@@ -63,8 +63,8 @@ pub fn main() -> i32 {
     // 5. URL Parse Edge Case (No port, no scheme, only path)
     auto url_res2 = parse_url(String::from("/only/path?q=2"))
     match url_res2 {
-        auto Okay::Err(&e) => { return 1 }
-        auto Okay::Ok(&u) => {
+        auto Result::Err(&e) => { return 1 }
+        auto Result::Ok(&u) => {
             if u.scheme != String::from("") { return 1 }
             if u.host != String::from("") { return 1 }
             if u.port != 0:u16 { return 1 }

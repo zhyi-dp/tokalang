@@ -1,5 +1,5 @@
-import core/result::{Result, Okay}
-import core/option::{Option, Maybe}
+import core/result::{Result, Result}
+import core/option::{Option, Option}
 import std/string::{String}
 import std/io::println
 

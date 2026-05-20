@@ -1,6 +1,6 @@
 import std/net::{Ipv4Addr, SocketAddrV4, UdpSocket}
 import std/string::{String}
-import core/result::{Okay}
+import core/result::{Result}
 import std/io::{println}
 
 pub fn main() -> i32 {
@@ -26,11 +26,11 @@ pub fn main() -> i32 {
     auto len = msg.len() as usize
     auto s_res = s1#.send_to(*buf, len, addr2)
     match s_res {
-        auto Okay::Err(&e) => {
+        auto Result::Err(&e) => {
             println("send_to failed")
             return 1
         }
-        auto Okay::Ok(n) => {
+        auto Result::Ok(n) => {
             if n != len {
                 println("send_to length mismatch")
                 return 1
@@ -43,11 +43,11 @@ pub fn main() -> i32 {
     auto *rptr = (&rbuf[0] as Addr) as *u8
     auto r_res = s2#.recv_from(*rptr, 64:usize)
     match r_res {
-        auto Okay::Err(&e) => {
+        auto Result::Err(&e) => {
             println("recv_from failed")
             return 1
         }
-        auto Okay::Ok(&info) => {
+        auto Result::Ok(&info) => {
             if info.len != len {
                 println("recv_from length mismatch")
                 return 1

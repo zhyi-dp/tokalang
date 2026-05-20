@@ -1,5 +1,5 @@
 import std/btree_map::{BTreeMap}
-import core/option::{Maybe}
+import core/option::{Option}
 import core/primitives
 import std/io
 

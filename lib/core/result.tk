@@ -11,16 +11,16 @@ import core/libc::{libc_exit}
 // when the RAII drop handler is triggered multiple times. 
 // Standard library resources should instead return by value and implement an `is_valid()` check.
 
-pub shape Okay<'T, 'E> (
+pub shape Result<'T, 'E> (
     Ok('T) = 1 |
     Err('E) = 0 |
     Moved(i32) = 2
 )
 
-impl<'T, 'E> Okay<'T, 'E> {
+impl<'T, 'E> Result<'T, 'E> {
     pub fn is_ok(self) -> bool {
         match self {
-            auto Okay<'T, 'E>::Ok(_) => return true
+            auto Result<'T, 'E>::Ok(_) => return true
             _ => return false
         }
     }
@@ -31,7 +31,7 @@ impl<'T, 'E> Okay<'T, 'E> {
 
     pub fn unwrap(self) -> 'T {
         match self {
-            auto Okay<'T, 'E>::Ok('val) => return 'val
+            auto Result<'T, 'E>::Ok('val) => return 'val
             _ => {
                 libc_exit(1)
                 return self.unwrap()
@@ -41,7 +41,7 @@ impl<'T, 'E> Okay<'T, 'E> {
 
     pub fn unwrap_err(self) -> 'E {
         match self {
-            auto Okay<'T, 'E>::Err('e) => return 'e
+            auto Result<'T, 'E>::Err('e) => return 'e
             _ => {
                 libc_exit(1)
                 return self.unwrap_err()
@@ -50,5 +50,4 @@ impl<'T, 'E> Okay<'T, 'E> {
     }
 }
 
-pub alias Result<'T, 'E> = Okay<'T, 'E>
 
