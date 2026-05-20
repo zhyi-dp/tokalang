@@ -1,0 +1,398 @@
+import std/vec::{Vec}
+import std/map::{HashMap}
+import core/option::{Option}
+import core/result::{Result}
+import std/string::{String}
+import std/io
+
+pub shape FlagValue (
+    Bool(bool) |
+    Int(i64) |
+    Str(String)
+)
+
+pub shape FlagDef (
+    name: String,
+    short_name: char,
+    desc: String,
+    default_val: FlagValue
+)
+
+pub shape ParsedArgs (
+    values#: HashMap<String, FlagValue>,
+    pos_args#: Vec<String>
+)
+
+impl ParsedArgs {
+    pub fn new() -> ParsedArgs {
+        return ParsedArgs(values=HashMap<String, FlagValue>::new(), pos_args=Vec<String>::new())
+    }
+
+    pub fn get_int(self, name: String) -> i64 {
+        auto val = self.values.get(name)
+        if val.is_none() { return 0 }
+        match val.unwrap() {
+            auto FlagValue::Int(v) => return v
+            _ => return 0
+        }
+    }
+
+    pub fn get_bool(self, name: String) -> bool {
+        auto val = self.values.get(name)
+        if val.is_none() { return false }
+        match val.unwrap() {
+            auto FlagValue::Bool(v) => return v
+            _ => return false
+        }
+    }
+
+    pub fn get_string(self, name: String) -> String {
+        auto val = self.values.get(name)
+        if val.is_none() { return String::from("") }
+        match val.unwrap() {
+            auto FlagValue::Str(&v) => return v.clone()
+            _ => return String::from("")
+        }
+    }
+
+    pub fn positionals(self) -> Vec<String> {
+        return self.pos_args.clone()
+    }
+}
+
+pub shape Parser (
+    prog: String,
+    desc: String,
+    defs#: Vec<FlagDef>
+)
+
+impl Parser {
+    pub fn new(prog: String, desc: String) -> Parser {
+        return Parser(prog=prog, desc=desc, defs=Vec<FlagDef>::new())
+    }
+
+    pub fn add_int(self#, name: String, short: char, default_val: i64, desc: String) {
+        self.defs#.push(FlagDef(name=name, short_name=short, desc=desc, default_val=FlagValue::Int(default_val)))
+    }
+    
+    pub fn add_bool(self#, name: String, short: char, default_val: bool, desc: String) {
+        self.defs#.push(FlagDef(name=name, short_name=short, desc=desc, default_val=FlagValue::Bool(default_val)))
+    }
+
+    pub fn add_string(self#, name: String, short: char, default_val: String, desc: String) {
+        self.defs#.push(FlagDef(name=name, short_name=short, desc=desc, default_val=FlagValue::Str(default_val)))
+    }
+
+    pub fn print_help(self) {
+        auto header# = String::from("Usage: ")
+        header#.push_str(self.prog.c_str())
+        header#.push_str(" [options]")
+        io::println("%s", header.c_str())
+        if self.desc.len() > 0 {
+            io::println("%s", self.desc.c_str())
+        }
+        io::println("\nOptions:")
+        auto i# = 0:usize
+        while i < self.defs.len() {
+            auto def = self.defs.get(i)
+            auto line# = String::from("  ")
+            if def.short_name != 0:char {
+                line#.push_char(45:char) // '-'
+                line#.push_char(def.short_name)
+                line#.push_str(", ")
+            } else {
+                line#.push_str("    ")
+            }
+            line#.push_str("--")
+            line#.push_str(def.name.c_str())
+            
+            // padding
+            while line.len() < 28 {
+                line#.push_char(32:char)
+            }
+            line#.push_str(def.desc.c_str())
+            
+            // default value display
+            line#.push_str(" (default: ")
+            match def.default_val {
+                auto FlagValue::Bool(b) => {
+                    line#.push_str(b.to_string().c_str())
+                }
+                auto FlagValue::Int(iv) => {
+                    line#.push_str(iv.to_string().c_str())
+                }
+                auto FlagValue::Str(&s) => {
+                    line#.push_char(34:char) // '"'
+                    line#.push_str(s.c_str())
+                    line#.push_char(34:char) // '"'
+                }
+            }
+            line#.push_str(")")
+            
+            io::println("%s", line.c_str())
+            i = i + 1
+        }
+    }
+
+    fn find_def(self, name: String) -> Option<FlagDef> {
+        auto i# = 0:usize
+        while i < self.defs.len() {
+            auto d = self.defs.get(i)
+            if d.name == name { return Option<FlagDef>::Some(d) }
+            i = i + 1:usize
+        }
+        return Option<FlagDef>::None()
+    }
+    
+    fn find_def_short(self, short_name: char) -> Option<FlagDef> {
+        if short_name == 0:char { return Option<FlagDef>::None() }
+        auto i# = 0:usize
+        while i < self.defs.len() {
+            auto d = self.defs.get(i)
+            if d.short_name == short_name { return Option<FlagDef>::Some(d) }
+            i = i + 1:usize
+        }
+        return Option<FlagDef>::None()
+    }
+
+    fn parse_i64(s: String) -> Result<i64, String> {
+        if s.len() == 0 { return Result<i64, String>::Err(String::from("empty string")) }
+        auto view = s.as_view()
+        auto &buf = view.buf()
+        auto i# = 0:usize
+        auto sign# = 1:i64
+        auto c0# = 0:char
+        unsafe { c0 = buf[0] }
+        if c0 == 45:char { // '-'
+            sign = -1:i64
+            i = 1:usize
+        } else if c0 == 43:char { // '+'
+            i = 1:usize
+        }
+        
+        auto val# = 0:i64
+        auto has_digits# = false
+        while i < view.len() {
+            auto c# = 0:char
+            unsafe { c = buf[i] }
+            if c < 48:char || c > 57:char {
+                return Result<i64, String>::Err(String::from("invalid integer format"))
+            }
+            val = val * 10:i64 + ((c as i64) - 48:i64)
+            has_digits = true
+            i = i + 1:usize
+        }
+        if !has_digits { return Result<i64, String>::Err(String::from("no digits found")) }
+        return Result<i64, String>::Ok(val * sign)
+    }
+
+    pub fn parse(self, args: Vec<String>) -> Result<ParsedArgs, String> {
+        auto parsed# = ParsedArgs::new()
+        
+        // 1. Setup defaults
+        auto i# = 0:usize
+        while i < self.defs.len() {
+            auto d = self.defs.get(i)
+            parsed.values#.insert(d.name, d.default_val)
+            i = i + 1:usize
+        }
+
+        // 2. Parse arguments
+        auto arg_idx# = 1:usize // Skip executable name
+        auto only_positional# = false
+
+        while arg_idx < args.len() {
+            auto arg = args.get(arg_idx)
+            
+            if only_positional {
+                parsed.pos_args#.push(arg)
+                arg_idx = arg_idx + 1
+                continue
+            }
+
+            if arg == String::from("--") {
+                only_positional = true
+                arg_idx = arg_idx + 1:usize
+                continue
+            }
+
+            if arg == String::from("-h") || arg == String::from("--help") {
+                return Result<ParsedArgs, String>::Err(String::from("help requested"))
+            }
+
+            if arg.starts_with(String::from("--")) {
+                // Long option
+                auto view = arg.as_view()
+                auto eq_idx = view.index_of(61:char) // '='
+                
+                auto key# = String::from("")
+                auto has_val# = false
+                auto val_str# = String::from("")
+                
+                if eq_idx.is_some() {
+                    auto idx = eq_idx.unwrap() as i32
+                    key = arg.substring(2, idx)
+                    val_str = arg.substring(idx + 1, arg.len() as i32)
+                    has_val = true
+                } else {
+                    key = arg.substring(2, arg.len() as i32)
+                }
+
+                auto opt_def = self.find_def(key)
+                if opt_def.is_none() {
+                    auto err_msg# = String::from("unknown option: --")
+                    err_msg#.push_str(key.c_str())
+                    return Result<ParsedArgs, String>::Err(err_msg)
+                }
+                auto def = opt_def.unwrap()
+
+                match def.default_val {
+                    auto FlagValue::Bool(_) => {
+                        // It's a boolean flag, does not consume next
+                        if has_val {
+                            if val_str == String::from("true") || val_str == String::from("1") {
+                                parsed.values#.insert(def.name, FlagValue::Bool(true))
+                            } else {
+                                parsed.values#.insert(def.name, FlagValue::Bool(false))
+                            }
+                        } else {
+                            parsed.values#.insert(def.name, FlagValue::Bool(true))
+                        }
+                    }
+                    auto FlagValue::Int(_) => {
+                        // Requires value
+                        if !has_val {
+                            if arg_idx + 1 >= args.len() {
+                                auto err_msg# = String::from("option --")
+                                err_msg#.push_str(key.c_str())
+                                err_msg#.push_str(" requires a value")
+                                return Result<ParsedArgs, String>::Err(err_msg)
+                            }
+                            arg_idx = arg_idx + 1
+                            val_str = args.get(arg_idx)
+                        }
+                        auto parse_res = Parser::parse_i64(val_str)
+                        if parse_res.is_err() {
+                            auto err_msg# = String::from("invalid integer value for --")
+                            err_msg#.push_str(key.c_str())
+                            return Result<ParsedArgs, String>::Err(err_msg)
+                        }
+                        parsed.values#.insert(def.name, FlagValue::Int(parse_res.unwrap()))
+                    }
+                    auto FlagValue::Str(&_s) => {
+                        if !has_val {
+                            if arg_idx + 1 >= args.len() {
+                                auto err_msg# = String::from("option --")
+                                err_msg#.push_str(key.c_str())
+                                err_msg#.push_str(" requires a value")
+                                return Result<ParsedArgs, String>::Err(err_msg)
+                            }
+                            arg_idx = arg_idx + 1
+                            val_str = args.get(arg_idx)
+                        }
+                        parsed.values#.insert(def.name, FlagValue::Str(val_str))
+                    }
+                }
+            } else if arg.starts_with(String::from("-")) && arg.len() > 1 {
+                // Short option(s)
+                auto view = arg.as_view()
+                auto eq_idx = view.index_of(61:char) // '='
+                
+                auto short_block# = String::from("")
+                auto has_val# = false
+                auto val_str# = String::from("")
+                
+                if eq_idx.is_some() {
+                    auto idx = eq_idx.unwrap() as i32
+                    short_block = arg.substring(1, idx)
+                    val_str = arg.substring(idx + 1, arg.len() as i32)
+                    has_val = true
+                } else {
+                    short_block = arg.substring(1, arg.len() as i32)
+                }
+
+                auto &chars = short_block.as_view().buf()
+                auto c_idx# = 0:usize
+                while c_idx < short_block.len() {
+                    auto c# = 0:char
+                    unsafe { c = chars[c_idx] }
+                    auto opt_def = self.find_def_short(c)
+                    if opt_def.is_none() {
+                        auto err_msg# = String::from("unknown short option: -")
+                        err_msg#.push_char(c)
+                        return Result<ParsedArgs, String>::Err(err_msg)
+                    }
+                    auto def = opt_def.unwrap()
+                    
+                    match def.default_val {
+                        auto FlagValue::Bool(_) => {
+                            // bool switch
+                            if has_val && c_idx == short_block.len() - 1:usize {
+                                // Only allow '=' on the last short char
+                                if val_str == String::from("true") || val_str == String::from("1") {
+                                    parsed.values#.insert(def.name, FlagValue::Bool(true))
+                                } else {
+                                    parsed.values#.insert(def.name, FlagValue::Bool(false))
+                                }
+                            } else {
+                                parsed.values#.insert(def.name, FlagValue::Bool(true))
+                            }
+                        }
+                        auto FlagValue::Int(_) => {
+                            // requires value
+                            if c_idx != short_block.len() - 1:usize {
+                                auto err_msg# = String::from("short option requiring value must be last in group: -")
+                                err_msg#.push_str(short_block.c_str())
+                                return Result<ParsedArgs, String>::Err(err_msg)
+                            }
+                            if !has_val {
+                                if arg_idx + 1 >= args.len() {
+                                    auto err_msg# = String::from("option -")
+                                    err_msg#.push_char(c)
+                                    err_msg#.push_str(" requires a value")
+                                    return Result<ParsedArgs, String>::Err(err_msg)
+                                }
+                                arg_idx = arg_idx + 1
+                                val_str = args.get(arg_idx)
+                            }
+                            
+                            auto parse_res = Parser::parse_i64(val_str)
+                            if parse_res.is_err() {
+                                auto err_msg# = String::from("invalid integer value for -")
+                                err_msg#.push_char(c)
+                                return Result<ParsedArgs, String>::Err(err_msg)
+                            }
+                            parsed.values#.insert(def.name, FlagValue::Int(parse_res.unwrap()))
+                        }
+                        auto FlagValue::Str(&_s) => {
+                            if c_idx != short_block.len() - 1:usize {
+                                auto err_msg# = String::from("short option requiring value must be last in group: -")
+                                err_msg#.push_str(short_block.c_str())
+                                return Result<ParsedArgs, String>::Err(err_msg)
+                            }
+                            if !has_val {
+                                if arg_idx + 1 >= args.len() {
+                                    auto err_msg# = String::from("option -")
+                                    err_msg#.push_char(c)
+                                    err_msg#.push_str(" requires a value")
+                                    return Result<ParsedArgs, String>::Err(err_msg)
+                                }
+                                arg_idx = arg_idx + 1
+                                val_str = args.get(arg_idx)
+                            }
+                            parsed.values#.insert(def.name, FlagValue::Str(val_str))
+                        }
+                    }
+                    c_idx = c_idx + 1
+                }
+            } else {
+                // Positional
+                parsed.pos_args#.push(arg)
+            }
+            
+            arg_idx = arg_idx + 1:usize
+        }
+        
+        return Result<ParsedArgs, String>::Ok(parsed)
+    }
+}
