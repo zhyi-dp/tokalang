@@ -78,8 +78,8 @@ std::unique_ptr<MatchArm::Pattern> Parser::parseSinglePattern() {
       return std::make_unique<MatchArm::Pattern>(MatchArm::Pattern::Wildcard);
     }
 
-    Token nameTok = advance();
-    std::string name = nameTok.Text;
+    Token nameTok = peek();
+    std::string name = parseNamespaceOrIdentifier();
 
     if (match(TokenType::Less) || match(TokenType::GenericLT)) {
       name += "<";
@@ -431,7 +431,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
 
     std::string typeStr = "";
     if (check(TokenType::Identifier)) {
-      typeStr = advance().Text;
+      typeStr = parseNamespaceOrIdentifier();
       if (!typeStr.empty() && typeStr[0] == '\'') {
           // typeStr = typeStr.substr(1);
       }
@@ -465,12 +465,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
       advance(); // LBrace
       std::vector<std::pair<std::string, std::unique_ptr<Expr>>> fields;
       while (!check(TokenType::RBrace) && !check(TokenType::EndOfFile)) {
-        int eqPos = -1;
-        for (int k = 0; k < 6; ++k) {
-           if (checkAt(k, TokenType::Equal)) { eqPos = k; break; }
-           if (checkAt(k, TokenType::Comma) || checkAt(k, TokenType::RBrace)) break;
-        }
-        if (eqPos == -1) {
+        if (!isNextNamedField(0)) {
             auto expr = parseExpr();
             if (dynamic_cast<ElisionExpr*>(expr.get())) {
                 fields.push_back({"..", std::move(expr)});
@@ -491,10 +486,15 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
         else if (match(TokenType::Ampersand))
           prefix = "&";
 
-        Token fieldName = consume(TokenType::Identifier, "Expected field name");
-        if (fieldName.HasWrite || fieldName.IsBlocked) error(fieldName, DiagID::ERR_ILLEGAL_FIELD_MODIFIER);
+        Token fieldNameTok = consume(TokenType::Identifier, "Expected field name");
+        std::string fieldName = fieldNameTok.Text;
+        while (match(TokenType::Minus)) {
+          fieldName += "-";
+          fieldName += consume(TokenType::Identifier, "Expected identifier after '-'").Text;
+        }
+        if (fieldNameTok.HasWrite || fieldNameTok.IsBlocked) error(fieldNameTok, DiagID::ERR_ILLEGAL_FIELD_MODIFIER);
         consume(TokenType::Equal, "Expected '=' after field name");
-        fields.push_back({prefix + fieldName.Text, parseExpr()});
+        fields.push_back({prefix + fieldName, parseExpr()});
         match(TokenType::Comma);
       }
       consume(TokenType::RBrace, "Expected '}'");
@@ -505,36 +505,12 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
       consume(TokenType::LParen, "Expected '('");
 
       // Check for named initializer syntax: Type(field = val)
-      bool isNamedInit = false;
-      if (check(TokenType::Identifier) && checkAt(1, TokenType::Equal)) {
-        isNamedInit = true;
-      }
-      // Also check if first field has prefix: ^field = val
-      if (!isNamedInit &&
-          (check(TokenType::Caret) || check(TokenType::Star) ||
-           check(TokenType::Tilde) || check(TokenType::Ampersand))) {
-        if (checkAt(1, TokenType::Identifier) && checkAt(2, TokenType::Equal)) {
-          isNamedInit = true;
-        }
-        // Handle nullable pointer prefix ^?field = val (4 tokens: ^ ? id =)
-        if (!isNamedInit && (checkAt(1, TokenType::TokenNull) ||
-                             checkAt(1, TokenType::TokenWrite))) {
-          if (checkAt(2, TokenType::Identifier) &&
-              checkAt(3, TokenType::Equal)) {
-            isNamedInit = true;
-          }
-        }
-      }
+      bool isNamedInit = isNextNamedField(0);
 
       if (isNamedInit) {
         std::vector<std::pair<std::string, std::unique_ptr<Expr>>> fields;
         while (!check(TokenType::RParen) && !check(TokenType::EndOfFile)) {
-          int eqPos = -1;
-          for (int k = 0; k < 6; ++k) {
-             if (checkAt(k, TokenType::Equal)) { eqPos = k; break; }
-             if (checkAt(k, TokenType::Comma) || checkAt(k, TokenType::RParen)) break;
-          }
-          if (eqPos == -1) {
+          if (!isNextNamedField(0)) {
               auto expr = parseExpr();
               if (dynamic_cast<ElisionExpr*>(expr.get())) {
                   fields.push_back({"..", std::move(expr)});
@@ -560,11 +536,15 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
           if (match(TokenType::TokenWrite))
             prefix += "#";
 
-          Token fieldName =
-              consume(TokenType::Identifier, "Expected field name");
-          if (fieldName.HasWrite || fieldName.IsBlocked) error(fieldName, DiagID::ERR_ILLEGAL_FIELD_MODIFIER);
+          Token fieldNameTok = consume(TokenType::Identifier, "Expected field name");
+          std::string fieldName = fieldNameTok.Text;
+          while (match(TokenType::Minus)) {
+            fieldName += "-";
+            fieldName += consume(TokenType::Identifier, "Expected identifier after '-'").Text;
+          }
+          if (fieldNameTok.HasWrite || fieldNameTok.IsBlocked) error(fieldNameTok, DiagID::ERR_ILLEGAL_FIELD_MODIFIER);
           consume(TokenType::Equal, "Expected '=' after field name");
-          fields.push_back({prefix + fieldName.Text, parseExpr()});
+          fields.push_back({prefix + fieldName, parseExpr()});
           if (!check(TokenType::RParen))
             match(TokenType::Comma);
         }
@@ -620,7 +600,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
     consume(TokenType::RBracket, "Expected ']' after array elements");
     if (elements.size() == 1 && check(TokenType::Identifier)) {
       std::unique_ptr<Expr> arraySize = std::move(elements[0]);
-      std::string typeStr = advance().Text;
+      std::string typeStr = parseNamespaceOrIdentifier();
       if (check(TokenType::GenericLT)) {
         typeStr += advance().Text;
         int balance = 1;
@@ -639,23 +619,11 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
       std::unique_ptr<Expr> init = nullptr;
       if (check(TokenType::LParen)) {
         consume(TokenType::LParen, "Expected '('");
-        bool isNamedInit = false;
-        if (check(TokenType::Identifier) && checkAt(1, TokenType::Equal)) isNamedInit = true;
-        if (!isNamedInit && (check(TokenType::Caret) || check(TokenType::Star) || check(TokenType::Tilde) || check(TokenType::Ampersand))) {
-          if (checkAt(1, TokenType::Identifier) && checkAt(2, TokenType::Equal)) isNamedInit = true;
-          if (!isNamedInit && (checkAt(1, TokenType::TokenNull) || checkAt(1, TokenType::TokenWrite))) {
-            if (checkAt(2, TokenType::Identifier) && checkAt(3, TokenType::Equal)) isNamedInit = true;
-          }
-        }
+        bool isNamedInit = isNextNamedField(0);
         if (isNamedInit) {
           std::vector<std::pair<std::string, std::unique_ptr<Expr>>> fields;
           while (!check(TokenType::RParen) && !check(TokenType::EndOfFile)) {
-            int eqPos = -1;
-            for (int k = 0; k < 6; ++k) {
-               if (checkAt(k, TokenType::Equal)) { eqPos = k; break; }
-               if (checkAt(k, TokenType::Comma) || checkAt(k, TokenType::RParen)) break;
-            }
-            if (eqPos == -1) {
+            if (!isNextNamedField(0)) {
                 auto expr = parseExpr();
                 if (dynamic_cast<ElisionExpr*>(expr.get())) {
                     fields.push_back({"..", std::move(expr)});
@@ -675,10 +643,15 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
             if (match(TokenType::TokenNull)) prefix += "?";
             if (match(TokenType::TokenWrite)) prefix += "#";
             
-            Token fieldName = consume(TokenType::Identifier, "Expected field name");
-            if (fieldName.HasWrite || fieldName.IsBlocked) error(fieldName, DiagID::ERR_ILLEGAL_FIELD_MODIFIER);
+            Token fieldNameTok = consume(TokenType::Identifier, "Expected field name");
+            std::string fieldName = fieldNameTok.Text;
+            while (match(TokenType::Minus)) {
+              fieldName += "-";
+              fieldName += consume(TokenType::Identifier, "Expected identifier after '-'").Text;
+            }
+            if (fieldNameTok.HasWrite || fieldNameTok.IsBlocked) error(fieldNameTok, DiagID::ERR_ILLEGAL_FIELD_MODIFIER);
             consume(TokenType::Equal, "Expected '='");
-            fields.push_back({prefix + fieldName.Text, parseExpr()});
+            fields.push_back({prefix + fieldName, parseExpr()});
             if (!check(TokenType::RParen)) match(TokenType::Comma);
           }
           consume(TokenType::RParen, "Expected ')'");
@@ -710,20 +683,22 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
     Token tok = peek();
 
     // Anonymous Record Detection: ( key = val ... )
-    bool isAnonRecord = false;
-    if (checkAt(1, TokenType::Identifier) && checkAt(2, TokenType::Equal)) {
-      isAnonRecord = true;
-    }
+    bool isAnonRecord = isNextNamedField(1);
 
     consume(TokenType::LParen, "Expected '('");
 
     if (isAnonRecord) {
       std::vector<std::pair<std::string, std::unique_ptr<Expr>>> fields;
       while (!check(TokenType::RParen) && !check(TokenType::EndOfFile)) {
-        Token key = consume(TokenType::Identifier, "Expected field name");
+        Token keyTok = consume(TokenType::Identifier, "Expected field name");
+        std::string key = keyTok.Text;
+        while (match(TokenType::Minus)) {
+          key += "-";
+          key += consume(TokenType::Identifier, "Expected identifier after '-'").Text;
+        }
         consume(TokenType::Equal, "Expected '='");
         auto val = parseExpr();
-        fields.push_back({key.Text, std::move(val)});
+        fields.push_back({key, std::move(val)});
         if (!check(TokenType::RParen)) {
           consume(TokenType::Comma, "Expected ',' or ')'");
         }
@@ -756,10 +731,16 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
         expr->HasParens = true; // [NEW] Track that it was explicitly paren-wrapped
       }
     }
-  } else if (match(TokenType::Identifier) || match(TokenType::KwUpperSelf)) {
-    Token name = previous();
-    // Normalize KwUpperSelf to appear as Identifier "Self" locally if needed,
-    // though Token.Text usually holds "Self" anyway.
+  } else if (check(TokenType::Identifier) || check(TokenType::KwUpperSelf)) {
+    Token firstTok = peek();
+    std::string nameText;
+    if (match(TokenType::KwUpperSelf)) {
+      nameText = "Self";
+    } else {
+      nameText = parseNamespaceOrIdentifier();
+    }
+    Token name = firstTok;
+    name.Text = nameText;
 
     // [NEW] Check for Generics <...>
     std::vector<std::string> genericArgs;
@@ -781,28 +762,12 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
 
     if (match(TokenType::LParen)) {
       // Function Call or Named Struct Init: Type(...) or Type(x=1)
-      bool isNamed = false;
-      if (check(TokenType::Identifier) && checkAt(1, TokenType::Equal)) {
-        isNamed = true;
-      }
-      // Also check for prefixes if any (Toka attributes on fields)
-      if (!isNamed &&
-          (check(TokenType::Star) || check(TokenType::Caret) ||
-           check(TokenType::Tilde) || check(TokenType::Ampersand))) {
-        if (checkAt(1, TokenType::Identifier) && checkAt(2, TokenType::Equal)) {
-          isNamed = true;
-        }
-      }
+      bool isNamed = isNextNamedField(0);
 
       if (isNamed) {
         std::vector<std::pair<std::string, std::unique_ptr<Expr>>> fields;
         while (!check(TokenType::RParen) && !check(TokenType::EndOfFile)) {
-          int eqPos = -1;
-          for (int k = 0; k < 6; ++k) {
-             if (checkAt(k, TokenType::Equal)) { eqPos = k; break; }
-             if (checkAt(k, TokenType::Comma) || checkAt(k, TokenType::RParen)) break;
-          }
-          if (eqPos == -1) {
+          if (!isNextNamedField(0)) {
               auto expr = parseExpr();
               if (dynamic_cast<ElisionExpr*>(expr.get())) {
                   fields.push_back({"..", std::move(expr)});
@@ -823,11 +788,15 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
           else if (match(TokenType::Ampersand))
             prefix = "&";
 
-          Token fieldName =
-              consume(TokenType::Identifier, "Expected field name");
-          if (fieldName.HasWrite || fieldName.IsBlocked) error(fieldName, DiagID::ERR_ILLEGAL_FIELD_MODIFIER);
+          Token fieldNameTok = consume(TokenType::Identifier, "Expected field name");
+          std::string fieldName = fieldNameTok.Text;
+          while (match(TokenType::Minus)) {
+            fieldName += "-";
+            fieldName += consume(TokenType::Identifier, "Expected identifier after '-'").Text;
+          }
+          if (fieldNameTok.HasWrite || fieldNameTok.IsBlocked) error(fieldNameTok, DiagID::ERR_ILLEGAL_FIELD_MODIFIER);
           consume(TokenType::Equal, "Expected '=' after field name");
-          fields.push_back({prefix + fieldName.Text, parseExpr()});
+          fields.push_back({prefix + fieldName, parseExpr()});
           if (!check(TokenType::RParen))
             match(TokenType::Comma);
         }
@@ -1104,9 +1073,8 @@ std::unique_ptr<Expr> Parser::parseAllocExpr() {
     consume(TokenType::RBracket, "Expected ']'");
   }
 
-  Token typeTok =
-      consume(TokenType::Identifier, "Expected type name after 'alloc'");
-  std::string typeName = typeTok.Text;
+  Token typeTok = peek();
+  std::string typeName = parseNamespaceOrIdentifier();
   if (!typeName.empty() && typeName[0] == '\'') {
       // typeName = typeName.substr(1);
   }
@@ -1127,15 +1095,10 @@ std::unique_ptr<Expr> Parser::parseAllocExpr() {
   std::unique_ptr<Expr> init = nullptr;
   if (match(TokenType::LParen)) {
     // Check if it's named field initialization: Hero(id = 1, hp = 2)
-    if (check(TokenType::Identifier) && checkAt(1, TokenType::Equal)) {
+    if (isNextNamedField(0)) {
       std::vector<std::pair<std::string, std::unique_ptr<Expr>>> fields;
       while (!check(TokenType::RParen) && !check(TokenType::EndOfFile)) {
-        int eqPos = -1;
-        for (int k = 0; k < 6; ++k) {
-           if (checkAt(k, TokenType::Equal)) { eqPos = k; break; }
-           if (checkAt(k, TokenType::Comma) || checkAt(k, TokenType::RParen)) break;
-        }
-        if (eqPos == -1) {
+        if (!isNextNamedField(0)) {
             auto expr = parseExpr();
             if (dynamic_cast<ElisionExpr*>(expr.get())) {
                 fields.push_back({"..", std::move(expr)});
@@ -1156,10 +1119,15 @@ std::unique_ptr<Expr> Parser::parseAllocExpr() {
         else if (match(TokenType::Ampersand))
           prefix = "&";
 
-        Token fieldName = consume(TokenType::Identifier, "Expected field name");
-        if (fieldName.HasWrite || fieldName.IsBlocked) error(fieldName, DiagID::ERR_ILLEGAL_FIELD_MODIFIER);
+        Token fieldNameTok = consume(TokenType::Identifier, "Expected field name");
+        std::string fieldName = fieldNameTok.Text;
+        while (match(TokenType::Minus)) {
+          fieldName += "-";
+          fieldName += consume(TokenType::Identifier, "Expected identifier after '-'").Text;
+        }
+        if (fieldNameTok.HasWrite || fieldNameTok.IsBlocked) error(fieldNameTok, DiagID::ERR_ILLEGAL_FIELD_MODIFIER);
         consume(TokenType::Equal, "Expected '=' after field name");
-        fields.push_back({prefix + fieldName.Text, parseExpr()});
+        fields.push_back({prefix + fieldName, parseExpr()});
         match(TokenType::Comma);
       }
       init = std::make_unique<InitStructExpr>(typeName, std::move(fields));

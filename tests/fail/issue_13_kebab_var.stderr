@@ -1,0 +1,5 @@
+error[E0101]: Expected ';' or newline after statement
+ --> tests/fail/issue_13_kebab_var.tk:4:13
+  |
+ 4 |     auto max-size = 100
+  |             ^

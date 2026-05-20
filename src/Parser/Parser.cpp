@@ -213,6 +213,46 @@ std::string Parser::parseTypeString() {
   return type;
 }
 
+bool Parser::isNextNamedField(int startOffset) const {
+  int lookAhead = startOffset;
+  if (checkAt(lookAhead, TokenType::Star) || checkAt(lookAhead, TokenType::Caret) ||
+      checkAt(lookAhead, TokenType::Tilde) || checkAt(lookAhead, TokenType::Ampersand)) {
+    lookAhead++;
+  }
+  if (checkAt(lookAhead, TokenType::TokenNull) || checkAt(lookAhead, TokenType::TokenWrite)) {
+    lookAhead++;
+  }
+  if (!checkAt(lookAhead, TokenType::Identifier)) {
+    return false;
+  }
+  lookAhead++;
+  while (checkAt(lookAhead, TokenType::Minus) && checkAt(lookAhead + 1, TokenType::Identifier)) {
+    lookAhead += 2;
+  }
+  return checkAt(lookAhead, TokenType::Equal);
+}
+
+std::string Parser::parseNamespaceOrIdentifier() {
+  Token nameTok = consume(TokenType::Identifier, "Expected identifier");
+  std::string name = nameTok.Text;
+  
+  bool isNamespace = false;
+  int lookAhead = 0;
+  while (peekAt(lookAhead).Kind == TokenType::Minus && peekAt(lookAhead + 1).Kind == TokenType::Identifier) {
+    lookAhead += 2;
+  }
+  if (peekAt(lookAhead).Kind == TokenType::Colon && peekAt(lookAhead + 1).Kind == TokenType::Colon) {
+    isNamespace = true;
+  }
+  if (isNamespace) {
+    while (match(TokenType::Minus)) {
+      name += "-";
+      name += consume(TokenType::Identifier, "Expected identifier after '-'").Text;
+    }
+  }
+  return name;
+}
+
 std::unique_ptr<Module> Parser::parseModule() {
   auto module = std::make_unique<Module>();
   // module->FileName = m_CurrentFile;

@@ -1,20 +1,10 @@
-error[E0402]: Use of undeclared identifier 'max-size-100'
- --> tests/fail/kebab_subtraction_ambiguity.tk:5:16
+error[E0101]: Expected ';' or newline after statement
+ --> tests/fail/kebab_subtraction_ambiguity.tk:3:11
   |
- 5 |   auto error = max-size-100
-  |                ^
-note: Did you mean subtraction? Subtraction operator '-' requires spaces around it to avoid ambiguity with kebab-case identifiers.
- --> tests/fail/kebab_subtraction_ambiguity.tk:5:16
+ 3 |   auto max-size = 1024
+  |           ^
+error[E0101]: Expected ';' or newline after statement
+ --> tests/fail/kebab_subtraction_ambiguity.tk:4:12
   |
- 5 |   auto error = max-size-100
-  |                ^
-error[E0402]: Use of undeclared identifier 'max-size-100'
- --> tests/fail/kebab_subtraction_ambiguity.tk:5:16
-  |
- 5 |   auto error = max-size-100
-  |                ^
-note: Did you mean subtraction? Subtraction operator '-' requires spaces around it to avoid ambiguity with kebab-case identifiers.
- --> tests/fail/kebab_subtraction_ambiguity.tk:5:16
-  |
- 5 |   auto error = max-size-100
-  |                ^
+ 4 |   auto user-name = "Toka"
+  |            ^

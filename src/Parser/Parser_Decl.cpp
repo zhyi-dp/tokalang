@@ -762,6 +762,9 @@ std::unique_ptr<ImportDecl> Parser::parseImport(bool isPub) {
                                          peek().Kind <= TokenType::KwCrate)) {
       physicalPath += advance().Text;
       consumed = true;
+    } else if (match(TokenType::Minus)) {
+      physicalPath += "-";
+      consumed = true;
     } else if (match(TokenType::Dot)) {
       physicalPath += ".";
       consumed = true;
@@ -832,6 +835,11 @@ std::unique_ptr<ImportDecl> Parser::parseImport(bool isPub) {
     if (match(TokenType::KwAs)) {
       moduleAlias =
           consume(TokenType::Identifier, "Expected module alias").Text;
+      while (match(TokenType::Minus)) {
+        moduleAlias += "-";
+        moduleAlias +=
+            consume(TokenType::Identifier, "Expected identifier after '-' in module alias").Text;
+      }
     }
   }
 
