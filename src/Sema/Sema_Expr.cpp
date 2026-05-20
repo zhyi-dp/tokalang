@@ -1599,8 +1599,16 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
   } else if (auto *ce = dynamic_cast<CedeExpr *>(E)) {
     auto innerTy = checkExpr(ce->Value.get());
     
-    // [Fix] Enforce tracking move semantics for `cede` expression universally.
+    // [Fix] Enforce tracking move semantics and borrow check for `cede` expression universally.
     if (ce->Value) {
+      std::string pathToMove = getStringifyPath(ce->Value.get());
+      if (!pathToMove.empty()) {
+          std::string conflictPath = PALCheckerState.verifyMutation(pathToMove);
+          if (!conflictPath.empty()) {
+              error(ce, DiagID::ERR_MOVE_BORROWED, conflictPath);
+          }
+      }
+
       if (auto *Var = dynamic_cast<VariableExpr *>(ce->Value.get())) {
         SymbolInfo *Info = nullptr;
         std::string actualName;
