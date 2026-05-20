@@ -1,0 +1,67 @@
+import std/net::{Ipv4Addr, SocketAddrV4, UdpSocket}
+import std/string::{String}
+import core/result::{Okay}
+import std/io::{println}
+
+pub fn main() -> i32 {
+    auto local_ip = Ipv4Addr::new(127:u8, 0:u8, 0:u8, 1:u8)
+    auto addr1 = SocketAddrV4::new(local_ip, 8881:u16)
+    auto addr2 = SocketAddrV4::new(local_ip, 8882:u16)
+    
+    auto s1# = UdpSocket::bind(addr1)
+    if !s1.is_valid() {
+        println("s1 bind failed")
+        return 1
+    }
+    
+    auto s2# = UdpSocket::bind(addr2)
+    if !s2.is_valid() {
+        println("s2 bind failed")
+        return 1
+    }
+    
+    // Test send_to
+    auto msg = String::from("Hello UDP")
+    auto *buf = msg.c_str() as *u8
+    auto len = msg.len() as usize
+    auto s_res = s1#.send_to(*buf, len, addr2)
+    match s_res {
+        auto Okay::Err(&e) => {
+            println("send_to failed")
+            return 1
+        }
+        auto Okay::Ok(n) => {
+            if n != len {
+                println("send_to length mismatch")
+                return 1
+            }
+        }
+    }
+    
+    // Test recv_from
+    auto rbuf# = [0:u8; 64]
+    auto *rptr = (&rbuf[0] as Addr) as *u8
+    auto r_res = s2#.recv_from(*rptr, 64:usize)
+    match r_res {
+        auto Okay::Err(&e) => {
+            println("recv_from failed")
+            return 1
+        }
+        auto Okay::Ok(&info) => {
+            if info.len != len {
+                println("recv_from length mismatch")
+                return 1
+            }
+            if info.addr.port != 8881:u16 {
+                println("recv_from port mismatch")
+                return 1
+            }
+            if info.addr.ip.octets[0] != 127:u8 {
+                println("recv_from ip mismatch")
+                return 1
+            }
+        }
+    }
+    
+    return 0
+}

@@ -33,7 +33,25 @@ impl Ipv4Addr {
         auto d = self.octets[3] as u32
         return a bor (b bshl 8) bor (c bshl 16) bor (d bshl 24)
     }
+
+    pub fn from_u32(ip: u32) -> Ipv4Addr {
+        auto a = (ip band 0xFF) as u8
+        auto b = ((ip bshr 8) band 0xFF) as u8
+        auto c = ((ip bshr 16) band 0xFF) as u8
+        auto d = ((ip bshr 24) band 0xFF) as u8
+        return Ipv4Addr::new(a, b, c, d)
+    }
 }
+
+pub fn resolve_ipv4(host: String) -> Result<Ipv4Addr, String> {
+    auto *host_ptr = host.c_str() as *char
+    auto ip = toka_resolve_ipv4(*host_ptr)
+    if ip == 0:u32 {
+        return Result<Ipv4Addr, String>::Err(String::from("DNS resolution failed"))
+    }
+    return Result<Ipv4Addr, String>::Ok(Ipv4Addr::from_u32(ip))
+}
+
 
 pub shape SocketAddrV4 (
     ip: Ipv4Addr,
@@ -45,6 +63,101 @@ impl SocketAddrV4 {
         return SocketAddrV4(ip = ip, port = port)
     }
 }
+
+// ==========================================
+// UdpSocket
+// ==========================================
+
+pub shape UdpRecvInfo (
+    len: usize,
+    addr: SocketAddrV4
+)
+
+pub shape UdpSocket (
+    fd: i32,
+    closed: bool
+)
+
+impl UdpSocket@encap {
+    fn drop(self#) {
+        unsafe {
+            if !self.closed {
+                sysnet::net_close_impl(self.fd)
+                self.closed = true
+            }
+        }
+    }
+    pub fn clone(self) = delete
+}
+
+impl UdpSocket {
+    pub fn bind(addr: SocketAddrV4) -> UdpSocket {
+        unsafe {
+            auto fd = sysnet::net_socket_udp_impl()
+            if fd < 0 {
+                return UdpSocket(fd=-1, closed=true)
+            }
+            
+            sysnet::net_setsockopt_reuse_impl(fd)
+            
+            auto ip_num = addr.ip.to_u32()
+            auto res = sysnet::net_bind_impl(fd, ip_num, addr.port as i32)
+            if res != 0 {
+                sysnet::net_close_impl(fd)
+                return UdpSocket(fd=-1, closed=true)
+            }
+            
+            return UdpSocket(fd=fd, closed=false)
+        }
+    }
+    
+    pub fn send_to(self#, *buf: u8, len: usize, addr: SocketAddrV4) -> Result<usize, String> {
+        unsafe {
+            if self.closed {
+                return Result<usize, String>::Err(String::from("Socket closed"))
+            }
+            auto ip_num = addr.ip.to_u32()
+            auto n: i64 = sysnet::net_sendto_impl(self.fd, *buf, len, ip_num as usize, addr.port as i32)
+            if n < 0:i64 {
+                return Result<usize, String>::Err(String::from("send_to failed"))
+            }
+            return Result<usize, String>::Ok(n as usize)
+        }
+    }
+    
+    pub fn recv_from(self#, *buf: u8, len: usize) -> Result<UdpRecvInfo, String> {
+        unsafe {
+            if self.closed {
+                return Result<UdpRecvInfo, String>::Err(String::from("Socket closed"))
+            }
+            auto out_host# = 0:usize
+            auto out_port# = 0:i32
+            auto *ph = (&out_host as Addr) as *usize
+            auto *pp = (&out_port as Addr) as *i32
+            auto n: i64 = sysnet::net_recvfrom_impl(self.fd, *buf, len, *ph, *pp)
+            if n < 0:i64 {
+                return Result<UdpRecvInfo, String>::Err(String::from("recv_from failed"))
+            }
+            auto ip = Ipv4Addr::from_u32(out_host as u32)
+            auto sender_addr = SocketAddrV4::new(ip, out_port as u16)
+            return Result<UdpRecvInfo, String>::Ok(UdpRecvInfo(len = n as usize, addr = sender_addr))
+        }
+    }
+    
+    pub fn close(self#) {
+        unsafe {
+            if !self.closed {
+                sysnet::net_close_impl(self.fd)
+                self.closed = true
+            }
+        }
+    }
+    
+    pub fn is_valid(self) -> bool {
+        return self.fd >= 0
+    }
+}
+
 
 // ==========================================
 // TcpStream

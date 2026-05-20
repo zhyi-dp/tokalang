@@ -26,6 +26,12 @@ pub fn net_socket_impl() -> i32 {
     }
 }
 
+pub fn net_socket_udp_impl() -> i32 {
+    unsafe {
+        return libc_socket(2, 2, 0)
+    }
+}
+
 pub fn net_setsockopt_reuse_impl(fd: i32) -> i32 {
     unsafe {
         auto *opt# = unsafe alloc [4] byte as *[i32]
@@ -193,6 +199,50 @@ pub fn net_write_impl(fd: i32, *buf: u8, len: usize) -> i64 {
     unsafe {
         // Pass *buf (pointer) to libc_write
         return libc_write(fd, *buf, len as i64)
+    }
+}
+
+pub fn net_sendto_impl(fd: i32, *buf: u8, len: usize, host: usize, port: i32) -> i64 {
+    unsafe {
+        auto *addr_buf# = unsafe alloc [32] byte as *char
+        if *addr_buf as usize == 0 { return -1 }
+        if !fill_sockaddr_in(*addr_buf, host, port) {
+            libc_free(*addr_buf as *void)
+            return -1
+        }
+        auto res = libc_sendto(fd, *buf as *void, len, 0, *addr_buf as *void, 16:u32)
+        libc_free(*addr_buf as *void)
+        return res
+    }
+}
+
+pub fn net_recvfrom_impl(fd: i32, *buf: u8, len: usize, *out_host: usize, *out_port: i32) -> i64 {
+    unsafe {
+        auto *addr_buf# = unsafe alloc [32] byte as *char
+        auto *addrlen# = unsafe alloc [4] byte as *u32
+        addrlen = 16:u32
+        
+        auto res = libc_recvfrom(fd, *buf as *void, len, 0, *addr_buf as *void, *addrlen)
+        if res >= 0:i64 {
+            auto *p0 = (*addr_buf as usize + 2) as *u8
+            auto *p1 = (*addr_buf as usize + 3) as *u8
+            auto *pp# = *out_port
+            pp = ((p0 as i32) bshl 8) bor (p1 as i32)
+            
+            auto *a = (*addr_buf as usize + 4) as *u8
+            auto *b = (*addr_buf as usize + 5) as *u8
+            auto *c = (*addr_buf as usize + 6) as *u8
+            auto *d = (*addr_buf as usize + 7) as *u8
+            auto au = a as usize
+            auto bu = b as usize
+            auto cu = c as usize
+            auto du = d as usize
+            auto *ph# = *out_host
+            ph = au bor (bu bshl 8) bor (cu bshl 16) bor (du bshl 24)
+        }
+        libc_free(*addr_buf as *void)
+        libc_free(*addrlen as *void)
+        return res
     }
 }
 

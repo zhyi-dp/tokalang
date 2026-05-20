@@ -101,3 +101,25 @@ unsigned long long toka_stat_size(void* handle) { return ((struct stat*)handle)-
 long long toka_stat_mtime(void* handle) { return ((struct stat*)handle)->st_mtime; }
 void toka_stat_free(void* handle) { free(handle); }
 #endif
+
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <arpa/inet.h>
+#endif
+
+unsigned int toka_resolve_ipv4(const char* host) {
+    struct addrinfo hints = {0};
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    struct addrinfo *res;
+    if (getaddrinfo(host, NULL, &hints, &res) != 0) return 0;
+    struct sockaddr_in *addr = (struct sockaddr_in *)res->ai_addr;
+    unsigned int ip = addr->sin_addr.s_addr;
+    freeaddrinfo(res);
+    return ip;
+}
