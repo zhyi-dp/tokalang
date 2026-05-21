@@ -844,15 +844,17 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       if (Info.InitMask == 0) {
         isFullyInit = false;
       } else if (Info.TypeObj && Info.TypeObj->isShape()) {
-        // Check all bits for shape
+        // Check all bits for struct/tuple shapes
         std::string soul = Info.TypeObj->getSoulName();
         if (ShapeMap.count(soul)) {
           ShapeDecl *SD = ShapeMap[soul];
-          uint64_t expected = (1ULL << SD->Members.size()) - 1;
-          if (SD->Members.size() >= 64)
-            expected = ~0ULL;
-          if ((Info.InitMask & expected) != expected) {
-            isFullyInit = false;
+          if (SD->Kind == ShapeKind::Struct || SD->Kind == ShapeKind::Tuple) {
+            uint64_t expected = (1ULL << SD->Members.size()) - 1;
+            if (SD->Members.size() >= 64)
+              expected = ~0ULL;
+            if ((Info.InitMask & expected) != expected) {
+              isFullyInit = false;
+            }
           }
         }
       }
@@ -2455,43 +2457,145 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     std::string unstrippedTargetType = targetType;
     std::string baseTargetType = toka::Type::stripMorphology(targetType);
 
+    std::function<bool(MatchArm::Pattern*, const std::string&)> isPatternExhaustive = 
+      [&](MatchArm::Pattern *pat, const std::string &t) -> bool {
+        if (!pat) return false;
+        if (pat->PatternKind == MatchArm::Pattern::Wildcard) return true;
+        if (pat->PatternKind == MatchArm::Pattern::Variable) {
+          std::string baseShapeName = t;
+          size_t scopePos = pat->Name.find("::");
+          std::string patName = pat->Name;
+          if (scopePos != std::string::npos) {
+            baseShapeName = patName.substr(0, scopePos);
+            patName = patName.substr(scopePos + 2);
+          }
+          baseShapeName = toka::Type::stripMorphology(baseShapeName);
+          while (TypeAliasMap.count(baseShapeName) && !TypeAliasMap[baseShapeName].IsStrong) {
+              baseShapeName = TypeAliasMap[baseShapeName].Target;
+              size_t lt = baseShapeName.find("<");
+              if (lt != std::string::npos) baseShapeName = baseShapeName.substr(0, lt);
+          }
+          bool isVariant = false;
+          if (ShapeMap.count(baseShapeName)) {
+            ShapeDecl *SD = ShapeMap[baseShapeName];
+            for (auto &Memb : SD->Members) {
+              bool noPayload = Memb.Type.empty() || Memb.Type == "void";
+              if (Memb.Name == patName && noPayload && Memb.SubMembers.empty()) {
+                isVariant = true;
+                break;
+              }
+            }
+          }
+          if (isVariant) return false;
+          return true;
+        }
+        if (pat->PatternKind == MatchArm::Pattern::Or) {
+          for (auto &sub : pat->SubPatterns) {
+            if (isPatternExhaustive(sub.get(), t)) return true;
+          }
+          return false;
+        }
+        if (pat->PatternKind == MatchArm::Pattern::Decons) {
+          std::string baseT = toka::Type::stripMorphology(t);
+          size_t lt = baseT.find("<");
+          if (lt != std::string::npos) baseT = baseT.substr(0, lt);
+          while (TypeAliasMap.count(baseT) && !TypeAliasMap[baseT].IsStrong) {
+              baseT = TypeAliasMap[baseT].Target;
+              size_t lt2 = baseT.find("<");
+              if (lt2 != std::string::npos) baseT = baseT.substr(0, lt2);
+          }
+          if (ShapeMap.count(baseT)) {
+            ShapeDecl *SD = ShapeMap[baseT];
+            if (SD->Kind == ShapeKind::Struct || SD->Kind == ShapeKind::Tuple) {
+              if (pat->SubPatterns.size() != SD->Members.size()) return false;
+              for (size_t i = 0; i < pat->SubPatterns.size(); ++i) {
+                if (!isPatternExhaustive(pat->SubPatterns[i].get(), SD->Members[i].Type)) return false;
+              }
+              return true;
+            }
+          }
+        }
+        return false;
+      };
+
     if (ShapeMap.count(baseTargetType) && ShapeMap[baseTargetType]->Kind == ShapeKind::Enum) {
       ShapeDecl *SD = ShapeMap[baseTargetType];
-      for (auto &arm : me->Arms) {
-        if (arm->Pat->PatternKind == MatchArm::Pattern::Wildcard) {
-          hasWildcard = true;
-          break;
-        } else if (arm->Pat->PatternKind == MatchArm::Pattern::Decons) {
-          std::string vName = arm->Pat->Name;
+      std::function<void(MatchArm::Pattern*)> collectMatchedVariants = [&](MatchArm::Pattern *pat) {
+        if (!pat) return;
+        if (pat->PatternKind == MatchArm::Pattern::Or) {
+          for (auto &sub : pat->SubPatterns) {
+            collectMatchedVariants(sub.get());
+          }
+        } else if (pat->PatternKind == MatchArm::Pattern::Decons) {
+          std::string vName = pat->Name;
           size_t p = vName.find("::");
           if (p != std::string::npos) vName = vName.substr(p + 2);
-          matchedVariants.insert(vName);
-        } else if (arm->Pat->PatternKind == MatchArm::Pattern::Variable) {
-          std::string vName = arm->Pat->Name;
-          size_t p = vName.find("::");
-          if (p != std::string::npos) vName = vName.substr(p + 2);
-
-          bool isVariant = false;
-          for (auto &m : SD->Members) {
-            if (m.Name == vName) {
-              isVariant = true;
+          
+          ShapeMember *foundMemb = nullptr;
+          for (auto &Memb : SD->Members) {
+            if (Memb.Name == vName) {
+              foundMemb = &Memb;
               break;
             }
           }
-          if (isVariant) {
-            matchedVariants.insert(vName);
-          } else {
-            // True variable! Acts as wildcard.
-            hasWildcard = true;
-            break;
+          if (foundMemb) {
+            bool subExhaustive = true;
+            if (!foundMemb->SubMembers.empty()) {
+              if (pat->SubPatterns.size() != foundMemb->SubMembers.size()) {
+                subExhaustive = false;
+              } else {
+                for (size_t i = 0; i < pat->SubPatterns.size(); ++i) {
+                  if (!isPatternExhaustive(pat->SubPatterns[i].get(), foundMemb->SubMembers[i].Type)) {
+                    subExhaustive = false;
+                    break;
+                  }
+                }
+              }
+            } else if (!foundMemb->Type.empty() && foundMemb->Type != "void") {
+              if (pat->SubPatterns.size() != 1 || 
+                  !isPatternExhaustive(pat->SubPatterns[0].get(), foundMemb->Type)) {
+                subExhaustive = false;
+              }
+            }
+            if (subExhaustive) {
+              matchedVariants.insert(vName);
+            }
           }
+        } else if (pat->PatternKind == MatchArm::Pattern::Variable) {
+          std::string vName = pat->Name;
+          size_t p = vName.find("::");
+          if (p != std::string::npos) vName = vName.substr(p + 2);
+          
+          ShapeMember *foundMemb = nullptr;
+          for (auto &Memb : SD->Members) {
+            if (Memb.Name == vName) {
+              foundMemb = &Memb;
+              break;
+            }
+          }
+          if (foundMemb) {
+            bool noPayload = foundMemb->Type.empty() || foundMemb->Type == "void";
+            if (noPayload && foundMemb->SubMembers.empty()) {
+              matchedVariants.insert(vName);
+            }
+          }
+        }
+      };
+
+      for (auto &arm : me->Arms) {
+        if (arm->Guard) continue;
+        if (isPatternExhaustive(arm->Pat.get(), targetType)) {
+          hasWildcard = true;
+          break;
+        } else {
+          collectMatchedVariants(arm->Pat.get());
         }
       }
 
       if (!hasWildcard) {
         std::vector<std::string> missing;
         for (auto &m : SD->Members) {
-          if (m.Name == "Moved") continue; // Synthesized state for drop tracking
+          if (m.Name == "Moved") continue;
           if (matchedVariants.find(m.Name) == matchedVariants.end()) {
             missing.push_back(m.Name);
           }
@@ -2507,17 +2611,15 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
         }
       }
     } else {
-      // Not an enum (e.g. integer or boolean), requires a wildcard to be exhaustive!
       for (auto &arm : me->Arms) {
-        if (arm->Pat->PatternKind == MatchArm::Pattern::Wildcard || 
-           (arm->Pat->PatternKind == MatchArm::Pattern::Variable && !ShapeMap.count(arm->Pat->Name))) {
-          // Verify it's a real variable not just a typo. Actually variables are tracked as wildcards here.
+        if (arm->Guard) continue;
+        if (isPatternExhaustive(arm->Pat.get(), targetType)) {
           hasWildcard = true;
           break;
         }
       }
       if (!hasWildcard) {
-        DiagnosticEngine::report(getLoc(me), DiagID::ERR_MATCH_NOT_EXHAUSTIVE, "non-enum types require a wildcard branch ('_')");
+        DiagnosticEngine::report(getLoc(me), DiagID::ERR_MATCH_NOT_EXHAUSTIVE, "non-enum types require a wildcard/exhaustive branch");
         HasError = true;
       }
     }

@@ -1950,114 +1950,137 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
 
     for (size_t k = 0; k < expr->Arms.size(); ++k) {
       const auto &arm = expr->Arms[k];
-      // Find variant index for this arm
-      int tag = -1;
-      const ShapeMember *variant = nullptr;
-      // We look for the first variant name in the pattern
-      // Simplified: Assume Decons pattern at top level
-      for (size_t i = 0; i < sh->Members.size(); ++i) {
-        std::string patName = arm->Pat->Name;
-        size_t scopePos = patName.rfind("::");
-        if (scopePos != std::string::npos) {
-          patName = patName.substr(scopePos + 2);
+      
+      struct VariantMatchInfo {
+        int Tag = -1;
+        const ShapeMember *Variant = nullptr;
+        const MatchArm::Pattern *Pat = nullptr;
+      };
+      std::vector<VariantMatchInfo> variantsMatched;
+
+      if (arm->Pat->PatternKind == MatchArm::Pattern::Or) {
+        for (auto &subPat : arm->Pat->SubPatterns) {
+          int tag = -1;
+          const ShapeMember *variant = nullptr;
+          for (size_t i = 0; i < sh->Members.size(); ++i) {
+            std::string patName = subPat->Name;
+            size_t scopePos = patName.rfind("::");
+            if (scopePos != std::string::npos) {
+              patName = patName.substr(scopePos + 2);
+            }
+            if (sh->Members[i].Name == patName) {
+              tag = (sh->Members[i].TagValue == -1) ? (int)i
+                                                    : (int)sh->Members[i].TagValue;
+              variant = &sh->Members[i];
+              break;
+            }
+          }
+          if (tag != -1) {
+            variantsMatched.push_back({tag, variant, subPat.get()});
+          }
         }
-        if (sh->Members[i].Name == patName) {
-          tag = (sh->Members[i].TagValue == -1) ? (int)i
-                                                : (int)sh->Members[i].TagValue;
-          variant = &sh->Members[i];
-          break;
+      } else {
+        int tag = -1;
+        const ShapeMember *variant = nullptr;
+        for (size_t i = 0; i < sh->Members.size(); ++i) {
+          std::string patName = arm->Pat->Name;
+          size_t scopePos = patName.rfind("::");
+          if (scopePos != std::string::npos) {
+            patName = patName.substr(scopePos + 2);
+          }
+          if (sh->Members[i].Name == patName) {
+            tag = (sh->Members[i].TagValue == -1) ? (int)i
+                                                  : (int)sh->Members[i].TagValue;
+            variant = &sh->Members[i];
+            break;
+          }
+        }
+        if (tag != -1) {
+          variantsMatched.push_back({tag, variant, arm->Pat.get()});
         }
       }
 
-      if (tag != -1) {
+      if (!variantsMatched.empty()) {
         handledArms[k] = true;
-        llvm::BasicBlock *caseBB =
-            llvm::BasicBlock::Create(m_Context, "case_" + variant->Name, func);
-        // [Fix] Use correct type for Switch Case
-        sw->addCase(llvm::cast<llvm::ConstantInt>(
-                        llvm::ConstantInt::get(tagVal->getType(), tag)),
-                    caseBB);
+        llvm::BasicBlock *armBodyBB =
+            llvm::BasicBlock::Create(m_Context, "arm_body", func);
 
-        m_Builder.SetInsertPoint(caseBB);
+        // Pre-push the shared arm body scope so all pattern bindings register to it
         m_ScopeStack.push_back({});
 
-        // If pattern has sub-patterns (tuple/struct enum), bind them
-        // Cast target to payload type
-        if (!variant->SubMembers.empty() || !variant->Type.empty()) {
-          // GEP to payload (skip tag)
-          // Tag is i8 at offset 0. Payload is at offset 1 (aligned)
-          // We need to cast target pointer to struct { i8, Payload }*
-          // OR just GEP byte offset?
-          // For now, assume generic layout strategy: Tag | Padding | Payload
+        for (const auto &vMatch : variantsMatched) {
+          llvm::BasicBlock *caseBB =
+              llvm::BasicBlock::Create(m_Context, "case_" + vMatch.Variant->Name, func);
+          sw->addCase(llvm::cast<llvm::ConstantInt>(
+                          llvm::ConstantInt::get(tagVal->getType(), vMatch.Tag)),
+                      caseBB);
 
-          // Using targetAddr directly as it is the pointer to the alloca
+          m_Builder.SetInsertPoint(caseBB);
 
-          // Better approach: Cast to the specific Variant Shape Struct
-          // which CodeGen_Type should have generated. But we use a single Union
-          // struct?
-          // Let's rely on manual pointer arithmetic for now or assume Tag is
-          // byte 0.
+          const ShapeMember *variant = vMatch.Variant;
+          const MatchArm::Pattern *subPat = vMatch.Pat;
 
-          llvm::Value *payloadAddr =
-              m_Builder.CreateStructGEP(targetType, targetAddr, 1);
+          if (!variant->SubMembers.empty() || !variant->Type.empty()) {
+            llvm::Value *payloadAddr =
+                m_Builder.CreateStructGEP(targetType, targetAddr, 1);
 
-          llvm::Type *payloadLayoutType = nullptr;
-          std::vector<llvm::Type *> fieldTypes;
+            llvm::Type *payloadLayoutType = nullptr;
+            std::vector<llvm::Type *> fieldTypes;
 
-          if (!variant->SubMembers.empty()) {
-            for (const auto &f : variant->SubMembers) {
-              if (f.ResolvedType) {
-                  fieldTypes.push_back(getLLVMType(f.ResolvedType));
+            if (!variant->SubMembers.empty()) {
+              for (const auto &f : variant->SubMembers) {
+                if (f.ResolvedType) {
+                    fieldTypes.push_back(getLLVMType(f.ResolvedType));
+                } else {
+                    fieldTypes.push_back(resolveType(f.Type, false));
+                }
+              }
+              payloadLayoutType =
+                  llvm::StructType::get(m_Context, fieldTypes, true);
+            } else if (!variant->Type.empty()) {
+              if (variant->ResolvedType) {
+                  payloadLayoutType = getLLVMType(variant->ResolvedType);
               } else {
-                  fieldTypes.push_back(resolveType(f.Type, false));
+                  payloadLayoutType = resolveType(variant->Type, false);
               }
             }
-            payloadLayoutType =
-                llvm::StructType::get(m_Context, fieldTypes, true);
-          } else if (!variant->Type.empty()) {
-            if (variant->ResolvedType) {
-                payloadLayoutType = getLLVMType(variant->ResolvedType);
-            } else {
-                payloadLayoutType = resolveType(variant->Type, false);
+
+            if (payloadLayoutType) {
+              llvm::Value *variantAddr = m_Builder.CreateBitCast(
+                  payloadAddr, llvm::PointerType::getUnqual(m_Context));
+
+              for (size_t i = 0; i < subPat->SubPatterns.size(); ++i) {
+                if (fieldTypes.empty() && i > 0)
+                  break;
+                if (!fieldTypes.empty() && i >= fieldTypes.size())
+                  break;
+
+                llvm::Value *fieldAddr = variantAddr;
+                llvm::Type *fieldTy = payloadLayoutType;
+
+                if (!fieldTypes.empty()) {
+                  fieldAddr = m_Builder.CreateStructGEP(payloadLayoutType,
+                                                        variantAddr, i);
+                  fieldTy = fieldTypes[i];
+                }
+
+                std::shared_ptr<Type> subTypeObj = nullptr;
+                if (variant->SubMembers.size() > i && variant->SubMembers[i].ResolvedType) {
+                    subTypeObj = variant->SubMembers[i].ResolvedType;
+                } else if (variant->ResolvedType) {
+                    subTypeObj = variant->ResolvedType;
+                }
+
+                genPatternBinding(subPat->SubPatterns[i].get(), fieldAddr,
+                                  fieldTy, subTypeObj);
+              }
             }
           }
-
-          if (payloadLayoutType) {
-            llvm::Value *variantAddr = m_Builder.CreateBitCast(
-                payloadAddr, llvm::PointerType::getUnqual(m_Context));
-
-            for (size_t i = 0; i < arm->Pat->SubPatterns.size(); ++i) {
-              // Safety check
-              if (fieldTypes.empty() && i > 0)
-                break;
-              if (!fieldTypes.empty() && i >= fieldTypes.size())
-                break;
-
-              llvm::Value *fieldAddr = variantAddr;
-              llvm::Type *fieldTy = payloadLayoutType;
-
-              if (!fieldTypes.empty()) {
-                fieldAddr = m_Builder.CreateStructGEP(payloadLayoutType,
-                                                      variantAddr, i);
-                fieldTy = fieldTypes[i];
-              }
-
-              std::shared_ptr<Type> subTypeObj = nullptr;
-              if (variant->SubMembers.size() > i && variant->SubMembers[i].ResolvedType) {
-                  subTypeObj = variant->SubMembers[i].ResolvedType;
-              } else if (variant->ResolvedType) {
-                  subTypeObj = variant->ResolvedType;
-              }
-
-              genPatternBinding(arm->Pat->SubPatterns[i].get(), fieldAddr,
-                                fieldTy, subTypeObj);
-            }
-          }
+          m_Builder.CreateBr(armBodyBB);
         }
 
-        // [New] Destructive Match Mutation (State Collapse)
-        // If the match target was ceded, and the matched pattern is extracting the payload,
-        // we automatically mutate the original container's tag to 'Moved' to prevent double-free.
+        m_Builder.SetInsertPoint(armBodyBB);
+
         if (isCeded && baseShapeName != "" && m_Shapes.count(baseShapeName)) {
             int movedTag = -1;
             for (size_t i = 0; i < sh->Members.size(); ++i) {
@@ -2128,23 +2151,25 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
           llvm::BasicBlock::Create(m_Context, "match_next", func);
 
       // 1. Check Pattern (Recursive helper for value/or patterns)
-      std::function<llvm::Value *(const MatchArm::Pattern *)> genValuePatCond =
-          [&](const MatchArm::Pattern *pat) -> llvm::Value * {
+      std::function<llvm::Value *(const MatchArm::Pattern *, llvm::Value *)> genValuePatCond =
+          [&](const MatchArm::Pattern *pat, llvm::Value *currVal) -> llvm::Value * {
+        llvm::Type *currTy = currVal->getType();
         if (pat->PatternKind == MatchArm::Pattern::Literal) {
-          if (targetType->isIntegerTy() || targetType->isPointerTy()) {
+          if (currTy->isIntegerTy() || currTy->isPointerTy()) {
             llvm::Value *litVal = nullptr;
             if (pat->Name == "true") {
               litVal = llvm::ConstantInt::getTrue(m_Context);
             } else if (pat->Name == "false") {
               litVal = llvm::ConstantInt::getFalse(m_Context);
             } else if (!pat->Name.empty() && pat->Name[0] == '\'') {
-              litVal = llvm::ConstantInt::get(targetType, pat->LiteralVal);
+              litVal = llvm::ConstantInt::get(currTy, pat->LiteralVal);
             } else {
-              litVal = llvm::ConstantInt::get(targetType, pat->LiteralVal);
+              litVal = llvm::ConstantInt::get(currTy, pat->LiteralVal);
             }
-            return m_Builder.CreateICmpEQ(targetVal, litVal);
-          } else if (expr->Target->ResolvedType->isStringType() &&
-                     !pat->Name.empty() && pat->Name[0] == '"') {
+            return m_Builder.CreateICmpEQ(currVal, litVal);
+          } else if (!pat->Name.empty() && pat->Name[0] == '"') {
+            llvm::Value *currAddr = createEntryBlockAlloca(currTy, nullptr, "match_curr_addr");
+            m_Builder.CreateStore(currVal, currAddr);
             std::string rawLit = pat->Name.substr(1, pat->Name.size() - 2);
             auto strLit = std::make_unique<StringExpr>(rawLit);
             strLit->ResolvedType = toka::Type::fromString("cstring");
@@ -2156,7 +2181,7 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
                   otherVal->getType(), nullptr, "match_other_addr");
               m_Builder.CreateStore(otherVal, otherAddr);
               if (auto *llvmFn = m_Module->getFunction("PartialEq_String_eq")) {
-                return m_Builder.CreateCall(llvmFn, {targetAddr, otherAddr});
+                return m_Builder.CreateCall(llvmFn, {currAddr, otherAddr});
               }
             }
           }
@@ -2164,17 +2189,25 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
         } else if (pat->PatternKind == MatchArm::Pattern::Or) {
           llvm::Value *accum = m_Builder.getInt1(false);
           for (auto &sub : pat->SubPatterns) {
-            accum = m_Builder.CreateOr(accum, genValuePatCond(sub.get()));
+            accum = m_Builder.CreateOr(accum, genValuePatCond(sub.get(), currVal));
           }
           return accum;
         } else if (pat->PatternKind == MatchArm::Pattern::Wildcard ||
                    pat->PatternKind == MatchArm::Pattern::Variable) {
           return m_Builder.getInt1(true);
+        } else if (pat->PatternKind == MatchArm::Pattern::Decons) {
+          llvm::Value *accum = m_Builder.getInt1(true);
+          for (size_t i = 0; i < pat->SubPatterns.size(); ++i) {
+            llvm::Value *memberVal = m_Builder.CreateExtractValue(currVal, i);
+            llvm::Value *subCond = genValuePatCond(pat->SubPatterns[i].get(), memberVal);
+            accum = m_Builder.CreateAnd(accum, subCond);
+          }
+          return accum;
         }
         return m_Builder.getInt1(false);
       };
 
-      llvm::Value *cond = genValuePatCond(arm->Pat.get());
+      llvm::Value *cond = genValuePatCond(arm->Pat.get(), targetVal);
 
       // 2. Branch to guard-check, arm or next
       if (arm->Guard) {
@@ -2183,12 +2216,8 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
         m_Builder.CreateCondBr(cond, guardBB, nextArmBB);
         m_Builder.SetInsertPoint(guardBB);
 
-        // For guard check, we might need variable bindings if it's a
-        // variable pattern
         m_ScopeStack.push_back({});
-        if (arm->Pat->PatternKind == MatchArm::Pattern::Variable) {
-          genPatternBinding(arm->Pat.get(), targetAddr, targetType, expr->Target->ResolvedType);
-        }
+        genPatternBinding(arm->Pat.get(), targetAddr, targetType, expr->Target->ResolvedType);
 
         PhysEntity guardVal_ent = genExpr(arm->Guard.get()).load(m_Builder);
         llvm::Value *guardVal = guardVal_ent.load(m_Builder);
@@ -2203,9 +2232,7 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
       // 3. ARM Body
       m_Builder.SetInsertPoint(armBB);
       m_ScopeStack.push_back({});
-      if (arm->Pat->PatternKind == MatchArm::Pattern::Variable) {
-        genPatternBinding(arm->Pat.get(), targetAddr, targetType, expr->Target->ResolvedType);
-      }
+      genPatternBinding(arm->Pat.get(), targetAddr, targetType, expr->Target->ResolvedType);
 
       m_CFStack.push_back(
           {"", mergeBB, nullptr, resultAddr, m_ScopeStack.size()});
@@ -2876,16 +2903,32 @@ void CodeGen::genPatternBinding(const MatchArm::Pattern *pat,
            (pName.back() == '#' || pName.back() == '?' || pName.back() == '!'))
       pName.pop_back();
 
+    llvm::Value *alloca = nullptr;
+    bool alreadyRegistered = false;
+    if (!m_ScopeStack.empty()) {
+      for (const auto &info : m_ScopeStack.back()) {
+        if (info.Name == pName) {
+          alloca = info.Alloca;
+          alreadyRegistered = true;
+          break;
+        }
+      }
+    }
+
     if (!pat->IsReference) {
       val = m_Builder.CreateLoad(targetType, targetAddr, pName);
     }
-    // Create local alloca
-    llvm::Type *allocaType = val->getType();
-    llvm::AllocaInst *alloca =
-        createEntryBlockAlloca(allocaType, nullptr, pName);
-    m_Builder.CreateStore(val, alloca);
 
-    m_NamedValues[pName] = alloca;
+    if (alreadyRegistered) {
+      m_Builder.CreateStore(val, alloca);
+    } else {
+      // Create local alloca
+      llvm::Type *allocaType = val->getType();
+      alloca = createEntryBlockAlloca(allocaType, nullptr, pName);
+      m_Builder.CreateStore(val, alloca);
+
+      m_NamedValues[pName] = alloca;
+    }
 
     TokaSymbol sym;
     sym.allocaPtr = alloca;
@@ -2972,19 +3015,21 @@ void CodeGen::genPatternBinding(const MatchArm::Pattern *pat,
     sym.hasDrop = hasDrop;
     sym.dropFunc = dropFunc;
 
-    m_Symbols[pName] = sym;
+    if (!alreadyRegistered) {
+      m_Symbols[pName] = sym;
 
-    if (!m_ScopeStack.empty()) {
-      VariableScopeInfo info;
-      info.Name = pName;
-      info.Alloca = alloca;
-      info.AllocType = targetType;
-      info.IsUniquePointer = isUnique;
-      info.IsShared = isShared;
-      info.HasDrop = hasDrop;
-      info.DropFunc = dropFunc;
-      info.SoulName = typeName;
-      m_ScopeStack.back().push_back(info);
+      if (!m_ScopeStack.empty()) {
+        VariableScopeInfo info;
+        info.Name = pName;
+        info.Alloca = alloca;
+        info.AllocType = targetType;
+        info.IsUniquePointer = isUnique;
+        info.IsShared = isShared;
+        info.HasDrop = hasDrop;
+        info.DropFunc = dropFunc;
+        info.SoulName = typeName;
+        m_ScopeStack.back().push_back(info);
+      }
     }
   } else if (pat->PatternKind == MatchArm::Pattern::Decons) {
     if (targetType->isStructTy()) {

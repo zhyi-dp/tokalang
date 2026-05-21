@@ -1,0 +1,10 @@
+// Naked destructuring of resource String in positional destructuring should be forbidden.
+import std/string::String
+
+shape Pair(i32, String)
+
+pub fn main() -> i32 {
+    auto t = Pair(42, String::from("Hello Resource"))
+    auto Pair(a, s) = t
+    return 0
+}

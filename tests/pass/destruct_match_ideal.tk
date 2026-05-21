@@ -1,0 +1,79 @@
+// Copyright (c) 2026 YiZhonghua<zhyi@dpai.com>. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Note: This is a PROPOSED test file demonstrating the ideal complete pattern matching
+// and destructuring features once our compiler enhancements are implemented.
+//
+// Features demonstrated:
+// 1. Direct matching & destructuring of plain structs & tuples in 'match' expressions.
+// 2. Or-patterns with shared variable bindings in 'match' arms.
+// 3. Strict compiler-level resource copy safety checks in positional destructuring.
+// 4. Comprehensive recursive nested exhaustiveness checks.
+
+import std/io::println
+import std/string::String
+
+shape Point(x: i32, y: i32)
+shape Pair(i32, String)
+
+shape ASTNode(
+    BinaryExpr(String, Point) |
+    UnaryExpr(String, Point) |
+    LiteralExpr(i32)
+)
+
+fn test_struct_tuple_in_match(p: Point, t: Pair) -> i32 {
+    // [Goal 1] Direct matching & destructuring of plain Struct in match expression
+    auto x_val = match p {
+        auto Point(x, y) => {
+            println("Point x = {}, y = {}", x, y)
+            pass x
+        }
+    }
+
+    // [Goal 3] Strict resource safety checks on positional destructuring
+    // 't' contains a String. A bare destructuring `auto Pair(a, s) = t` must be blocked by the compiler
+    // to prevent shallow copy. The developer MUST explicitly borrow the resource:
+    auto Pair(a, &s) = t
+    println("Pair string: {}", s.c_str())
+
+    return x_val
+}
+
+fn test_or_pattern_bindings(node: ASTNode) -> Point {
+    // [Goal 2] Or-pattern with shared variable bindings in a match arm
+    auto pt = match node {
+        // Shared binding 'pt' extracts the coordinate from both BinaryExpr and UnaryExpr!
+        auto ASTNode::BinaryExpr(&op, &pt) | auto ASTNode::UnaryExpr(&op, &pt) => {
+            println("Matched operator: {}", op.c_str())
+            pass pt
+        }
+        auto ASTNode::LiteralExpr(val) => {
+            pass Point(x = val, y = 0)
+        }
+    }
+    return pt
+}
+
+fn main() -> i32 {
+    auto p = Point(x = 100, y = 200)
+    auto t = Pair(42, String::from("Hello Resource"))
+    test_struct_tuple_in_match(p, t)
+
+    auto node1 = ASTNode::BinaryExpr(String::from("+"), Point(x = 1, y = 2))
+    auto pt1 = test_or_pattern_bindings(node1)
+    assert(pt1.x == 1, "pt1.x mismatch")
+
+    return 0
+}

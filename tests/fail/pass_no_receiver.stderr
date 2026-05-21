@@ -3,7 +3,7 @@ error[E0436]: 'pass' used without a receiver; prefix the expression with 'auto x
    |
  18 |         1 => { pass 42 } // Error: pass used without a receiver (no 'pass match')
    |                ^
-error[E0553]: Match is not exhaustive. Missing: non-enum types require a wildcard branch ('_')
+error[E0553]: Match is not exhaustive. Missing: non-enum types require a wildcard/exhaustive branch
  --> tests/fail/pass_no_receiver.tk:17:5
    |
  17 |     match 1 {

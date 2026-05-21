@@ -99,11 +99,55 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
   }
 
   case MatchArm::Pattern::Or: {
+    if (Pat->SubPatterns.empty())
+      break;
+
+    Scope* originalScope = CurrentScope;
+    std::vector<std::map<std::string, SymbolInfo>> branchSymbols;
+    
     for (auto &sub : Pat->SubPatterns) {
-      checkPattern(sub.get(), TargetType, false);
-      if (sub->PatternKind == MatchArm::Pattern::Variable) {
-          error(sub.get(), "Or-patterns currently do not support variable bindings. Use literals or _ instead.");
+      CurrentScope = new Scope(originalScope);
+      checkPattern(sub.get(), TargetType, SourceIsMutable);
+      branchSymbols.push_back(CurrentScope->Symbols);
+      Scope* temp = CurrentScope;
+      CurrentScope = originalScope;
+      delete temp;
+    }
+    
+    auto &firstBranch = branchSymbols[0];
+    bool matches = true;
+    for (size_t i = 1; i < branchSymbols.size(); ++i) {
+      if (branchSymbols[i].size() != firstBranch.size()) {
+        matches = false;
+        break;
       }
+      for (auto &kv : firstBranch) {
+        if (branchSymbols[i].count(kv.first) == 0) {
+          matches = false;
+          break;
+        }
+        auto &sym1 = kv.second;
+        auto &sym2 = branchSymbols[i][kv.first];
+        
+        std::string t1 = sym1.TypeObj ? sym1.TypeObj->toString() : "";
+        std::string t2 = sym2.TypeObj ? sym2.TypeObj->toString() : "";
+        if (t1 != t2 || sym1.IsMutable() != sym2.IsMutable() || 
+            sym1.IsReference() != sym2.IsReference() ||
+            sym1.IsMorphicExempt != sym2.IsMorphicExempt) {
+          matches = false;
+          break;
+        }
+      }
+      if (!matches) break;
+    }
+    
+    if (!matches) {
+      error(Pat, "All branches of an Or-pattern must bind the exact same set of variables with consistent types and modifiers.");
+      break;
+    }
+    
+    for (auto &kv : firstBranch) {
+      CurrentScope->define(kv.first, kv.second);
     }
     break;
   }
@@ -219,54 +263,78 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
 
     if (ShapeMap.count(shapeName)) {
       ShapeDecl *SD = ShapeMap[shapeName];
-      ShapeMember *foundMemb = nullptr;
-      for (auto &Memb : SD->Members) {
-        if (Memb.Name == variantName) {
-          foundMemb = &Memb;
-          break;
-        }
-      }
-
-      if (foundMemb) {
-        if (Pat->SubPatterns.size() > 0) {
-          bool noPayload = foundMemb->Type.empty() || foundMemb->Type == "void";
-          if (noPayload && foundMemb->SubMembers.empty()) {
-            DiagnosticEngine::report(
-                getLoc(Pat), DiagID::ERR_VARIANT_NO_PAYLOAD, variantName);
+      if (SD->Kind == ShapeKind::Struct || SD->Kind == ShapeKind::Tuple) {
+        std::string varBase = variantName;
+        size_t ltV = varBase.find("<");
+        if (ltV != std::string::npos) varBase = varBase.substr(0, ltV);
+        
+        std::string sdBase = SD->Name;
+        size_t ltS = sdBase.find("<");
+        if (ltS != std::string::npos) sdBase = sdBase.substr(0, ltS);
+        
+        if (!variantName.empty() && varBase != sdBase) {
+          DiagnosticEngine::report(getLoc(Pat), DiagID::ERR_UNKNOWN_SHAPE_IN_PAT, variantName);
+          HasError = true;
+        } else {
+          if (Pat->SubPatterns.size() != SD->Members.size()) {
+            DiagnosticEngine::report(getLoc(Pat), DiagID::ERR_VARIANT_ARG_MISMATCH, variantName, SD->Members.size(), Pat->SubPatterns.size());
             HasError = true;
           } else {
-            if (!foundMemb->SubMembers.empty()) {
-              // Multi-field tuple variant
-              if (Pat->SubPatterns.size() != foundMemb->SubMembers.size()) {
-                DiagnosticEngine::report(
-                    getLoc(Pat), DiagID::ERR_VARIANT_ARG_MISMATCH, variantName,
-                    foundMemb->SubMembers.size(), Pat->SubPatterns.size());
-                HasError = true;
-              } else {
-                for (size_t i = 0; i < Pat->SubPatterns.size(); ++i) {
-                  // Rebind check
-                  checkPattern(Pat->SubPatterns[i].get(),
-                               foundMemb->SubMembers[i].Type, SourceIsMutable);
-                }
-              }
-            } else {
-              // Legacy single-field variant
-              if (Pat->SubPatterns.size() != 1) {
-                DiagnosticEngine::report(
-                    getLoc(Pat), DiagID::ERR_VARIANT_ARG_MISMATCH, variantName,
-                    1, Pat->SubPatterns.size());
-                HasError = true;
-              }
-              checkPattern(Pat->SubPatterns[0].get(), foundMemb->Type,
-                           SourceIsMutable);
+            for (size_t i = 0; i < Pat->SubPatterns.size(); ++i) {
+              checkPattern(Pat->SubPatterns[i].get(), SD->Members[i].Type, SourceIsMutable);
             }
           }
         }
       } else {
-        DiagnosticEngine::report(
-            getLoc(Pat), DiagID::ERR_UNKNOWN_SHAPE_IN_PAT,
-            shapeName); // Actually variant not found in shape
-        HasError = true;
+        ShapeMember *foundMemb = nullptr;
+        for (auto &Memb : SD->Members) {
+          if (Memb.Name == variantName) {
+            foundMemb = &Memb;
+            break;
+          }
+        }
+
+        if (foundMemb) {
+          if (Pat->SubPatterns.size() > 0) {
+            bool noPayload = foundMemb->Type.empty() || foundMemb->Type == "void";
+            if (noPayload && foundMemb->SubMembers.empty()) {
+              DiagnosticEngine::report(
+                  getLoc(Pat), DiagID::ERR_VARIANT_NO_PAYLOAD, variantName);
+              HasError = true;
+            } else {
+              if (!foundMemb->SubMembers.empty()) {
+                // Multi-field tuple variant
+                if (Pat->SubPatterns.size() != foundMemb->SubMembers.size()) {
+                  DiagnosticEngine::report(
+                      getLoc(Pat), DiagID::ERR_VARIANT_ARG_MISMATCH, variantName,
+                      foundMemb->SubMembers.size(), Pat->SubPatterns.size());
+                  HasError = true;
+                } else {
+                  for (size_t i = 0; i < Pat->SubPatterns.size(); ++i) {
+                    // Rebind check
+                    checkPattern(Pat->SubPatterns[i].get(),
+                                 foundMemb->SubMembers[i].Type, SourceIsMutable);
+                  }
+                }
+              } else {
+                // Legacy single-field variant
+                if (Pat->SubPatterns.size() != 1) {
+                  DiagnosticEngine::report(
+                      getLoc(Pat), DiagID::ERR_VARIANT_ARG_MISMATCH, variantName,
+                      1, Pat->SubPatterns.size());
+                  HasError = true;
+                }
+                checkPattern(Pat->SubPatterns[0].get(), foundMemb->Type,
+                             SourceIsMutable);
+              }
+            }
+          }
+        } else {
+          DiagnosticEngine::report(
+              getLoc(Pat), DiagID::ERR_UNKNOWN_SHAPE_IN_PAT,
+              shapeName); // Actually variant not found in shape
+          HasError = true;
+        }
       }
     } else {
       DiagnosticEngine::report(getLoc(Pat), DiagID::ERR_UNKNOWN_SHAPE_IN_PAT,

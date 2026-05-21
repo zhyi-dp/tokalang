@@ -1,0 +1,89 @@
+// Copyright (c) 2026 YiZhonghua<zhyi@dpai.com>. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import std/io::println
+import std/string::String
+
+// Define shapes representing structs, tuples, and enums
+shape Coord(x: i32, y: i32)
+shape DataTuple(i32, bool)
+
+shape SearchResult(
+    Found(String) |
+    NotFound |
+    Redirect(i32, String)
+)
+
+// Helper function to test match expressions on enums with resources
+fn handle_search(res: SearchResult) -> i32 {
+    // 1. match expression returning value via 'pass'
+    auto code = match res {
+        auto SearchResult::Found(&str) => {
+            println("Search result found: {}", str.c_str())
+            pass 200
+        }
+        auto SearchResult::Redirect(code, &url) => {
+            println("Search redirecting to {} with code {}", url.c_str(), code)
+            pass code
+        }
+        auto SearchResult::NotFound => {
+            println("Search result not found")
+            pass 404
+        }
+    }
+    return code
+}
+
+fn test_struct_tuple_destructuring() {
+    auto c = Coord(x = 10, y = 20)
+    auto t = DataTuple(100, true)
+
+    // 2. Destructuring a plain struct in an assignment statement
+    auto Coord(cx, cy) = c
+    assert(cx == 10, "cx must be 10")
+    assert(cy == 20, "cy must be 20")
+
+    // 3. Destructuring a tuple in an assignment statement
+    auto (val, flag) = t
+    assert(val == 100, "val must be 100")
+    assert(flag == true, "flag must be true")
+
+    // 4. Reference destructuring of a struct with mutability control
+    auto c_mut# = Coord(x = 30, y = 40)
+    {
+        auto (&rx, &ry#) = c_mut
+        assert(rx == 30, "rx must be 30")
+        ry = 50
+    }
+    assert(c_mut.y == 50, "c_mut.y must be updated to 50")
+}
+
+fn main() -> i32 {
+    test_struct_tuple_destructuring()
+
+    auto res1 = SearchResult::Found(String::from("Toka Engine"))
+    auto code1 = handle_search(res1)
+    assert(code1 == 200, "code1 should be 200")
+
+    auto res2 = SearchResult::Redirect(301, String::from("https://toka.org"))
+    auto code2 = handle_search(res2)
+    assert(code2 == 301, "code2 should be 301")
+
+    auto res3 = SearchResult::NotFound()
+    auto code3 = handle_search(res3)
+    assert(code3 == 404, "code3 should be 404")
+
+    println("All comprehensive destructuring and match checks passed successfully!")
+    return 0
+}

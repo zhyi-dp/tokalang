@@ -51,6 +51,24 @@ std::unique_ptr<MatchArm::Pattern> Parser::parseSinglePattern() {
       isMut = true;
   }
 
+  if (check(TokenType::LParen)) {
+    Token lpTok = peek();
+    consume(TokenType::LParen, "");
+    std::vector<std::unique_ptr<MatchArm::Pattern>> subs;
+    while (!check(TokenType::RParen) && !check(TokenType::EndOfFile)) {
+      subs.push_back(parsePattern());
+      if (!check(TokenType::RParen))
+        match(TokenType::Comma);
+    }
+    consume(TokenType::RParen, "Expected ')' after subpatterns");
+    auto p = std::make_unique<MatchArm::Pattern>(MatchArm::Pattern::Decons);
+    p->Loc = lpTok.Loc;
+    p->Name = "";
+    p->SubPatterns = std::move(subs);
+    p->IsReference = isRef;
+    return p;
+  }
+
   if (check(TokenType::Integer) || check(TokenType::String) ||
       check(TokenType::KwTrue) || check(TokenType::KwFalse)) {
     auto p = std::make_unique<MatchArm::Pattern>(MatchArm::Pattern::Literal);

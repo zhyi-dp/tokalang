@@ -866,6 +866,18 @@ void Sema::checkStmt(Stmt *S) {
         } else {
           Info.TypeObj = soulType;
         }
+
+        // [Safety Gate] Prevent implicit destructure copying of Resources
+        if (!Destruct->Variables[i].IsReference) {
+          std::string sName = Info.TypeObj->getSoulName();
+          if (!sName.empty() && ShapeMap.count(sName)) {
+            if (!ShapeMap[sName]->MangledDestructorName.empty()) {
+              DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_ILLEGAL_RESOURCE_COPY, sName, Destruct->Variables[i].Name);
+              HasError = true;
+            }
+          }
+        }
+
         CurrentScope->define(Destruct->Variables[i].Name, Info);
       }
     } else if (initType->typeKind == Type::Tuple) {
@@ -900,6 +912,18 @@ void Sema::checkStmt(Stmt *S) {
         } else {
           Info.TypeObj = soulType;
         }
+
+        // [Safety Gate] Prevent implicit destructure copying of Resources
+        if (!Destruct->Variables[i].IsReference) {
+          std::string sName = Info.TypeObj->getSoulName();
+          if (!sName.empty() && ShapeMap.count(sName)) {
+            if (!ShapeMap[sName]->MangledDestructorName.empty()) {
+              DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_ILLEGAL_RESOURCE_COPY, sName, Destruct->Variables[i].Name);
+              HasError = true;
+            }
+          }
+        }
+
         CurrentScope->define(Destruct->Variables[i].Name, Info);
       }
       m_LastFieldDependencies.clear();
