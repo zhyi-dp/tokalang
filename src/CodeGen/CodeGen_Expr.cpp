@@ -1281,6 +1281,49 @@ PhysEntity CodeGen::genUnaryExpr(const UnaryExpr *unary) {
     if (!handleTy)
       handleTy = getLLVMType(unary->RHS->ResolvedType);
 
+    bool isRHSVal = true;
+    if (unary->RHS->ResolvedType) {
+      auto rt = unary->RHS->ResolvedType;
+      if (rt->isPointer() || rt->isReference() || rt->isSmartPointer()) {
+        isRHSVal = false;
+      }
+    }
+
+    if (isRHSVal) {
+      // Elevate the value to a unique pointer on heap (Heap Promotion on Move)
+      const llvm::DataLayout &dl = m_Module->getDataLayout();
+      uint64_t size = dl.getTypeAllocSize(handleTy);
+      
+      llvm::Function *mallocFn = m_Module->getFunction("malloc");
+      if (!mallocFn) {
+        llvm::Type *sizeTy = llvm::Type::getInt64Ty(m_Context);
+        llvm::Type *ptrTy = m_Builder.getPtrTy();
+        mallocFn = llvm::Function::Create(
+            llvm::FunctionType::get(ptrTy, {sizeTy}, false),
+            llvm::Function::ExternalLinkage, "malloc", m_Module.get());
+      }
+      
+      llvm::Value *sizeVal = llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), size);
+      llvm::Value *heapAddr = m_Builder.CreateCall(mallocFn, {sizeVal}, "heap.promoted");
+      
+      // Copy the value from stack to heap
+      llvm::Value *val = m_Builder.CreateLoad(handleTy, identityAddr, "move.val");
+      m_Builder.CreateStore(val, heapAddr);
+      
+      // Zero out the original stack allocation to denote a move
+      if (handleTy->isStructTy()) {
+        m_Builder.CreateStore(llvm::ConstantAggregateZero::get(handleTy),
+                              identityAddr);
+      } else {
+        m_Builder.CreateStore(llvm::Constant::getNullValue(handleTy),
+                              identityAddr);
+      }
+      
+      std::string typeName =
+          unary->RHS->ResolvedType ? unary->RHS->ResolvedType->toString() : "";
+      return PhysEntity(heapAddr, typeName, m_Builder.getPtrTy(), false);
+    }
+
     llvm::Value *val = m_Builder.CreateLoad(handleTy, identityAddr, "move.val");
 
     // For Move (^): Nullify the handle

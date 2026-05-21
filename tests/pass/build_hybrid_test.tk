@@ -1,0 +1,62 @@
+// Copyright (c) 2026 Toka Project. All rights reserved.
+// tests/pass/build_hybrid_test.tk
+// Integration test for FFI hybrid mixed building and linking.
+
+import std/io::{File, println, remove_file}
+import std/string::{String}
+import sys/libc::{libc_system}
+import lib/build::{Executable, run_build}
+
+fn main() -> i32 {
+    println("Starting Build Hybrid integration test...")
+
+    // 1. Write the dynamic C FFI file
+    auto c_file# = File::open(String::from("tests/pass/temp_shim.c"), String::from("w"))
+    if !c_file.is_valid() {
+        println("Failed to create temp_shim.c")
+        return 1
+    }
+    c_file.write(String::from("extern \"C\" int get_magic_number() {\n    return 42;\n}\n"))
+    c_file#.close()
+
+    // 2. Write the dynamic Toka main file
+    auto tk_file# = File::open(String::from("tests/pass/temp_main.tk"), String::from("w"))
+    if !tk_file.is_valid() {
+        println("Failed to create temp_main.tk")
+        remove_file(String::from("tests/pass/temp_shim.c"))
+        return 1
+    }
+    tk_file.write(String::from("import std/io::println\nextern fn get_magic_number() -> i32\nfn main() -> i32 {\n    auto val = get_magic_number()\n    println(\"Got value: {}\", val)\n    if val == 42 {\n        return 0\n    }\n    return 1\n}\n"))
+    tk_file#.close()
+
+    // 3. Configure build project using our Executable FFI extensions
+    auto proj# = Executable::make("temp_main" as *char, "tests/pass/temp_main.tk" as *char)
+    proj#.add_c_src(String::from("tests/pass/temp_shim.c"))
+    
+    // 4. Run the build pipeline
+    auto build_res = run_build(proj)
+    if build_res != 0 {
+        println("run_build failed with code: {}", build_res)
+        remove_file(String::from("tests/pass/temp_shim.c"))
+        remove_file(String::from("tests/pass/temp_main.tk"))
+        return 1
+    }
+
+    // 5. Execute the compiled hybrid program and check its exit code
+    auto run_res = libc_system("target/debug/temp_main > /dev/null" as *char)
+    if run_res != 0 {
+        println("Hybrid executable execution failed with code: {}", run_res)
+        remove_file(String::from("tests/pass/temp_shim.c"))
+        remove_file(String::from("tests/pass/temp_main.tk"))
+        libc_system("rm -rf target/debug/temp_main" as *char)
+        return 1
+    }
+
+    println("Hybrid build integration test completed successfully!")
+
+    // 6. Clean up temporary files
+    remove_file(String::from("tests/pass/temp_shim.c"))
+    remove_file(String::from("tests/pass/temp_main.tk"))
+    libc_system("rm -rf target/debug/temp_main" as *char)
+    return 0
+}

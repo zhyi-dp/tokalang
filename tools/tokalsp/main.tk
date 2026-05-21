@@ -209,7 +209,7 @@ fn process_message(body: String) {
                                                 tmp_file.write(doc_text)
                                                 tmp_file#.close()
                                                 
-                                                auto cmd = String::fmt("tokac --check-json {} 2>&1", tmp_path.c_str().as_str())
+                                                auto cmd = String::fmt("timeout 2 tokac --check-json {} 2>&1", tmp_path.c_str().as_str())
                                                 auto json_out = execute_command(cmd)
                                                 auto diag_json = String::from("{\"uri\":\"")
                                                 diag_json#.push_view(doc_uri.as_view())

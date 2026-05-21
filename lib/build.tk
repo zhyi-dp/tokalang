@@ -6,13 +6,28 @@ pub shape Executable (
     *name: char,
     *version: char,
     *src: char,
-    deps: String
+    deps: String,
+    c_srcs: String = String::from(""),
+    lib_dirs: String = String::from(""),
+    libs: String = String::from(""),
+    include_dirs: String = String::from(""),
+    ldflags: String = String::from("")
 )
 
 impl Executable@encap {
     fn drop(self#) { }
     pub fn clone(self) -> Executable {
-        return Executable(*name = self.*name, *version = self.*version, *src = self.*src, deps = self.deps.clone())
+        return Executable(
+            *name = self.*name,
+            *version = self.*version,
+            *src = self.*src,
+            deps = self.deps.clone(),
+            c_srcs = self.c_srcs.clone(),
+            lib_dirs = self.lib_dirs.clone(),
+            libs = self.libs.clone(),
+            include_dirs = self.include_dirs.clone(),
+            ldflags = self.ldflags.clone()
+        )
     }
 }
 
@@ -22,7 +37,12 @@ impl Executable {
             *name = *name,
             *version = "0.1.0" as *char,
             *src = *src,
-            deps = String::from("")
+            deps = String::from(""),
+            c_srcs = String::from(""),
+            lib_dirs = String::from(""),
+            libs = String::from(""),
+            include_dirs = String::from(""),
+            ldflags = String::from("")
         )
     }
     
@@ -31,6 +51,41 @@ impl Executable {
             self.deps#.push_str("," as *char)
         }
         self.deps#.push_str(*url)
+    }
+    
+    pub fn add_c_src(self#, path: String) {
+        if self.c_srcs.len() > 0:usize {
+            self.c_srcs#.push_str("," as *char)
+        }
+        self.c_srcs#.push_str(path.c_str())
+    }
+
+    pub fn add_lib_dir(self#, path: String) {
+        if self.lib_dirs.len() > 0:usize {
+            self.lib_dirs#.push_str("," as *char)
+        }
+        self.lib_dirs#.push_str(path.c_str())
+    }
+
+    pub fn add_lib(self#, name: String) {
+        if self.libs.len() > 0:usize {
+            self.libs#.push_str("," as *char)
+        }
+        self.libs#.push_str(name.c_str())
+    }
+
+    pub fn add_include_dir(self#, path: String) {
+        if self.include_dirs.len() > 0:usize {
+            self.include_dirs#.push_str("," as *char)
+        }
+        self.include_dirs#.push_str(path.c_str())
+    }
+
+    pub fn add_ldflag(self#, flag: String) {
+        if self.ldflags.len() > 0:usize {
+            self.ldflags#.push_str(" " as *char)
+        }
+        self.ldflags#.push_str(flag.c_str())
     }
 }
 
@@ -56,7 +111,12 @@ pub fn run_build(proj: Executable) -> i32 {
         }
         
         // Build tokac string: "tokac src_path > target/debug/main.ll"
-        auto cmd1# = String::from("tokac ")
+        auto cmd1# = String::from("")
+        if libc_access("build/bin/tokac" as *char, 0) == 0 {
+            cmd1 = String::from("./build/bin/tokac ")
+        } else {
+            cmd1 = String::from("tokac ")
+        }
         auto toka_lib = libc_getenv("TOKA_LIB" as *char) as Addr
         if toka_lib != 0:Addr {
             cmd1#.push_str("-I ")
@@ -73,16 +133,141 @@ pub fn run_build(proj: Executable) -> i32 {
             cmd1#.push_str(env_pkg_args as *char)
             cmd1#.push_str(" ")
         }
+        auto is_hybrid# = false
+        if proj.c_srcs.len() > 0:usize { is_hybrid = true }
+        if proj.libs.len() > 0:usize { is_hybrid = true }
+        if proj.ldflags.len() > 0:usize { is_hybrid = true }
+        if proj.lib_dirs.len() > 0:usize { is_hybrid = true }
+
         cmd1#.push_str(&s)
-        cmd1#.push_str(" -o target/debug/" as *char)
-        cmd1#.push_str(&n)
-        cmd1#.push_str(" -O3" as *char)
+        if is_hybrid {
+            cmd1#.push_str(" --emit-obj -o target/debug/" as *char)
+            cmd1#.push_str(&n)
+            cmd1#.push_str(".o -O3" as *char)
+        } else {
+            cmd1#.push_str(" -o target/debug/" as *char)
+            cmd1#.push_str(&n)
+            cmd1#.push_str(" -O3" as *char)
+        }
         
         // Execute compiler
         auto res1 = libc_system(cmd1.c_str())
         if res1 != 0 {
             libc_system("echo 'Toka compilation failed.'" as *char)
             return res1
+        }
+
+        if is_hybrid {
+            auto *env_cxx = libc_getenv("CXX" as *char)
+            auto cxx# = String::from("")
+            if *env_cxx != (ADDR0 as *char) {
+                cxx = String::from(*env_cxx)
+            } else {
+                if libc_access("/usr/bin/clang++-20" as *char, 0) == 0 {
+                    cxx = String::from("/usr/bin/clang++-20")
+                } else if libc_access("/usr/bin/clang++" as *char, 0) == 0 {
+                    cxx = String::from("/usr/bin/clang++")
+                } else if libc_access("/usr/bin/g++" as *char, 0) == 0 {
+                    cxx = String::from("/usr/bin/g++")
+                } else {
+                    cxx = String::from("clang++")
+                }
+            }
+            
+            auto rt_path# = String::from("")
+            if libc_access("lib/sys/toka_rt.o" as *char, 0) == 0 {
+                rt_path = String::from("lib/sys/toka_rt.o")
+            } else if libc_access("../lib/sys/toka_rt.o" as *char, 0) == 0 {
+                rt_path = String::from("../lib/sys/toka_rt.o")
+            } else {
+                auto toka_lib = libc_getenv("TOKA_LIB" as *char) as Addr
+                if toka_lib != 0:Addr {
+                    auto env_rt# = String::from(toka_lib as *char)
+                    if !env_rt.ends_with(String::from("/")) {
+                        env_rt#.push_str("/" as *char)
+                    }
+                    env_rt#.push_str("sys/toka_rt.o" as *char)
+                    if libc_access(env_rt.c_str(), 0) == 0 {
+                        rt_path = env_rt.clone()
+                    }
+                }
+            }
+            if rt_path.len() == 0:usize {
+                if libc_access("/usr/local/lib/toka/sys/toka_rt.o" as *char, 0) == 0 {
+                    rt_path = String::from("/usr/local/lib/toka/sys/toka_rt.o")
+                }
+            }
+            if rt_path.len() == 0:usize {
+                rt_path = String::from("lib/sys/toka_rt.o")
+            }
+            
+            auto cmd2# = cxx.clone()
+            cmd2#.push_str(" target/debug/" as *char)
+            cmd2#.push_str(&n)
+            cmd2#.push_str(".o" as *char)
+            
+            if proj.c_srcs.len() > 0:usize {
+                auto c_srcs_iter = proj.c_srcs.split(',' as i32)
+                loop {
+                    auto file = c_srcs_iter#.next()
+                    if file.len() == 0:usize { break }
+                    cmd2#.push_str(" " as *char)
+                    cmd2#.push_str(file.c_str())
+                }
+            }
+            
+            cmd2#.push_str(" " as *char)
+            cmd2#.push_str(rt_path.c_str())
+            
+            if proj.include_dirs.len() > 0:usize {
+                auto inc_iter = proj.include_dirs.split(',' as i32)
+                loop {
+                    auto dir = inc_iter#.next()
+                    if dir.len() == 0:usize { break }
+                    cmd2#.push_str(" -I " as *char)
+                    cmd2#.push_str(dir.c_str())
+                }
+            }
+            
+            if proj.lib_dirs.len() > 0:usize {
+                auto lib_dir_iter = proj.lib_dirs.split(',' as i32)
+                loop {
+                    auto dir = lib_dir_iter#.next()
+                    if dir.len() == 0:usize { break }
+                    cmd2#.push_str(" -L " as *char)
+                    cmd2#.push_str(dir.c_str())
+                }
+            }
+            
+            if proj.libs.len() > 0:usize {
+                auto lib_iter = proj.libs.split(',' as i32)
+                loop {
+                    auto lib = lib_iter#.next()
+                    if lib.len() == 0:usize { break }
+                    cmd2#.push_str(" -l " as *char)
+                    cmd2#.push_str(lib.c_str())
+                }
+            }
+            
+            if proj.ldflags.len() > 0:usize {
+                cmd2#.push_str(" " as *char)
+                cmd2#.push_str(proj.ldflags.c_str())
+            }
+            
+            cmd2#.push_str(" -o target/debug/" as *char)
+            cmd2#.push_str(&n)
+            
+            auto res2 = libc_system(cmd2.c_str())
+            if res2 != 0 {
+                libc_system("echo 'Linking failed.'" as *char)
+                return res2
+            }
+            
+            // Clean up temporary .o file
+            auto rm_cmd# = String::from("rm -f target/debug/")
+            rm_cmd#.push_str(&n)
+            rm_cmd#.push_str(".o" as *char)
+            libc_system(rm_cmd.c_str())
         }
         
         libc_system("echo 'Build successful!\n'" as *char)

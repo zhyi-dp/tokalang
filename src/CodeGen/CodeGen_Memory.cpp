@@ -844,11 +844,13 @@ PhysEntity CodeGen::genMemberExpr(const MemberExpr *mem) {
 
   int defHats = 0;
   if (!stName.empty() && m_Shapes.count(stName)) {
-    defHats = getHatCount(m_Shapes[stName]->Members[idx].Name);
     if (m_Shapes[stName]->Members[idx].ResolvedType) {
-        defHats += getTypeHatCount(m_Shapes[stName]->Members[idx].ResolvedType);
+      defHats = getTypeHatCount(m_Shapes[stName]->Members[idx].ResolvedType);
     } else {
-        defHats += getHatCount(m_Shapes[stName]->Members[idx].Type);
+      defHats = getHatCount(m_Shapes[stName]->Members[idx].Name);
+      if (defHats == 0) {
+        defHats = getHatCount(m_Shapes[stName]->Members[idx].Type);
+      }
     }
   }
   int accessHats = getHatCount(mem->Member);
