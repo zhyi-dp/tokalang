@@ -1,4 +1,4 @@
-import std/termios::*
+import stdx/cli/termios::*
 import std/memory
 import std/io::*
 

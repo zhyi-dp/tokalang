@@ -1,4 +1,4 @@
-import std/log::{Logger, LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERROR, debug, info, warn, error}
+import stdx/log/log::{Logger, LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERROR, debug, info, warn, error}
 import std/string::{String}
 import std/io::{print_line}
 

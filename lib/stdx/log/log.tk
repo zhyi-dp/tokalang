@@ -93,16 +93,19 @@ pub fn debug(msg: String) {
     logger.debug(cede msg)
 }
 
+// Global convenience functions (defaults to INFO level visibility)
 pub fn info(msg: String) {
     auto logger = Logger::new(LOG_INFO)
     logger.info(cede msg)
 }
 
+// Global convenience functions (defaults to INFO level visibility)
 pub fn warn(msg: String) {
     auto logger = Logger::new(LOG_WARN)
     logger.warn(cede msg)
 }
 
+// Global convenience functions (defaults to INFO level visibility)
 pub fn error(msg: String) {
     auto logger = Logger::new(LOG_ERROR)
     logger.error(cede msg)
