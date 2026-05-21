@@ -1,0 +1,53 @@
+// tests/pass/arena_test.tk
+// Comprehensive unit tests for Toka's Arena Allocator
+
+import std/io::println
+import std/arena::{Arena, alloc_type}
+import core/types::{usize, Addr, ADDR0}
+
+shape Point (
+    x: i32,
+    y: i32
+)
+
+fn main() -> i32 {
+    println("Testing Arena Allocator...")
+
+    auto arena# = Arena::new_with_capacity(1024:usize)
+    
+    // 1. Test basic allocation and 8-byte alignment
+    auto addr1 = arena#.alloc_bytes(3:usize)
+    auto addr2 = arena#.alloc_bytes(5:usize)
+    
+    assert(addr1 != ADDR0, "addr1 should be valid")
+    assert(addr2 != ADDR0, "addr2 should be valid")
+    
+    // Alignment check: since addr1 is 8-byte aligned, addr2 should be exactly addr1 + 8
+    auto diff = addr2 - addr1
+    println("addr1: {}, addr2: {}, diff: {}", addr1, addr2, diff)
+    assert((diff as usize) == 8:usize, "Allocation must be 8-byte aligned")
+
+    // 2. Test generic alloc_type
+    auto *p_ptr# = alloc_type<Point>(arena)
+    assert((*p_ptr as Addr) != ADDR0, "p_ptr should be valid")
+    
+    // Write data to the pointer
+    p_ptr.x = 100
+    p_ptr.y = 200
+    
+    println("Point values: x={}, y={}", p_ptr.x, p_ptr.y)
+    assert(p_ptr.x == 100, "x should be 100")
+    assert(p_ptr.y == 200, "y should be 200")
+
+    // 3. Test reset and reuse
+    arena#.reset()
+    auto addr3 = arena#.alloc_bytes(3:usize)
+    // After reset, the first allocation should reuse the exact same start address of the head chunk
+    assert(addr3 == addr1, "Reset should allow reuse of the head chunk memory")
+
+    // 4. Test Arena manual free (or it will be dropped automatically)
+    arena#.release()
+    
+    println("Arena Allocator tests successfully completed.")
+    return 0
+}

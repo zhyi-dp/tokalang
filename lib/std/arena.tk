@@ -1,0 +1,166 @@
+// Copyright (c) 2026 Toka Project. All rights reserved.
+// lib/std/arena.tk
+// A high-performance, elegant Arena Allocator for batch-allocated system resources.
+
+import core/types::{usize, Addr, ADDR0}
+import core/traits::{@encap}
+import core/libc::{libc_malloc, libc_free}
+
+pub shape ArenaChunk (
+    data: Addr,
+    capacity: usize,
+    offset#: usize,
+    nul *#next: ArenaChunk = null as *ArenaChunk
+)
+
+pub shape Arena (
+    nul *#chunks: ArenaChunk = null as *ArenaChunk,
+    default_chunk_size: usize = 65536:usize
+)
+
+impl Arena {
+    pub fn new() -> Arena {
+        return Arena(
+            *chunks = null as *ArenaChunk,
+            default_chunk_size = 65536:usize
+        )
+    }
+
+    pub fn new_with_capacity(capacity: usize) -> Arena {
+        return Arena(
+            *chunks = null as *ArenaChunk,
+            default_chunk_size = capacity
+        )
+    }
+
+    /**
+     * Allocate aligned memory inside the arena chunk pool.
+     * All allocations are automatically aligned to 8 bytes for 64-bit platforms.
+     */
+    pub fn alloc_bytes(self#, size: usize) -> Addr {
+        if size == 0:usize {
+            return ADDR0
+        }
+
+        // Align size to 8 bytes boundary
+        auto aligned_size = (size + 7:usize) band (bnot 7:usize)
+
+        unsafe {
+            // 1. Attempt to find space in existing chunks
+            auto *#curr# = self.*chunks
+            while true {
+                auto curr_addr = *curr as Addr
+                if curr_addr == ADDR0 { break }
+
+                auto available = curr.capacity - curr.offset
+                if available >= aligned_size {
+                    auto addr = curr.data + curr.offset
+                    curr.offset = curr.offset + aligned_size
+                    return addr
+                }
+                *curr = curr.*next as *#ArenaChunk
+            }
+
+            // 2. No chunk has enough space, allocate a new chunk
+            auto chunk_size# = self.default_chunk_size
+            if aligned_size > chunk_size {
+                chunk_size = aligned_size
+            }
+
+            // Allocate raw memory buffer
+            auto raw_data = libc_malloc(chunk_size) as Addr
+            if raw_data == ADDR0 {
+                return ADDR0
+            }
+
+            // Allocate the ArenaChunk structure itself
+            auto *new_chunk# = (unsafe alloc [1] ArenaChunk) as *ArenaChunk
+            auto new_chunk_addr = *new_chunk as Addr
+            if new_chunk_addr == ADDR0 {
+                libc_free(raw_data as *void)
+                return ADDR0
+            }
+
+            // Construct the ArenaChunk
+            new_chunk.data = raw_data
+            new_chunk.capacity = chunk_size
+            new_chunk.offset = aligned_size
+            new_chunk.*next = self.*chunks
+
+            self.*chunks = *new_chunk
+            return raw_data
+        }
+    }
+
+    /**
+     * Reset the offsets of all chunks to 0 without freeing raw memory buffers.
+     * This makes reuse extremely fast.
+     */
+    pub fn reset(self#) {
+        unsafe {
+            auto *#curr# = self.*chunks
+            while true {
+                auto curr_addr = *curr as Addr
+                if curr_addr == ADDR0 { break }
+
+                curr.offset = 0:usize
+                *curr = curr.*next as *#ArenaChunk
+            }
+        }
+    }
+
+    /**
+     * Release all physical resources held by this Arena.
+     */
+    pub fn release(self#) {
+        unsafe {
+            auto *#curr# = self.*chunks
+            while true {
+                auto curr_addr = *curr as Addr
+                if curr_addr == ADDR0 { break }
+
+                auto *next# = curr.*next
+
+                libc_free(curr.data as *void)
+                unsafe free [1] (*curr as *[ArenaChunk])
+
+                *curr = *next
+            }
+            self.*chunks = null as *ArenaChunk
+        }
+    }
+}
+
+/**
+ * Allocate generic type 'T safely and return a raw pointer to it.
+ */
+pub fn alloc_type<'T>(arena#: Arena) -> *'T {
+    auto size = sizeof('T)
+    auto addr = arena#.alloc_bytes(size)
+    return addr as *'T
+}
+
+impl Arena@encap {
+    pub *
+    fn drop(self#) {
+        self#.release()
+    }
+
+    pub fn clone(self) = delete
+}
+
+impl ArenaChunk@encap {
+    pub *
+    fn drop(self#) {
+        // ArenaChunk does not own its memory; the Arena does.
+    }
+
+    pub fn clone(self) -> ArenaChunk {
+        return ArenaChunk(
+            data = self.data,
+            capacity = self.capacity,
+            offset = self.offset,
+            *next = self.*next
+        )
+    }
+}
