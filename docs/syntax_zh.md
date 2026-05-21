@@ -158,5 +158,5 @@
 
 | 待办主题 | 坏味道说明 | 拟重构方案 |
 | :--- | :--- | :--- |
-| **1. 编译器与标准库强耦合解耦 (Smell #3)** | `println` / `print` 等低级 LLVM IR 组装过程高度硬编码在 `CodeGen_Expr.cpp` 中，硬性绑定标准库特定名称的 ABI 函数（如 `String_from`、`String_push_str` 等）。 | 将 `println` 等转化为更通用的宏展开或基于 Trait（契约）的代码生成机制，编译期不强绑定特定 ABI 函数名，使其与 `std/string` 彻底解耦。 |
+| **1. 编译器与标准库强耦合解耦 (Smell #3) [已解决]** | `println` / `print` 等低级 LLVM IR 组装过程曾硬性绑定标准库特定名称的 ABI 函数（如 `String_from`、`String_push_str` 等）。 | **已重构解决**：新版 `print` / `println` 采用零开销展开生成（Unrolled Codegen）技术。对于所有基本类型（`i32`, `f64`, `bool`, `char` 等）及 `view_str`，直接编译生成 `toka_print_xxx` / `printf` / `putchar` 调用，**与 `std/string` 彻底解耦且无任何堆分配开销**。仅对实现 `to_string`/`to_string_fmt` 的自定义 Struct 保留轻量 ABI 调用以提取和析构临时 String。 |
 | **2. 基本类型“捕获语义”物理 ABI 澄清 (Smell #5)** | 物理层（Codegen）针对非可变基本类型（如 `i32`）优化为了普通 LLVM Value 传值拷贝，这与 Toka 宣称的“一切皆捕获（隐式引用传递）”的逻辑语义在物理层不一致，存在 FFI 灰色地带。 | 保持现有高效的传值优化，但在文档中明确区分 **逻辑语义（捕获）** 与 **物理 ABI 优化（基本类型传值、聚合类型引用）**，并在 FFI 规范文档中进行严谨的物理层澄清。 |
