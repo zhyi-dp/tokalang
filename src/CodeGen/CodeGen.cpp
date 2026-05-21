@@ -21,7 +21,7 @@
 
 namespace toka {
 
-// 在 src/CodeGen/CodeGen.cpp 的 genExpr 函数中
+// Inside the genExpr function of src/CodeGen/CodeGen.cpp
 PhysEntity CodeGen::genExpr(const Expr *expr) {
   if (!expr)
     return {};
@@ -29,7 +29,7 @@ PhysEntity CodeGen::genExpr(const Expr *expr) {
   if (m_Builder.GetInsertBlock() && m_Builder.GetInsertBlock()->getTerminator())
     return {};
 
-  // 1. 基础表达式
+  // 1. Basic Expressions
   if (auto e = dynamic_cast<const BinaryExpr *>(expr))
     return genBinaryExpr(e);
   if (auto e = dynamic_cast<const UnaryExpr *>(expr))
@@ -37,7 +37,7 @@ PhysEntity CodeGen::genExpr(const Expr *expr) {
   if (auto e = dynamic_cast<const VariableExpr *>(expr))
     return genVariableExpr(e);
 
-  // 2. 字面量系列 (重点修复：手动列出 AST 中存在的真实类名)
+  // 2. Literal Expressions (Crucial fix: manually list actual class names in AST)
   if (dynamic_cast<const NumberExpr *>(expr) ||
       dynamic_cast<const FloatExpr *>(expr) ||
       dynamic_cast<const BoolExpr *>(expr) ||
@@ -57,7 +57,7 @@ PhysEntity CodeGen::genExpr(const Expr *expr) {
   if (auto e = dynamic_cast<const RepeatedArrayExpr *>(expr))
     return genRepeatedArrayExpr(e);
 
-  // 3. 内存与成员访问
+  // 3. Memory & Member Access
   if (auto e = dynamic_cast<const MemberExpr *>(expr))
     return genMemberExpr(e);
   if (auto e = dynamic_cast<const ArrayIndexExpr *>(expr))
@@ -65,7 +65,7 @@ PhysEntity CodeGen::genExpr(const Expr *expr) {
   if (auto e = dynamic_cast<const AllocExpr *>(expr))
     return genAllocExpr(e);
 
-  // 4. 控制流与高级表达式
+  // 4. Control Flow & Advanced Expressions
   if (auto e = dynamic_cast<const CastExpr *>(expr))
     return genCastExpr(e);
   if (auto e = dynamic_cast<const MatchExpr *>(expr))
@@ -199,7 +199,7 @@ llvm::Value *CodeGen::genStmt(const Stmt *stmt) {
     // change. Let's assume genExprStmt returns Value* for now.
     return genExprStmt(s);
 
-  // 如果 Stmt 是 Expr 的包装
+  // If Stmt is a wrapper around Expr
   if (auto e = dynamic_cast<const Expr *>(stmt))
     return genExpr(e).load(m_Builder);
 

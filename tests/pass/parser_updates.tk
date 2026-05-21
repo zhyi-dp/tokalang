@@ -27,7 +27,7 @@ fn main() -> i32 {
 
     // Checking Parser Update for Attributes
     auto ^#p1 = new Data(v=10)
-    println("Rebindable pointer p1->v: {}", p1.v)
+    println("Rebindable pointer p1.v: {}", p1.v)
 
     {
         // Nullable Pointer
@@ -36,7 +36,7 @@ fn main() -> i32 {
         // New syntax: 'is' operator for null check. 
         guard ^p2 {
             println("Nullable pointer is not null (is check)\n")
-            println("p2->v: {}", p2.v)
+            println("p2.v: {}", p2.v)
         }
     }
     {

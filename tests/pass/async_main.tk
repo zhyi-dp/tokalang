@@ -2,7 +2,7 @@ import std/task::{sleep, block_on, __toka_spawn_blocking}
 import std/io::{println}
 import core/libc::{libc_exit}
 
-// 用来演示第二个子任务的中断
+// Used to demonstrate interruption of the second subtask
 fn worker_b() -> async i32 {
     println(" --> [Worker B] Resumed and running background task!")
     return 0
@@ -13,10 +13,10 @@ fn worker_a() -> async i32 {
     return 0
 }
 
-// 调度器看守任务（专门消耗队列中刚才积压的协程）
+// Event loop sentinel task (specifically consumes coroutines accumulated in the queue)
 fn event_loop_sentinel() -> async i32 {
     println("--- Queue Start Discharging ---")
-    // 优雅调用标准库的 sleep 方法，避免直接暴露 libc
+    // Elegantly call the standard library's sleep method, avoiding direct exposure of libc
     sleep(100) 
     println("--- Queue Exhausted & Event Loop Shutdown ---")
     return 0
@@ -26,14 +26,14 @@ pub fn main() -> async i32 {
     println("1. [Async Main] I am an async coroutine!")
     println("2. [Async Main] Spawning background Workers to event queue...")
     
-    // 入队两个挂起的后台任务
+    // Enqueue two suspended background tasks
     worker_a().start
     worker_b().start
     
     println("3. [Async Main] Doing other heavy work synchronously before I yield...")
     
-    // 强制当前主协程阻塞，消费所有背景队列里的 WorkerA 和 WorkerB。
-    // 这行就是展现协程“乱序/分发”魔法的地方。
+    // Force the current main coroutine to block, consuming WorkerA and WorkerB in the background queue.
+    // This line is where the coroutine "out-of-order execution / dispatching" magic takes place.
     block_on<i32>(event_loop_sentinel())
     
     println("4. [Async Main] All done, shutting down the process safely.")

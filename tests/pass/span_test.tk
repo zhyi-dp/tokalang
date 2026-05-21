@@ -1,0 +1,88 @@
+// Copyright (c) 2026 Toka Project. All rights reserved.
+// tests/pass/span_test.tk
+// Verification tests for Toka's pointer-based Span & SourceMap system in Toka.
+
+import std/io::println
+import stdx/span::{Span, SourceMap, Location}
+import core/str::{view_str}
+import core/types::{usize, Addr}
+
+fn main() -> i32 {
+    println("Testing Toka Native Span & SourceMap...")
+
+    auto source: view_str = "fn main() -> i32 {\n    auto x = 42\n    return 0\n}"
+    auto map = SourceMap::new("main.tk", source)
+
+    // 1. Create a Span corresponding to "x = 42"
+    // "fn main() -> i32 {\n    auto " is 28 characters.
+    // So "x = 42" starts at offset 28.
+    auto start_addr = (source.raw_ptr() as usize + 28:usize) as Addr
+    auto span = Span::new(start_addr, 6:usize)
+
+    assert(span.is_valid(), "span should be valid")
+
+    // 2. Test to_str mapping
+    auto resolved_str = span.to_str(source)
+    println("Span content: '{}'", resolved_str)
+    auto expected1: view_str = "x = 42"
+    assert(resolved_str == expected1, "resolved_str should be 'x = 42'")
+
+    // 3. Test resolve_loc mapping (line & column)
+    auto loc = map.resolve_loc(span)
+    println("Location of offset 28: line={}, column={}", loc.line, loc.column)
+    assert(loc.line == 2:usize, "Line should be 2")
+    assert(loc.column == 10:usize, "Column should be 10 ('x' of auto x)")
+
+    // 4. Test combine spans
+    auto span2 = Span::new((source.raw_ptr() as usize + 39:usize) as Addr, 6:usize) // "return"
+    auto resolved_str2 = span2.to_str(source)
+    println("Span2 content: '{}'", resolved_str2)
+    auto expected2: view_str = "return"
+    assert(resolved_str2 == expected2, "resolved_str2 should be 'return'")
+
+    auto combined = span.combine(span2)
+    auto resolved_combined = combined.to_str(source)
+    println("Combined span content: '{}'", resolved_combined)
+    // Combined span should cover from offset 28 to 45, which is "x = 42\n    return"
+    auto expected3: view_str = "x = 42\n    return"
+    assert(resolved_combined == expected3, "combined should match exact range")
+
+    // 5. Test Unicode / UTF-8 character column resolution
+    // "fn main() -> i32 {\n    // 中文字符注释\n    auto"
+    // "fn main() -> i32 {\n" is 19 characters/bytes.
+    // "中文字符注释" contains 6 Chinese characters, which take 6 * 3 = 18 bytes in UTF-8.
+    // Let's verify character-based column counting!
+    auto unicode_source: view_str = "fn main() -> i32 {\n    // 中文字符注释\n    auto"
+    auto unicode_map = SourceMap::new("unicode.tk", unicode_source)
+    
+    // Offset calculation:
+    // Line 1: "fn main() -> i32 {\n" -> 19 characters/bytes.
+    // Line 2: "    // 中文字符注释\n"
+    //   - "    // " (7 bytes, 7 chars)
+    //   - "中文字符注释" (18 bytes, 6 chars)
+    //   - "\n" (1 byte)
+    // Line 3: "    auto"
+    //   - "    " (4 bytes, 4 chars)
+    //   - "auto" (Starts here!)
+    // Total byte offset to "auto" in unicode_source:
+    // 19 (Line 1) + 7 (spaces) + 18 (Chinese) + 1 (newline) + 4 (spaces) = 49 bytes.
+    auto unicode_span = Span::new((unicode_source.raw_ptr() as usize + 49:usize) as Addr, 4:usize)
+    auto unicode_loc = unicode_map.resolve_loc(unicode_span)
+    println("Unicode source offset 49 resolves to: line={}, column={}", unicode_loc.line, unicode_loc.column)
+    auto expected_auto: view_str = "auto"
+    assert(unicode_span.to_str(unicode_source) == expected_auto, "should resolve to 'auto'")
+    
+    // Let's resolve the character '注' (the 5th Chinese char) in "    // 中文字符注释"
+    // Byte offset: 19 (Line 1) + 7 (spaces) + 4 * 3 (12 bytes for 4 chars "中文字符") = 38.
+    // Expected character column for '注':
+    // 1-indexed: 7 (spaces) + 4 (chars before) + 1 (the char itself) = 12.
+    // (If byte-based, column would be 7 + 12 + 1 = 20!)
+    auto char_span = Span::new((unicode_source.raw_ptr() as usize + 38:usize) as Addr, 3:usize) // '注' (3 bytes)
+    auto char_loc = unicode_map.resolve_loc(char_span)
+    println("Chinese char '注' at offset 38 resolves to: line={}, column={}", char_loc.line, char_loc.column)
+    assert(char_loc.line == 2:usize, "Line should be 2")
+    assert(char_loc.column == 12:usize, "Column of '注' should be 12 (character-based)")
+
+    println("All Span & SourceMap assertions passed successfully!")
+    return 0
+}

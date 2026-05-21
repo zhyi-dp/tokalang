@@ -1,0 +1,124 @@
+// Copyright (c) 2026 Toka Project. All rights reserved.
+// lib/stdx/span.tk
+// A high-performance, elegant source mapping and span system for Toka compiler self-hosting.
+
+import core/types::{usize, Addr, ADDR0}
+import core/str::{view_str}
+import core/libc::{libc_memcpy}
+
+pub shape Span (
+    start_addr: Addr,
+    length: usize
+)
+
+impl Span {
+    pub fn new(start_addr: Addr, length: usize) -> Span {
+        return Span(start_addr = start_addr, length = length)
+    }
+
+    pub fn invalid() -> Span {
+        return Span(start_addr = ADDR0, length = 0:usize)
+    }
+
+    pub fn is_valid(self) -> bool {
+        return self.start_addr != ADDR0
+    }
+
+    // Combine two spans to create a larger span encompassing both
+    pub fn combine(self, other: Span) -> Span {
+        if !self.is_valid() { return other }
+        if !other.is_valid() { return self }
+
+        auto s1 = self.start_addr as usize
+        auto s2 = other.start_addr as usize
+        auto begin_addr# = s1
+        if s2 < s1 {
+            begin_addr = s2
+        }
+
+        auto e1 = s1 + self.length
+        auto e2 = s2 + other.length
+        auto end_addr# = e1
+        if e2 > e1 {
+            end_addr = e2
+        }
+
+        return Span(start_addr = begin_addr as Addr, length = end_addr - begin_addr)
+    }
+
+    // Convert Span to a view_str given the original source buffer
+    pub fn to_str(self, source: view_str) -> view_str {
+        if !self.is_valid() {
+            return source.substr(0:usize, 0:usize)
+        }
+        auto s_addr = source.raw_ptr() as usize
+        auto begin_addr = self.start_addr as usize
+        if begin_addr < s_addr || begin_addr >= s_addr + source.len() {
+            return source.substr(0:usize, 0:usize)
+        }
+
+        unsafe {
+            auto ret# = source.clone()
+            auto ptr_addr = self.start_addr
+            libc_memcpy(&ret as *void, &ptr_addr as *void, 8)
+            auto len_val = self.length
+            libc_memcpy((&ret as Addr as usize + 8:usize) as *void, &len_val as *void, 8)
+            return ret
+        }
+    }
+}
+
+pub shape Location (
+    line: usize,
+    column: usize
+)
+
+pub shape SourceMap (
+    file_name: view_str,
+    source: view_str
+)
+
+impl SourceMap {
+    pub fn new(file_name: view_str, source: view_str) -> SourceMap {
+        return SourceMap(file_name = file_name, source = source)
+    }
+
+    // Resolve a physical Span into a Location (line and column, 1-indexed)
+    pub fn resolve_loc(self, span: Span) -> Location {
+        if !span.is_valid() {
+            return Location(line = 0:usize, column = 0:usize)
+        }
+
+        auto src_start = self.source.raw_ptr() as usize
+        auto target = span.start_addr as usize
+
+        if target < src_start || target > src_start + self.source.len() {
+            return Location(line = 0:usize, column = 0:usize)
+        }
+
+        auto offset = target - src_start
+        auto line#: usize = 1
+        auto col#: usize = 1
+
+        unsafe {
+            auto *buf = self.source.raw_ptr() as *[char]
+            auto i#: usize = 0
+            while i < offset {
+                if buf[i] == '\n' {
+                    line = line + 1:usize
+                    col = 1:usize
+                } else {
+                    // Filter out UTF-8 continuation bytes to compute correct character-based column
+                    auto b = buf[i] as u8
+                    auto mask = b band 0xC0
+                    if mask != 0x80 {
+                        col = col + 1:usize
+                    }
+                }
+                i = i + 1:usize
+            }
+        }
+
+        return Location(line = line, column = col)
+    }
+}

@@ -11,8 +11,8 @@ fn main() -> i32 {
         // FAIL 2: Dot with sigil
         (^p2).x = 10 // EXPECT: error[E0406]:
         
-        // FAIL 3 REMOVED: Arrow usage causes Parser error which hides Sema errors
-        // p2->y = 20
+        // FAIL 3 REMOVED: C++ Arrow usage is invalid in Toka (use p2.y instead)
+        // p2.y = 20
     }
     return 0
 }

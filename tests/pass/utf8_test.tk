@@ -23,8 +23,8 @@ fn main() -> i32 {
     if !sub.equals(target_str.as_str()) { return 4 }
     
     // index 0 -> 'H' (72)
-    // index 5 -> '你' (U+4F60 => 20320)
-    // index 6 -> '好' (U+597D => 22909)
+    // index 5 -> Chinese character 'Ni' (U+4F60 => 20320)
+    // index 6 -> Chinese character 'Hao' (U+597D => 22909)
     auto c0 = s.char_at(0:usize)
     if c0.is_none() { return 5 }
     if c0.unwrap() != 72:Char32 { return 6 }

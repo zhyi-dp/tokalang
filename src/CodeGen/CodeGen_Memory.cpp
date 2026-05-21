@@ -828,7 +828,7 @@ PhysEntity CodeGen::genMemberExpr(const MemberExpr *mem) {
     }
   }
 
-  // [Constitution] Hat Rule: "指针必须带帽，脱帽就是解指针/解引用"
+  // [Constitution] Hat Rule: "Pointer must be hatted; de-hatting is dereferencing"
   // If the member is defined as a pointer/reference (hatted) but accessed
   // without hats, we must perform implicit dereferences.
   auto getHatCount = [](const std::string &s) {

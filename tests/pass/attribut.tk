@@ -2,13 +2,13 @@ import core/traits::{@encap}
 import std/io::println
 
 shape S (
-    *ptr: [i32]    //继承 self 的可变性为句柄可变性，指向的灵魂内容可变性不继承，按默认规则（不可变）
-    *buf#: [i32],  //继承self的可变性为句柄可变性，指向的灵魂内容可变
-    len: i32,      //继承 self 的可变性
-    age$: i32 = 18,//值内部不可变
-    outmut#: i32 //值内部可变
-    *#rebind: [i32] //句柄内部可变，指向的灵魂内容可变性不继承，按默认规则（不可变）
-    //以上*示例 对全部指针类型均有效，规则完全一致，包括 原始指针* 独占指针^ 共享指针~ 引用&
+    *ptr: [i32]    // Inherits self's mutability as handle mutability; the pointed soul's mutability is not inherited and defaults to immutable
+    *buf#: [i32],  // Inherits self's mutability as handle mutability; the pointed soul's content is mutable
+    len: i32,      // Inherits self's mutability
+    age$: i32 = 18,// Value is internally immutable
+    outmut#: i32 // Value is internally mutable
+    *#rebind: [i32] // Handle is internally mutable; the pointed soul's mutability is not inherited and defaults to immutable
+    // The above '*' examples apply to all pointer types with identical rules, including raw pointer *, unique pointer ^, shared pointer ~, and reference &
 )
 
 impl S@encap {
@@ -41,12 +41,12 @@ fn main() -> i32 {
         //auto x = s.modify() //forbidden
         //auto x = s#.modify() //forbidden
         s.outmut += 1 
-        // 允许重绑定句柄
+        // Handle rebinding allowed
         auto *r2# = unsafe alloc [10]i32(0)
         s.*rebind = *r2
-        // 不需要的手动 free 之前要把旧的 ptr 解决掉，
-        // 或者在这个简单的测试里我们就不演示复杂的 rebind 了
-        // 直接测试权限即可
+        // To avoid leaks, the old ptr must be handled before manually freeing the unneeded one,
+        // or we simply do not demonstrate complex rebinding in this simple test
+        // and just test the permission boundaries.
         unsafe s.buf[0] += 1
     }
     {
@@ -55,7 +55,7 @@ fn main() -> i32 {
         auto *r# = unsafe alloc [10]i32(0)
         auto s# = S(*ptr = *p, *buf = *b, len = 2, outmut = 4, *rebind = *r, ..)
         //auto x = s.modify() //forbidden
-        auto x = s#.modify() //这里属于函数调用，形参要求self#，所以这里必须显式的加上#
+        auto x = s#.modify() // This is a method call where the parameter requires self#, so '#' must be explicitly provided here
     }
     println("Hello World")
     return 0

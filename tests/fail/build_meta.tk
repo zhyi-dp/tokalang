@@ -24,10 +24,10 @@ shape Point (
 
 pub const POINT = Point(a = 1, b = 2, c = 3)
 
-// 匿名记录常量 (Anonymous Record Constant)
-// 类型被推导为 （ x: i32, y: i32, z: i32 ）
-// 匿名记录的类型是独一无二的（Generative Typing（生成式类型）），不能与任何其他类型互换
-// 当(x = 1...)的左边没有任何的类型名字时 他就是一个匿名记录的类型声明+原地实例化+初始化（原地创世 (In-place Creation)）
+// Anonymous Record Constant
+// Type is inferred as (x: i32, y: i32, z: i32)
+// The type of anonymous record is unique (Generative Typing) and cannot be interchanged with any other types
+// When there is no type name on the left of (x = 1...), it represents an anonymous record type declaration + in-place instantiation + initialization (In-place Creation)
 pub const XYZ = (x = 1, y = 2, z = 3)
 
 fn main() -> i32 {

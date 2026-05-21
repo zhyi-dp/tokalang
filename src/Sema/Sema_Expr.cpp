@@ -774,7 +774,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       // ConstantInt;` This DOES NOT generate a Load. It generates a Value.
       //
       // So why did it crash?
-      // "上层逻辑...试图生成 builder.CreateLoad(i32 4)"
+      // "Upper-level logic... attempts to generate builder.CreateLoad(i32 4)"
       //
       // Ah. `genVariableExpr` returned a `PhysEntity` wrapping the ConstantInt.
       // `PhysEntity` constructor has `bool isAlloca`.

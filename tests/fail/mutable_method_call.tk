@@ -8,7 +8,7 @@ impl Foo {
 
 fn main() -> i32 {
     auto f# = Foo(x=0)
-    // Error expected here: f.set(10)    // 违规调用：缺少 #
+    // Error expected here: f.set(10)    // Illegal call: missing #
     // EXPECT: Cannot modify immutable entity 'Method 'set' requires explicit mutable argument (use '#')'
     f.set(10)
     return 0

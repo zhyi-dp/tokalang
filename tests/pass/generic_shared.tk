@@ -3,7 +3,7 @@ import std/io::println
 shape Atomic<T> (
     t:T
 )
-// --- 基础类型 ---
+// --- Base Types ---
 impl<T> Atomic<T> {
     fn fetch_add(self#) {
         //println("type u64 enter .fetch_add, now is {}", self)
@@ -23,13 +23,13 @@ impl<T> Atomic<T> {
     }
 }
 
-// --- 引用计数控制块 ---
+// --- Reference Counting Control Block ---
 shape RcWrapper<T>(
     ref_count#: Atomic<u64>,
     *data: T
 )
 
-// --- 智能指针主体 ---
+// --- Smart Pointer Core ---
 shape SharedPtr<T>(
     *#wrapper: RcWrapper<T>
 )
@@ -43,10 +43,10 @@ impl<T> SharedPtr<T>@encap {
 
 impl<T> SharedPtr<T> {
     
-    // 1. 静态构造
+    // 1. Static Constructor
     pub fn make(val: T) -> SharedPtr<T> {
         unsafe {
-            // [Alloc Syntax]: 按照你的要求，*data 接收 *ptr
+            // [Alloc Syntax]: As requested, *data receives *ptr
             //println("allocating for {}", val)
             auto *data_ptr# = unsafe alloc T(val)
             auto rc1 = Atomic<u64>(1)
@@ -60,35 +60,35 @@ impl<T> SharedPtr<T> {
         }
     }
 
-    // 2. 拷贝赋值：修复了逻辑顺序和帽子规则解引用
+    // 2. Copy Assignment: Fixed logical ordering and hat-rule dereferencing
     pub fn assign(self#, rhs: SharedPtr<T>) {
-        // [帽子规则]: 比较指针地址不需要解引用
+        // [Hat Rule]: Pointer comparison does not require dereferencing
         if self.*wrapper == rhs.*wrapper {
             unsafe println("lhs wrapper:{} == rhs wrapper:{} val = {}", self.*wrapper as OAddr, rhs.*wrapper as OAddr, rhs.wrapper.data as usize)
             return
         }
         unsafe println("lhs wrapper:{} <- rhs wrapper:{} val = {}", self.*wrapper as OAddr, rhs.*wrapper as OAddr, rhs.wrapper.data as usize)
 
-        // [逻辑修复]: 必须先释放旧值 (DecRef/Free)
+        // [Logical Fix]: Must free old value first (DecRef/Free)
         self#.xdrop() 
 
-        // 接纳新值
+        // Accept new value
         self.*wrapper = rhs.*wrapper
 
-        // [帽子规则]: 原始指针必须显式解包 (*ptr) 才能访问成员
+        // [Hat Rule]: Raw pointer must be explicitly unpacked (*ptr) to access members
         if self.*wrapper != null {
             self.wrapper.ref_count#.fetch_add()
         }
     }
 
-    // 3. 析构函数：帽子规则严谨版
+    // 3. Destructor: Strict Hat Rule version
     pub fn xdrop(self#) {
         println("enter .xdrop, shared_ptr:{} wrapper:{}", *self as OAddr, self.*wrapper as OAddr)
         if self.*wrapper == null {   
             return
         }
 
-        // [帽子规则]: (*ptr).member
+        // [Hat Rule]: (*ptr).member
         self.wrapper.ref_count#.fetch_sub()
 
         println("try xdrop for addr {} with ref_count={}", self.wrapper.*data as OAddr, self.wrapper.ref_count.load())   
@@ -96,15 +96,15 @@ impl<T> SharedPtr<T> {
         if self.wrapper.ref_count.load() == 0 {   
             unsafe {
                 println("drop---- wrapper:{} data:{} val={}", self.*wrapper as OAddr, self.wrapper.*data as OAddr, self.wrapper.data)
-                // 1. 先释放数据
-                // (*self.wrapper) -> 拿到 RcWrapper
-                // .data -> 拿到 *T
+                // 1. Free data first
+                // (*self.wrapper) -> get RcWrapper
+                // .data -> get *T
                 unsafe free self.wrapper.*data
                 
-                // 2. 再释放控制块
+                // 2. Then free control block
                 unsafe free self.*wrapper
                 
-                // 置空 (在 unsafe 块内允许非空 raw 指针接收 null)
+                // Nullify (null is allowed for non-null raw pointer in unsafe blocks)
                 self.*wrapper = null
             }
         }
@@ -131,7 +131,7 @@ impl<T> SharedPtr<T> {
 }
 
 alias SharedPtrX = SharedPtr<u64>
-// --- 测试逻辑 ---
+// --- Test Logic ---
 fn main() -> i32 {
     unsafe {
         auto sp1# = SharedPtrX::make(10)

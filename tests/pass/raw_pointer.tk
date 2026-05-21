@@ -20,34 +20,34 @@ shape Hero (
 )
 
 fn main() -> i32 {
-    // 1. 堆分配与初始化 (Scalar Heap Alloc)
-    // 根据 1.1: alloc i32(42)
+    // 1. Heap Allocation & Initialization (Scalar Heap Alloc)
+    // According to 1.1: alloc i32(42)
     auto *p = unsafe alloc i32(42)
     
     unsafe {
-        // 根据 4: 访问必须通过解引用，p 代表实体内容
+        // According to 4: access must be through dereference, p represents the entity value
         println("Scalar Value: {} (expected 42)", p)
         assert(p == 42, "p mismatch")
         println("Address: {}", *p)
         
-        // 根据 7: 手动释放
+        // According to 7: manual free
         free *p
     }
 
-    // 2. 数组分配与算术 (Array Alloc & Stride)
-    // 根据 1.2: alloc [5]i32(0) 映射为 memset 0
+    // 2. Array Allocation & Arithmetic (Array Alloc & Stride)
+    // According to 1.2: alloc [5]i32(0) maps to memset 0
     auto *arr# = (unsafe alloc [5]i32(0)) as *[i32]
     unsafe {
         arr[0] = 10
         arr[1] = 20
         
-        // 根据 5: 轨道 B - 元素偏移 (Item Stride)
-        // *arr[1] 获取第二个元素的地址
+        // According to 5: Track B - Item Stride
+        // *arr[1] gets the address of the second element
         auto *p_second = *arr[1] as *[i32]
         println("Stride Access: {} (expected 20)", p_second[0])
         
-        // 根据 5: 轨道 A - 字节偏移 (Byte Offset)
-        // *arr + 4 偏移 4 字节（即一个 i32 的宽度）
+        // According to 5: Track A - Byte Offset
+        // *arr + 4 offsets by 4 bytes (i.e., width of an i32)
         auto *p_offset = (*arr + 4) as *[i16]
         println("Byte Offset Access: {} (expected 20)", p_offset[0])
         assert(p_second[0] == 20, "stride mismatch")
@@ -56,11 +56,11 @@ fn main() -> i32 {
         free *arr
     }
 
-    // 3. 结构体访问 (Struct Access)
+    // 3. Struct Access (Struct Access)
     unsafe {
-        // 根据 1.3: 结构体分配
+        // According to 1.3: struct allocation
         auto *h# = alloc Hero(id = 7, hp = 100)
-        // 根据 4: 成员直接访问
+        // According to 4: direct member access
         println("Hero ID: {} (expected 7)", h.id)
         
         h.hp = 80
@@ -71,8 +71,8 @@ fn main() -> i32 {
         free *h
     }
 
-    // 4. 栈地址获取 (Stack Address)
-    // 根据 3: *variable 获取栈地址，属于 SAFE
+    // 4. Stack Address Acquisition (Stack Address)
+    // According to 3: *variable gets the stack address, belongs to SAFE
     auto stack_val = 123:i32
     auto *p_stack# = *stack_val as *[i32]
     
@@ -82,11 +82,11 @@ fn main() -> i32 {
         assert(stack_val == 456, "stack_val mismatch")
     }
 
-    // 5. 权限管理 (Permissions)
-    // 根据 8: 允许权限升级 (Trust the Human)
+    // 5. Permission Management (Permissions)
+    // According to 8: allow permission upgrade (Trust the Human)
     auto val = 1:i32
     auto *px = *val as *[i32]
-    auto *px_mut# = *px // 权限升级: Const -> Mut
+    auto *px_mut# = *px // Permission Upgrade: Const -> Mut
     
     unsafe {
         px_mut[0] = 2
@@ -94,8 +94,8 @@ fn main() -> i32 {
         assert(val == 2, "val mismatch after upgrade")
     }
 
-    // 6. 空值检查 (Null Check)
-    // 根据 7: *ptr == null 属于 SAFE
+    // 6. Null Check (Null Check)
+    // According to 7: *ptr == null belongs to SAFE
     auto nul *empty:Hero = null
     if null == *empty {
         println("Null pointer confirmed")

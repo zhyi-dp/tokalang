@@ -27,7 +27,7 @@ fn main() -> i32 {
     if m.contains_key(2) { return 8 }
     
     // Tombstone probing test
-    // 插入一个可能会和 2 产生相同 hash probing path 的数（比如同样的数，或者让它扩容）
+    // Insert a number that might produce the same hash probing path as 2 (e.g. the same number, or make it resize)
     m#.insert(2, 201)
     if !m.contains_key(2) { return 9 }
     

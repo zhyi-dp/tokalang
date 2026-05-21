@@ -1095,13 +1095,13 @@ void Sema::analyzeShapes(Module &M) {
       for (auto &memb : S->Members) {
         bool isResource = false;
         // 1. Check for ANY pointer morphology (&^~*) on the member itself
-        // (Rule: union 的 as 成员中不允许出现任何的指针形态)
+        // (Rule: no pointer morphology is allowed in the 'as' members of a union)
         if (memb.IsUnique || memb.IsShared || memb.HasPointer ||
             memb.IsReference) {
           isResource = true;
         }
 
-        // [Rule Update] "但不限制成员的成员包含了什么"
+        // [Rule Update] "but it does not restrict what members of members contain"
         // We no longer perform recursive check for resource types / drop
         // impls within value-type members of a Bare Union.
 

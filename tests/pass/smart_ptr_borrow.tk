@@ -8,9 +8,9 @@ fn main() -> i32 {
         auto ^p = new i32(100)
         println("A"); println("p: {}", p)
         {
-            // 关键动作：借用发生
-            // 物理过程：&p 实际上是 &(p->soul)。引用 x 直指数据。
-            // 法律过程：编译器给 p 贴上 [FROZEN] 标签。
+            // Key action: borrow occurs
+            // Physical process: &p is actually &p (dereferenced/Value). Reference x points to data directly.
+            // Legal process: Compiler marks p with [FROZEN] attribute.
             auto &x = &p 
             
             println("B"); println("Borrowed unique: {}", x)
@@ -19,14 +19,14 @@ fn main() -> i32 {
                 return 1
             }
             
-            // 此时如果尝试 move p (例如 auto ^k = ^p)，编译器必须报错。
-            // 这就是 Rust 的 "cannot move out of ... because it is borrowed"
+            // Attempting to move p here (e.g. auto ^k = ^p) must trigger a compiler error.
+            // This mirrors Rust's "cannot move out of ... because it is borrowed"
         } 
-        // 借用结束，x 销毁。
-        // 法律过程：p 的 [FROZEN] 标签撕掉。
+        // Borrow ends, x is destroyed.
+        // Legal process: p's [FROZEN] attribute is removed.
         
-        // ✅ 合法 Move
-        // 注意你的语法：^p 在右值位置显式表示 Move，这非常清晰！
+        // ✅ Legal Move
+        // Note: ^p in rvalue position explicitly denotes a Move, which is crystal clear!
         println("C"); auto ^q = ^p 
     }
 

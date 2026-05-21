@@ -326,7 +326,7 @@ std::unique_ptr<Stmt> Parser::parseUnsafeStmt() {
     node->setLocation(tok, m_CurrentFile);
     return node;
   }
-  // 行级 unsafe: unsafe p#[0] = 1
+  // Line-level unsafe: unsafe p#[0] = 1
   auto stmt = parseStmt();
   auto node = std::make_unique<UnsafeStmt>(std::move(stmt));
   node->setLocation(tok, m_CurrentFile);

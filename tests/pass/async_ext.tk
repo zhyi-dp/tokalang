@@ -19,7 +19,7 @@ pub fn main() -> i32 {
     return 0
 }
 
-// 借用测试用例的特性消除悬挂限制
+// Utilize test case characteristics to eliminate hanging constraints
 fn pure_caller() {
     block_on<i32>(foo())
 }

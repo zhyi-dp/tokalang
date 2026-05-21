@@ -18,14 +18,14 @@ shape Data (
     id: i32
 )
 
-// Toka 返回类型通常直接写类型名，共享属性由实现决定
+// Toka return types are usually direct type names; sharing properties are determined by implementation
 fn create_data(id: i32) -> ~Data {
     auto ~p = new Data(id = id)
     println("Creating data, addr:{} p.id:{}", *p as Addr, p.id)
     return ~p 
 }
 
-// 形态前缀放在变量名前面
+// Morphology prefix is placed in front of the variable name
 fn consume_data(~p: Data) {
     println("Consuming data, addr:{} p.id:{}", *p as Addr, p.id)
     assert(p.id == 202, "consume_data received value id mismatch")
@@ -45,13 +45,13 @@ fn main() -> i32 {
     assert(p0.id == 303, "Original p0 was freed prematurely")
     unsafe free *p0
 
-    // 测试点 2：作为参数传递时不应提前释放原引用
+    // Test Point 2: Passing as an argument should not prematurely free the original reference
     auto ~p1 = new Data(id = 202)
     consume_data(~p1)
     println("After consume_data, p1.id={}", p1.id)
     assert(p1.id == 202, "Original p1 was freed prematurely")
 
-    // 测试点 1：返回值的所有权管理
+    // Test Point 1: Return value ownership management
     auto ~p2 = create_data(101)
     println("Received p2, addr:{} p2.id:{}", *p2 as Addr, p2.id)
     assert(p2.id == 101, "Return value id mismatch")
