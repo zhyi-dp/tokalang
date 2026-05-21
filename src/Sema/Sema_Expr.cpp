@@ -272,6 +272,10 @@ Sema::MorphKind Sema::getSyntacticMorphology(Expr *E) {
     return getSyntacticMorphology(Wt->Expression.get());
   }
 
+  if (auto *Ce = dynamic_cast<CedeExpr *>(E)) {
+    return getSyntacticMorphology(Ce->Value.get());
+  }
+
   if (auto *Post = dynamic_cast<PostfixExpr *>(E)) {
     if (Post->Op == TokenType::DoubleQuestion)
       return MorphKind::None;
@@ -1347,7 +1351,10 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     } else {
       m_ControlFlowStack.push_back({"", "void", nullptr, true, isReceiver});
     }
+    enterScope();
+    CurrentScope->IsLoop = true;
     checkStmt(we->Body.get());
+    exitScope();
     std::string bodyType = m_ControlFlowStack.back().ExpectedType;
     auto bodyTypeObj = m_ControlFlowStack.back().ExpectedTypeObj;
     if (!tookOver)
@@ -1397,7 +1404,10 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     } else {
       m_ControlFlowStack.push_back({"", "void", nullptr, true, isReceiver});
     }
+    enterScope();
+    CurrentScope->IsLoop = true;
     checkStmt(le->Body.get());
+    exitScope();
     std::string res = m_ControlFlowStack.back().ExpectedType;
     if (!tookOver)
       m_ControlFlowStack.pop_back();
@@ -1544,6 +1554,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     }
 
     enterScope();
+    CurrentScope->IsLoop = true;
     SymbolInfo Info;
     Info.TypeObj = toka::Type::fromString(fullType);
     CurrentScope->define(fe->VarName, Info);
@@ -1611,10 +1622,32 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
           }
       }
 
-      if (auto *Var = dynamic_cast<VariableExpr *>(ce->Value.get())) {
+      Expr *underlying = ce->Value.get();
+      while (true) {
+        if (auto *un = dynamic_cast<UnaryExpr *>(underlying)) {
+          underlying = un->RHS.get();
+        } else {
+          break;
+        }
+      }
+      if (auto *Var = dynamic_cast<VariableExpr *>(underlying)) {
         SymbolInfo *Info = nullptr;
         std::string actualName;
         if (CurrentScope->findVariableWithDeref(Var->Name, Info, actualName)) {
+            Scope *curr = CurrentScope;
+            bool crossedLoop = false;
+            while (curr) {
+              if (curr->Symbols.count(actualName)) {
+                break;
+              }
+              if (curr->IsLoop) {
+                crossedLoop = true;
+              }
+              curr = curr->Parent;
+            }
+            if (crossedLoop && Info->IsUnique()) {
+              error(ce, "Cannot cede/move value '" + Var->Name + "' inside a loop because it is defined outside the loop");
+            }
             CurrentScope->markMoved(actualName);
         }
       }

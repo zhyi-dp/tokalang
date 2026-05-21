@@ -488,7 +488,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
             if (dynamic_cast<ElisionExpr*>(expr.get())) {
                 fields.push_back({"..", std::move(expr)});
             } else {
-                fields.push_back({"", std::move(expr)});
+                error(peek(), "Expected named argument 'key = value' or elision '..'");
             }
             if (!check(TokenType::RBrace)) match(TokenType::Comma);
             continue;
@@ -533,7 +533,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
               if (dynamic_cast<ElisionExpr*>(expr.get())) {
                   fields.push_back({"..", std::move(expr)});
               } else {
-                  fields.push_back({"", std::move(expr)});
+                  error(peek(), "Expected named argument 'key = value' or elision '..'");
               }
               if (!check(TokenType::RParen)) match(TokenType::Comma);
               continue;
@@ -646,7 +646,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
                 if (dynamic_cast<ElisionExpr*>(expr.get())) {
                     fields.push_back({"..", std::move(expr)});
                 } else {
-                    fields.push_back({"", std::move(expr)});
+                    error(peek(), "Expected named argument 'key = value' or elision '..'");
                 }
                 if (!check(TokenType::RParen)) match(TokenType::Comma);
                 continue;
@@ -790,7 +790,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
               if (dynamic_cast<ElisionExpr*>(expr.get())) {
                   fields.push_back({"..", std::move(expr)});
               } else {
-                  fields.push_back({"", std::move(expr)});
+                  error(peek(), "Expected named argument 'key = value' or elision '..'");
               }
               if (!check(TokenType::RParen)) match(TokenType::Comma);
               continue;
@@ -1116,7 +1116,7 @@ std::unique_ptr<Expr> Parser::parseAllocExpr() {
             if (dynamic_cast<ElisionExpr*>(expr.get())) {
                 fields.push_back({"..", std::move(expr)});
             } else {
-                fields.push_back({"", std::move(expr)});
+                error(peek(), "Expected named argument 'key = value' or elision '..'");
             }
             if (!check(TokenType::RParen)) match(TokenType::Comma);
             continue;

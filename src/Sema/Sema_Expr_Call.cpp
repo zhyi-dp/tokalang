@@ -880,8 +880,6 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
       }
       std::set<std::string> providedFields;
       int elisionIndex = -1;
-      int targetArgIdx = -1;
-      Expr* elisionTarget = nullptr;
       bool hasNamed = false;
       bool hasPositional = false;
 
@@ -904,39 +902,11 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
         else hasPositional = true;
       }
 
-      // If elisionIndex is present, search for a candidate base expression
-      if (elisionIndex != -1) {
-        for (size_t i = 0; i < Call->Args.size(); ++i) {
-          if ((int)i == elisionIndex) continue;
-          auto *argExpr = Call->Args[i].get();
-          bool isNamed = false;
-          if (auto *bin = dynamic_cast<BinaryExpr *>(argExpr)) {
-            if (bin->Op == "=") isNamed = true;
-          }
-          if (isNamed) continue;
-
-          auto targetType = checkExpr(argExpr);
-          if (targetType && targetType->getSoulName() == Sh->Name) {
-            if (targetArgIdx != -1) {
-              error(argExpr, DiagID::ERR_MULTIPLE_ELISION);
-            }
-            targetArgIdx = (int)i;
-            elisionTarget = argExpr;
-            if (elisionTarget && !dynamic_cast<VariableExpr*>(elisionTarget) && 
-                !dynamic_cast<MemberExpr*>(elisionTarget) && 
-                !dynamic_cast<ArrayIndexExpr*>(elisionTarget)) {
-              error(elisionTarget, "Target elision source must be a simple variable or access chain to avoid repeated side-effects");
-              elisionTarget = nullptr;
-            }
-          }
-        }
-      }
-
       if (hasNamed) {
         error(Call, DiagID::ERR_MIXED_INIT_MODE);
       }
 
-      int normalArgsCount = Call->Args.size() - (elisionIndex != -1 ? 1 : 0) - (targetArgIdx != -1 ? 1 : 0);
+      int normalArgsCount = Call->Args.size() - (elisionIndex != -1 ? 1 : 0);
       int elisionSkipCount = 0;
       if (elisionIndex != -1) {
         elisionSkipCount = (int)Sh->Members.size() - normalArgsCount;
@@ -954,14 +924,11 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
         if ((int)i == elisionIndex) {
           for (int k = 0; k < elisionSkipCount; ++k) {
             auto &M = Sh->Members[memberIdx];
-            if (!M.DefaultValue && !elisionTarget) {
+            if (!M.DefaultValue) {
               error(Call->Args[i].get(), DiagID::ERR_MISSING_DEFAULT_FOR_ELIDED, M.Name, Sh->Name);
             }
             memberIdx++;
           }
-          continue;
-        }
-        if ((int)i == targetArgIdx) {
           continue;
         }
 
@@ -984,29 +951,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
       std::vector<std::unique_ptr<Expr>> resolvedArgs;
       for (const auto &M : Sh->Members) {
         if (!providedFields.count(M.Name)) {
-          if (elisionTarget) {
-            auto clonedTarget = std::unique_ptr<Expr>(static_cast<Expr*>(elisionTarget->clone().release()));
-            auto memExpr = std::make_unique<MemberExpr>(std::move(clonedTarget), M.Name);
-            memExpr->Loc = Call->Loc;
-            
-            auto expectedType = M.ResolvedType ? M.ResolvedType : toka::Type::fromString(M.Type);
-            auto valType = checkExpr(memExpr.get(), expectedType);
-            
-            std::unique_ptr<Expr> finalExpr = std::move(memExpr);
-            if (isTypeCompatible(expectedType, valType) && !expectedType->equals(*valType)) {
-              auto origLoc = finalExpr->Loc;
-              auto castExpr = std::make_unique<CastExpr>(std::move(finalExpr), expectedType->toString());
-              castExpr->Loc = origLoc;
-              castExpr->ResolvedType = expectedType;
-              valType = expectedType;
-              finalExpr = std::move(castExpr);
-            }
-            
-            auto nameVar = std::make_unique<VariableExpr>(M.Name);
-            auto bin = std::make_unique<BinaryExpr>("=", std::move(nameVar), std::move(finalExpr));
-            resolvedArgs.push_back(std::move(bin));
-            continue;
-          } else if (elisionIndex != -1 && M.DefaultValue) {
+          if (elisionIndex != -1 && M.DefaultValue) {
             auto cloned = std::unique_ptr<Expr>(static_cast<Expr *>(M.DefaultValue->clone().release()));
             auto expectedType = M.ResolvedType ? M.ResolvedType : toka::Type::fromString(M.Type);
             auto valType = checkExpr(cloned.get(), expectedType);
@@ -1048,9 +993,6 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
           for (size_t i = 0; i < Call->Args.size(); ++i) {
             if ((int)i == elisionIndex) {
               mIdx += elisionSkipCount;
-              continue;
-            }
-            if ((int)i == targetArgIdx) {
               continue;
             }
             if (Sh->Members[mIdx].Name == M.Name) {

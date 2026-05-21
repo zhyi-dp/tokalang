@@ -479,7 +479,6 @@ Sema::checkStructInit(InitStructExpr *Init, ShapeDecl *SD,
   m_LastLifeDependencies.clear();
   std::set<std::string> providedFields;
   bool hasElision = false;
-  Expr* elisionTarget = nullptr;
 
   int elisionCount = 0;
   for (size_t i = 0; i < Init->Members.size(); ++i) {
@@ -495,29 +494,6 @@ Sema::checkStructInit(InitStructExpr *Init, ShapeDecl *SD,
     auto &pair = Init->Members[i];
     if (pair.first == "..") {
       hasElision = true;
-      continue;
-    }
-
-    if (pair.first == "") {
-      if (auto *elExpr = dynamic_cast<ElisionExpr *>(pair.second.get())) {
-        hasElision = true;
-        continue;
-      }
-      auto targetType = checkExpr(pair.second.get());
-      if (targetType && targetType->getSoulName() == SD->Name) {
-        if (elisionTarget) {
-          error(pair.second.get(), DiagID::ERR_MULTIPLE_ELISION);
-        }
-        elisionTarget = pair.second.get();
-        if (elisionTarget && !dynamic_cast<VariableExpr*>(elisionTarget) && 
-            !dynamic_cast<MemberExpr*>(elisionTarget) && 
-            !dynamic_cast<ArrayIndexExpr*>(elisionTarget)) {
-          error(elisionTarget, "Target elision source must be a simple variable or access chain to avoid repeated side-effects");
-          elisionTarget = nullptr;
-        }
-      } else {
-        error(pair.second.get(), "Expression of type '" + (targetType ? targetType->toString() : "unknown") + "' cannot be used as target elision for struct '" + SD->Name + "'");
-      }
       continue;
     }
 
@@ -630,32 +606,6 @@ Sema::checkStructInit(InitStructExpr *Init, ShapeDecl *SD,
         continue;
       }
       
-      if (elisionTarget) {
-          auto clonedTarget = std::unique_ptr<Expr>(static_cast<Expr*>(elisionTarget->clone().release()));
-          auto memExpr = std::make_unique<MemberExpr>(std::move(clonedTarget), defField.Name);
-          memExpr->Loc = elisionTarget->Loc;
-          
-          auto memberTypeObj = defField.ResolvedType;
-          if (!memberTypeObj) memberTypeObj = toka::Type::fromString(defField.Type);
-          
-          std::shared_ptr<toka::Type> exprTypeObj = checkExpr(memExpr.get(), memberTypeObj);
-          memberMasks[defField.Name] = m_LastInitMask;
-
-          if (isTypeCompatible(memberTypeObj, exprTypeObj) && !memberTypeObj->equals(*exprTypeObj)) {
-            auto origLoc = memExpr->Loc;
-            auto castExpr = std::make_unique<CastExpr>(std::move(memExpr), memberTypeObj->toString());
-            castExpr->Loc = origLoc;
-            castExpr->ResolvedType = memberTypeObj;
-            exprTypeObj = memberTypeObj;
-            providedFields.insert(defField.Name);
-            Init->Members.push_back({defField.Name, std::move(castExpr)});
-          } else {
-            providedFields.insert(defField.Name);
-            Init->Members.push_back({defField.Name, std::move(memExpr)});
-          }
-          continue;
-      }
-      
       if (!defField.DefaultValue) {
         error(Init, DiagID::ERR_MISSING_DEFAULT_FOR_ELIDED, defField.Name, Init->ShapeName);
         continue;
@@ -698,7 +648,7 @@ Sema::checkStructInit(InitStructExpr *Init, ShapeDecl *SD,
   }
 
   Init->Members.erase(std::remove_if(Init->Members.begin(), Init->Members.end(),
-      [](const auto& pair) { return pair.first == ".." || pair.first == ""; }), Init->Members.end());
+      [](const auto& pair) { return pair.first == ".."; }), Init->Members.end());
 
   // Mask Calculation
   uint64_t mask = 0;

@@ -100,6 +100,7 @@ public:
   std::map<std::string, SymbolInfo> Symbols;
 
   int Depth = 0; // [NEW] Scope depth for lifetime comparison
+  bool IsLoop = false; // [NEW] Track if scope is a loop body
   Scope(Scope *P = nullptr) : Parent(P) {
     if (P)
       Depth = P->Depth + 1;
