@@ -1,0 +1,10 @@
+error[E042B]: Multiple elision operators '..' are not allowed in positional initialization.
+ --> tests/fail/destructure_match_elision_fail.tk:6:32
+  |
+ 6 |     auto Point(a, .., b, ..) = p
+  |                                ^
+error[E0551]: Enum variant 'Point' expects 3 fields, but got 4
+ --> tests/fail/destructure_match_elision_fail.tk:6:32
+  |
+ 6 |     auto Point(a, .., b, ..) = p
+  |                                ^

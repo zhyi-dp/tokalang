@@ -98,11 +98,15 @@ std::unique_ptr<Stmt> Parser::parseVariableDecl(bool isPub) {
     consume(TokenType::LParen, "Expected '(' for destructuring");
     std::vector<DestructuredVar> vars;
     while (!check(TokenType::RParen) && !check(TokenType::EndOfFile)) {
-      bool isRef = match(TokenType::Ampersand);
-      Token varName = consume(TokenType::Identifier, "Expected variable name");
-      std::string fullVarName = (isRef ? "&" : "") + varName.Text;
-      vars.push_back({fullVarName, varName.HasWrite, varName.HasNull,
-                      varName.IsBlocked, isRef});
+      if (match(TokenType::DotDot)) {
+        vars.push_back({"..", false, false, false, false});
+      } else {
+        bool isRef = match(TokenType::Ampersand);
+        Token varName = consume(TokenType::Identifier, "Expected variable name");
+        std::string fullVarName = (isRef ? "&" : "") + varName.Text;
+        vars.push_back({fullVarName, varName.HasWrite, varName.HasNull,
+                        varName.IsBlocked, isRef});
+      }
       if (!match(TokenType::Comma))
         break;
     }

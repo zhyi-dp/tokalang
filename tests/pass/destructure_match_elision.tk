@@ -1,0 +1,74 @@
+import std/io::println
+
+shape Point(x: i32, y: i32, z: i32)
+shape Pair(i32, i32, i32)
+
+shape ASTNode(
+    BinaryExpr(i32, i32, i32) |
+    UnaryExpr(i32)
+)
+
+fn test_struct_destruct() -> i32 {
+    auto p = Point(x = 10, y = 20, z = 30)
+    auto Point(a, .., c) = p
+    if a != 10 || c != 30 {
+        return 1
+    }
+    return 0
+}
+
+fn test_tuple_destruct() -> i32 {
+    auto t = Pair(100, 200, 300)
+    auto Pair(a, .., c) = t
+    if a != 100 || c != 300 {
+        return 2
+    }
+    return 0
+}
+
+fn test_match_struct() -> i32 {
+    auto p = Point(x = 1, y = 2, z = 3)
+    auto val = match p {
+        Point(1, .., 3) => {
+            pass 0
+        }
+        default => {
+            pass 99
+        }
+    }
+    return val
+}
+
+fn test_match_enum() -> i32 {
+    auto node = ASTNode::BinaryExpr(10, 20, 30)
+    auto val = match node {
+        ASTNode::BinaryExpr(10, .., 30) => {
+            pass 0
+        }
+        default => {
+            pass 99
+        }
+    }
+    return val
+}
+
+fn main() -> i32 {
+    if test_struct_destruct() != 0 {
+        println("test_struct_destruct failed")
+        return 1
+    }
+    if test_tuple_destruct() != 0 {
+        println("test_tuple_destruct failed")
+        return 2
+    }
+    if test_match_struct() != 0 {
+        println("test_match_struct failed")
+        return 3
+    }
+    if test_match_enum() != 0 {
+        println("test_match_enum failed")
+        return 4
+    }
+    println("All pass tests succeeded")
+    return 0
+}

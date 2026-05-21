@@ -1206,8 +1206,32 @@ llvm::Value *CodeGen::genDestructuringDecl(const DestructuringDecl *dest) {
   }
 
   auto *st = llvm::cast<llvm::StructType>(srcTy);
+  size_t elisionIndex = -1;
+  size_t elisionCount = 0;
   for (size_t i = 0; i < dest->Variables.size(); ++i) {
-    if (i >= st->getNumElements()) {
+    if (dest->Variables[i].Name == "..") {
+      elisionIndex = i;
+      elisionCount++;
+    }
+  }
+
+  size_t expectedSize = st->getNumElements();
+  size_t elidedCount = 0;
+  if (elisionCount == 1) {
+    elidedCount = expectedSize - (dest->Variables.size() - 1);
+  }
+
+  for (size_t i = 0; i < dest->Variables.size(); ++i) {
+    if (dest->Variables[i].Name == "..") {
+      continue;
+    }
+
+    size_t memberIndex = i;
+    if (elisionCount == 1) {
+      memberIndex = (i < elisionIndex) ? i : (i + elidedCount - 1);
+    }
+
+    if (memberIndex >= expectedSize) {
       error(dest, "Too many variables in destructuring");
       break;
     }
@@ -1217,10 +1241,10 @@ llvm::Value *CodeGen::genDestructuringDecl(const DestructuringDecl *dest) {
 
     // [Fix] Union safety for destructuring
     llvm::Type *memberTy = nullptr;
-    if (st->isOpaque() || st->getNumElements() <= i) {
+    if (st->isOpaque() || st->getNumElements() <= memberIndex) {
       memberTy = llvm::Type::getInt8Ty(m_Context);
     } else {
-      memberTy = st->getElementType(i);
+      memberTy = st->getElementType(memberIndex);
     }
 
     llvm::Value *finalVal = nullptr;
@@ -1232,16 +1256,16 @@ llvm::Value *CodeGen::genDestructuringDecl(const DestructuringDecl *dest) {
       }
       // [L-Value Destructuring] GEP to get address of member
       finalVal =
-          m_Builder.CreateStructGEP(st, initEnt.value, i, vName + ".addr");
+          m_Builder.CreateStructGEP(st, initEnt.value, memberIndex, vName + ".addr");
     } else {
       if (initEnt.isAddress) {
         // [L-Value to R-Value] GEP + Load
         llvm::Value *addr =
-            m_Builder.CreateStructGEP(st, initEnt.value, i, vName + ".addr");
+            m_Builder.CreateStructGEP(st, initEnt.value, memberIndex, vName + ".addr");
         finalVal = m_Builder.CreateLoad(memberTy, addr, vName);
       } else {
         // [R-Value Destructuring] ExtractValue
-        finalVal = m_Builder.CreateExtractValue(initVal, i, vName);
+        finalVal = m_Builder.CreateExtractValue(initVal, memberIndex, vName);
       }
     }
 

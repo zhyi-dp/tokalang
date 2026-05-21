@@ -41,6 +41,12 @@ std::unique_ptr<MatchArm::Pattern> Parser::parsePattern() {
 }
 
 std::unique_ptr<MatchArm::Pattern> Parser::parseSinglePattern() {
+  if (match(TokenType::DotDot)) {
+    auto p = std::make_unique<MatchArm::Pattern>(MatchArm::Pattern::Elision);
+    p->Loc = previous().Loc;
+    return p;
+  }
+
   bool isMut = false;
   bool isRef = false;
   match(TokenType::KwAuto); // skip auto if present

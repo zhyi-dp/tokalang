@@ -846,85 +846,187 @@ void Sema::checkStmt(Stmt *S) {
     if (soulName.empty() && initType && initType->isShape()) {
       soulName = Type::stripMorphology(initType->getSoulName());
     }
+    size_t elisionIndex = -1;
+    size_t elisionCount = 0;
+    for (size_t i = 0; i < Destruct->Variables.size(); ++i) {
+      if (Destruct->Variables[i].Name == "..") {
+        elisionIndex = i;
+        elisionCount++;
+      }
+    }
+
+    if (elisionCount > 1) {
+      DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_MULTIPLE_ELISION);
+      HasError = true;
+    }
+
     if (!soulName.empty() && ShapeMap.count(soulName)) {
       ShapeDecl *SD = ShapeMap[soulName];
-      size_t Limit = std::min(SD->Members.size(), Destruct->Variables.size());
-      for (size_t i = 0; i < Limit; ++i) {
-        SymbolInfo Info;
-        std::string fullType = SD->Members[i].Type;
-        auto baseTypeObj = toka::Type::fromString(fullType);
-        // Apply attributes to the SOUL
-        auto soulType =
-            baseTypeObj->withAttributes(Destruct->Variables[i].IsValueMutable,
-                                        Destruct->Variables[i].IsValueNullable,
-                                        Destruct->Variables[i].IsValueBlocked);
+      size_t expectedSize = SD->Members.size();
 
-        if (Destruct->Variables[i].IsReference) {
-          Info.TypeObj = std::make_shared<toka::ReferenceType>(soulType);
-          Info.BorrowedFrom = m_LastBorrowSource;
-
+      if (elisionCount == 1) {
+        size_t varsWithoutElision = Destruct->Variables.size() - 1;
+        if (varsWithoutElision > expectedSize) {
+          DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_VARIANT_ARG_MISMATCH, soulName, expectedSize, Destruct->Variables.size());
+          HasError = true;
         } else {
-          Info.TypeObj = soulType;
-        }
+          size_t elidedCount = expectedSize - varsWithoutElision;
+          for (size_t i = 0; i < Destruct->Variables.size(); ++i) {
+            if (i == elisionIndex) continue;
+            size_t memberIndex = (i < elisionIndex) ? i : (i + elidedCount - 1);
 
-        // [Safety Gate] Prevent implicit destructure copying of Resources
-        if (!Destruct->Variables[i].IsReference) {
-          std::string sName = Info.TypeObj->getSoulName();
-          if (!sName.empty() && ShapeMap.count(sName)) {
-            if (!ShapeMap[sName]->MangledDestructorName.empty()) {
-              DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_ILLEGAL_RESOURCE_COPY, sName, Destruct->Variables[i].Name);
-              HasError = true;
+            SymbolInfo Info;
+            std::string fullType = SD->Members[memberIndex].Type;
+            auto baseTypeObj = toka::Type::fromString(fullType);
+            auto soulType = baseTypeObj->withAttributes(
+                Destruct->Variables[i].IsValueMutable,
+                Destruct->Variables[i].IsValueNullable,
+                Destruct->Variables[i].IsValueBlocked);
+
+            if (Destruct->Variables[i].IsReference) {
+              Info.TypeObj = std::make_shared<toka::ReferenceType>(soulType);
+              Info.BorrowedFrom = m_LastBorrowSource;
+            } else {
+              Info.TypeObj = soulType;
             }
+
+            if (!Destruct->Variables[i].IsReference) {
+              std::string sName = Info.TypeObj->getSoulName();
+              if (!sName.empty() && ShapeMap.count(sName)) {
+                if (!ShapeMap[sName]->MangledDestructorName.empty()) {
+                  DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_ILLEGAL_RESOURCE_COPY, sName, Destruct->Variables[i].Name);
+                  HasError = true;
+                }
+              }
+            }
+
+            CurrentScope->define(Destruct->Variables[i].Name, Info);
           }
         }
+      } else {
+        if (Destruct->Variables.size() != SD->Members.size()) {
+          DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_VARIANT_ARG_MISMATCH, soulName, SD->Members.size(), Destruct->Variables.size());
+          HasError = true;
+        } else {
+          for (size_t i = 0; i < Destruct->Variables.size(); ++i) {
+            SymbolInfo Info;
+            std::string fullType = SD->Members[i].Type;
+            auto baseTypeObj = toka::Type::fromString(fullType);
+            auto soulType = baseTypeObj->withAttributes(
+                Destruct->Variables[i].IsValueMutable,
+                Destruct->Variables[i].IsValueNullable,
+                Destruct->Variables[i].IsValueBlocked);
 
-        CurrentScope->define(Destruct->Variables[i].Name, Info);
+            if (Destruct->Variables[i].IsReference) {
+              Info.TypeObj = std::make_shared<toka::ReferenceType>(soulType);
+              Info.BorrowedFrom = m_LastBorrowSource;
+            } else {
+              Info.TypeObj = soulType;
+            }
+
+            if (!Destruct->Variables[i].IsReference) {
+              std::string sName = Info.TypeObj->getSoulName();
+              if (!sName.empty() && ShapeMap.count(sName)) {
+                if (!ShapeMap[sName]->MangledDestructorName.empty()) {
+                  DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_ILLEGAL_RESOURCE_COPY, sName, Destruct->Variables[i].Name);
+                  HasError = true;
+                }
+              }
+            }
+
+            CurrentScope->define(Destruct->Variables[i].Name, Info);
+          }
+        }
       }
     } else if (initType->typeKind == Type::Tuple) {
       auto tt = std::dynamic_pointer_cast<TupleType>(initType);
-      size_t Limit = std::min(tt->Elements.size(), Destruct->Variables.size());
-      for (size_t i = 0; i < Limit; ++i) {
-        SymbolInfo Info;
-        auto memType = tt->Elements[i];
-        // Apply attributes to the SOUL
-        auto soulType =
-            memType->withAttributes(Destruct->Variables[i].IsValueMutable,
-                                    Destruct->Variables[i].IsValueNullable,
-                                    Destruct->Variables[i].IsValueBlocked);
+      size_t expectedSize = tt->Elements.size();
 
-        if (Destruct->Variables[i].IsReference) {
-          Info.TypeObj = std::make_shared<toka::ReferenceType>(soulType);
-          Info.BorrowedFrom = m_LastBorrowSource;
-          // Distribute specific field dependencies to destructured references
-          std::string fieldKey = std::to_string(i);
-          if (m_LastFieldDependencies.count(fieldKey)) {
-             for (const auto &dep : m_LastFieldDependencies[fieldKey]) {
-                 Info.LifeDependencySet.insert(dep);
-                 Info.BorrowedFrom = dep; // Simplified to just track the primary borrow source since token tracks only 1
-             }
-          }
-          if (m_LastFieldDependencies.count(Destruct->Variables[i].Name)) { // Handle if mapped by name somehow
-             for (const auto &dep : m_LastFieldDependencies[Destruct->Variables[i].Name]) {
-                 Info.LifeDependencySet.insert(dep);
-                 Info.BorrowedFrom = dep;
-             }
-          }
+      if (elisionCount == 1) {
+        size_t varsWithoutElision = Destruct->Variables.size() - 1;
+        if (varsWithoutElision > expectedSize) {
+          DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_VARIANT_ARG_MISMATCH, "tuple", expectedSize, Destruct->Variables.size());
+          HasError = true;
         } else {
-          Info.TypeObj = soulType;
-        }
+          size_t elidedCount = expectedSize - varsWithoutElision;
+          for (size_t i = 0; i < Destruct->Variables.size(); ++i) {
+            if (i == elisionIndex) continue;
+            size_t memberIndex = (i < elisionIndex) ? i : (i + elidedCount - 1);
 
-        // [Safety Gate] Prevent implicit destructure copying of Resources
-        if (!Destruct->Variables[i].IsReference) {
-          std::string sName = Info.TypeObj->getSoulName();
-          if (!sName.empty() && ShapeMap.count(sName)) {
-            if (!ShapeMap[sName]->MangledDestructorName.empty()) {
-              DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_ILLEGAL_RESOURCE_COPY, sName, Destruct->Variables[i].Name);
-              HasError = true;
+            SymbolInfo Info;
+            auto memType = tt->Elements[memberIndex];
+            auto soulType = memType->withAttributes(
+                Destruct->Variables[i].IsValueMutable,
+                Destruct->Variables[i].IsValueNullable,
+                Destruct->Variables[i].IsValueBlocked);
+
+            if (Destruct->Variables[i].IsReference) {
+              Info.TypeObj = std::make_shared<toka::ReferenceType>(soulType);
+              Info.BorrowedFrom = m_LastBorrowSource;
+              std::string fieldKey = std::to_string(memberIndex);
+              if (m_LastFieldDependencies.count(fieldKey)) {
+                 for (const auto &dep : m_LastFieldDependencies[fieldKey]) {
+                     Info.LifeDependencySet.insert(dep);
+                     Info.BorrowedFrom = dep;
+                 }
+              }
+            } else {
+              Info.TypeObj = soulType;
             }
+
+            if (!Destruct->Variables[i].IsReference) {
+              std::string sName = Info.TypeObj->getSoulName();
+              if (!sName.empty() && ShapeMap.count(sName)) {
+                if (!ShapeMap[sName]->MangledDestructorName.empty()) {
+                  DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_ILLEGAL_RESOURCE_COPY, sName, Destruct->Variables[i].Name);
+                  HasError = true;
+                }
+              }
+            }
+
+            CurrentScope->define(Destruct->Variables[i].Name, Info);
           }
         }
+      } else {
+        if (Destruct->Variables.size() != tt->Elements.size()) {
+          DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_VARIANT_ARG_MISMATCH, "tuple", tt->Elements.size(), Destruct->Variables.size());
+          HasError = true;
+        } else {
+          for (size_t i = 0; i < Destruct->Variables.size(); ++i) {
+            SymbolInfo Info;
+            auto memType = tt->Elements[i];
+            auto soulType = memType->withAttributes(
+                Destruct->Variables[i].IsValueMutable,
+                Destruct->Variables[i].IsValueNullable,
+                Destruct->Variables[i].IsValueBlocked);
 
-        CurrentScope->define(Destruct->Variables[i].Name, Info);
+            if (Destruct->Variables[i].IsReference) {
+              Info.TypeObj = std::make_shared<toka::ReferenceType>(soulType);
+              Info.BorrowedFrom = m_LastBorrowSource;
+              std::string fieldKey = std::to_string(i);
+              if (m_LastFieldDependencies.count(fieldKey)) {
+                 for (const auto &dep : m_LastFieldDependencies[fieldKey]) {
+                     Info.LifeDependencySet.insert(dep);
+                     Info.BorrowedFrom = dep;
+                 }
+              }
+            } else {
+              Info.TypeObj = soulType;
+            }
+
+            if (!Destruct->Variables[i].IsReference) {
+              std::string sName = Info.TypeObj->getSoulName();
+              if (!sName.empty() && ShapeMap.count(sName)) {
+                if (!ShapeMap[sName]->MangledDestructorName.empty()) {
+                  DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_ILLEGAL_RESOURCE_COPY, sName, Destruct->Variables[i].Name);
+                  HasError = true;
+                }
+              }
+            }
+
+            CurrentScope->define(Destruct->Variables[i].Name, Info);
+          }
+        }
       }
       m_LastFieldDependencies.clear();
     } else if (!soulName.empty() && TypeAliasMap.count(soulName)) {

@@ -2049,10 +2049,34 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
               llvm::Value *variantAddr = m_Builder.CreateBitCast(
                   payloadAddr, llvm::PointerType::getUnqual(m_Context));
 
+              size_t elisionIndex = -1;
+              size_t elisionCount = 0;
               for (size_t i = 0; i < subPat->SubPatterns.size(); ++i) {
-                if (fieldTypes.empty() && i > 0)
+                if (subPat->SubPatterns[i]->PatternKind == MatchArm::Pattern::Elision) {
+                  elisionIndex = i;
+                  elisionCount++;
+                }
+              }
+
+              size_t expectedSize = fieldTypes.empty() ? 1 : fieldTypes.size();
+              size_t elidedCount = 0;
+              if (elisionCount == 1) {
+                elidedCount = expectedSize - (subPat->SubPatterns.size() - 1);
+              }
+
+              for (size_t i = 0; i < subPat->SubPatterns.size(); ++i) {
+                if (subPat->SubPatterns[i]->PatternKind == MatchArm::Pattern::Elision) {
+                  continue;
+                }
+
+                size_t memberIndex = i;
+                if (elisionCount == 1) {
+                  memberIndex = (i < elisionIndex) ? i : (i + elidedCount - 1);
+                }
+
+                if (fieldTypes.empty() && memberIndex > 0)
                   break;
-                if (!fieldTypes.empty() && i >= fieldTypes.size())
+                if (!fieldTypes.empty() && memberIndex >= fieldTypes.size())
                   break;
 
                 llvm::Value *fieldAddr = variantAddr;
@@ -2060,13 +2084,13 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
 
                 if (!fieldTypes.empty()) {
                   fieldAddr = m_Builder.CreateStructGEP(payloadLayoutType,
-                                                        variantAddr, i);
-                  fieldTy = fieldTypes[i];
+                                                        variantAddr, memberIndex);
+                  fieldTy = fieldTypes[memberIndex];
                 }
 
                 std::shared_ptr<Type> subTypeObj = nullptr;
-                if (variant->SubMembers.size() > i && variant->SubMembers[i].ResolvedType) {
-                    subTypeObj = variant->SubMembers[i].ResolvedType;
+                if (variant->SubMembers.size() > memberIndex && variant->SubMembers[memberIndex].ResolvedType) {
+                    subTypeObj = variant->SubMembers[memberIndex].ResolvedType;
                 } else if (variant->ResolvedType) {
                     subTypeObj = variant->ResolvedType;
                 }
@@ -2193,12 +2217,49 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
           }
           return accum;
         } else if (pat->PatternKind == MatchArm::Pattern::Wildcard ||
-                   pat->PatternKind == MatchArm::Pattern::Variable) {
+                   pat->PatternKind == MatchArm::Pattern::Variable ||
+                   pat->PatternKind == MatchArm::Pattern::Elision) {
           return m_Builder.getInt1(true);
         } else if (pat->PatternKind == MatchArm::Pattern::Decons) {
           llvm::Value *accum = m_Builder.getInt1(true);
+          size_t elisionIndex = -1;
+          size_t elisionCount = 0;
           for (size_t i = 0; i < pat->SubPatterns.size(); ++i) {
-            llvm::Value *memberVal = m_Builder.CreateExtractValue(currVal, i);
+            if (pat->SubPatterns[i]->PatternKind == MatchArm::Pattern::Elision) {
+              elisionIndex = i;
+              elisionCount++;
+            }
+          }
+
+          size_t expectedSize = 1;
+          llvm::StructType *st = nullptr;
+          if (currVal->getType()->isStructTy()) {
+            st = llvm::cast<llvm::StructType>(currVal->getType());
+            expectedSize = st->getNumElements();
+          }
+
+          size_t elidedCount = 0;
+          if (elisionCount == 1) {
+            elidedCount = expectedSize - (pat->SubPatterns.size() - 1);
+          }
+
+          for (size_t i = 0; i < pat->SubPatterns.size(); ++i) {
+            if (pat->SubPatterns[i]->PatternKind == MatchArm::Pattern::Elision) {
+              continue;
+            }
+
+            size_t memberIndex = i;
+            if (elisionCount == 1) {
+              memberIndex = (i < elisionIndex) ? i : (i + elidedCount - 1);
+            }
+
+            llvm::Value *memberVal = nullptr;
+            if (st) {
+              memberVal = m_Builder.CreateExtractValue(currVal, memberIndex);
+            } else {
+              memberVal = currVal;
+            }
+
             llvm::Value *subCond = genValuePatCond(pat->SubPatterns[i].get(), memberVal);
             accum = m_Builder.CreateAnd(accum, subCond);
           }
@@ -3033,18 +3094,43 @@ void CodeGen::genPatternBinding(const MatchArm::Pattern *pat,
     }
   } else if (pat->PatternKind == MatchArm::Pattern::Decons) {
     if (targetType->isStructTy()) {
+      auto *st = llvm::cast<llvm::StructType>(targetType);
+      size_t elisionIndex = -1;
+      size_t elisionCount = 0;
       for (size_t i = 0; i < pat->SubPatterns.size(); ++i) {
+        if (pat->SubPatterns[i]->PatternKind == MatchArm::Pattern::Elision) {
+          elisionIndex = i;
+          elisionCount++;
+        }
+      }
+
+      size_t expectedSize = st->getNumElements();
+      size_t elidedCount = 0;
+      if (elisionCount == 1) {
+        elidedCount = expectedSize - (pat->SubPatterns.size() - 1);
+      }
+
+      for (size_t i = 0; i < pat->SubPatterns.size(); ++i) {
+        if (pat->SubPatterns[i]->PatternKind == MatchArm::Pattern::Elision) {
+          continue;
+        }
+
+        size_t memberIndex = i;
+        if (elisionCount == 1) {
+          memberIndex = (i < elisionIndex) ? i : (i + elidedCount - 1);
+        }
+
         llvm::Value *fieldAddr =
-            m_Builder.CreateStructGEP(targetType, targetAddr, i);
+            m_Builder.CreateStructGEP(st, targetAddr, memberIndex);
         std::shared_ptr<Type> subTypeObj = nullptr;
         if (targetTypeObj && targetTypeObj->isShape()) {
-            auto st = std::static_pointer_cast<ShapeType>(targetTypeObj);
-            if (st->Decl && st->Decl->Members.size() > i && st->Decl->Members[i].ResolvedType) {
-                subTypeObj = st->Decl->Members[i].ResolvedType;
+            auto stType = std::static_pointer_cast<ShapeType>(targetTypeObj);
+            if (stType->Decl && stType->Decl->Members.size() > memberIndex && stType->Decl->Members[memberIndex].ResolvedType) {
+                subTypeObj = stType->Decl->Members[memberIndex].ResolvedType;
             }
         }
         genPatternBinding(pat->SubPatterns[i].get(), fieldAddr,
-                          targetType->getStructElementType(i), subTypeObj);
+                          st->getElementType(memberIndex), subTypeObj);
       }
     } else if (!pat->SubPatterns.empty()) {
       // Single payload case (not wrapped in tuple/struct)

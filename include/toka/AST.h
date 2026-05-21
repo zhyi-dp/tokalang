@@ -819,7 +819,7 @@ public:
 class MatchArm {
 public:
   struct Pattern : public ASTNode {
-    enum Kind { Literal, Variable, Decons, Wildcard, Or };
+    enum Kind { Literal, Variable, Decons, Wildcard, Or, Elision };
     Kind PatternKind;
     std::string Name;        // For Variable/Decons (e.g., "Maybe::One")
     uint64_t LiteralVal = 0; // For Literal
@@ -847,6 +847,8 @@ public:
       }
       case Wildcard:
         return "_";
+      case Elision:
+        return "..";
       case Or: {
         std::string s = "";
         for (size_t i = 0; i < SubPatterns.size(); ++i) {

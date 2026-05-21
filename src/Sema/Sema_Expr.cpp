@@ -2493,7 +2493,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     std::function<bool(MatchArm::Pattern*, const std::string&)> isPatternExhaustive = 
       [&](MatchArm::Pattern *pat, const std::string &t) -> bool {
         if (!pat) return false;
-        if (pat->PatternKind == MatchArm::Pattern::Wildcard) return true;
+        if (pat->PatternKind == MatchArm::Pattern::Wildcard || pat->PatternKind == MatchArm::Pattern::Elision) return true;
         if (pat->PatternKind == MatchArm::Pattern::Variable) {
           std::string baseShapeName = t;
           size_t scopePos = pat->Name.find("::");
@@ -2540,11 +2540,37 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
           if (ShapeMap.count(baseT)) {
             ShapeDecl *SD = ShapeMap[baseT];
             if (SD->Kind == ShapeKind::Struct || SD->Kind == ShapeKind::Tuple) {
-              if (pat->SubPatterns.size() != SD->Members.size()) return false;
+              size_t elisionIndex = -1;
+              size_t elisionCount = 0;
               for (size_t i = 0; i < pat->SubPatterns.size(); ++i) {
-                if (!isPatternExhaustive(pat->SubPatterns[i].get(), SD->Members[i].Type)) return false;
+                if (pat->SubPatterns[i]->PatternKind == MatchArm::Pattern::Elision) {
+                  elisionIndex = i;
+                  elisionCount++;
+                }
               }
-              return true;
+
+              if (elisionCount > 1) {
+                return false;
+              } else if (elisionCount == 1) {
+                size_t expectedSize = SD->Members.size();
+                size_t subPatsWithoutElision = pat->SubPatterns.size() - 1;
+                if (subPatsWithoutElision > expectedSize) {
+                  return false;
+                }
+                size_t elidedFields = expectedSize - subPatsWithoutElision;
+                for (size_t i = 0; i < pat->SubPatterns.size(); ++i) {
+                  if (i == elisionIndex) continue;
+                  size_t memberIndex = (i < elisionIndex) ? i : (i + elidedFields - 1);
+                  if (!isPatternExhaustive(pat->SubPatterns[i].get(), SD->Members[memberIndex].Type)) return false;
+                }
+                return true;
+              } else {
+                if (pat->SubPatterns.size() != SD->Members.size()) return false;
+                for (size_t i = 0; i < pat->SubPatterns.size(); ++i) {
+                  if (!isPatternExhaustive(pat->SubPatterns[i].get(), SD->Members[i].Type)) return false;
+                }
+                return true;
+              }
             }
           }
         }
@@ -2574,20 +2600,64 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
           if (foundMemb) {
             bool subExhaustive = true;
             if (!foundMemb->SubMembers.empty()) {
-              if (pat->SubPatterns.size() != foundMemb->SubMembers.size()) {
+              size_t elisionIndex = -1;
+              size_t elisionCount = 0;
+              for (size_t i = 0; i < pat->SubPatterns.size(); ++i) {
+                if (pat->SubPatterns[i]->PatternKind == MatchArm::Pattern::Elision) {
+                  elisionIndex = i;
+                  elisionCount++;
+                }
+              }
+
+              if (elisionCount > 1) {
                 subExhaustive = false;
+              } else if (elisionCount == 1) {
+                size_t expectedSize = foundMemb->SubMembers.size();
+                size_t subPatsWithoutElision = pat->SubPatterns.size() - 1;
+                if (subPatsWithoutElision > expectedSize) {
+                  subExhaustive = false;
+                } else {
+                  size_t elidedFields = expectedSize - subPatsWithoutElision;
+                  for (size_t i = 0; i < pat->SubPatterns.size(); ++i) {
+                    if (i == elisionIndex) continue;
+                    size_t memberIndex = (i < elisionIndex) ? i : (i + elidedFields - 1);
+                    if (!isPatternExhaustive(pat->SubPatterns[i].get(), foundMemb->SubMembers[memberIndex].Type)) {
+                      subExhaustive = false;
+                      break;
+                    }
+                  }
+                }
               } else {
-                for (size_t i = 0; i < pat->SubPatterns.size(); ++i) {
-                  if (!isPatternExhaustive(pat->SubPatterns[i].get(), foundMemb->SubMembers[i].Type)) {
-                    subExhaustive = false;
-                    break;
+                if (pat->SubPatterns.size() != foundMemb->SubMembers.size()) {
+                  subExhaustive = false;
+                } else {
+                  for (size_t i = 0; i < pat->SubPatterns.size(); ++i) {
+                    if (!isPatternExhaustive(pat->SubPatterns[i].get(), foundMemb->SubMembers[i].Type)) {
+                      subExhaustive = false;
+                      break;
+                    }
                   }
                 }
               }
             } else if (!foundMemb->Type.empty() && foundMemb->Type != "void") {
-              if (pat->SubPatterns.size() != 1 || 
-                  !isPatternExhaustive(pat->SubPatterns[0].get(), foundMemb->Type)) {
+              size_t elisionIndex = -1;
+              size_t elisionCount = 0;
+              for (size_t i = 0; i < pat->SubPatterns.size(); ++i) {
+                if (pat->SubPatterns[i]->PatternKind == MatchArm::Pattern::Elision) {
+                  elisionIndex = i;
+                  elisionCount++;
+                }
+              }
+
+              if (elisionCount > 1) {
                 subExhaustive = false;
+              } else if (elisionCount == 1) {
+                subExhaustive = true;
+              } else {
+                if (pat->SubPatterns.size() != 1 || 
+                    !isPatternExhaustive(pat->SubPatterns[0].get(), foundMemb->Type)) {
+                  subExhaustive = false;
+                }
               }
             }
             if (subExhaustive) {

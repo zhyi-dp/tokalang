@@ -1,0 +1,8 @@
+shape Point(x: i32, y: i32, z: i32)
+
+fn main() -> i32 {
+    auto p = Point(x = 1, y = 2, z = 3)
+    // Multiple elisions are illegal!
+    auto Point(a, .., b, ..) = p
+    return 0
+}
