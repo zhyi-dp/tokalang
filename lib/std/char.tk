@@ -75,4 +75,41 @@ impl char {
         }
         return self
     }
+
+    pub fn is_ascii_digit(self) -> bool {
+        return self >= 48:char && self <= 57:char
+    }
+
+    pub fn is_ascii_alphabetic(self) -> bool {
+        if self >= 97:char && self <= 122:char { return true }
+        if self >= 65:char && self <= 90:char { return true }
+        return false
+    }
+
+    pub fn is_ascii_alphanumeric(self) -> bool {
+        return self.is_ascii_digit() || self.is_ascii_alphabetic()
+    }
+
+    pub fn is_ascii_hexdigit(self) -> bool {
+        if self.is_ascii_digit() { return true }
+        if self >= 97:char && self <= 102:char { return true }
+        if self >= 65:char && self <= 70:char { return true }
+        return false
+    }
+
+    pub fn is_ascii_whitespace(self) -> bool {
+        if self == 32:char { return true }
+        if self == 9:char { return true }
+        if self == 10:char { return true }
+        if self == 13:char { return true }
+        return false
+    }
+
+    pub fn is_ascii_identifier_start(self) -> bool {
+        return self.is_ascii_alphabetic() || self == 95:char
+    }
+
+    pub fn is_ascii_identifier_continue(self) -> bool {
+        return self.is_ascii_alphanumeric() || self == 95:char
+    }
 }

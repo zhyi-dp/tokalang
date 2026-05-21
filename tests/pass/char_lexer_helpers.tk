@@ -1,0 +1,49 @@
+// Copyright (c) 2026 Toka Project. All rights reserved.
+import std/io::println
+import std/char
+fn main() -> i32 {
+    // 1. is_ascii_digit
+    assert('0'.is_ascii_digit(), "0 should be ascii digit")
+    assert('9'.is_ascii_digit(), "9 should be ascii digit")
+    assert(!'a'.is_ascii_digit(), "a should not be ascii digit")
+    assert(!'_'.is_ascii_digit(), "_ should not be ascii digit")
+
+    // 2. is_ascii_alphabetic
+    assert('a'.is_ascii_alphabetic(), "a should be ascii alphabetic")
+    assert('Z'.is_ascii_alphabetic(), "Z should be ascii alphabetic")
+    assert(!'5'.is_ascii_alphabetic(), "5 should not be ascii alphabetic")
+    assert(!'_'.is_ascii_alphabetic(), "_ should not be ascii alphabetic")
+
+    // 3. is_ascii_alphanumeric
+    assert('b'.is_ascii_alphanumeric(), "b should be ascii alphanumeric")
+    assert('3'.is_ascii_alphanumeric(), "3 should be ascii alphanumeric")
+    assert(!'_'.is_ascii_alphanumeric(), "_ should not be ascii alphanumeric")
+
+    // 4. is_ascii_hexdigit
+    assert('5'.is_ascii_hexdigit(), "5 should be hexdigit")
+    assert('a'.is_ascii_hexdigit(), "a should be hexdigit")
+    assert('F'.is_ascii_hexdigit(), "F should be hexdigit")
+    assert(!'g'.is_ascii_hexdigit(), "g should not be hexdigit")
+    assert(!'_'.is_ascii_hexdigit(), "_ should not be hexdigit")
+
+    // 5. is_ascii_whitespace
+    assert(' '.is_ascii_whitespace(), "space should be whitespace")
+    assert('\n'.is_ascii_whitespace(), "newline should be whitespace")
+    assert('\r'.is_ascii_whitespace(), "cr should be whitespace")
+    assert('\t'.is_ascii_whitespace(), "tab should be whitespace")
+    assert(!'a'.is_ascii_whitespace(), "a should not be whitespace")
+
+    // 6. is_ascii_identifier_start
+    assert('x'.is_ascii_identifier_start(), "x should be identifier start")
+    assert('_'.is_ascii_identifier_start(), "_ should be identifier start")
+    assert(!'7'.is_ascii_identifier_start(), "7 should not be identifier start")
+
+    // 7. is_ascii_identifier_continue
+    assert('x'.is_ascii_identifier_continue(), "x should be identifier continue")
+    assert('_'.is_ascii_identifier_continue(), "_ should be identifier continue")
+    assert('7'.is_ascii_identifier_continue(), "7 should be identifier continue")
+    assert(!' '.is_ascii_identifier_continue(), "space should not be identifier continue")
+
+    println("All char lexer helper assertions passed successfully!")
+    return 0
+}
