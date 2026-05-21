@@ -1,0 +1,25 @@
+error[E0421]: Member access 'destructuring' on non-shape type 'Pair'
+ --> tests/fail/destruct_named_not_struct_fail.tk:6:31
+  |
+ 6 |     auto Pair(x = a, y = b) = p
+  |                               ^
+error[E0417]: Shape 'Pair' has no member named 'x'
+ --> tests/fail/destruct_named_not_struct_fail.tk:6:31
+  |
+ 6 |     auto Pair(x = a, y = b) = p
+  |                               ^
+error[E0417]: Shape 'Pair' has no member named 'y'
+ --> tests/fail/destruct_named_not_struct_fail.tk:6:31
+  |
+ 6 |     auto Pair(x = a, y = b) = p
+  |                               ^
+error[E042C]: Elided member '0' of shape 'Pair' does not have a default value.
+ --> tests/fail/destruct_named_not_struct_fail.tk:6:31
+  |
+ 6 |     auto Pair(x = a, y = b) = p
+  |                               ^
+error[E042C]: Elided member '1' of shape 'Pair' does not have a default value.
+ --> tests/fail/destruct_named_not_struct_fail.tk:6:31
+  |
+ 6 |     auto Pair(x = a, y = b) = p
+  |                               ^

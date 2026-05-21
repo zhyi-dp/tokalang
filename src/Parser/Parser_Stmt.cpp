@@ -97,18 +97,60 @@ std::unique_ptr<Stmt> Parser::parseVariableDecl(bool isPub) {
     }
     consume(TokenType::LParen, "Expected '(' for destructuring");
     std::vector<DestructuredVar> vars;
+    bool hasNamed = false;
+    bool hasPositional = false;
     while (!check(TokenType::RParen) && !check(TokenType::EndOfFile)) {
       if (match(TokenType::DotDot)) {
-        vars.push_back({"..", false, false, false, false});
+        DestructuredVar v;
+        v.Name = "..";
+        v.FieldName = "..";
+        vars.push_back(v);
       } else {
-        bool isRef = match(TokenType::Ampersand);
-        Token varName = consume(TokenType::Identifier, "Expected variable name");
-        std::string fullVarName = (isRef ? "&" : "") + varName.Text;
-        vars.push_back({fullVarName, varName.HasWrite, varName.HasNull,
-                        varName.IsBlocked, isRef});
+        if (isNextNamedField(0)) {
+          hasNamed = true;
+          Token fieldNameTok = consume(TokenType::Identifier, "Expected field name");
+          std::string fieldName = fieldNameTok.Text;
+          while (match(TokenType::Minus)) {
+            fieldName += "-";
+            fieldName += consume(TokenType::Identifier, "Expected identifier after '-'").Text;
+          }
+          consume(TokenType::Equal, "Expected '=' after field name");
+          
+          bool isRef = match(TokenType::Ampersand);
+          Token varTok = consume(TokenType::Identifier, "Expected variable name or '_'");
+          std::string fullVarName = (isRef ? "&" : "") + varTok.Text;
+          
+          DestructuredVar v;
+          v.Name = fullVarName;
+          v.FieldName = fieldName;
+          v.IsWildcard = (varTok.Text == "_");
+          v.IsValueMutable = varTok.HasWrite;
+          v.IsValueNullable = varTok.HasNull;
+          v.IsValueBlocked = varTok.IsBlocked;
+          v.IsReference = isRef;
+          vars.push_back(v);
+        } else {
+          hasPositional = true;
+          bool isRef = match(TokenType::Ampersand);
+          Token varTok = consume(TokenType::Identifier, "Expected variable name or '_'");
+          std::string fullVarName = (isRef ? "&" : "") + varTok.Text;
+          
+          DestructuredVar v;
+          v.Name = fullVarName;
+          v.FieldName = "";
+          v.IsWildcard = (varTok.Text == "_");
+          v.IsValueMutable = varTok.HasWrite;
+          v.IsValueNullable = varTok.HasNull;
+          v.IsValueBlocked = varTok.IsBlocked;
+          v.IsReference = isRef;
+          vars.push_back(v);
+        }
       }
       if (!match(TokenType::Comma))
         break;
+    }
+    if (hasNamed && hasPositional) {
+      error(peek(), "Cannot mix positional and named fields in destructuring");
     }
     consume(TokenType::RParen, "Expected ')' after destructuring");
     consume(TokenType::Equal, "Expected '=' for destructuring");

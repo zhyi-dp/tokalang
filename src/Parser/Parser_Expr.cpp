@@ -132,16 +132,43 @@ std::unique_ptr<MatchArm::Pattern> Parser::parseSinglePattern() {
 
     if (match(TokenType::LParen)) {
       std::vector<std::unique_ptr<MatchArm::Pattern>> subs;
+      std::vector<std::string> subNames;
+      bool hasNamed = false;
+      bool hasPositional = false;
       while (!check(TokenType::RParen) && !check(TokenType::EndOfFile)) {
-        subs.push_back(parsePattern());
+        if (match(TokenType::DotDot)) {
+          subs.push_back(std::make_unique<MatchArm::Pattern>(MatchArm::Pattern::Elision));
+          subNames.push_back("");
+        } else {
+          if (isNextNamedField(0)) {
+            hasNamed = true;
+            Token fieldNameTok = consume(TokenType::Identifier, "Expected field name");
+            std::string fieldName = fieldNameTok.Text;
+            while (match(TokenType::Minus)) {
+              fieldName += "-";
+              fieldName += consume(TokenType::Identifier, "Expected identifier after '-'").Text;
+            }
+            consume(TokenType::Equal, "Expected '=' after field name");
+            subs.push_back(parsePattern());
+            subNames.push_back(fieldName);
+          } else {
+            hasPositional = true;
+            subs.push_back(parsePattern());
+            subNames.push_back("");
+          }
+        }
         if (!check(TokenType::RParen))
           match(TokenType::Comma);
       }
       consume(TokenType::RParen, "Expected ')' after subpatterns");
+      if (hasNamed && hasPositional) {
+        error(peek(), "Cannot mix positional and named fields in pattern");
+      }
       auto p = std::make_unique<MatchArm::Pattern>(MatchArm::Pattern::Decons);
       p->Loc = nameTok.Loc;
       p->Name = name;
       p->SubPatterns = std::move(subs);
+      p->SubPatternNames = std::move(subNames);
       p->IsReference = isRef;
       return p;
     }

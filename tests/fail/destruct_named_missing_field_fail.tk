@@ -1,0 +1,8 @@
+shape Point(x: i32, y: i32)
+
+fn main() -> i32 {
+    auto p = Point(x = 10, y = 20)
+    // Non-existent field z
+    auto Point(x = a, z = b, ..) = p
+    return 0
+}

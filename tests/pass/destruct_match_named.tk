@@ -1,0 +1,117 @@
+import std/io::println
+
+shape Point(x: i32, y: i32)
+shape Config(host: i32, port: i32 = 80, debug: i32 = 0)
+
+fn test_named_destruct_full() -> i32 {
+    auto p = Point(x = 10, y = 20)
+    // Full named destructuring
+    auto Point(x = a, y = b) = p
+    if a != 10 || b != 20 {
+        return 1
+    }
+    // Reverse order
+    auto Point(y = c, x = d) = p
+    if c != 20 || d != 10 {
+        return 2
+    }
+    return 0
+}
+
+fn test_named_destruct_elision() -> i32 {
+    auto c = Config(host = 127, ..)
+    // elide port and debug using ..
+    auto Config(host = h, ..) = c
+    if h != 127 {
+        return 1
+    }
+    
+    // specify host and port, elide debug using ..
+    auto Config(port = p, host = h2, ..) = c
+    if h2 != 127 || p != 80 {
+        return 2
+    }
+    
+    return 0
+}
+
+fn test_named_destruct_wildcard() -> i32 {
+    auto c = Config(host = 10, port = 8080, debug = 1)
+    // Use _ to ignore port
+    auto Config(host = h, port = _, debug = d) = c
+    if h != 10 || d != 1 {
+        return 1
+    }
+    
+    // Multiple underscores and ..
+    auto Config(host = h2, port = _, debug = _, ..) = c
+    if h2 != 10 {
+        return 2
+    }
+    
+    return 0
+}
+
+fn test_named_match() -> i32 {
+    auto c = Config(host = 10, port = 8080, debug = 1)
+    auto val = match c {
+        Config(host = 10, port = 8080, debug = 1) => {
+            pass 1
+        }
+        default => {
+            pass 0
+        }
+    }
+    if val != 1 {
+        return 1
+    }
+    
+    // Match with ..
+    auto val2 = match c {
+        Config(port = 8080, debug = _, ..) => {
+            pass 2
+        }
+        default => {
+            pass 0
+        }
+    }
+    if val2 != 2 {
+        return 2
+    }
+    
+    // Match with reverse order fields and wildcard
+    auto val3 = match c {
+        Config(debug = 1, host = _, ..) => {
+            pass 3
+        }
+        default => {
+            pass 0
+        }
+    }
+    if val3 != 3 {
+        return 3
+    }
+    
+    return 0
+}
+
+fn main() -> i32 {
+    if test_named_destruct_full() != 0 {
+        println("test_named_destruct_full failed")
+        return 1
+    }
+    if test_named_destruct_elision() != 0 {
+        println("test_named_destruct_elision failed")
+        return 2
+    }
+    if test_named_destruct_wildcard() != 0 {
+        println("test_named_destruct_wildcard failed")
+        return 3
+    }
+    if test_named_match() != 0 {
+        println("test_named_match failed")
+        return 4
+    }
+    println("All named pass tests succeeded")
+    return 0
+}

@@ -280,39 +280,119 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
           DiagnosticEngine::report(getLoc(Pat), DiagID::ERR_UNKNOWN_SHAPE_IN_PAT, variantName);
           HasError = true;
         } else {
-          size_t elisionIndex = -1;
-          size_t elisionCount = 0;
-          for (size_t i = 0; i < Pat->SubPatterns.size(); ++i) {
-            if (Pat->SubPatterns[i]->PatternKind == MatchArm::Pattern::Elision) {
-              elisionIndex = i;
-              elisionCount++;
+          bool isNamed = false;
+          for (const auto& name : Pat->SubPatternNames) {
+            if (!name.empty() && name != "..") {
+              isNamed = true;
+              break;
             }
           }
 
-          if (elisionCount > 1) {
-            DiagnosticEngine::report(getLoc(Pat), DiagID::ERR_MULTIPLE_ELISION);
-            HasError = true;
-          } else if (elisionCount == 1) {
-            size_t expectedSize = SD->Members.size();
-            size_t subPatsWithoutElision = Pat->SubPatterns.size() - 1;
-            if (subPatsWithoutElision > expectedSize) {
-              DiagnosticEngine::report(getLoc(Pat), DiagID::ERR_VARIANT_ARG_MISMATCH, variantName, expectedSize, Pat->SubPatterns.size());
+          if (isNamed) {
+            if (SD->Kind != ShapeKind::Struct) {
+              DiagnosticEngine::report(getLoc(Pat), DiagID::ERR_NOT_A_STRUCT, "pattern matching", SD->Name);
               HasError = true;
             } else {
-              size_t elidedFields = expectedSize - subPatsWithoutElision;
+              // 1. Verify duplicates
+              std::set<std::string> seenFields;
+              for (const auto &name : Pat->SubPatternNames) {
+                if (name.empty() || name == "..") continue;
+                if (seenFields.count(name)) {
+                  DiagnosticEngine::report(getLoc(Pat), DiagID::ERR_DUPLICATE_FIELD, name);
+                  HasError = true;
+                }
+                seenFields.insert(name);
+              }
+
+              // 2. Verify existence
+              std::set<std::string> sdMembers;
+              for (const auto &m : SD->Members) {
+                sdMembers.insert(m.Name);
+              }
+              for (const auto &name : Pat->SubPatternNames) {
+                if (name.empty() || name == "..") continue;
+                if (!sdMembers.count(name)) {
+                  DiagnosticEngine::report(getLoc(Pat), DiagID::ERR_NO_SUCH_MEMBER, SD->Name, name);
+                  HasError = true;
+                }
+              }
+
+              // 3. Verify completeness
+              bool hasElision = false;
+              for (const auto &name : Pat->SubPatternNames) {
+                if (name == "..") {
+                  hasElision = true;
+                  break;
+                }
+              }
+              for (const auto &sub : Pat->SubPatterns) {
+                if (sub->PatternKind == MatchArm::Pattern::Elision) {
+                  hasElision = true;
+                  break;
+                }
+              }
+              if (!hasElision) {
+                for (const auto &defField : SD->Members) {
+                  if (!seenFields.count(defField.Name)) {
+                    if (!defField.DefaultValue) {
+                      DiagnosticEngine::report(getLoc(Pat), DiagID::ERR_MISSING_DEFAULT_FOR_ELIDED, defField.Name, SD->Name);
+                      HasError = true;
+                    }
+                  }
+                }
+              }
+
+              // 4. Type check subpatterns
               for (size_t i = 0; i < Pat->SubPatterns.size(); ++i) {
-                if (i == elisionIndex) continue;
-                size_t memberIndex = (i < elisionIndex) ? i : (i + elidedFields - 1);
-                checkPattern(Pat->SubPatterns[i].get(), SD->Members[memberIndex].Type, SourceIsMutable);
+                if (Pat->SubPatterns[i]->PatternKind == MatchArm::Pattern::Elision) continue;
+                std::string fieldName = Pat->SubPatternNames[i];
+                size_t memberIndex = -1;
+                for (size_t m = 0; m < SD->Members.size(); ++m) {
+                  if (SD->Members[m].Name == fieldName) {
+                    memberIndex = m;
+                    break;
+                  }
+                }
+                if (memberIndex != (size_t)-1) {
+                  checkPattern(Pat->SubPatterns[i].get(), SD->Members[memberIndex].Type, SourceIsMutable);
+                }
               }
             }
           } else {
-            if (Pat->SubPatterns.size() != SD->Members.size()) {
-              DiagnosticEngine::report(getLoc(Pat), DiagID::ERR_VARIANT_ARG_MISMATCH, variantName, SD->Members.size(), Pat->SubPatterns.size());
+            size_t elisionIndex = -1;
+            size_t elisionCount = 0;
+            for (size_t i = 0; i < Pat->SubPatterns.size(); ++i) {
+              if (Pat->SubPatterns[i]->PatternKind == MatchArm::Pattern::Elision) {
+                elisionIndex = i;
+                elisionCount++;
+              }
+            }
+
+            if (elisionCount > 1) {
+              DiagnosticEngine::report(getLoc(Pat), DiagID::ERR_MULTIPLE_ELISION);
               HasError = true;
+            } else if (elisionCount == 1) {
+              size_t expectedSize = SD->Members.size();
+              size_t subPatsWithoutElision = Pat->SubPatterns.size() - 1;
+              if (subPatsWithoutElision > expectedSize) {
+                DiagnosticEngine::report(getLoc(Pat), DiagID::ERR_VARIANT_ARG_MISMATCH, variantName, expectedSize, Pat->SubPatterns.size());
+                HasError = true;
+              } else {
+                size_t elidedFields = expectedSize - subPatsWithoutElision;
+                for (size_t i = 0; i < Pat->SubPatterns.size(); ++i) {
+                  if (i == elisionIndex) continue;
+                  size_t memberIndex = (i < elisionIndex) ? i : (i + elidedFields - 1);
+                  checkPattern(Pat->SubPatterns[i].get(), SD->Members[memberIndex].Type, SourceIsMutable);
+                }
+              }
             } else {
-              for (size_t i = 0; i < Pat->SubPatterns.size(); ++i) {
-                checkPattern(Pat->SubPatterns[i].get(), SD->Members[i].Type, SourceIsMutable);
+              if (Pat->SubPatterns.size() != SD->Members.size()) {
+                DiagnosticEngine::report(getLoc(Pat), DiagID::ERR_VARIANT_ARG_MISMATCH, variantName, SD->Members.size(), Pat->SubPatterns.size());
+                HasError = true;
+              } else {
+                for (size_t i = 0; i < Pat->SubPatterns.size(); ++i) {
+                  checkPattern(Pat->SubPatterns[i].get(), SD->Members[i].Type, SourceIsMutable);
+                }
               }
             }
           }

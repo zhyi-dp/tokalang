@@ -1,0 +1,8 @@
+shape Config(host: i32, port: i32 = 80, debug: i32 = 0)
+
+fn main() -> i32 {
+    auto c = Config(host = 10, ..)
+    // host has no default value and is not mentioned, and there is no ..
+    auto Config(port = p, debug = d) = c
+    return 0
+}

@@ -2222,6 +2222,14 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
           return m_Builder.getInt1(true);
         } else if (pat->PatternKind == MatchArm::Pattern::Decons) {
           llvm::Value *accum = m_Builder.getInt1(true);
+          bool isNamed = false;
+          for (const auto& name : pat->SubPatternNames) {
+            if (!name.empty() && name != "..") {
+              isNamed = true;
+              break;
+            }
+          }
+
           size_t elisionIndex = -1;
           size_t elisionCount = 0;
           for (size_t i = 0; i < pat->SubPatterns.size(); ++i) {
@@ -2248,9 +2256,30 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
               continue;
             }
 
-            size_t memberIndex = i;
-            if (elisionCount == 1) {
-              memberIndex = (i < elisionIndex) ? i : (i + elidedCount - 1);
+            size_t memberIndex = -1;
+            if (isNamed) {
+              std::string shapeName = Type::stripMorphology(pat->Name);
+              if (shapeName.empty() && st) {
+                shapeName = st->getName().str();
+              }
+              if (m_Shapes.count(shapeName)) {
+                const auto *sh = m_Shapes[shapeName];
+                for (size_t m = 0; m < sh->Members.size(); ++m) {
+                  if (sh->Members[m].Name == pat->SubPatternNames[i]) {
+                    memberIndex = m;
+                    break;
+                  }
+                }
+              }
+            } else {
+              memberIndex = i;
+              if (elisionCount == 1) {
+                memberIndex = (i < elisionIndex) ? i : (i + elidedCount - 1);
+              }
+            }
+
+            if (memberIndex >= expectedSize || memberIndex == (size_t)-1) {
+              continue;
             }
 
             llvm::Value *memberVal = nullptr;
@@ -3095,6 +3124,14 @@ void CodeGen::genPatternBinding(const MatchArm::Pattern *pat,
   } else if (pat->PatternKind == MatchArm::Pattern::Decons) {
     if (targetType->isStructTy()) {
       auto *st = llvm::cast<llvm::StructType>(targetType);
+      bool isNamed = false;
+      for (const auto& name : pat->SubPatternNames) {
+        if (!name.empty() && name != "..") {
+          isNamed = true;
+          break;
+        }
+      }
+
       size_t elisionIndex = -1;
       size_t elisionCount = 0;
       for (size_t i = 0; i < pat->SubPatterns.size(); ++i) {
@@ -3115,9 +3152,35 @@ void CodeGen::genPatternBinding(const MatchArm::Pattern *pat,
           continue;
         }
 
-        size_t memberIndex = i;
-        if (elisionCount == 1) {
-          memberIndex = (i < elisionIndex) ? i : (i + elidedCount - 1);
+        // Skip wildcard ignoring fields
+        if (pat->SubPatterns[i]->PatternKind == MatchArm::Pattern::Wildcard) {
+          continue;
+        }
+
+        size_t memberIndex = -1;
+        if (isNamed) {
+          std::string shapeName = Type::stripMorphology(pat->Name);
+          if (shapeName.empty()) {
+            shapeName = st->getName().str();
+          }
+          if (m_Shapes.count(shapeName)) {
+            const auto *sh = m_Shapes[shapeName];
+            for (size_t m = 0; m < sh->Members.size(); ++m) {
+              if (sh->Members[m].Name == pat->SubPatternNames[i]) {
+                memberIndex = m;
+                break;
+              }
+            }
+          }
+        } else {
+          memberIndex = i;
+          if (elisionCount == 1) {
+            memberIndex = (i < elisionIndex) ? i : (i + elidedCount - 1);
+          }
+        }
+
+        if (memberIndex >= expectedSize || memberIndex == (size_t)-1) {
+          continue;
         }
 
         llvm::Value *fieldAddr =

@@ -827,6 +827,7 @@ public:
     bool IsValueMutable = false;
     bool IsValueBlocked = false;
     std::vector<std::unique_ptr<Pattern>> SubPatterns; // For Decons and Or
+    std::vector<std::string> SubPatternNames;          // [NEW] For named deconstruction/matching (parallel to SubPatterns)
 
     Pattern(Kind k) : PatternKind(k) {}
     std::string toString() const override {
@@ -840,6 +841,9 @@ public:
         for (size_t i = 0; i < SubPatterns.size(); ++i) {
           if (i > 0)
             s += ", ";
+          if (SubPatternNames.size() > i && !SubPatternNames[i].empty()) {
+            s += SubPatternNames[i] + " = ";
+          }
           s += SubPatterns[i]->toString();
         }
         s += ")";
@@ -876,6 +880,7 @@ public:
       for (auto& sp : SubPatterns) {
           n->SubPatterns.push_back(sp->clonePattern());
       }
+      n->SubPatternNames = SubPatternNames;
       n->Loc = Loc;
       return n;
     }
@@ -1188,6 +1193,8 @@ using MatchStmt = MatchExpr;
 
 struct DestructuredVar {
   std::string Name;
+  std::string FieldName;          // [NEW] Target field name inside struct (for named destructuring "y = val", FieldName is "y")
+  bool IsWildcard = false;        // [NEW] Set to true for wildcard placeholders (e.g. "_", "x = _")
   bool IsValueMutable = false;
   bool IsValueNullable = false;
   bool IsValueBlocked = false;

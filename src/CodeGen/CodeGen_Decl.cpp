@@ -1221,22 +1221,48 @@ llvm::Value *CodeGen::genDestructuringDecl(const DestructuringDecl *dest) {
     elidedCount = expectedSize - (dest->Variables.size() - 1);
   }
 
+  bool isNamed = false;
+  for (const auto& var : dest->Variables) {
+    if (var.Name != ".." && !var.FieldName.empty()) {
+      isNamed = true;
+      break;
+    }
+  }
+
+  std::string shapeName = Type::stripMorphology(dest->TypeName);
+  if (shapeName.empty()) {
+    shapeName = st->getName().str();
+  }
+
   for (size_t i = 0; i < dest->Variables.size(); ++i) {
-    if (dest->Variables[i].Name == "..") {
+    const auto &v = dest->Variables[i];
+    if (v.Name == ".." || v.IsWildcard) {
       continue;
     }
 
-    size_t memberIndex = i;
-    if (elisionCount == 1) {
-      memberIndex = (i < elisionIndex) ? i : (i + elidedCount - 1);
+    size_t memberIndex = -1;
+    if (isNamed) {
+      if (m_Shapes.count(shapeName)) {
+        const auto *sh = m_Shapes[shapeName];
+        for (size_t m = 0; m < sh->Members.size(); ++m) {
+          if (sh->Members[m].Name == v.FieldName) {
+            memberIndex = m;
+            break;
+          }
+        }
+      }
+    } else {
+      memberIndex = i;
+      if (elisionCount == 1) {
+        memberIndex = (i < elisionIndex) ? i : (i + elidedCount - 1);
+      }
     }
 
-    if (memberIndex >= expectedSize) {
-      error(dest, "Too many variables in destructuring");
+    if (memberIndex >= expectedSize || memberIndex == (size_t)-1) {
+      error(dest, "Invalid member index in destructuring");
       break;
     }
 
-    const auto &v = dest->Variables[i];
     std::string vName = Type::stripMorphology(v.Name);
 
     // [Fix] Union safety for destructuring
@@ -1297,7 +1323,6 @@ llvm::Value *CodeGen::genDestructuringDecl(const DestructuringDecl *dest) {
 
     TokaSymbol sym;
     sym.allocaPtr = alloca;
-    // For destructuring, metadata is often already flattened.
     // Use memberTy (the 'Meat') as the soul type.
     fillSymbolMetadata(sym, "", false, false, false, v.IsReference,
                        v.IsValueMutable, v.IsValueNullable, memberTy);

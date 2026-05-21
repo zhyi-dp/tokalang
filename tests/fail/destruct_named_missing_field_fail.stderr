@@ -1,0 +1,5 @@
+error[E0417]: Shape 'Point' has no member named 'z'
+ --> tests/fail/destruct_named_missing_field_fail.tk:6:36
+  |
+ 6 |     auto Point(x = a, z = b, ..) = p
+  |                                    ^
