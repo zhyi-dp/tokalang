@@ -476,7 +476,7 @@ Sema::checkStructInit(InitStructExpr *Init, ShapeDecl *SD,
       memberTypeObj = toka::Type::fromString(pDefMember->Type);
 
     // [New] Morphic Exemption: Validating Caller Transparency
-    if (pDefMember->IsMorphicExempt) {
+    if (!pDefMember->IsMorphicExempt) {
       MorphKind providedMorph = MorphKind::None;
       if (pair.first.find('^') != std::string::npos) providedMorph = MorphKind::Unique;
       else if (pair.first.find('~') != std::string::npos) providedMorph = MorphKind::Shared;
@@ -684,6 +684,23 @@ Sema::checkUnionInit(InitStructExpr *Init, ShapeDecl *SD,
     auto memberTypeObj = pDefMember->ResolvedType;
     if (!memberTypeObj)
       memberTypeObj = toka::Type::fromString(pDefMember->Type);
+
+    // [New] Morphic Exemption: Validating Caller Transparency for Unions
+    if (!pDefMember->IsMorphicExempt) {
+      MorphKind providedMorph = MorphKind::None;
+      if (pair.first.find('^') != std::string::npos) providedMorph = MorphKind::Unique;
+      else if (pair.first.find('~') != std::string::npos) providedMorph = MorphKind::Shared;
+      else if (pair.first.find('&') != std::string::npos) providedMorph = MorphKind::Ref;
+      else if (pair.first.find('*') != std::string::npos) providedMorph = MorphKind::Raw;
+
+      MorphKind expectedMorph = MorphKind::None;
+      if (memberTypeObj->isRawPointer()) expectedMorph = MorphKind::Raw;
+      else if (memberTypeObj->isUniquePtr()) expectedMorph = MorphKind::Unique;
+      else if (memberTypeObj->isSharedPtr()) expectedMorph = MorphKind::Shared;
+      else if (memberTypeObj->isReference()) expectedMorph = MorphKind::Ref;
+
+      checkStrictMorphology(Init, expectedMorph, providedMorph, pDefMember->Name);
+    }
 
     std::shared_ptr<toka::Type> exprTypeObj =
         checkExpr(pair.second.get(), memberTypeObj);

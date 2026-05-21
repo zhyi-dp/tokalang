@@ -3325,9 +3325,13 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
                   if (pointeeSoul == "char" || pointeeSoul == "u8") {
                       m_Builder.CreateCall(printStrFn, {argVal});
                   } else {
+                      llvm::Value *ptrToPrint = argVal;
+                      if (ptrToPrint->getType()->isStructTy()) {
+                          ptrToPrint = m_Builder.CreateExtractValue(ptrToPrint, 0, "ptr.addr");
+                      }
                       auto printfFunc = m_Module->getOrInsertFunction("printf", llvm::FunctionType::get(m_Builder.getInt32Ty(), {m_Builder.getPtrTy()}, true));
                       llvm::Value *fmtStr = m_Builder.CreateGlobalString("%p");
-                      m_Builder.CreateCall(printfFunc, {fmtStr, argVal});
+                      m_Builder.CreateCall(printfFunc, {fmtStr, ptrToPrint});
                   }
               } else {
                   std::string soulTy = Type::stripMorphology(argExpr->ResolvedType ? argExpr->ResolvedType->getSoulName() : "");

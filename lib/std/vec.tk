@@ -220,7 +220,7 @@ impl<'T> Vec<'T> {
 
     pub fn from_raw(*buf: ['T], len: usize, cap: usize) -> Vec<'T> {
         return Vec<'T>(
-            buf=*buf,
+            *buf=*buf,
             len=len,
             cap=cap
         )

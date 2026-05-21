@@ -13,3 +13,8 @@ error[E0458]: Shape 'Resource' manages resources (raw pointers) but does not imp
    |
  14 | shape Resource(
    |       ^
+error[E0448]: Pointer morphology mismatch: expected explicit '*' (from LHS/Target), found 'value' (from RHS/Source)
+ --> tests/fail/sovereign_shape.tk:19:14
+   |
+ 19 |     auto r = Resource(ptr = 0 as *i32)
+   |              ^

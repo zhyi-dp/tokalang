@@ -1,0 +1,5 @@
+error[E0448]: Pointer morphology mismatch: expected explicit '*' (from LHS/Target), found 'value' (from RHS/Source)
+ --> tests/fail/morphology_init_fail.tk:15:15
+   |
+ 15 |     auto p1 = Point(x = *a)
+   |               ^

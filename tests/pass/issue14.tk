@@ -6,7 +6,7 @@ shape Point(
 )
 impl Point {
     pub fn clone(self) -> Point {
-        return Point(x = self.*x)
+        return Point(*x = self.*x)
     }
     fn drop(self#) {}
 }
@@ -16,7 +16,7 @@ shape UniqueCont(
 )
 impl UniqueCont {
     pub fn clone(self) -> UniqueCont {
-        return UniqueCont(p = new Point(x = self.p.*x))
+        return UniqueCont(^p = new Point(*x = self.p.*x))
     }
     fn drop(self#) {}
 }
@@ -26,35 +26,35 @@ shape SharedCont(
 )
 impl SharedCont {
     pub fn clone(self) -> SharedCont {
-        auto ~temp = new Point(x = self.p.*x)
-        return SharedCont(p = ~temp)
+        auto ~temp = new Point(*x = self.p.*x)
+        return SharedCont(~p = ~temp)
     }
     fn drop(self#) {}
 }
 
 pub fn main() -> i32 {
-    // 1. 局部指针测试
+    // 1. Local pointer test
     auto a# = 42
     auto *raw_ptr = *a
     println("local addr: {}", *raw_ptr as OAddr)
     println("local val: {}", raw_ptr)
     assert(raw_ptr == 42, "local val mismatch")
 
-    // 2. 结构体成员原生指针测试
-    auto pt = Point(x = *a)
+    // 2. Struct member raw pointer test
+    auto pt = Point(*x = *a)
     println("struct member addr: {}", pt.*x as OAddr)
     println("struct member val: {}", pt.x)
     assert(pt.x == 42, "struct member val mismatch")
 
-    // 3. 结构体成员 Unique 指针测试
-    auto uc = UniqueCont(p = ^pt)
+    // 3. Struct member Unique pointer test
+    auto uc = UniqueCont(^p = ^pt)
     println("struct unique addr: {}", uc.^p as OAddr)
     println("struct unique val: {}", uc.p.x)
     assert(uc.p.x == 42, "struct unique val mismatch")
 
-    // 4. 结构体成员 Shared 指针测试
-    auto ~shared_pt = new Point(x = *a)
-    auto sc = SharedCont(p = ~shared_pt)
+    // 4. Struct member Shared pointer test
+    auto ~shared_pt = new Point(*x = *a)
+    auto sc = SharedCont(~p = ~shared_pt)
     println("struct shared addr: {}", sc.~p as OAddr)
     println("struct shared val: {}", sc.p.x)
     assert(sc.p.x == 42, "struct shared val mismatch")

@@ -403,8 +403,8 @@ impl<'K, 'V> HashMapIterator<'K, 'V> {
                     auto p = self.pos
                     self.pos += 1
                     return Option<Entry<'K, 'V>>::Some(Entry<'K, 'V>(
-                        key=*k_buf[p],
-                        val=*v_buf[p]
+                        *key=*k_buf[p],
+                        *val=*v_buf[p]
                     ))
                 }
                 self.pos += 1

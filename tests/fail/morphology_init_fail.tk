@@ -1,0 +1,18 @@
+shape Point(
+    *x: i32
+)
+impl Point {
+    pub fn clone(self) -> Point {
+        return Point(*x = self.*x)
+    }
+    fn drop(self#) {}
+}
+
+pub fn main() -> i32 {
+    auto a = 42
+    
+    // EXPECT: Pointer morphology mismatch: expected explicit '*' (from LHS/Target), found 'value' (from RHS/Source)
+    auto p1 = Point(x = *a)
+
+    return 0
+}
