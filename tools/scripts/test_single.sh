@@ -41,12 +41,31 @@ echo "[TEST] Running $TK_FILE"
 echo "  - Compiling Native..."
 
 # Compile Native
-if ! "$TOKAC" "$TK_FILE" -o "$EXE_FILE" > /dev/null 2> "$LOG_FILE"; then
-    echo -e "  - ${RED}Compilation FAILED${NC}"
-    echo "  - Error Log:"
-    cat "$LOG_FILE"
-    rm -f "$LOG_FILE" "$EXE_FILE"
-    exit 1
+if [ "$BASE_NAME" = "llvm_shim_test.tk" ] || [ "$BASE_NAME" = "llvm_backend_instructions.tk" ]; then
+    tmp_obj="${EXE_FILE}.o"
+    if ! "$TOKAC" --emit-obj "$TK_FILE" -o "$tmp_obj" > /dev/null 2> "$LOG_FILE"; then
+        echo -e "  - ${RED}Compilation FAILED${NC}"
+        echo "  - Error Log:"
+        cat "$LOG_FILE"
+        rm -f "$LOG_FILE" "$EXE_FILE" "$tmp_obj"
+        exit 1
+    fi
+    if ! clang++-20 "$tmp_obj" lib/sys/llvm_shim.o lib/sys/toka_rt.o $(llvm-config-20 --ldflags --libs) -o "$EXE_FILE" >> "$LOG_FILE" 2>&1; then
+        echo -e "  - ${RED}Linking FAILED${NC}"
+        echo "  - Error Log:"
+        cat "$LOG_FILE"
+        rm -f "$LOG_FILE" "$EXE_FILE" "$tmp_obj"
+        exit 1
+    fi
+    rm -f "$tmp_obj"
+else
+    if ! "$TOKAC" "$TK_FILE" -o "$EXE_FILE" > /dev/null 2> "$LOG_FILE"; then
+        echo -e "  - ${RED}Compilation FAILED${NC}"
+        echo "  - Error Log:"
+        cat "$LOG_FILE"
+        rm -f "$LOG_FILE" "$EXE_FILE"
+        exit 1
+    fi
 fi
 
 echo "  - Running Native Binary..."

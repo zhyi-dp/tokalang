@@ -1,0 +1,178 @@
+// Copyright (c) 2026 Toka Project. All rights reserved.
+// tests/pass/llvm_backend_instructions.tk
+
+import std/io::println
+import core/result::{Result}
+import std/string::{String}
+import std/llvm::{
+    LLVMContext,
+    LLVMModule,
+    LLVMType,
+    LLVMValue,
+    LLVMBasicBlock,
+    LLVMBuilder,
+    LLVMPredicate,
+    LLVMRealPredicate
+}
+
+fn main() -> i32 {
+    println("Starting LLVM Advanced Backend Instructions verification test...")
+
+    auto ctx# = LLVMContext::new()
+    auto mod# = LLVMModule::new(String::from("backend_test_module"), ctx)
+
+    // Types
+    auto void_ty = LLVMType::void(ctx)
+    auto i1_ty = LLVMType::int(1, ctx)
+    auto i32_ty = LLVMType::int(32, ctx)
+    auto i64_ty = LLVMType::int(64, ctx)
+    auto ptr_ty = LLVMType::pointer(ctx)
+    auto double_ty = LLVMType::double(ctx)
+
+    // Function signature: fn test_func(p: *i32) -> i32
+    auto fn_ty# = LLVMType::void(ctx)
+    unsafe {
+        auto *param_tys# = alloc [1] LLVMType
+        param_tys[0] = ptr_ty
+        fn_ty = LLVMType::function(i32_ty, *param_tys, 1:usize, false)
+        free [1] *param_tys
+    }
+
+    auto test_fn = mod#.add_function(String::from("test_func"), fn_ty)
+
+    // Basic Blocks
+    auto entry_bb = LLVMBasicBlock::append(ctx, test_fn, String::from("entry"))
+    auto then_bb = LLVMBasicBlock::append(ctx, test_fn, String::from("then_block"))
+    auto else_bb = LLVMBasicBlock::append(ctx, test_fn, String::from("else_block"))
+    auto merge_bb = LLVMBasicBlock::append(ctx, test_fn, String::from("merge_block"))
+    auto switch_bb1 = LLVMBasicBlock::append(ctx, test_fn, String::from("switch_bb1"))
+    auto switch_bb2 = LLVMBasicBlock::append(ctx, test_fn, String::from("switch_bb2"))
+
+    auto builder# = LLVMBuilder::new(ctx)
+    builder#.position_at_end(entry_bb)
+
+    // 1. const_int and const_null
+    auto const_42 = LLVMValue::const_int(i32_ty, 42:i64, true)
+    auto const_null_ptr = LLVMValue::const_null(ptr_ty)
+
+    // 2. build_alloca, build_store, build_load
+    auto alloc_var = builder#.build_alloca(i32_ty, String::from("local_var"))
+    builder#.build_store(const_42, alloc_var)
+    auto loaded_val = builder#.build_load(i32_ty, alloc_var, String::from("loaded_val"))
+
+    // 3. New Advanced Instructions: sdiv, udiv, srem, urem
+    auto sdiv_res = builder#.build_sdiv(loaded_val, const_42, String::from("sdiv_res"))
+    auto udiv_res = builder#.build_udiv(loaded_val, const_42, String::from("udiv_res"))
+    auto srem_res = builder#.build_srem(loaded_val, const_42, String::from("srem_res"))
+    auto urem_res = builder#.build_urem(loaded_val, const_42, String::from("urem_res"))
+
+    // 4. Bitwise Logical and Shift Operations: and, or, xor, shl, lshr, ashr
+    auto and_res = builder#.build_and(loaded_val, const_42, String::from("and_res"))
+    auto or_res = builder#.build_or(loaded_val, const_42, String::from("or_res"))
+    auto xor_res = builder#.build_xor(loaded_val, const_42, String::from("xor_res"))
+    auto shl_res = builder#.build_shl(loaded_val, const_42, String::from("shl_res"))
+    auto lshr_res = builder#.build_lshr(loaded_val, const_42, String::from("lshr_res"))
+    auto ashr_res = builder#.build_ashr(loaded_val, const_42, String::from("ashr_res"))
+
+    // 5. Floating Point Operations: fadd, fsub, fmul, fdiv, fcmp
+    auto fp_val1 = builder#.build_sitofp(loaded_val, double_ty, String::from("fp_val1"))
+    auto fp_val2 = builder#.build_sitofp(const_42, double_ty, String::from("fp_val2"))
+    auto fadd_res = builder#.build_fadd(fp_val1, fp_val2, String::from("fadd_res"))
+    auto fsub_res = builder#.build_fsub(fp_val1, fp_val2, String::from("fsub_res"))
+    auto fmul_res = builder#.build_fmul(fp_val1, fp_val2, String::from("fmul_res"))
+    auto fdiv_res = builder#.build_fdiv(fp_val1, fp_val2, String::from("fdiv_res"))
+    auto fcmp_res = builder#.build_fcmp(LLVMRealPredicate::OGT, fp_val1, fp_val2, String::from("fcmp_res"))
+
+    // 6. Select Instruction
+    auto select_res = builder#.build_select(fcmp_res, const_42, loaded_val, String::from("select_res"))
+
+    // 7. Global Variable and Initializer
+    auto g_var# = mod#.add_global(String::from("my_global_var"), i32_ty)
+    g_var#.set_initializer(const_42)
+
+    // 8. icmp (LLVMPredicate::EQ)
+    auto param_ptr = test_fn.get_param(0)
+    auto is_null = builder#.build_icmp(LLVMPredicate::EQ, param_ptr, const_null_ptr, String::from("is_null"))
+
+    // 9. build_cond_br
+    builder#.build_cond_br(is_null, then_bb, else_bb)
+
+    // Then Block
+    builder#.position_at_end(then_bb)
+    auto val_64 = builder#.build_sext(select_res, i64_ty, String::from("val_64"))
+    auto val_32 = builder#.build_trunc(val_64, i32_ty, String::from("val_32"))
+    
+    // ptrtoint & inttoptr
+    auto ptr_as_int = builder#.build_ptrtoint(param_ptr, i64_ty, String::from("ptr_as_int"))
+    auto int_as_ptr = builder#.build_inttoptr(ptr_as_int, ptr_ty, String::from("int_as_ptr"))
+    
+    // bitcast
+    auto bitcasted_ptr = builder#.build_bitcast(int_as_ptr, ptr_ty, String::from("bitcasted_ptr"))
+
+    // GEP (build_gep)
+    auto gep_res# = LLVMValue::const_null(ptr_ty)
+    unsafe {
+        auto *indices# = alloc [1] LLVMValue
+        indices[0] = LLVMValue::const_int(i32_ty, 1:i64, true)
+        gep_res = builder#.build_gep(i32_ty, bitcasted_ptr, *indices, 1:usize, String::from("gep_res"))
+        free [1] *indices
+    }
+
+    // Branch to merge block
+    builder#.build_br(merge_bb)
+
+    // Else Block
+    builder#.position_at_end(else_bb)
+    auto else_val = builder#.build_add(loaded_val, const_42, String::from("else_val"))
+    builder#.build_br(merge_bb)
+
+    // Merge Block
+    builder#.position_at_end(merge_bb)
+    // PHI Node
+    auto phi_val# = builder#.build_phi(i32_ty, String::from("phi_val"))
+    unsafe {
+        auto *vals# = alloc [2] LLVMValue
+        auto *blocks# = alloc [2] LLVMBasicBlock
+        vals[0] = val_32
+        vals[1] = else_val
+        blocks[0] = then_bb
+        blocks[1] = else_bb
+        phi_val#.add_incoming(*vals, *blocks, 2:usize)
+        free [2] *vals
+        free [2] *blocks
+    }
+
+    // Switch Instruction
+    auto switch_inst# = builder#.build_switch(phi_val, switch_bb1, 2)
+    auto switch_case_val1 = LLVMValue::const_int(i32_ty, 42:i64, true)
+    auto switch_case_val2 = LLVMValue::const_int(i32_ty, 100:i64, true)
+    switch_inst#.add_case(switch_case_val1, switch_bb1)
+    switch_inst#.add_case(switch_case_val2, switch_bb2)
+
+    // Switch BB 1
+    builder#.position_at_end(switch_bb1)
+    builder#.build_ret(phi_val)
+
+    // Switch BB 2
+    builder#.position_at_end(switch_bb2)
+    builder#.build_ret(const_42)
+
+    // 10. Verify module IR
+    match mod.verify() {
+        auto Result::Ok(_) => {
+            println("LLVM Advanced IR Verification PASSED!")
+        }
+        auto Result::Err(&err) => {
+            println("LLVM Advanced IR Verification FAILED: {}", err)
+            return 1
+        }
+    }
+
+    // Print IR
+    auto ir_str = mod.print_to_string()
+    println("Generated Advanced LLVM IR:")
+    println("{}", ir_str)
+
+    println("LLVM Advanced Backend Instructions verification test completed successfully.")
+    return 0
+}

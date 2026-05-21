@@ -34,6 +34,7 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
     return nullptr;
 
   std::string funcName = overrideName.empty() ? func->Name : overrideName;
+  std::cerr << "[DEBUG] genFunction funcName=" << funcName << " declOnly=" << declOnly << std::endl;
 
   // [Fix] Context Guard: Save/Restore symbol table to prevent corruption during
   // recursive generation

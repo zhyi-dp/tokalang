@@ -4951,6 +4951,8 @@ PhysEntity CodeGen::genInitStructExpr(const InitStructExpr *init) {
   if (init->ResolvedType && init->ResolvedType->isShape()) {
     shapeName = init->ResolvedType->getSoulName();
   }
+  std::cerr << "[DEBUG] genInitStructExpr shapeName=" << shapeName
+            << " insertBlock=" << (m_Builder.GetInsertBlock() ? m_Builder.GetInsertBlock()->getName().str() : "NULL") << std::endl;
 
   llvm::StructType *st = m_StructTypes[shapeName];
   if (!st) {

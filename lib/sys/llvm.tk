@@ -26,6 +26,53 @@ extern fn toka_llvm_build_ret(*builder: void, *val: void) -> *void
 extern fn toka_llvm_build_ret_void(*builder: void) -> *void
 extern fn toka_llvm_build_call(*builder: void, *fn_val: void, *args: void, argCount: i32, *name: char) -> *void
 
+extern fn toka_llvm_build_alloca(*builder: void, *ty: void, *name: char) -> *void
+extern fn toka_llvm_build_load(*builder: void, *ty: void, *ptr: void, *name: char) -> *void
+extern fn toka_llvm_build_store(*builder: void, *val: void, *ptr: void) -> *void
+extern fn toka_llvm_build_gep(*builder: void, *ty: void, *ptr: void, *indices: void, indexCount: i32, *name: char) -> *void
+extern fn toka_llvm_build_br(*builder: void, *destBlock: void) -> *void
+extern fn toka_llvm_build_cond_br(*builder: void, *cond: void, *thenBlock: void, *elseBlock: void) -> *void
+extern fn toka_llvm_build_icmp(*builder: void, op: i32, *lhs: void, *rhs: void, *name: char) -> *void
+extern fn toka_llvm_const_int(*ty: void, val: i64, signExtend: bool) -> *void
+extern fn toka_llvm_const_null(*ty: void) -> *void
+extern fn toka_llvm_build_bitcast(*builder: void, *val: void, *destTy: void, *name: char) -> *void
+extern fn toka_llvm_build_inttoptr(*builder: void, *val: void, *destTy: void, *name: char) -> *void
+extern fn toka_llvm_build_ptrtoint(*builder: void, *val: void, *destTy: void, *name: char) -> *void
+extern fn toka_llvm_build_sext(*builder: void, *val: void, *destTy: void, *name: char) -> *void
+extern fn toka_llvm_build_zext(*builder: void, *val: void, *destTy: void, *name: char) -> *void
+extern fn toka_llvm_build_trunc(*builder: void, *val: void, *destTy: void, *name: char) -> *void
+
+extern fn toka_llvm_build_sdiv(*builder: void, *lhs: void, *rhs: void, *name: char) -> *void
+extern fn toka_llvm_build_udiv(*builder: void, *lhs: void, *rhs: void, *name: char) -> *void
+extern fn toka_llvm_build_srem(*builder: void, *lhs: void, *rhs: void, *name: char) -> *void
+extern fn toka_llvm_build_urem(*builder: void, *lhs: void, *rhs: void, *name: char) -> *void
+
+extern fn toka_llvm_build_and(*builder: void, *lhs: void, *rhs: void, *name: char) -> *void
+extern fn toka_llvm_build_or(*builder: void, *lhs: void, *rhs: void, *name: char) -> *void
+extern fn toka_llvm_build_xor(*builder: void, *lhs: void, *rhs: void, *name: char) -> *void
+extern fn toka_llvm_build_shl(*builder: void, *lhs: void, *rhs: void, *name: char) -> *void
+extern fn toka_llvm_build_lshr(*builder: void, *lhs: void, *rhs: void, *name: char) -> *void
+extern fn toka_llvm_build_ashr(*builder: void, *lhs: void, *rhs: void, *name: char) -> *void
+
+extern fn toka_llvm_build_fadd(*builder: void, *lhs: void, *rhs: void, *name: char) -> *void
+extern fn toka_llvm_build_fsub(*builder: void, *lhs: void, *rhs: void, *name: char) -> *void
+extern fn toka_llvm_build_fmul(*builder: void, *lhs: void, *rhs: void, *name: char) -> *void
+extern fn toka_llvm_build_fdiv(*builder: void, *lhs: void, *rhs: void, *name: char) -> *void
+extern fn toka_llvm_build_fcmp(*builder: void, op: i32, *lhs: void, *rhs: void, *name: char) -> *void
+
+extern fn toka_llvm_build_sitofp(*builder: void, *val: void, *destTy: void, *name: char) -> *void
+extern fn toka_llvm_build_fptosi(*builder: void, *val: void, *destTy: void, *name: char) -> *void
+
+extern fn toka_llvm_build_phi(*builder: void, *ty: void, *name: char) -> *void
+extern fn toka_llvm_add_incoming(*phi: void, *vals: void, *blocks: void, count: i32) -> void
+extern fn toka_llvm_build_select(*builder: void, *cond: void, *trueVal: void, *falseVal: void, *name: char) -> *void
+extern fn toka_llvm_build_switch(*builder: void, *val: void, *defaultBlock: void, numCases: i32) -> *void
+extern fn toka_llvm_add_case(*switchVal: void, *onVal: void, *destBlock: void) -> void
+
+extern fn toka_llvm_add_global(*mod: void, *ty: void, *name: char) -> *void
+extern fn toka_llvm_set_initializer(*globalVal: void, *constVal: void) -> void
+
+
 extern fn toka_llvm_add_function(*mod: void, *name: char, *fnTy: void) -> *void
 extern fn toka_llvm_append_basic_block(*ctx: void, *fn_val: void, *name: char) -> *void
 extern fn toka_llvm_get_param(*fn_val: void, index: i32) -> *void

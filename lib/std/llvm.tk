@@ -26,6 +26,45 @@ import sys/llvm::{
     toka_llvm_build_ret,
     toka_llvm_build_ret_void,
     toka_llvm_build_call,
+    toka_llvm_build_alloca,
+    toka_llvm_build_load,
+    toka_llvm_build_store,
+    toka_llvm_build_gep,
+    toka_llvm_build_br,
+    toka_llvm_build_cond_br,
+    toka_llvm_build_icmp,
+    toka_llvm_const_int,
+    toka_llvm_const_null,
+    toka_llvm_build_bitcast,
+    toka_llvm_build_inttoptr,
+    toka_llvm_build_ptrtoint,
+    toka_llvm_build_sext,
+    toka_llvm_build_zext,
+    toka_llvm_build_trunc,
+    toka_llvm_build_sdiv,
+    toka_llvm_build_udiv,
+    toka_llvm_build_srem,
+    toka_llvm_build_urem,
+    toka_llvm_build_and,
+    toka_llvm_build_or,
+    toka_llvm_build_xor,
+    toka_llvm_build_shl,
+    toka_llvm_build_lshr,
+    toka_llvm_build_ashr,
+    toka_llvm_build_fadd,
+    toka_llvm_build_fsub,
+    toka_llvm_build_fmul,
+    toka_llvm_build_fdiv,
+    toka_llvm_build_fcmp,
+    toka_llvm_build_sitofp,
+    toka_llvm_build_fptosi,
+    toka_llvm_build_phi,
+    toka_llvm_add_incoming,
+    toka_llvm_build_select,
+    toka_llvm_build_switch,
+    toka_llvm_add_case,
+    toka_llvm_add_global,
+    toka_llvm_set_initializer,
     toka_llvm_add_function,
     toka_llvm_append_basic_block,
     toka_llvm_get_param,
@@ -112,6 +151,36 @@ impl LLVMType@encap {
     }
 }
 
+pub shape LLVMPredicate (
+    EQ = 0 |
+    NE = 1 |
+    UGT = 2 |
+    UGE = 3 |
+    ULT = 4 |
+    ULE = 5 |
+    SGT = 6 |
+    SGE = 7 |
+    SLT = 8 |
+    SLE = 9
+)
+
+pub shape LLVMRealPredicate (
+    OEQ = 0 |
+    ONE = 1 |
+    OGT = 2 |
+    OGE = 3 |
+    OLT = 4 |
+    OLE = 5 |
+    UEQ = 6 |
+    UNE = 7 |
+    UGT = 8 |
+    UGE = 9 |
+    ULT = 10 |
+    ULE = 11 |
+    TRUE = 12 |
+    FALSE = 13
+)
+
 // 3. LLVMValue
 pub shape LLVMValue (
     *handle: void
@@ -120,6 +189,41 @@ pub shape LLVMValue (
 impl LLVMValue {
     pub fn get_param(self, index: i32) -> LLVMValue {
         return LLVMValue(*handle = toka_llvm_get_param(self.*handle, index))
+    }
+
+    pub fn const_int(ty: LLVMType, val: i64, signExtend: bool) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_const_int(ty.*handle, val, signExtend))
+    }
+
+    pub fn const_null(ty: LLVMType) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_const_null(ty.*handle))
+    }
+
+    pub fn add_incoming(self#, *vals: [LLVMValue], *blocks: [LLVMBasicBlock], count: usize) {
+        if count == 0:usize {
+            return
+        }
+        unsafe {
+            auto *val_handles# = unsafe alloc [count] Addr
+            auto *block_handles# = unsafe alloc [count] Addr
+            auto idx# = 0:usize
+            while idx < count {
+                val_handles[idx] = vals[idx].*handle as Addr
+                block_handles[idx] = blocks[idx].*handle as Addr
+                idx = idx + 1:usize
+            }
+            toka_llvm_add_incoming(self.*handle, *val_handles as *void, *block_handles as *void, count as i32)
+            unsafe free [count] *val_handles
+            unsafe free [count] *block_handles
+        }
+    }
+
+    pub fn add_case(self#, onVal: LLVMValue, destBlock: LLVMBasicBlock) {
+        toka_llvm_add_case(self.*handle, onVal.*handle, destBlock.*handle)
+    }
+
+    pub fn set_initializer(self#, constVal: LLVMValue) {
+        toka_llvm_set_initializer(self.*handle, constVal.*handle)
     }
 }
 
@@ -173,6 +277,10 @@ impl LLVMModule {
 
     pub fn add_function(self#, name: String, fnTy: LLVMType) -> LLVMValue {
         return LLVMValue(*handle = toka_llvm_add_function(self.*handle, name.c_str(), fnTy.*handle))
+    }
+
+    pub fn add_global(self#, name: String, ty: LLVMType) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_add_global(self.*handle, ty.*handle, name.c_str()))
     }
 
     pub fn print_to_string(self) -> String {
@@ -265,6 +373,178 @@ impl LLVMBuilder {
             unsafe free [count] *handles
             return LLVMValue(*handle = *res_handle)
         }
+    }
+
+    pub fn build_alloca(self#, ty: LLVMType, name: String) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_alloca(self.*handle, ty.*handle, name.c_str()))
+    }
+
+    pub fn build_load(self#, ty: LLVMType, ptr: LLVMValue, name: String) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_load(self.*handle, ty.*handle, ptr.*handle, name.c_str()))
+    }
+
+    pub fn build_store(self#, val: LLVMValue, ptr: LLVMValue) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_store(self.*handle, val.*handle, ptr.*handle))
+    }
+
+    pub fn build_gep(self#, ty: LLVMType, ptr: LLVMValue, *indices: [LLVMValue], count: usize, name: String) -> LLVMValue {
+        if count == 0:usize {
+            return LLVMValue(*handle = toka_llvm_build_gep(self.*handle, ty.*handle, ptr.*handle, null as *void, 0, name.c_str()))
+        }
+        unsafe {
+            auto *handles# = unsafe alloc [count] Addr
+            auto idx# = 0:usize
+            while idx < count {
+                handles[idx] = indices[idx].*handle as Addr
+                idx = idx + 1:usize
+            }
+            auto *raw_ptr = &handles[0] as *void
+            auto *res_handle = toka_llvm_build_gep(self.*handle, ty.*handle, ptr.*handle, *raw_ptr, count as i32, name.c_str())
+            unsafe free [count] *handles
+            return LLVMValue(*handle = *res_handle)
+        }
+    }
+
+    pub fn build_br(self#, destBlock: LLVMBasicBlock) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_br(self.*handle, destBlock.*handle))
+    }
+
+    pub fn build_cond_br(self#, cond: LLVMValue, thenBlock: LLVMBasicBlock, elseBlock: LLVMBasicBlock) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_cond_br(self.*handle, cond.*handle, thenBlock.*handle, elseBlock.*handle))
+    }
+
+    pub fn build_icmp(self#, pred: LLVMPredicate, lhs: LLVMValue, rhs: LLVMValue, name: String) -> LLVMValue {
+        auto op# = 0
+        if pred == LLVMPredicate::EQ { op = 0 }
+        else if pred == LLVMPredicate::NE { op = 1 }
+        else if pred == LLVMPredicate::UGT { op = 2 }
+        else if pred == LLVMPredicate::UGE { op = 3 }
+        else if pred == LLVMPredicate::ULT { op = 4 }
+        else if pred == LLVMPredicate::ULE { op = 5 }
+        else if pred == LLVMPredicate::SGT { op = 6 }
+        else if pred == LLVMPredicate::SGE { op = 7 }
+        else if pred == LLVMPredicate::SLT { op = 8 }
+        else if pred == LLVMPredicate::SLE { op = 9 }
+        return LLVMValue(*handle = toka_llvm_build_icmp(self.*handle, op, lhs.*handle, rhs.*handle, name.c_str()))
+    }
+
+    pub fn build_bitcast(self#, val: LLVMValue, destTy: LLVMType, name: String) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_bitcast(self.*handle, val.*handle, destTy.*handle, name.c_str()))
+    }
+
+    pub fn build_inttoptr(self#, val: LLVMValue, destTy: LLVMType, name: String) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_inttoptr(self.*handle, val.*handle, destTy.*handle, name.c_str()))
+    }
+
+    pub fn build_ptrtoint(self#, val: LLVMValue, destTy: LLVMType, name: String) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_ptrtoint(self.*handle, val.*handle, destTy.*handle, name.c_str()))
+    }
+
+    pub fn build_sext(self#, val: LLVMValue, destTy: LLVMType, name: String) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_sext(self.*handle, val.*handle, destTy.*handle, name.c_str()))
+    }
+
+    pub fn build_zext(self#, val: LLVMValue, destTy: LLVMType, name: String) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_zext(self.*handle, val.*handle, destTy.*handle, name.c_str()))
+    }
+
+    pub fn build_trunc(self#, val: LLVMValue, destTy: LLVMType, name: String) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_trunc(self.*handle, val.*handle, destTy.*handle, name.c_str()))
+    }
+
+    pub fn build_sdiv(self#, lhs: LLVMValue, rhs: LLVMValue, name: String) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_sdiv(self.*handle, lhs.*handle, rhs.*handle, name.c_str()))
+    }
+
+    pub fn build_udiv(self#, lhs: LLVMValue, rhs: LLVMValue, name: String) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_udiv(self.*handle, lhs.*handle, rhs.*handle, name.c_str()))
+    }
+
+    pub fn build_srem(self#, lhs: LLVMValue, rhs: LLVMValue, name: String) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_srem(self.*handle, lhs.*handle, rhs.*handle, name.c_str()))
+    }
+
+    pub fn build_urem(self#, lhs: LLVMValue, rhs: LLVMValue, name: String) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_urem(self.*handle, lhs.*handle, rhs.*handle, name.c_str()))
+    }
+
+    pub fn build_and(self#, lhs: LLVMValue, rhs: LLVMValue, name: String) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_and(self.*handle, lhs.*handle, rhs.*handle, name.c_str()))
+    }
+
+    pub fn build_or(self#, lhs: LLVMValue, rhs: LLVMValue, name: String) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_or(self.*handle, lhs.*handle, rhs.*handle, name.c_str()))
+    }
+
+    pub fn build_xor(self#, lhs: LLVMValue, rhs: LLVMValue, name: String) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_xor(self.*handle, lhs.*handle, rhs.*handle, name.c_str()))
+    }
+
+    pub fn build_shl(self#, lhs: LLVMValue, rhs: LLVMValue, name: String) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_shl(self.*handle, lhs.*handle, rhs.*handle, name.c_str()))
+    }
+
+    pub fn build_lshr(self#, lhs: LLVMValue, rhs: LLVMValue, name: String) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_lshr(self.*handle, lhs.*handle, rhs.*handle, name.c_str()))
+    }
+
+    pub fn build_ashr(self#, lhs: LLVMValue, rhs: LLVMValue, name: String) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_ashr(self.*handle, lhs.*handle, rhs.*handle, name.c_str()))
+    }
+
+    pub fn build_fadd(self#, lhs: LLVMValue, rhs: LLVMValue, name: String) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_fadd(self.*handle, lhs.*handle, rhs.*handle, name.c_str()))
+    }
+
+    pub fn build_fsub(self#, lhs: LLVMValue, rhs: LLVMValue, name: String) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_fsub(self.*handle, lhs.*handle, rhs.*handle, name.c_str()))
+    }
+
+    pub fn build_fmul(self#, lhs: LLVMValue, rhs: LLVMValue, name: String) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_fmul(self.*handle, lhs.*handle, rhs.*handle, name.c_str()))
+    }
+
+    pub fn build_fdiv(self#, lhs: LLVMValue, rhs: LLVMValue, name: String) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_fdiv(self.*handle, lhs.*handle, rhs.*handle, name.c_str()))
+    }
+
+    pub fn build_fcmp(self#, pred: LLVMRealPredicate, lhs: LLVMValue, rhs: LLVMValue, name: String) -> LLVMValue {
+        auto op# = 0
+        if pred == LLVMRealPredicate::OEQ { op = 0 }
+        else if pred == LLVMRealPredicate::ONE { op = 1 }
+        else if pred == LLVMRealPredicate::OGT { op = 2 }
+        else if pred == LLVMRealPredicate::OGE { op = 3 }
+        else if pred == LLVMRealPredicate::OLT { op = 4 }
+        else if pred == LLVMRealPredicate::OLE { op = 5 }
+        else if pred == LLVMRealPredicate::UEQ { op = 6 }
+        else if pred == LLVMRealPredicate::UNE { op = 7 }
+        else if pred == LLVMRealPredicate::UGT { op = 8 }
+        else if pred == LLVMRealPredicate::UGE { op = 9 }
+        else if pred == LLVMRealPredicate::ULT { op = 10 }
+        else if pred == LLVMRealPredicate::ULE { op = 11 }
+        else if pred == LLVMRealPredicate::TRUE { op = 12 }
+        else if pred == LLVMRealPredicate::FALSE { op = 13 }
+        return LLVMValue(*handle = toka_llvm_build_fcmp(self.*handle, op, lhs.*handle, rhs.*handle, name.c_str()))
+    }
+
+    pub fn build_sitofp(self#, val: LLVMValue, destTy: LLVMType, name: String) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_sitofp(self.*handle, val.*handle, destTy.*handle, name.c_str()))
+    }
+
+    pub fn build_fptosi(self#, val: LLVMValue, destTy: LLVMType, name: String) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_fptosi(self.*handle, val.*handle, destTy.*handle, name.c_str()))
+    }
+
+    pub fn build_phi(self#, ty: LLVMType, name: String) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_phi(self.*handle, ty.*handle, name.c_str()))
+    }
+
+    pub fn build_select(self#, cond: LLVMValue, trueVal: LLVMValue, falseVal: LLVMValue, name: String) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_select(self.*handle, cond.*handle, trueVal.*handle, falseVal.*handle, name.c_str()))
+    }
+
+    pub fn build_switch(self#, val: LLVMValue, defaultBlock: LLVMBasicBlock, numCases: i32) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_switch(self.*handle, val.*handle, defaultBlock.*handle, numCases))
     }
 }
 

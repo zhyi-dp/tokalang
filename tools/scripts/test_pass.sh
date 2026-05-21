@@ -31,7 +31,7 @@ run_worker() {
     }
     
     # Step 1: Compile Native
-    if [ "$file_name" = "llvm_shim_test.tk" ]; then
+    if [ "$file_name" = "llvm_shim_test.tk" ] || [ "$file_name" = "llvm_backend_instructions.tk" ]; then
         tmp_obj="${exe_file}.o"
         if ! "$TOKAC" --emit-obj "$test_path" -o "$tmp_obj" > /dev/null 2> "$log_file"; then
             append "$(printf "[${RED}FAIL${NC}] %-35s" "$file_name")"
