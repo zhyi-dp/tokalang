@@ -1,0 +1,11 @@
+shape Person(
+    name: cstring,
+    age: i32 = 18
+)
+
+fn main() -> i32 {
+    // Positional initialization using '..' for name (which has no default value!)
+    auto p1 = Person(.., 20)
+
+    return 0
+}

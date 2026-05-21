@@ -588,6 +588,11 @@ Sema::checkStructInit(InitStructExpr *Init, ShapeDecl *SD,
     }
   }
 
+  if (hasElision && providedFields.size() == SD->Members.size()) {
+    DiagnosticEngine::report(getLoc(Init), DiagID::ERR_REDUNDANT_ELISION);
+    HasError = true;
+  }
+
   // Missing fields check for Struct/Tuple
   for (const auto &defField : SD->Members) {
     if (!providedFields.count(defField.Name) &&

@@ -912,6 +912,8 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
         elisionSkipCount = (int)Sh->Members.size() - normalArgsCount;
         if (elisionSkipCount < 0) {
           error(Call->Args[elisionIndex].get(), "Too many arguments provided, cannot elide");
+        } else if (elisionSkipCount == 0) {
+          error(Call->Args[elisionIndex].get(), DiagID::ERR_REDUNDANT_ELISION);
         }
       } else {
         if (normalArgsCount > (int)Sh->Members.size()) {
@@ -980,8 +982,6 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
           } else {
             if (elisionIndex == -1) {
               error(Call, "Missing field '" + M.Name + "' in constructor for '" + Sh->Name + "'. Use '..' to explicitly fallback to default values.");
-            } else {
-              error(Call, "Missing field '" + M.Name + "' in constructor for '" + Sh->Name + "' (no default value)");
             }
           }
         } else {

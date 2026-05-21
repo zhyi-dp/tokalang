@@ -1,0 +1,11 @@
+shape Person(
+    name: cstring = "Anonymous",
+    age: i32 = 18
+)
+
+fn main() -> i32 {
+    // 2. Named initialization with all fields + '..'
+    auto p2 = Person(name = "Alice", age = 20, ..)
+
+    return 0
+}

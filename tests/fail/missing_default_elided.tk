@@ -1,0 +1,11 @@
+shape Person(
+    name: cstring,
+    age: i32 = 18
+)
+
+fn main() -> i32 {
+    // Provide age, and use '..' for missing fields. However, 'name' has no default value!
+    auto p1 = Person(age = 20, ..)
+
+    return 0
+}

@@ -1,0 +1,5 @@
+error[E042C]: Elided member 'name' of shape 'Person' does not have a default value.
+ --> tests/fail/missing_default_elided.tk:8:15
+  |
+ 8 |     auto p1 = Person(age = 20, ..)
+  |               ^

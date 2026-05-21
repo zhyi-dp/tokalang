@@ -1,0 +1,5 @@
+error[E042E]: Elision operator '..' provided but all arguments/fields are already present.
+ --> tests/fail/redundant_elision.tk:8:35
+  |
+ 8 |     auto p1 = Person("Alice", 20, ..)
+  |                                   ^
