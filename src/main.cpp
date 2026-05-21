@@ -406,6 +406,7 @@ int main(int argc, char **argv) {
   if (verboseMode) fprintf(stderr, "Instantiating CodeGen for module: %s\n", argv[1]);
   fflush(stderr);
   toka::CodeGen codegen(context, argv[1]);
+  codegen.importParenthesizedRecordTypes(sema.getParenthesizedRecordTypes());
   if (verboseMode) fprintf(stderr, "CodeGen instantiated.\n");
   fflush(stderr);
 

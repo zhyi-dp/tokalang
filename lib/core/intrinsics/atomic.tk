@@ -48,11 +48,11 @@ pub fn __toka_atomic_swap<T>(ptr#: T, val: T, _order: Ordering) -> T {
     unsafe { auto old = ptr; ptr = val; return old }
 }
 
-pub fn __toka_atomic_compare_exchange<T>(ptr#: T, current: T, new_val: T, _success: Ordering, _failure: Ordering) -> (T, bool) {
+pub fn __toka_atomic_compare_exchange<T>(ptr#: T, current: T, new_val: T, _success: Ordering, _failure: Ordering) -> (old: T, success: bool) {
     unsafe {
         auto old = ptr
-        if old == current { ptr = new_val; return (old, true) }
-        return (old, false)
+        if old == current { ptr = new_val; return (old = old, success = true) }
+        return (old = old, success = false)
     }
 }
 
@@ -98,7 +98,7 @@ pub fn swap<T>(ptr#: T, val: T, _order: Ordering) -> T {
 
 pub fn compare_exchange<T>(
     ptr#: T, current: T, new_val: T, _success: Ordering, _failure: Ordering
-) -> (T, bool) {
+) -> (old: T, success: bool) {
     return __toka_atomic_compare_exchange(ptr, current, new_val, _success, _failure)
 }
 

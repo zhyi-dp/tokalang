@@ -25,7 +25,7 @@ import std/io::println
 import std/string::String
 
 shape Point(x: i32, y: i32)
-shape Pair(i32, String)
+shape Pair(v0: i32, v1: String)
 
 shape ASTNode(
     BinaryExpr(String, Point) |
@@ -36,7 +36,7 @@ shape ASTNode(
 fn test_struct_tuple_in_match(p: Point, t: Pair) -> i32 {
     // [Goal 1] Direct matching & destructuring of plain Struct in match expression
     auto x_val = match p {
-        auto Point(x, y) => {
+        auto Point(x = x, y = y) => {
             println("Point x = {}, y = {}", x, y)
             pass x
         }
@@ -45,7 +45,7 @@ fn test_struct_tuple_in_match(p: Point, t: Pair) -> i32 {
     // [Goal 3] Strict resource safety checks on positional destructuring
     // 't' contains a String. A bare destructuring `auto Pair(a, s) = t` must be blocked by the compiler
     // to prevent shallow copy. The developer MUST explicitly borrow the resource:
-    auto Pair(a, &s) = t
+    auto Pair(v0 = a, v1 = &s) = t
     println("Pair string: {}", s.c_str())
 
     return x_val
@@ -68,7 +68,7 @@ fn test_or_pattern_bindings(node: ASTNode) -> Point {
 
 fn main() -> i32 {
     auto p = Point(x = 100, y = 200)
-    auto t = Pair(42, String::from("Hello Resource"))
+    auto t = Pair(v0 = 42, v1 = String::from("Hello Resource"))
     test_struct_tuple_in_match(p, t)
 
     auto node1 = ASTNode::BinaryExpr(String::from("+"), Point(x = 1, y = 2))

@@ -468,69 +468,6 @@ bool ShapeType::isSync(class Sema *S) const {
   if (!S) return false;
   return S->isShapeSync(S->resolveType(this->toString()));
 }
-
-std::string TupleType::toString() const {
-  std::string s = "";
-  if (IsCede) s += "cede ";
-  s += "(";
-  for (size_t i = 0; i < Elements.size(); ++i) {
-    if (i > 0)
-      s += ", ";
-    s += Elements[i]->toString();
-  }
-  s += ")";
-  if (IsWritable && IsNullable) {
-    s += "?#";
-  } else {
-    if (IsNullable)
-      s += "?";
-    if (IsWritable)
-      s += "#";
-    if (IsBlocked)
-      s += "$";
-  }
-  return s;
-}
-
-bool TupleType::equals(const Type &other) const {
-  if (!Type::equals(other))
-    return false;
-  const auto *otherTup = dynamic_cast<const TupleType *>(&other);
-  if (!otherTup || Elements.size() != otherTup->Elements.size())
-    return false;
-  for (size_t i = 0; i < Elements.size(); ++i) {
-    if (!Elements[i]->equals(*otherTup->Elements[i]))
-      return false;
-  }
-  return true;
-}
-
-bool TupleType::isCompatibleWith(const Type &target) const {
-  if (!Type::isCompatibleWith(target))
-    return false;
-  const auto *otherTup = dynamic_cast<const TupleType *>(&target);
-  if (!otherTup || Elements.size() != otherTup->Elements.size())
-    return false;
-  for (size_t i = 0; i < Elements.size(); ++i) {
-    if (!Elements[i]->isCompatibleWith(*otherTup->Elements[i]))
-      return false;
-  }
-  return true;
-}
-
-std::shared_ptr<Type> TupleType::withAttributes(bool w, bool n, bool b) const {
-  return cloneWithAttrs(this, w, n, b);
-}
-
-bool TupleType::isSend(class Sema *S) const {
-  for (auto &e : Elements) if (e && !e->isSend(S)) return false;
-  return true;
-}
-bool TupleType::isSync(class Sema *S) const {
-  for (auto &e : Elements) if (e && !e->isSync(S)) return false;
-  return true;
-}
-
 std::string FunctionType::toString() const {
   std::string s = "";
   if (IsCede) s += "cede ";
@@ -676,14 +613,6 @@ std::shared_ptr<Type> ShapeType::substitute(const std::map<std::string, std::sha
     if (arg) arg = arg->substitute(substMap);
   }
   return st;
-}
-
-std::shared_ptr<Type> TupleType::substitute(const std::map<std::string, std::shared_ptr<Type>> &substMap) const {
-  auto tt = std::dynamic_pointer_cast<TupleType>(withAttributes(IsWritable, IsNullable, IsBlocked));
-  for (auto &el : tt->Elements) {
-    if (el) el = el->substitute(substMap);
-  }
-  return tt;
 }
 
 std::shared_ptr<Type> FunctionType::substitute(const std::map<std::string, std::shared_ptr<Type>> &substMap) const {
@@ -1042,45 +971,6 @@ std::shared_ptr<Type> Type::fromString(const std::string &rawType) {
   if (s == "unknown")
     return std::make_shared<UnresolvedType>(s);
 
-  if (!s.empty() && s[0] == '(' && s.back() == ')') {
-    std::string argsStr = s.substr(1, s.size() - 2);
-    std::vector<std::shared_ptr<Type>> elements;
-    int balance = 0;
-    size_t start = 0;
-    for (size_t i = 0; i < argsStr.size(); ++i) {
-      if (i + 1 < argsStr.size() && argsStr[i] == '<' &&
-          argsStr[i + 1] == '-') {
-        // Skip dependencies in type
-        i++;
-        continue;
-      }
-      if (argsStr[i] == '<' || argsStr[i] == '(' || argsStr[i] == '[')
-        balance++;
-      else if (argsStr[i] == '>' || argsStr[i] == ')' || argsStr[i] == ']')
-        balance--;
-      else if (argsStr[i] == ',' && balance == 0) {
-        std::string elem = trim(argsStr.substr(start, i - start));
-        size_t colon = elem.find(':');
-        if (colon != std::string::npos)
-          elem = trim(elem.substr(colon + 1));
-        elements.push_back(Type::fromString(elem));
-        start = i + 1;
-      }
-    }
-    if (start < argsStr.size()) {
-      std::string elem = trim(argsStr.substr(start));
-      size_t colon = elem.find(':');
-      if (colon != std::string::npos)
-        elem = trim(elem.substr(colon + 1));
-      elements.push_back(Type::fromString(elem));
-    }
-    auto tup = std::make_shared<TupleType>(std::move(elements));
-    tup->IsWritable = isWritable;
-    tup->IsNullable = isNullable;
-    tup->IsBlocked = isBlocked;
-    tup->IsCede = isCede;
-    return tup;
-  }
 
   // Check for generics: Name<Arg1, Arg2>
   size_t lt = s.find('<');

@@ -163,6 +163,8 @@ public:
 
 class Sema {
 public:
+  friend bool areStructsStructurallyCompatible(Sema *sema, const std::string &targetName, const std::string &sourceName);
+
   Sema() {
     GenericInstancesModule = std::make_unique<toka::Module>();
   }
@@ -180,6 +182,10 @@ public:
   }
 
   bool hasErrors() const { return HasError; }
+
+  const std::map<std::string, std::shared_ptr<toka::Type>>& getParenthesizedRecordTypes() const {
+    return ParenthesizedRecordTypes;
+  }
 
   // [NEW] Trait  // Concurrency type bounds
   bool isShapeSend(const std::string &shapeName);
@@ -304,6 +310,7 @@ private:
   // Anonymous Records
   int AnonRecordCounter = 0;
   std::vector<std::unique_ptr<ShapeDecl>> SyntheticShapes;
+  std::map<std::string, std::shared_ptr<toka::Type>> ParenthesizedRecordTypes;
 
   // Path Narrowing
   std::set<std::string> m_NarrowedPaths;

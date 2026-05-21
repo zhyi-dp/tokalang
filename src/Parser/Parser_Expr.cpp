@@ -773,8 +773,11 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
         }
       }
       consume(TokenType::RParen, "Expected ')'");
-      if (isTuple || elements.empty()) {
-        auto node = std::make_unique<TupleExpr>(std::move(elements));
+      if (isTuple) {
+        error(tok, DiagID::ERR_TUPLE_DEPRECATED);
+        return nullptr;
+      } else if (elements.empty()) {
+        auto node = std::make_unique<AnonymousRecordExpr>(std::vector<std::pair<std::string, std::unique_ptr<Expr>>>{});
         node->setLocation(tok, m_CurrentFile);
         expr = std::move(node);
       } else {

@@ -318,13 +318,6 @@ Sema::MorphKind Sema::getSyntacticMorphology(Expr *E) {
   if (auto *U = dynamic_cast<UnsafeExpr *>(E)) {
     return getSyntacticMorphology(U->Expression.get());
   }
-
-  // Parentheses: Recurse
-  if (auto *T = dynamic_cast<TupleExpr *>(E)) {
-    if (T->Elements.size() == 1)
-      return getSyntacticMorphology(T->Elements[0].get());
-  }
-
   return MorphKind::None;
 }
 
@@ -2381,12 +2374,6 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       return lhsObj->withAttributes(lhsObj->IsWritable, false);
     }
     return toka::Type::fromString(lhsInfo);
-  } else if (auto *Tup = dynamic_cast<TupleExpr *>(E)) {
-    std::vector<std::shared_ptr<toka::Type>> elements;
-    for (size_t i = 0; i < Tup->Elements.size(); ++i) {
-      elements.push_back(checkExpr(Tup->Elements[i].get()));
-    }
-    return std::make_shared<toka::TupleType>(std::move(elements));
   } else if (auto *Repeat = dynamic_cast<RepeatedArrayExpr *>(E)) {
     std::shared_ptr<toka::Type> expectedElemType = nullptr;
     if (m_ExpectedType && m_ExpectedType->isArray()) {

@@ -26,6 +26,50 @@ namespace toka {
 // Helper to get location
 static SourceLocation getLoc(ASTNode *Node) { return Node->Loc; }
 
+static bool isAnonymousRecord(const std::shared_ptr<toka::Type> &type) {
+  if (!type) return false;
+  auto shapeT = std::dynamic_pointer_cast<toka::ShapeType>(type);
+  if (!shapeT) return false;
+  return shapeT->Name.rfind("__Toka_Anon_Rec_", 0) == 0;
+}
+
+bool areStructsStructurallyCompatible(Sema *sema, const std::string &targetName, const std::string &sourceName) {
+  auto targetIt = sema->ShapeMap.find(targetName);
+  auto sourceIt = sema->ShapeMap.find(sourceName);
+  if (targetIt == sema->ShapeMap.end() || sourceIt == sema->ShapeMap.end()) {
+    return false;
+  }
+  ShapeDecl* targetDecl = targetIt->second;
+  ShapeDecl* sourceDecl = sourceIt->second;
+  if (!targetDecl || !sourceDecl) return false;
+  
+  if (targetDecl->Kind != ShapeKind::Struct || sourceDecl->Kind != ShapeKind::Struct) {
+    return false;
+  }
+  
+  if (targetDecl->Members.size() != sourceDecl->Members.size()) {
+    return false;
+  }
+  
+  for (size_t i = 0; i < targetDecl->Members.size(); ++i) {
+    const auto &tMem = targetDecl->Members[i];
+    const auto &sMem = sourceDecl->Members[i];
+    
+    // Field names must match exactly under strict order-equality
+    if (tMem.Name != sMem.Name) {
+      return false;
+    }
+    
+    auto tType = tMem.ResolvedType ? tMem.ResolvedType : sema->resolveType(toka::Type::fromString(tMem.Type));
+    auto sType = sMem.ResolvedType ? sMem.ResolvedType : sema->resolveType(toka::Type::fromString(sMem.Type));
+    
+    if (!sema->isTypeCompatible(tType, sType)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 std::string Sema::resolveType(const std::string &Type, bool force) {
   // [NEW] Local Type Alias (Generic Parameter) Lookup
   if (CurrentScope) {
@@ -189,6 +233,91 @@ std::shared_ptr<toka::Type> Sema::resolveType(std::shared_ptr<toka::Type> type,
   }
 
   if (auto shape = std::dynamic_pointer_cast<toka::ShapeType>(type)) {
+    if (!shape->Name.empty() && shape->Name.front() == '(' && shape->Name.back() == ')') {
+      std::string nameStr = shape->Name;
+      if (ParenthesizedRecordTypes.count(nameStr)) {
+        auto cached = ParenthesizedRecordTypes[nameStr];
+        return cached->withAttributes(type->IsWritable, type->IsNullable, type->IsBlocked);
+      }
+
+      std::string inner = nameStr.substr(1, nameStr.size() - 2);
+      std::vector<ShapeMember> members;
+      int balance = 0;
+      size_t start = 0;
+      for (size_t i = 0; i < inner.size(); ++i) {
+        if (inner[i] == '<' || inner[i] == '(' || inner[i] == '[') {
+          balance++;
+        } else if (inner[i] == '>' || inner[i] == ')' || inner[i] == ']') {
+          balance--;
+        } else if (inner[i] == ',' && balance == 0) {
+          std::string field = inner.substr(start, i - start);
+          size_t f = field.find_first_not_of(" \t\r\n");
+          size_t l = field.find_last_not_of(" \t\r\n");
+          if (f != std::string::npos) {
+            field = field.substr(f, l - f + 1);
+            if (!field.empty()) {
+              size_t colon = field.find(':');
+              if (colon != std::string::npos) {
+                std::string fieldName = field.substr(0, colon);
+                std::string fieldType = field.substr(colon + 1);
+                size_t fn_f = fieldName.find_first_not_of(" \t\r\n");
+                size_t fn_l = fieldName.find_last_not_of(" \t\r\n");
+                if (fn_f != std::string::npos) fieldName = fieldName.substr(fn_f, fn_l - fn_f + 1);
+                size_t ft_f = fieldType.find_first_not_of(" \t\r\n");
+                size_t ft_l = fieldType.find_last_not_of(" \t\r\n");
+                if (ft_f != std::string::npos) fieldType = fieldType.substr(ft_f, ft_l - ft_f + 1);
+                
+                ShapeMember sm;
+                sm.Name = fieldName;
+                sm.Type = fieldType;
+                sm.ResolvedType = resolveType(toka::Type::fromString(fieldType), force);
+                members.push_back(sm);
+              }
+            }
+          }
+          start = i + 1;
+        }
+      }
+      if (start < inner.size()) {
+        std::string field = inner.substr(start);
+        size_t f = field.find_first_not_of(" \t\r\n");
+        size_t l = field.find_last_not_of(" \t\r\n");
+        if (f != std::string::npos) {
+          field = field.substr(f, l - f + 1);
+          if (!field.empty()) {
+            size_t colon = field.find(':');
+            if (colon != std::string::npos) {
+              std::string fieldName = field.substr(0, colon);
+              std::string fieldType = field.substr(colon + 1);
+              size_t fn_f = fieldName.find_first_not_of(" \t\r\n");
+              size_t fn_l = fieldName.find_last_not_of(" \t\r\n");
+              if (fn_f != std::string::npos) fieldName = fieldName.substr(fn_f, fn_l - fn_f + 1);
+              size_t ft_f = fieldType.find_first_not_of(" \t\r\n");
+              size_t ft_l = fieldType.find_last_not_of(" \t\r\n");
+              if (ft_f != std::string::npos) fieldType = fieldType.substr(ft_f, ft_l - ft_f + 1);
+              
+              ShapeMember sm;
+              sm.Name = fieldName;
+              sm.Type = fieldType;
+              sm.ResolvedType = resolveType(toka::Type::fromString(fieldType), force);
+              members.push_back(sm);
+            }
+          }
+        }
+      }
+
+      std::string UniqueName = "__Toka_Anon_Rec_" + std::to_string(AnonRecordCounter++);
+      auto SyntheticShape = std::make_unique<ShapeDecl>(
+          false, UniqueName, std::vector<GenericParam>{}, ShapeKind::Struct,
+          members);
+      ShapeMap[UniqueName] = SyntheticShape.get();
+      SyntheticShapes.push_back(std::move(SyntheticShape));
+      
+      auto resolvedShapeType = std::make_shared<ShapeType>(UniqueName);
+      resolvedShapeType->resolve(ShapeMap[UniqueName]);
+      ParenthesizedRecordTypes[nameStr] = resolvedShapeType;
+      return resolvedShapeType->withAttributes(type->IsWritable, type->IsNullable, type->IsBlocked);
+    }
 
     // [NEW] Local Scope Alias Lookup (for T -> i32)
     if (CurrentScope) {
@@ -642,6 +771,29 @@ bool Sema::isTypeCompatible(std::shared_ptr<toka::Type> Target,
   auto T = resolveType(Target, false);
   auto S = resolveType(Source, false);
 
+  bool isTAnon = isAnonymousRecord(T);
+  bool isSAnon = isAnonymousRecord(S);
+
+  if (isTAnon || isSAnon) {
+    if (isTAnon && isSAnon) {
+      // Rule 1: Both are Anon, structural check (bidirectional/order-equal compatibility)
+      std::string tName = T->getSoulName();
+      std::string sName = S->getSoulName();
+      return areStructsStructurallyCompatible(this, tName, sName);
+    }
+    if (!isTAnon && isSAnon) {
+      // Rule 2: Nominal Target, Anon Source: single-direction coercion
+      if (T->isShape()) {
+        std::string tName = T->getSoulName();
+        std::string sName = S->getSoulName();
+        return areStructsStructurallyCompatible(this, tName, sName);
+      }
+      return false;
+    }
+    // Rule 3: Anon Target, Nominal Source: ALWAYS FALSE
+    return false;
+  }
+
   // Identity: For strong aliases, this is the final authority.
   if (T->equals(*S))
     return true;
@@ -907,17 +1059,7 @@ bool Sema::isTypeCompatible(std::shared_ptr<toka::Type> Target,
     return true;
   }
 
-  // Weak Tuple Check (Legacy Coexistence)
-  // Since Type::fromString parses tuples as ShapeType("..."), we check the
-  // name.
-  if (auto tShape = std::dynamic_pointer_cast<toka::ShapeType>(T)) {
-    if (auto sShape = std::dynamic_pointer_cast<toka::ShapeType>(S)) {
-      if (!tShape->Name.empty() && tShape->Name[0] == '(' &&
-          !sShape->Name.empty() && sShape->Name[0] == '(') {
-        return true;
-      }
-    }
-  }
+
 
   // NOTE: Trait coercion (dyn) is omitted for briefness/complexity, will
   // rely upon resolveType logic or add later. The original string logic had

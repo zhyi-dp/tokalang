@@ -175,7 +175,14 @@ llvm::Value *CodeGen::genReturnStmt(const ReturnStmt *ret) {
       } else if (srcTy->isFloatingPointTy() && dstTy->isFloatingPointTy()) {
           retVal = m_Builder.CreateFPCast(retVal, dstTy);
       } else {
-          retVal = m_Builder.CreateBitCast(retVal, dstTy);
+          if (srcTy->isAggregateType() || dstTy->isAggregateType()) {
+              llvm::Value *temp = m_Builder.CreateAlloca(dstTy, nullptr, "ret.cast.temp");
+              llvm::Value *tempSrcPtr = m_Builder.CreatePointerCast(temp, llvm::PointerType::get(srcTy, 0));
+              m_Builder.CreateStore(retVal, tempSrcPtr);
+              retVal = m_Builder.CreateLoad(dstTy, temp, "ret.cast.res");
+          } else {
+              retVal = m_Builder.CreateBitCast(retVal, dstTy);
+          }
       }
     }
     return m_Builder.CreateRet(retVal);
@@ -636,7 +643,22 @@ void CodeGen::genCoroutineReturn(llvm::Value *retVal) {
         if (!m_CurrentCoroRetTy->isVoidTy() && retVal) {
             llvm::Value *valPtr = m_Builder.CreateStructGEP(m_CurrentCoroPromiseType, m_CurrentCoroPromise, 2);
             if (retVal->getType() != m_CurrentCoroRetTy) {
-                retVal = m_Builder.CreateBitCast(retVal, m_CurrentCoroRetTy);
+                llvm::Type *srcTy = retVal->getType();
+                llvm::Type *dstTy = m_CurrentCoroRetTy;
+                if (srcTy->isIntegerTy() && dstTy->isIntegerTy()) {
+                    retVal = m_Builder.CreateIntCast(retVal, dstTy, false);
+                } else if (srcTy->isFloatingPointTy() && dstTy->isFloatingPointTy()) {
+                    retVal = m_Builder.CreateFPCast(retVal, dstTy);
+                } else {
+                    if (srcTy->isAggregateType() || dstTy->isAggregateType()) {
+                        llvm::Value *temp = m_Builder.CreateAlloca(dstTy, nullptr, "coro.ret.cast.temp");
+                        llvm::Value *tempSrcPtr = m_Builder.CreatePointerCast(temp, llvm::PointerType::get(srcTy, 0));
+                        m_Builder.CreateStore(retVal, tempSrcPtr);
+                        retVal = m_Builder.CreateLoad(dstTy, temp, "coro.ret.cast.res");
+                    } else {
+                        retVal = m_Builder.CreateBitCast(retVal, dstTy);
+                    }
+                }
             }
             m_Builder.CreateStore(retVal, valPtr);
         }

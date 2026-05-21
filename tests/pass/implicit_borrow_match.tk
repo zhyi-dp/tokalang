@@ -25,7 +25,7 @@ pub fn check_pure_data() {
     assert(x == 10, "x should be 10")
 
     {
-        auto(&a,&b#) = pt
+        auto(x = &a, y = &b#) = pt
         b += 1
         println("Point: a={}, b={}", a, b)
     }

@@ -17,7 +17,7 @@ import std/string::String
 
 // Define shapes representing structs, tuples, and enums
 shape Coord(x: i32, y: i32)
-shape DataTuple(i32, bool)
+shape DataTuple(v0: i32, v1: bool)
 
 shape SearchResult(
     Found(String) |
@@ -47,22 +47,22 @@ fn handle_search(res: SearchResult) -> i32 {
 
 fn test_struct_tuple_destructuring() {
     auto c = Coord(x = 10, y = 20)
-    auto t = DataTuple(100, true)
+    auto t = DataTuple(v0 = 100, v1 = true)
 
     // 2. Destructuring a plain struct in an assignment statement
-    auto Coord(cx, cy) = c
+    auto Coord(x = cx, y = cy) = c
     assert(cx == 10, "cx must be 10")
     assert(cy == 20, "cy must be 20")
 
-    // 3. Destructuring a tuple in an assignment statement
-    auto (val, flag) = t
+    // 3. Destructuring a struct in an assignment statement
+    auto DataTuple(v0 = val, v1 = flag) = t
     assert(val == 100, "val must be 100")
     assert(flag == true, "flag must be true")
 
     // 4. Reference destructuring of a struct with mutability control
     auto c_mut# = Coord(x = 30, y = 40)
     {
-        auto (&rx, &ry#) = c_mut
+        auto Coord(x = &rx, y = &ry#) = c_mut
         assert(rx == 30, "rx must be 30")
         ry = 50
     }

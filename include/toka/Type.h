@@ -37,7 +37,6 @@ public:
     Array,
     Slice, // Reserved for future
     Shape,
-    Tuple,
     Function,
     DynFn,
     UninitWrapper,
@@ -86,7 +85,6 @@ public:
   bool isSharedPtr() const { return typeKind == SharedPtr; }
   bool isArray() const { return typeKind == Array; }
   bool isSlice() const { return typeKind == Slice; }
-  bool isTuple() const { return typeKind == Tuple; }
   bool isFunction() const { return typeKind == Function; }
   bool isDynFn() const { return typeKind == DynFn; }
   bool isVoid() const { return typeKind == Void; }
@@ -346,22 +344,6 @@ public:
                                        bool b = false) const override;
   bool isCompatibleWith(const Type &target) const override;
   std::string getSoulName() const override { return Name; }
-  bool isSend(class Sema* S = nullptr) const override;
-  bool isSync(class Sema* S = nullptr) const override;
-};
-
-class TupleType : public Type {
-public:
-  std::shared_ptr<Type> substitute(const std::map<std::string, std::shared_ptr<Type>> &substMap) const override;
-  std::vector<std::shared_ptr<Type>> Elements;
-
-  TupleType(std::vector<std::shared_ptr<Type>> elems)
-      : Type(Tuple), Elements(std::move(elems)) {}
-  std::string toString() const override;
-  bool equals(const Type &other) const override;
-  std::shared_ptr<Type> withAttributes(bool w, bool n,
-                                       bool b = false) const override;
-  bool isCompatibleWith(const Type &target) const override;
   bool isSend(class Sema* S = nullptr) const override;
   bool isSync(class Sema* S = nullptr) const override;
 };

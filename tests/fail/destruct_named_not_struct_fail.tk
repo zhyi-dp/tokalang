@@ -1,8 +1,10 @@
-shape Pair(i32, i32)
+shape Pair(
+    A | B
+)
 
 fn main() -> i32 {
-    auto p = Pair(10, 20)
-    // Named destructuring on a Tuple (illegal!)
+    auto p = Pair::A()
+    // Named destructuring on a Tagged Enum (illegal!)
     auto Pair(x = a, y = b) = p
     return 0
 }

@@ -177,6 +177,7 @@ void CodeGen::emitSoulAssignment(llvm::Value *soulAddr, llvm::Value *rhsVal,
     return;
 
   llvm::Value *finalRHS = rhsVal;
+  llvm::Value *destAddr = soulAddr;
   if (finalRHS->getType() != type) {
     if (finalRHS->getType()->isIntegerTy() && type->isIntegerTy()) {
       finalRHS = m_Builder.CreateIntCast(finalRHS, type, false);
@@ -188,12 +189,16 @@ void CodeGen::emitSoulAssignment(llvm::Value *soulAddr, llvm::Value *rhsVal,
       // error that Sema should have caught.
       if (m_Module->getDataLayout().getTypeStoreSize(finalRHS->getType()) ==
           m_Module->getDataLayout().getTypeStoreSize(type)) {
-        finalRHS = m_Builder.CreateBitCast(finalRHS, type);
+        if (finalRHS->getType()->isAggregateType() || type->isAggregateType()) {
+          destAddr = m_Builder.CreatePointerCast(soulAddr, llvm::PointerType::get(finalRHS->getType(), 0));
+        } else {
+          finalRHS = m_Builder.CreateBitCast(finalRHS, type);
+        }
       }
     }
   }
 
-  m_Builder.CreateStore(finalRHS, soulAddr);
+  m_Builder.CreateStore(finalRHS, destAddr);
 }
 
 void CodeGen::emitEnvelopeRebind(llvm::Value *handleAddr, llvm::Value *rhsVal,
@@ -2260,7 +2265,19 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
             if (isNamed) {
               std::string shapeName = Type::stripMorphology(pat->Name);
               if (shapeName.empty() && st) {
-                shapeName = st->getName().str();
+                if (m_TypeToName.count(st)) {
+                  shapeName = m_TypeToName[st];
+                } else {
+                  shapeName = st->getName().str();
+                }
+              }
+              if (!shapeName.empty() && shapeName.front() == '(' && shapeName.back() == ')') {
+                if (m_ParenthesizedRecordTypes.count(shapeName)) {
+                  auto resolved = m_ParenthesizedRecordTypes[shapeName];
+                  if (resolved && resolved->typeKind == Type::Shape) {
+                    shapeName = std::static_pointer_cast<ShapeType>(resolved)->Name;
+                  }
+                }
               }
               if (m_Shapes.count(shapeName)) {
                 const auto *sh = m_Shapes[shapeName];
@@ -3161,7 +3178,19 @@ void CodeGen::genPatternBinding(const MatchArm::Pattern *pat,
         if (isNamed) {
           std::string shapeName = Type::stripMorphology(pat->Name);
           if (shapeName.empty()) {
-            shapeName = st->getName().str();
+            if (st && m_TypeToName.count(st)) {
+              shapeName = m_TypeToName[st];
+            } else if (st) {
+              shapeName = st->getName().str();
+            }
+          }
+          if (!shapeName.empty() && shapeName.front() == '(' && shapeName.back() == ')') {
+            if (m_ParenthesizedRecordTypes.count(shapeName)) {
+              auto resolved = m_ParenthesizedRecordTypes[shapeName];
+              if (resolved && resolved->typeKind == Type::Shape) {
+                shapeName = std::static_pointer_cast<ShapeType>(resolved)->Name;
+              }
+            }
           }
           if (m_Shapes.count(shapeName)) {
             const auto *sh = m_Shapes[shapeName];
@@ -5227,46 +5256,6 @@ PhysEntity CodeGen::genNewExpr(const NewExpr *newExpr) {
 
   return heapPtr;
 }
-
-PhysEntity CodeGen::genTupleExpr(const TupleExpr *expr) {
-  std::vector<llvm::Constant *> consts;
-  std::vector<llvm::Value *> values;
-  bool allConst = true;
-
-  for (auto &e : expr->Elements) {
-    PhysEntity v_ent = genExpr(e.get()).load(m_Builder);
-    llvm::Value *v = v_ent.load(m_Builder);
-    if (!v)
-      return nullptr;
-    values.push_back(v);
-
-    // [Constitution] Shared Pointer RC Acquisition for Tuples
-    if (e->ResolvedType && e->ResolvedType->isSharedPtr()) {
-      emitAcquire(v, e->ResolvedType->getPointeeType());
-    }
-
-    if (auto *c = llvm::dyn_cast<llvm::Constant>(v)) {
-      consts.push_back(c);
-    } else {
-      allConst = false;
-    }
-  }
-
-  if (allConst) {
-    return llvm::ConstantStruct::getAnon(m_Context, consts);
-  }
-
-  std::vector<llvm::Type *> types;
-  for (auto *v : values)
-    types.push_back(v->getType());
-  llvm::StructType *st = llvm::StructType::get(m_Context, types);
-  llvm::Value *val = llvm::UndefValue::get(st);
-  for (size_t i = 0; i < values.size(); ++i) {
-    val = m_Builder.CreateInsertValue(val, values[i], i);
-  }
-  return val;
-}
-
 PhysEntity CodeGen::genArrayExpr(const ArrayExpr *expr) {
   if (expr->Elements.empty())
     return nullptr;

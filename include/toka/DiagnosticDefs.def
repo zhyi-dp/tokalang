@@ -62,6 +62,7 @@ DIAG(ERR_UNION_RESOURCE_TYPE, Error, "E0427", "Union member '{}' has type '{}' w
 DIAG(NOTE_UNION_RESOURCE_TIP, Note,  "N0002", "Unions cannot track active variants to drop resources safely; consider using a raw pointer '*{}' or 'ManuallyDrop<T>'")
 DIAG(ERR_UNION_DEPRECATED,    Error, "E0470", "Bare union is deprecated and removed in Toka. Use Tagged Enum or explicit type structure with 'core/mem::bit_cast' instead.")
 DIAG(ERR_BITCAST_SIZE_MISMATCH, Error, "E0471", "bit_cast source and target types must have the same size (sizeof('{}') = {} vs sizeof('{}') = {})")
+DIAG(ERR_TUPLE_DEPRECATED,      Error, "E0472", "Tuples are abolished. Shape fields must be named struct fields or tagged enum variants.")
 
 // --- Sema: Traits & Interfaces ---
 DIAG(ERR_SIGNATURE_MISMATCH, Error, "E0428", "Method signature mismatch: trait defines '{}' as {}, but implementation is {}")

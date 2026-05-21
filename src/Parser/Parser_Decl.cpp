@@ -170,19 +170,28 @@ std::unique_ptr<ShapeDecl> Parser::parseShape(bool isPub) {
           match(TokenType::Pipe);
       }
     } else {
-      for (int i = 0;; ++i) {
-        if (peekAt(i).Kind == TokenType::EndOfFile ||
-            peekAt(i).Kind == TokenType::RParen)
-          break;
-        if (peekAt(i).Kind == TokenType::Colon) {
-          kind = ShapeKind::Struct;
-          break;
-        }
-        if (peekAt(i).Kind == TokenType::Comma) {
-          kind = ShapeKind::Tuple;
-          break;
+      bool hasColon = false;
+      if (peekAt(0).Kind == TokenType::RParen) {
+        hasColon = true;
+      } else {
+        int depth = 0;
+        for (int i = 0;; ++i) {
+          TokenType t = peekAt(i).Kind;
+          if (t == TokenType::EndOfFile || (t == TokenType::RParen && depth == 0))
+            break;
+          if (depth == 0 && t == TokenType::Colon) {
+            hasColon = true;
+            break;
+          }
+          if (t == TokenType::LParen) depth++;
+          else if (t == TokenType::RParen) depth--;
         }
       }
+      if (!hasColon) {
+        error(peek(), DiagID::ERR_TUPLE_DEPRECATED);
+        return nullptr;
+      }
+      kind = ShapeKind::Struct;
       int idx = 0;
       while (!check(TokenType::RParen) && !check(TokenType::EndOfFile)) {
         ShapeMember m;

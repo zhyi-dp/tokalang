@@ -556,28 +556,6 @@ public:
   }
 };
 
-class TupleExpr : public Expr {
-public:
-  std::vector<std::unique_ptr<Expr>> Elements;
-  TupleExpr(std::vector<std::unique_ptr<Expr>> elems)
-      : Elements(std::move(elems)) {}
-  std::string toString() const override {
-    std::string s = "(";
-    for (size_t i = 0; i < Elements.size(); ++i) {
-      if (i > 0)
-        s += ", ";
-      s += Elements[i]->toString();
-    }
-    s += ")";
-    return s;
-  }
-  std::unique_ptr<ASTNode> clone() const override {
-    auto n = std::make_unique<TupleExpr>(cloneVec(Elements));
-    n->Loc = Loc;
-    n->ResolvedType = ResolvedType;
-    return n;
-  }
-};
 
 class InitStructExpr : public Expr {
 public:

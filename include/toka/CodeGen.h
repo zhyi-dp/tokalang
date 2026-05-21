@@ -107,6 +107,9 @@ public:
   bool hasErrors() const { return m_ErrorCount > 0; }
   void print(llvm::raw_ostream &os);
   llvm::Module *getModule() { return m_Module.get(); }
+  void importParenthesizedRecordTypes(const std::map<std::string, std::shared_ptr<toka::Type>>& recordTypes) {
+    m_ParenthesizedRecordTypes = recordTypes;
+  }
 
 private:
   int m_ErrorCount = 0;
@@ -144,6 +147,7 @@ private:
   std::map<std::string, const ShapeDecl *> m_Shapes;
   std::map<std::string, const TraitDecl *> m_Traits;
   std::map<llvm::Type *, std::string> m_TypeToName;
+  std::map<std::string, std::shared_ptr<toka::Type>> m_ParenthesizedRecordTypes;
 
   struct CFInfo {
     std::string Label;
@@ -223,7 +227,6 @@ private:
   PhysEntity genIndexExpr(const ArrayIndexExpr *expr);
   PhysEntity genVariableExpr(const VariableExpr *expr);
   PhysEntity genLiteralExpr(const Expr *expr);
-  PhysEntity genTupleExpr(const TupleExpr *expr);
   PhysEntity genArrayExpr(const ArrayExpr *expr);
   PhysEntity genRepeatedArrayExpr(const RepeatedArrayExpr *expr);
   PhysEntity genCastExpr(const CastExpr *expr);

@@ -38,7 +38,7 @@ impl AtomicI32 {
 
     pub fn compare_exchange(
         self, current: i32, new_val: i32, success: Ordering, failure: Ordering
-    ) -> (i32, bool) {
+    ) -> (old: i32, success: bool) {
         return core_atomic::__toka_atomic_compare_exchange(
             self.val, current, new_val, success, failure
         )
@@ -100,7 +100,7 @@ impl AtomicUsize {
 
     pub fn compare_exchange(
         self, current: usize, new_val: usize, success: Ordering, failure: Ordering
-    ) -> (usize, bool) {
+    ) -> (old: usize, success: bool) {
         return core_atomic::__toka_atomic_compare_exchange(
             self.val, current, new_val, success, failure
         )
@@ -162,7 +162,7 @@ impl AtomicI64 {
 
     pub fn compare_exchange(
         self, current: i64, new_val: i64, success: Ordering, failure: Ordering
-    ) -> (i64, bool) {
+    ) -> (old: i64, success: bool) {
         return core_atomic::__toka_atomic_compare_exchange(
             self.val, current, new_val, success, failure
         )
@@ -234,15 +234,15 @@ impl AtomicBool {
 
     pub fn compare_exchange(
         self, current: bool, new_val: bool, success: Ordering, failure: Ordering
-    ) -> (bool, bool) {
+    ) -> (old: bool, success: bool) {
         auto c_val# = 0
         if current { c_val = 1 }
         auto n_val# = 0
         if new_val { n_val = 1 }
-        auto (res, ok) = core_atomic::__toka_atomic_compare_exchange(
+        auto (old = res, success = ok) = core_atomic::__toka_atomic_compare_exchange(
             self.val, c_val, n_val, success, failure
         )
-        return (res > 0, ok)
+        return (old = res > 0, success = ok)
     }
 }
 

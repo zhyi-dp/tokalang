@@ -1221,18 +1221,35 @@ llvm::Value *CodeGen::genDestructuringDecl(const DestructuringDecl *dest) {
   if (elisionCount == 1) {
     elidedCount = expectedSize - (dest->Variables.size() - 1);
   }
-
-  bool isNamed = false;
-  for (const auto& var : dest->Variables) {
-    if (var.Name != ".." && !var.FieldName.empty()) {
-      isNamed = true;
-      break;
-    }
-  }
-
   std::string shapeName = Type::stripMorphology(dest->TypeName);
   if (shapeName.empty()) {
-    shapeName = st->getName().str();
+    if (dest->Init && dest->Init->ResolvedType) {
+      auto resTy = dest->Init->ResolvedType;
+      while (resTy && (resTy->isPointer() || resTy->isReference() || resTy->isSmartPointer())) {
+        if (auto inner = resTy->getPointeeType())
+          resTy = inner;
+        else
+          break;
+      }
+      if (resTy && resTy->isShape()) {
+        shapeName = std::static_pointer_cast<ShapeType>(resTy)->Name;
+      }
+    }
+    if (shapeName.empty()) {
+      if (st && m_TypeToName.count(st)) {
+        shapeName = m_TypeToName[st];
+      } else if (st) {
+        shapeName = st->getName().str();
+      }
+    }
+  }
+  if (!shapeName.empty() && shapeName.front() == '(' && shapeName.back() == ')') {
+    if (m_ParenthesizedRecordTypes.count(shapeName)) {
+      auto resolved = m_ParenthesizedRecordTypes[shapeName];
+      if (resolved && resolved->typeKind == Type::Shape) {
+        shapeName = std::static_pointer_cast<ShapeType>(resolved)->Name;
+      }
+    }
   }
 
   for (size_t i = 0; i < dest->Variables.size(); ++i) {
@@ -1242,25 +1259,18 @@ llvm::Value *CodeGen::genDestructuringDecl(const DestructuringDecl *dest) {
     }
 
     size_t memberIndex = -1;
-    if (isNamed) {
-      if (m_Shapes.count(shapeName)) {
-        const auto *sh = m_Shapes[shapeName];
-        for (size_t m = 0; m < sh->Members.size(); ++m) {
-          if (sh->Members[m].Name == v.FieldName) {
-            memberIndex = m;
-            break;
-          }
+    if (m_Shapes.count(shapeName)) {
+      const auto *sh = m_Shapes[shapeName];
+      for (size_t m = 0; m < sh->Members.size(); ++m) {
+        if (sh->Members[m].Name == v.FieldName) {
+          memberIndex = m;
+          break;
         }
-      }
-    } else {
-      memberIndex = i;
-      if (elisionCount == 1) {
-        memberIndex = (i < elisionIndex) ? i : (i + elidedCount - 1);
       }
     }
 
     if (memberIndex >= expectedSize || memberIndex == (size_t)-1) {
-      error(dest, "Invalid member index in destructuring");
+      error(dest, "Invalid member '" + v.FieldName + "' in destructuring of " + shapeName);
       break;
     }
 
@@ -2220,68 +2230,6 @@ llvm::Type *CodeGen::resolveType(const std::string &baseType, bool hasPointer) {
       }
       type = llvm::ArrayType::get(elemTy, count);
     }
-  } else if (baseType[0] == '(') {
-    // Tuple: (T1, T2, ...)
-    std::vector<llvm::Type *> elemTypes;
-    std::string content = baseType.substr(1, baseType.size() - 2);
-    // Very simple split by comma, not perfect for nested but works
-    // for now
-    size_t start = 0;
-    int depth = 0;
-    for (size_t i = 0; i < content.size(); ++i) {
-      if (content[i] == '(' || content[i] == '[')
-        depth++;
-      else if (content[i] == ')' || content[i] == ']')
-        depth--;
-      else if (content[i] == ',' && depth == 0) {
-        std::string elemStr = content.substr(start, i - start);
-        // Trim
-        elemStr.erase(0, elemStr.find_first_not_of(" \t"));
-        elemStr.erase(elemStr.find_last_not_of(" \t") + 1);
-        llvm::Type *et = resolveType(elemStr, false);
-        if (et)
-          elemTypes.push_back(et);
-        else {
-          // If one element fails, the whole tuple is invalid
-          return nullptr;
-        }
-        start = i + 1;
-      }
-    }
-    if (start < content.size()) {
-      std::string elemStr = content.substr(start);
-      elemStr.erase(0, elemStr.find_first_not_of(" \t"));
-      elemStr.erase(elemStr.find_last_not_of(" \t") + 1);
-      llvm::Type *et = resolveType(elemStr, false);
-      if (et)
-        elemTypes.push_back(et);
-      else
-        return nullptr;
-    }
-    // For "()", content is empty, elemTypes is empty.
-    // Allow empty tuples by removing the 'return nullptr' guard.
-    // If it's not a tuple but invalid, parsing would have caught it or failed earlier.
-    type = llvm::StructType::get(m_Context, elemTypes);
-
-    // Generate canonical baseType for registration (no spaces)
-    std::string canonical = "(";
-    for (size_t i = 0; i < elemTypes.size(); ++i) {
-      if (i > 0)
-        canonical += ",";
-      std::string s;
-      llvm::raw_string_ostream os(s);
-      elemTypes[i]->print(os);
-      canonical += os.str();
-    }
-    canonical += ")";
-
-    // Register tuple fields
-    m_TypeToName[type] = canonical;
-    std::vector<std::string> fields;
-    for (size_t i = 0; i < elemTypes.size(); ++i)
-      fields.push_back(std::to_string(i));
-    m_StructFieldNames[canonical] = fields;
-    m_StructTypes[canonical] = llvm::cast<llvm::StructType>(type);
   } else if (baseType == "bool" || baseType == "i1")
     type = llvm::Type::getInt1Ty(m_Context);
   else if (baseType == "i8" || baseType == "u8" || baseType == "char" ||
@@ -2304,14 +2252,28 @@ llvm::Type *CodeGen::resolveType(const std::string &baseType, bool hasPointer) {
     type = llvm::Type::getVoidTy(m_Context);
   else if (baseType == "ptr")
     type = llvm::PointerType::getUnqual(m_Context);
-  else if (m_StructTypes.count(baseType))
-    type = m_StructTypes[baseType];
-  else if (m_Shapes.count(baseType))
-    type = m_StructTypes[baseType];
-  else if (baseType == "unknown") {
-    return nullptr;
-  } else {
-    return nullptr;
+  else {
+    std::string actualType = baseType;
+    while (!actualType.empty() && (actualType.back() == '#' || actualType.back() == '?' || actualType.back() == '!')) {
+      actualType.pop_back();
+    }
+    if (!actualType.empty() && actualType.front() == '(' && actualType.back() == ')') {
+      if (m_ParenthesizedRecordTypes.count(actualType)) {
+        auto resolved = m_ParenthesizedRecordTypes[actualType];
+        if (resolved && resolved->typeKind == Type::Shape) {
+          actualType = std::static_pointer_cast<ShapeType>(resolved)->Name;
+        }
+      }
+    }
+    if (m_StructTypes.count(actualType))
+      type = m_StructTypes[actualType];
+    else if (m_Shapes.count(actualType))
+      type = m_StructTypes[actualType];
+    else if (baseType == "unknown") {
+      return nullptr;
+    } else {
+      return nullptr;
+    }
   }
 
   if (hasPointer && type)
@@ -2421,37 +2383,33 @@ llvm::Type *CodeGen::getLLVMType(std::shared_ptr<Type> type) {
     return llvm::ArrayType::get(elemTy, arrType->Size);
   }
 
-  // Handle Tuples ((T1, T2))
-  if (type->typeKind == Type::Tuple) {
-    auto tupleType = std::static_pointer_cast<TupleType>(type);
-    std::vector<llvm::Type *> elemTypes;
-    for (const auto &elem : tupleType->Elements) {
-      llvm::Type *et = getLLVMType(elem);
-      if (!et)
-        et = llvm::Type::getInt8Ty(m_Context);
-      elemTypes.push_back(et);
-    }
-    return llvm::StructType::get(m_Context, elemTypes);
-  }
-
   // Handle Shapes (Structs) via Name Lookup
   if (type->typeKind == Type::Shape) {
     auto shapeType = std::static_pointer_cast<ShapeType>(type);
-    if (m_StructTypes.count(shapeType->Name)) {
-      return m_StructTypes[shapeType->Name];
+    std::string shapeName = shapeType->Name;
+    if (!shapeName.empty() && shapeName.front() == '(' && shapeName.back() == ')') {
+      if (m_ParenthesizedRecordTypes.count(shapeName)) {
+        auto resolved = m_ParenthesizedRecordTypes[shapeName];
+        if (resolved && resolved->typeKind == Type::Shape) {
+          shapeName = std::static_pointer_cast<ShapeType>(resolved)->Name;
+        }
+      }
+    }
+    if (m_StructTypes.count(shapeName)) {
+      return m_StructTypes[shapeName];
     }
     // [Fix] On-Demand Generation for Synthetic Shapes (Dependencies)
     if (shapeType->Decl) {
       genShape(shapeType->Decl);
-      if (m_StructTypes.count(shapeType->Name))
-        return m_StructTypes[shapeType->Name];
-    } else if (m_Shapes.count(shapeType->Name)) {
-      genShape(m_Shapes[shapeType->Name]);
-      if (m_StructTypes.count(shapeType->Name))
-        return m_StructTypes[shapeType->Name];
+      if (m_StructTypes.count(shapeName))
+        return m_StructTypes[shapeName];
+    } else if (m_Shapes.count(shapeName)) {
+      genShape(m_Shapes[shapeName]);
+      if (m_StructTypes.count(shapeName))
+        return m_StructTypes[shapeName];
     }
     // If generic lookup fails, try resolving by name (backup)
-    return resolveType(shapeType->Name, false);
+    return resolveType(shapeName, false);
   }
 
   // Handle Function Types (closures)

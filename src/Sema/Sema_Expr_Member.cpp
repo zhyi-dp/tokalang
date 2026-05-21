@@ -423,33 +423,7 @@ std::shared_ptr<toka::Type> Sema::checkMemberExpr(MemberExpr *Memb) {
 
     return toka::Type::fromString("unknown");
   } else {
-    auto soulType = objTypeObj;
-    while (soulType && (soulType->isPointer() || soulType->isReference() ||
-                        soulType->isSmartPointer())) {
-      soulType = soulType->getPointeeType();
-    }
-
-    auto resSoul = resolveType(soulType, true);
-    if (auto TT = std::dynamic_pointer_cast<toka::TupleType>(resSoul)) {
-      // Tuple access: .0, .1
-      try {
-        int idx = std::stoi(Memb->Member);
-        if (idx >= 0 && idx < (int)TT->Elements.size()) {
-          Memb->Index = idx; // Set index for CodeGen
-          auto elemType = TT->Elements[idx];
-          // [Toka 1.3] Tuple Inheritance: Elements inherit writability
-          // from the tuple container
-          bool finalWritable = elemType->IsWritable || objTypeObj->IsWritable;
-          return elemType->withAttributes(finalWritable, elemType->IsNullable);
-        } else {
-          error(Memb, DiagID::ERR_TUPLE_INDEX_OOB, Memb->Member,
-                std::to_string(TT->Elements.size()));
-        }
-      } catch (...) {
-        error(Memb, DiagID::ERR_MEMBER_NOT_FOUND, Memb->Member, "tuple");
-      }
-      return toka::Type::fromString("unknown");
-    } else if (ObjType != "unknown") {
+    if (ObjType != "unknown") {
       error(Memb, DiagID::ERR_NOT_A_STRUCT, Memb->Member, ObjType);
     }
   }

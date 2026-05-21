@@ -21,10 +21,10 @@ shape Point (
     z: i32,
 )
 
-alias PointTup = (i32, i32)
+shape PointTup (x: i32, y: i32)
 
 fn processPoint(p: PointTup) {
-    println("Point is ({}, {})", p.0, p.1)
+    println("Point is ({}, {})", p.x, p.y)
     return
 }
 
@@ -87,19 +87,19 @@ fn main() -> i32 {
     println("[{}]arr[2] is {}", logi++, arr[2])
     assert(arr[2] == 40, "arr[2] mismatch")
 
-    auto tup = (1, "tuple", 1.1)
-    println("[{}]tup.0 is {}", logi++, tup.0)
-    println("[{}]tup.1 is {}", logi++, tup.1)
-    println("[{}]tup.2 is {}", logi++, tup.2)
+    auto tup = (a = 1, b = "tuple", c = 1.1)
+    println("[{}]tup.0 is {}", logi++, tup.a)
+    println("[{}]tup.1 is {}", logi++, tup.b)
+    println("[{}]tup.2 is {}", logi++, tup.c)
 
-    auto pt: PointTup = (100, 200)
+    auto pt: PointTup = PointTup(x = 100, y = 200)
     processPoint(pt)
 
-    auto PointTup(tup0, tup1) = pt
+    auto PointTup(x = tup0, y = tup1) = pt
     println("[{}]tup0 is {}", logi++, tup0)
     println("[{}]tup1 is {}", logi++, tup1)
 
-    auto Point(v0, v1, v2) = p
+    auto Point(x = v0, y = v1, z = v2) = p
     println("[{}]v0 is {}", logi++, v0)
     println("[{}]v1 is {}", logi++, v1)
     println("[{}]v2 is {}", logi++, v2)

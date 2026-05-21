@@ -55,17 +55,21 @@ effects:
 }
 
 // Function splitting distinct borrows via Tuples
-fn split_engines(e1: Engine, e2: Engine) -> (&Engine <- e1, &Engine <- e2) {
-    return (&e1, &e2)
+fn split_engines(e1: Engine, e2: Engine) -> res: (first: &Engine, second: &Engine)
+effects:
+    res.first <- e1
+    res.second <- e2
+{
+    return (first = &e1, second = &e2)
 }
 
 // Function splitting distinct borrows via Tuples using explicit structural effects
-fn split_engines_effects(e1#: Engine, e2: Engine) -> res: (&Engine#, &Engine)
+fn split_engines_effects(e1#: Engine, e2: Engine) -> res: (first: &Engine#, second: &Engine)
 effects:
-    res.0 <- e1
-    res.1 <- e2
+    res.first <- e1
+    res.second <- e2
 {
-    return (&e1, &e2)
+    return (first = &e1, second = &e2)
 }
 
 // Struct capturing lifetime dependencies
@@ -168,22 +172,22 @@ fn main() -> i32 {
     // 7. Tuple Split Borrow and Struct Lifetime Bound
     {
         auto tuple_refs = split_engines(scene.root.left, scene.root.right)
-        assert(tuple_refs.0.val == 777, "left split val")
-        assert(tuple_refs.1.val == 30, "right split val")
+        assert(tuple_refs.first.val == 777, "left split val")
+        assert(tuple_refs.second.val == 30, "right split val")
         
-        auto view# = EngineView(&target = tuple_refs.0)
+        auto view# = EngineView(&target = tuple_refs.&first)
         assert(view.target.val == 777, "struct bound val via EngineView")
     }
 
     // 8. Tuple Split Borrow using specific explicit effects syntax
     {
         auto tuple_refs2# = split_engines_effects(scene.root.left, scene.root.right)
-        assert(tuple_refs2.0.val == 777, "left split val effects")
-        assert(tuple_refs2.1.val == 30, "right split val effects")
+        assert(tuple_refs2.first.val == 777, "left split val effects")
+        assert(tuple_refs2.second.val == 30, "right split val effects")
         // Check that disjoint references work properly
-        tuple_refs2.0.val = 888
-        assert(tuple_refs2.0.val == 888, "left disjoint mut effects")
-        assert(tuple_refs2.1.val == 30, "right immutable effects")
+        tuple_refs2.first.val = 888
+        assert(tuple_refs2.first.val == 888, "left disjoint mut effects")
+        assert(tuple_refs2.second.val == 30, "right immutable effects")
     }
 
     // 9. Struct Member Binding via effects syntax

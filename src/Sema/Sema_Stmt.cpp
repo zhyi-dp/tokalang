@@ -212,10 +212,6 @@ void Sema::checkStmt(Stmt *S) {
             if (!path.empty()) {
                 returnedDeps.insert(path);
             }
-          } else if (auto *Paren = dynamic_cast<TupleExpr *>(E)) {
-            // Parentheses around expression
-            for (auto &sub : Paren->Elements)
-              collectDeps(sub.get());
           }
         }
         // Case 2: Returning existing reference variable `x`
@@ -231,12 +227,6 @@ void Sema::checkStmt(Stmt *S) {
               returnedDeps.insert(info.LifeDependencySet.begin(),
                                   info.LifeDependencySet.end());
             }
-          }
-        }
-        // Case 3: Tuple Return `(&a, &b)`
-        else if (auto *Tup = dynamic_cast<TupleExpr *>(E)) {
-          for (auto &Elem : Tup->Elements) {
-            collectDeps(Elem.get());
           }
         }
         // Case 4: CallExpr
@@ -835,7 +825,6 @@ void Sema::checkStmt(Stmt *S) {
 
     // Basic check: declType should match initType
     if (!Destruct->TypeName.empty() && !initType->isUnknown() &&
-        !initType->isTuple() &&
         !isTypeCompatible(declType, initType)) {
       DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_TYPE_MISMATCH,
                                initType->toString(), declType->toString());
@@ -846,6 +835,10 @@ void Sema::checkStmt(Stmt *S) {
     if (soulName.empty() && initType && initType->isShape()) {
       soulName = Type::stripMorphology(initType->getSoulName());
     }
+    if (!soulName.empty()) {
+      soulName = resolveType(soulName, true);
+    }
+
     size_t elisionIndex = -1;
     size_t elisionCount = 0;
     for (size_t i = 0; i < Destruct->Variables.size(); ++i) {
@@ -862,24 +855,23 @@ void Sema::checkStmt(Stmt *S) {
 
     if (!soulName.empty() && ShapeMap.count(soulName)) {
       ShapeDecl *SD = ShapeMap[soulName];
-      bool isNamed = false;
-      for (const auto& var : Destruct->Variables) {
-        if (var.Name != ".." && !var.FieldName.empty()) {
-          isNamed = true;
-          break;
-        }
-      }
-
-      if (isNamed) {
-        if (SD->Kind != ShapeKind::Struct) {
-          DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_NOT_A_STRUCT, "destructuring", SD->Name);
-          HasError = true;
+      if (SD->Kind == ShapeKind::Struct) {
+        // 1. Preprocess and fill in FieldName for Field Punning
+        for (auto &v : Destruct->Variables) {
+          if (v.Name == "..") continue;
+          if (v.FieldName.empty()) {
+            v.FieldName = toka::Type::stripMorphology(v.Name);
+          }
         }
 
-        // 1. Verify duplicates in deconstruction list
+        // 2. Verify duplicates in deconstruction list
         std::set<std::string> seenFields;
         for (const auto &v : Destruct->Variables) {
           if (v.Name == "..") continue;
+          if (v.FieldName == "_") {
+            error(Destruct, DiagID::ERR_GENERIC_SEMA, "Positional placeholder '_' is not allowed in struct destructuring. Use 'field = _' or '..' instead.");
+            continue;
+          }
           if (seenFields.count(v.FieldName)) {
             DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_DUPLICATE_FIELD, v.FieldName);
             HasError = true;
@@ -887,20 +879,20 @@ void Sema::checkStmt(Stmt *S) {
           seenFields.insert(v.FieldName);
         }
 
-        // 2. Verify all specified fields exist in shape
+        // 3. Verify all specified fields exist in shape
         std::set<std::string> sdMembers;
         for (const auto &m : SD->Members) {
           sdMembers.insert(m.Name);
         }
         for (const auto &v : Destruct->Variables) {
           if (v.Name == "..") continue;
-          if (!sdMembers.count(v.FieldName)) {
+          if (v.FieldName != "_" && !sdMembers.count(v.FieldName)) {
             DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_NO_SUCH_MEMBER, soulName, v.FieldName);
             HasError = true;
           }
         }
 
-        // 3. Verify completeness (missing fields check)
+        // 4. Verify completeness (missing fields check)
         bool hasElision = false;
         for (const auto &v : Destruct->Variables) {
           if (v.Name == "..") {
@@ -919,10 +911,13 @@ void Sema::checkStmt(Stmt *S) {
           }
         }
 
-        // 4. Perform bindings
+        // 5. Perform bindings
         for (size_t i = 0; i < Destruct->Variables.size(); ++i) {
           if (Destruct->Variables[i].Name == "..") continue;
-          
+          if (Destruct->Variables[i].IsWildcard && Destruct->Variables[i].FieldName == "_") {
+            continue;
+          }
+
           size_t memberIndex = -1;
           for (size_t m = 0; m < SD->Members.size(); ++m) {
             if (SD->Members[m].Name == Destruct->Variables[i].FieldName) {
@@ -960,191 +955,8 @@ void Sema::checkStmt(Stmt *S) {
           CurrentScope->define(Destruct->Variables[i].Name, Info);
         }
       } else {
-        size_t expectedSize = SD->Members.size();
-
-        if (elisionCount == 1) {
-          size_t varsWithoutElision = Destruct->Variables.size() - 1;
-          if (varsWithoutElision > expectedSize) {
-            DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_VARIANT_ARG_MISMATCH, soulName, expectedSize, Destruct->Variables.size());
-            HasError = true;
-          } else {
-            size_t elidedCount = expectedSize - varsWithoutElision;
-            for (size_t i = 0; i < Destruct->Variables.size(); ++i) {
-              if (i == elisionIndex) continue;
-              size_t memberIndex = (i < elisionIndex) ? i : (i + elidedCount - 1);
-
-              SymbolInfo Info;
-              std::string fullType = SD->Members[memberIndex].Type;
-              auto baseTypeObj = toka::Type::fromString(fullType);
-              auto soulType = baseTypeObj->withAttributes(
-                  Destruct->Variables[i].IsValueMutable,
-                  Destruct->Variables[i].IsValueNullable,
-                  Destruct->Variables[i].IsValueBlocked);
-
-              if (Destruct->Variables[i].IsReference) {
-                Info.TypeObj = std::make_shared<toka::ReferenceType>(soulType);
-                Info.BorrowedFrom = m_LastBorrowSource;
-              } else {
-                Info.TypeObj = soulType;
-              }
-
-              if (!Destruct->Variables[i].IsReference) {
-                std::string sName = Info.TypeObj->getSoulName();
-                if (!sName.empty() && ShapeMap.count(sName)) {
-                  if (!ShapeMap[sName]->MangledDestructorName.empty()) {
-                    DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_ILLEGAL_RESOURCE_COPY, sName, Destruct->Variables[i].Name);
-                    HasError = true;
-                  }
-                }
-              }
-
-              CurrentScope->define(Destruct->Variables[i].Name, Info);
-            }
-          }
-        } else {
-          if (Destruct->Variables.size() != SD->Members.size()) {
-            DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_VARIANT_ARG_MISMATCH, soulName, SD->Members.size(), Destruct->Variables.size());
-            HasError = true;
-          } else {
-            for (size_t i = 0; i < Destruct->Variables.size(); ++i) {
-              SymbolInfo Info;
-              std::string fullType = SD->Members[i].Type;
-              auto baseTypeObj = toka::Type::fromString(fullType);
-              auto soulType = baseTypeObj->withAttributes(
-                  Destruct->Variables[i].IsValueMutable,
-                  Destruct->Variables[i].IsValueNullable,
-                  Destruct->Variables[i].IsValueBlocked);
-
-              if (Destruct->Variables[i].IsReference) {
-                Info.TypeObj = std::make_shared<toka::ReferenceType>(soulType);
-                Info.BorrowedFrom = m_LastBorrowSource;
-              } else {
-                Info.TypeObj = soulType;
-              }
-
-              if (!Destruct->Variables[i].IsReference) {
-                std::string sName = Info.TypeObj->getSoulName();
-                if (!sName.empty() && ShapeMap.count(sName)) {
-                  if (!ShapeMap[sName]->MangledDestructorName.empty()) {
-                    DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_ILLEGAL_RESOURCE_COPY, sName, Destruct->Variables[i].Name);
-                    HasError = true;
-                  }
-                }
-              }
-
-              CurrentScope->define(Destruct->Variables[i].Name, Info);
-            }
-          }
-        }
-      }
-    } else if (initType->typeKind == Type::Tuple) {
-      auto tt = std::dynamic_pointer_cast<TupleType>(initType);
-      size_t expectedSize = tt->Elements.size();
-
-      if (elisionCount == 1) {
-        size_t varsWithoutElision = Destruct->Variables.size() - 1;
-        if (varsWithoutElision > expectedSize) {
-          DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_VARIANT_ARG_MISMATCH, "tuple", expectedSize, Destruct->Variables.size());
-          HasError = true;
-        } else {
-          size_t elidedCount = expectedSize - varsWithoutElision;
-          for (size_t i = 0; i < Destruct->Variables.size(); ++i) {
-            if (i == elisionIndex) continue;
-            size_t memberIndex = (i < elisionIndex) ? i : (i + elidedCount - 1);
-
-            SymbolInfo Info;
-            auto memType = tt->Elements[memberIndex];
-            auto soulType = memType->withAttributes(
-                Destruct->Variables[i].IsValueMutable,
-                Destruct->Variables[i].IsValueNullable,
-                Destruct->Variables[i].IsValueBlocked);
-
-            if (Destruct->Variables[i].IsReference) {
-              Info.TypeObj = std::make_shared<toka::ReferenceType>(soulType);
-              Info.BorrowedFrom = m_LastBorrowSource;
-              std::string fieldKey = std::to_string(memberIndex);
-              if (m_LastFieldDependencies.count(fieldKey)) {
-                 for (const auto &dep : m_LastFieldDependencies[fieldKey]) {
-                     Info.LifeDependencySet.insert(dep);
-                     Info.BorrowedFrom = dep;
-                 }
-              }
-            } else {
-              Info.TypeObj = soulType;
-            }
-
-            if (!Destruct->Variables[i].IsReference) {
-              std::string sName = Info.TypeObj->getSoulName();
-              if (!sName.empty() && ShapeMap.count(sName)) {
-                if (!ShapeMap[sName]->MangledDestructorName.empty()) {
-                  DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_ILLEGAL_RESOURCE_COPY, sName, Destruct->Variables[i].Name);
-                  HasError = true;
-                }
-              }
-            }
-
-            CurrentScope->define(Destruct->Variables[i].Name, Info);
-          }
-        }
-      } else {
-        if (Destruct->Variables.size() != tt->Elements.size()) {
-          DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_VARIANT_ARG_MISMATCH, "tuple", tt->Elements.size(), Destruct->Variables.size());
-          HasError = true;
-        } else {
-          for (size_t i = 0; i < Destruct->Variables.size(); ++i) {
-            SymbolInfo Info;
-            auto memType = tt->Elements[i];
-            auto soulType = memType->withAttributes(
-                Destruct->Variables[i].IsValueMutable,
-                Destruct->Variables[i].IsValueNullable,
-                Destruct->Variables[i].IsValueBlocked);
-
-            if (Destruct->Variables[i].IsReference) {
-              Info.TypeObj = std::make_shared<toka::ReferenceType>(soulType);
-              Info.BorrowedFrom = m_LastBorrowSource;
-              std::string fieldKey = std::to_string(i);
-              if (m_LastFieldDependencies.count(fieldKey)) {
-                 for (const auto &dep : m_LastFieldDependencies[fieldKey]) {
-                     Info.LifeDependencySet.insert(dep);
-                     Info.BorrowedFrom = dep;
-                 }
-              }
-            } else {
-              Info.TypeObj = soulType;
-            }
-
-            if (!Destruct->Variables[i].IsReference) {
-              std::string sName = Info.TypeObj->getSoulName();
-              if (!sName.empty() && ShapeMap.count(sName)) {
-                if (!ShapeMap[sName]->MangledDestructorName.empty()) {
-                  DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_ILLEGAL_RESOURCE_COPY, sName, Destruct->Variables[i].Name);
-                  HasError = true;
-                }
-              }
-            }
-
-            CurrentScope->define(Destruct->Variables[i].Name, Info);
-          }
-        }
-      }
-      m_LastFieldDependencies.clear();
-    } else if (!soulName.empty() && TypeAliasMap.count(soulName)) {
-      for (const auto &Var : Destruct->Variables) {
-        SymbolInfo Info;
-        std::string fullType = "i32"; // Fallback
-        auto baseTypeObj = toka::Type::fromString(fullType);
-        auto soulType = baseTypeObj->withAttributes(
-            Var.IsValueMutable, Var.IsValueNullable, Var.IsValueBlocked);
-        if (Var.IsReference) {
-          Info.TypeObj = std::make_shared<toka::ReferenceType>(soulType);
-          Info.BorrowedFrom = m_LastBorrowSource;
-          if (!m_LastBorrowSource.empty()) {
-              PALCheckerState.commitTransient(m_LastBorrowSource);
-          }
-        } else {
-          Info.TypeObj = soulType;
-        }
-        CurrentScope->define(Var.Name, Info);
+        DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_NOT_A_STRUCT, "destructuring", SD->Name);
+        HasError = true;
       }
     } else {
       for (const auto &Var : Destruct->Variables) {

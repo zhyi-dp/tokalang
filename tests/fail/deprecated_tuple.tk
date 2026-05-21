@@ -1,0 +1,12 @@
+// Copyright (c) 2026 YiZhonghua <zhyi@dpai.com>. All rights reserved.
+//
+// Deprecated Tuple test to verify parser-level interception.
+// EXPECT: error[E0472]
+
+import std/string::String
+
+shape MyTuple(i32, String)
+
+pub fn main() -> i32 {
+    return 0
+}

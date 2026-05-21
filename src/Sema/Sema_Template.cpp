@@ -191,9 +191,6 @@ public:
       Init->ShapeName = sub(Init->ShapeName);
       for (auto &F : Init->Members)
         visitExpr(F.second.get());
-    } else if (auto *Tup = dynamic_cast<TupleExpr *>(E)) {
-      for (auto &El : Tup->Elements)
-        visitExpr(El.get());
     } else if (auto *Rep = dynamic_cast<RepeatedArrayExpr *>(E)) {
       visitExpr(Rep->Value.get());
       visitExpr(Rep->Count.get());

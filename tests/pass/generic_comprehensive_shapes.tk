@@ -5,10 +5,10 @@ shape Box<T> (
     val: T
 )
 
-// 2. Generic Tuple (Unnamed Fields)
+// 2. Generic Struct Pair (Named Fields)
 shape Pair<T, U> (
-    T,
-    U
+    first: T,
+    second: U
 )
 
 // 3. Generic Enum (Tagged Union)
@@ -32,9 +32,9 @@ fn test_struct() {
 }
 
 fn test_tuple() {
-    auto p = Pair<i32, f64>(10, 2.5)
-    assert(p.0 == 10, "Tuple.0 failed")
-    assert(p.1 == 2.5, "Tuple.1 failed")
+    auto p = Pair<i32, f64>(first = 10, second = 2.5)
+    assert(p.first == 10, "Tuple.0 failed")
+    assert(p.second == 2.5, "Tuple.1 failed")
 }
 
 fn test_enum() {

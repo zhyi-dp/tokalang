@@ -15,7 +15,7 @@ pub fn main() -> i32 {
     assert(i.fetch_add(50, Ordering::SeqCst) == 100, "AtomicI32 fetch_add old val failed")
     assert(i.load(Ordering::SeqCst) == 150, "AtomicI32 fetch_add new val failed")
 
-    auto (old_val, ok) = i.compare_exchange(150, 200, Ordering::SeqCst, Ordering::Relaxed)
+    auto (old = old_val, success = ok) = i.compare_exchange(150, 200, Ordering::SeqCst, Ordering::Relaxed)
     assert(ok == true, "AtomicI32 compare_exchange success failed")
     assert(i.load(Ordering::SeqCst) == 200, "AtomicI32 compare_exchange new val failed")
 
