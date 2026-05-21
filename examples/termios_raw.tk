@@ -1,4 +1,4 @@
-import stdx/cli/termios::*
+import sys/termios::*
 import std/memory
 import std/io::*
 
@@ -13,8 +13,8 @@ fn main() -> i32 {
 
         // Get current settings
         // fd 0 is stdin
-        __toka_tcgetattr(0, *orig_ptr)
-        __toka_tcgetattr(0, *raw_ptr)
+        tcgetattr(0, *orig_ptr)
+        tcgetattr(0, *raw_ptr)
 
         // Modify raw_ptr to disable ECHO and ICANON
         // c_lflag is at offset 24 (u64)
@@ -23,7 +23,7 @@ fn main() -> i32 {
         raw_ptr.c_lflag = raw_ptr.c_lflag band (bnot ((ECHO as u64) bor (ICANON as u64)))
 
         // Apply raw settings
-        __toka_tcsetattr(0, TCSANOW, *raw_ptr)
+        tcsetattr(0, TCSANOW, *raw_ptr)
 
         println("Raw mode active. Input is not echoed. Press 'q' to exit.")
 
@@ -51,7 +51,7 @@ fn main() -> i32 {
         
 
         // Restore original settings
-        __toka_tcsetattr(0, TCSANOW, *orig_ptr)
+        tcsetattr(0, TCSANOW, *orig_ptr)
         
         free [72]*orig_ptr
         free [72]*raw_ptr
