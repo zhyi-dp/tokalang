@@ -85,8 +85,10 @@ jobs:
           if [ "${{ runner.os }}" = "macOS" ]; then
             export LLVM_PATH=$(brew --prefix llvm@20 || brew --prefix llvm)
             $LLVM_PATH/bin/clang -isysroot $(xcrun --show-sdk-path) -c $GITHUB_WORKSPACE/lib/sys/toka_rt.c -o $GITHUB_WORKSPACE/lib/sys/toka_rt.o
+            $LLVM_PATH/bin/clang++ -isysroot $(xcrun --show-sdk-path) -O3 -c $GITHUB_WORKSPACE/lib/sys/llvm_shim.cpp -o $GITHUB_WORKSPACE/lib/sys/llvm_shim.o -I$LLVM_PATH/include
           else
             clang-20 -c $GITHUB_WORKSPACE/lib/sys/toka_rt.c -o $GITHUB_WORKSPACE/lib/sys/toka_rt.o
+            clang++-20 -O3 -c $GITHUB_WORKSPACE/lib/sys/llvm_shim.cpp -o $GITHUB_WORKSPACE/lib/sys/llvm_shim.o $(llvm-config-20 --cppflags)
           fi
           
           # Run full testing suite to verify compiler integrity (Native execution)
@@ -121,6 +123,7 @@ jobs:
           # Compile Runtime
           set -x
           clang -c $GITHUB_WORKSPACE/lib/sys/toka_rt.c -o $GITHUB_WORKSPACE/lib/sys/toka_rt.o
+          clang++ -O3 -c $GITHUB_WORKSPACE/lib/sys/llvm_shim.cpp -o $GITHUB_WORKSPACE/lib/sys/llvm_shim.o
           set +x
           
           # Run full testing suite to verify compiler integrity (Native execution)
