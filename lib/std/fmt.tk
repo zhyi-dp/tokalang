@@ -4,9 +4,7 @@ import core/types::{usize, char}
 import std/string::{String}
 import core/libc::{libc_snprintf, libc_malloc, libc_free}
 import core/traits::{@encap}
-
-// Forward declaration for snprintf (if not in libc yet, but we will add it)
-// extern fn libc_snprintf(*cstring: char, size: usize, *format: char, ...) -> i32
+import std/vec::{Vec}
 
 pub shape StringBuilder (
     buffer: String
@@ -32,7 +30,6 @@ impl StringBuilder {
     }
 
     pub fn with_capacity(cap: i32) -> StringBuilder {
-        // Ideally String would have with_capacity
         return StringBuilder(
             buffer = String::from("") 
         )
@@ -51,14 +48,11 @@ impl StringBuilder {
     }
 
     pub fn append_i32(self#, v: i32) {
-        // Optimization: direct push instead of alloc string?
-        // For now, reuse String::from_int
         auto s = String::from_int(v)
         self.buffer#.push_str(s.c_str())
     }
 
     pub fn append_u64(self#, v: u64) {
-        // String doesn't have from_u64 yet
         unsafe {
              auto *buf# = libc_malloc(32) as *char
              libc_snprintf(*buf, 32, "%llu", v)
@@ -91,5 +85,375 @@ impl StringBuilder {
     pub fn clear(self#) {
         self.buffer#.clear()
     }
+    
+    pub fn append_spaces(self#, count: i32) {
+        auto i# = 0
+        while i < count {
+            self#.append_char(32:char)
+            i = i + 1
+        }
+    }
 }
+
+// ------------------------------------------------------
+// Universal Color Styling Library (AnsiStyle)
+// ------------------------------------------------------
+
+pub shape AnsiStyle (
+    code: String
+)
+
+impl AnsiStyle@encap {
+    fn drop(self#) {}
+    pub fn clone(self) -> AnsiStyle {
+        return AnsiStyle(
+            code = self.code.clone()
+        )
+    }
+}
+
+impl AnsiStyle {
+    pub fn empty() -> AnsiStyle {
+        return AnsiStyle(code = String::from(""))
+    }
+    
+    pub fn reset() -> AnsiStyle {
+        return AnsiStyle(code = String::from("\x1b[0m"))
+    }
+    
+    pub fn red() -> AnsiStyle {
+        return AnsiStyle(code = String::from("\x1b[31m"))
+    }
+    
+    pub fn green() -> AnsiStyle {
+        return AnsiStyle(code = String::from("\x1b[32m"))
+    }
+    
+    pub fn yellow() -> AnsiStyle {
+        return AnsiStyle(code = String::from("\x1b[33m"))
+    }
+    
+    pub fn blue() -> AnsiStyle {
+        return AnsiStyle(code = String::from("\x1b[34m"))
+    }
+    
+    pub fn magenta() -> AnsiStyle {
+        return AnsiStyle(code = String::from("\x1b[35m"))
+    }
+    
+    pub fn cyan() -> AnsiStyle {
+        return AnsiStyle(code = String::from("\x1b[36m"))
+    }
+    
+    pub fn white() -> AnsiStyle {
+        return AnsiStyle(code = String::from("\x1b[37m"))
+    }
+    
+    pub fn bold(self) -> AnsiStyle {
+        if self.code.len() == 0 {
+            return AnsiStyle(code = String::from("\x1b[1m"))
+        }
+        auto inner = self.code.substring(2, (self.code.len() - 1) as i32)
+        auto res# = String::from("\x1b[1;")
+        res#.push_str(inner.c_str())
+        res#.push_str("m")
+        return AnsiStyle(code = res)
+    }
+}
+
+// ------------------------------------------------------
+// Source Location and File Management (SourceFile)
+// ------------------------------------------------------
+
+pub shape Location (
+    line: usize,
+    column: usize
+)
+
+pub shape SourceFile (
+    name: String,
+    source: String,
+    line_starts: Vec<usize>
+)
+
+impl SourceFile@encap {
+    pub *
+    fn drop(self#) {}
+    pub fn clone(self) -> SourceFile {
+        return SourceFile(
+            name = self.name.clone(),
+            source = self.source.clone(),
+            line_starts = self.line_starts.clone()
+        )
+    }
+}
+
+impl SourceFile {
+    pub fn new(name: String, source: String) -> SourceFile {
+        auto line_starts = Vec<usize>::new()
+        line_starts#.push(0:usize)
+        
+        auto len = source.len() as usize
+        unsafe {
+            auto *b = source.c_str() as *[char]
+            auto i#: usize = 0
+            while i < len {
+                auto c = b[i]
+                if c == 10:char {
+                    line_starts#.push(i + 1)
+                }
+                i = i + 1
+            }
+        }
+        
+        return SourceFile(
+            name = name,
+            source = source,
+            line_starts = cede line_starts
+        )
+    }
+    
+    pub fn lookup_location(self, offset: usize) -> Location {
+        auto size = self.line_starts.len()
+        if size == 0 {
+            return Location(line = 1:usize, column = 1:usize)
+        }
+        
+        auto low#: usize = 0
+        auto high#: usize = size - 1
+        
+        while low < high {
+            auto mid = low + (high - low + 1) / 2
+            auto start = self.line_starts.get(mid)
+            if start <= offset {
+                low = mid
+            } else {
+                high = mid - 1
+            }
+        }
+        
+        auto line_idx = low
+        auto line_start = self.line_starts.get(line_idx)
+        auto col = offset - line_start + 1
+        return Location(line = line_idx + 1, column = col)
+    }
+    
+    pub fn get_line_content(self, line: usize) -> String {
+        auto line_idx = line - 1
+        auto size = self.line_starts.len()
+        if line_idx >= size {
+            return String::from("")
+        }
+        
+        auto start = self.line_starts.get(line_idx) as i32
+        auto end#: i32 = 0
+        if line_idx + 1 < size {
+            end = self.line_starts.get(line_idx + 1) as i32
+        } else {
+            end = self.source.len() as i32
+        }
+        
+        auto content# = self.source.substring(start, end)
+        
+        unsafe {
+            while content.len() > 0 {
+                auto *b = content.c_str() as *[char]
+                auto last_char = b[content.len() - 1]
+                if last_char == 10:char || last_char == 13:char {
+                    content#.pop_char()
+                } else {
+                    break
+                }
+            }
+        }
+        
+        return content
+    }
+}
+
+// ------------------------------------------------------
+// High Quality Diagnostics & Wave Alignment (Diagnostic)
+// ------------------------------------------------------
+
+pub shape DiagnosticSeverity (
+    Error() = 0 |
+    Warning() = 1 |
+    Note() = 2
+)
+
+pub shape DiagnosticLabel (
+    offset: usize,
+    length: usize,
+    message: String
+)
+
+impl DiagnosticLabel@encap {
+    fn drop(self#) {}
+    pub fn clone(self) -> DiagnosticLabel {
+        return DiagnosticLabel(
+            offset = self.offset,
+            length = self.length,
+            message = self.message.clone()
+        )
+    }
+}
+
+pub shape Diagnostic (
+    severity: DiagnosticSeverity,
+    code: String,
+    message: String,
+    *labels: [DiagnosticLabel],
+    labels_count: usize
+)
+
+impl Diagnostic@encap {
+    fn drop(self#) {}
+    pub fn clone(self) -> Diagnostic {
+        return Diagnostic(
+            severity = self.severity,
+            code = self.code.clone(),
+            message = self.message.clone(),
+            *labels = self.*labels,
+            labels_count = self.labels_count
+        )
+    }
+}
+
+fn get_digits(v: usize) -> i32 {
+    if v == 0 { return 1 }
+    auto count# = 0
+    auto temp# = v
+    while temp > 0 {
+        count = count + 1
+        temp = temp / 10
+    }
+    return count
+}
+
+impl Diagnostic {
+    pub fn render(self, file: SourceFile, color: bool) -> String {
+        auto sb# = StringBuilder::new()
+        
+        auto sev_style# = AnsiStyle::empty()
+        auto sev_name# = String::from("")
+        
+        match self.severity {
+            auto DiagnosticSeverity::Error() => {
+                sev_name = String::from("error")
+                sev_style = AnsiStyle::red().bold()
+            }
+            auto DiagnosticSeverity::Warning() => {
+                sev_name = String::from("warning")
+                sev_style = AnsiStyle::yellow().bold()
+            }
+            auto DiagnosticSeverity::Note() => {
+                sev_name = String::from("note")
+                sev_style = AnsiStyle::cyan().bold()
+            }
+        }
+        
+        if color { sb#.append(sev_style.code.clone()) }
+        sb#.append(sev_name)
+        if self.code.len() > 0 {
+            sb#.append(String::from("["))
+            sb#.append(self.code.clone())
+            sb#.append(String::from("]"))
+        }
+        if color { sb#.append(AnsiStyle::reset().code.clone()) }
+        
+        sb#.append(String::from(": "))
+        if color { sb#.append(AnsiStyle::white().bold().code.clone()) }
+        sb#.append(self.message.clone())
+        if color { sb#.append(AnsiStyle::reset().code.clone()) }
+        sb#.append_char(10:char)
+        
+        if self.labels_count == 0 {
+            return sb.to_string()
+        }
+        
+        auto max_line#: usize = 1
+        auto i#: usize = 0
+        unsafe {
+            while i < self.labels_count {
+                auto label = self.labels[i]
+                auto loc = file.lookup_location(label.offset)
+                if loc.line > max_line {
+                    max_line = loc.line
+                }
+                i = i + 1
+            }
+        }
+        
+        auto max_line_width = get_digits(max_line)
+        auto cyan_bold = AnsiStyle::cyan().bold()
+        
+        i = 0
+        unsafe {
+            while i < self.labels_count {
+                auto label = self.labels[i]
+                auto loc = file.lookup_location(label.offset)
+                auto line_content = file.get_line_content(loc.line)
+                
+                sb#.append_spaces(max_line_width)
+                if color { sb#.append(cyan_bold.code.clone()) }
+                sb#.append(String::from("--> "))
+                if color { sb#.append(AnsiStyle::reset().code.clone()) }
+                sb#.append(file.name.clone())
+                sb#.append(String::from(":"))
+                sb#.append(String::from_int(loc.line as i32))
+                sb#.append(String::from(":"))
+                sb#.append(String::from_int(loc.column as i32))
+                sb#.append_char(10:char)
+                
+                sb#.append_spaces(max_line_width + 1)
+                if color { sb#.append(cyan_bold.code.clone()) }
+                sb#.append(String::from("|"))
+                if color { sb#.append(AnsiStyle::reset().code.clone()) }
+                sb#.append_char(10:char)
+                
+                auto current_line_width = get_digits(loc.line)
+                sb#.append_spaces(max_line_width - current_line_width)
+                if color { sb#.append(cyan_bold.code.clone()) }
+                sb#.append(String::from_int(loc.line as i32))
+                sb#.append(String::from(" | "))
+                if color { sb#.append(AnsiStyle::reset().code.clone()) }
+                sb#.append(line_content)
+                sb#.append_char(10:char)
+                
+                sb#.append_spaces(max_line_width + 1)
+                if color { sb#.append(cyan_bold.code.clone()) }
+                sb#.append(String::from("| "))
+                if color { sb#.append(AnsiStyle::reset().code.clone()) }
+                
+                sb#.append_spaces((loc.column - 1) as i32)
+                if color { sb#.append(sev_style.code.clone()) }
+                
+                auto wave_len#: i32 = label.length as i32
+                if wave_len <= 0 { wave_len = 1 }
+                auto w# = 0
+                while w < wave_len {
+                    sb#.append_char(94:char)
+                    w = w + 1
+                }
+                if label.message.len() > 0 {
+                    sb#.append_char(32:char)
+                    sb#.append(label.message.clone())
+                }
+                if color { sb#.append(AnsiStyle::reset().code.clone()) }
+                sb#.append_char(10:char)
+                
+                sb#.append_spaces(max_line_width + 1)
+                if color { sb#.append(cyan_bold.code.clone()) }
+                sb#.append(String::from("|"))
+                if color { sb#.append(AnsiStyle::reset().code.clone()) }
+                sb#.append_char(10:char)
+                
+                i = i + 1
+            }
+        }
+        
+        return sb.to_string()
+    }
+}
+
 

@@ -1,0 +1,85 @@
+import std/io::println
+import std/string::{String}
+import std/fmt::{AnsiStyle, SourceFile, Location, DiagnosticSeverity, DiagnosticLabel, Diagnostic}
+
+fn main() -> i32 {
+    // Scene 1: Compiler Diagnostics Simulation
+    auto source1 = String::from("fn main() -> i32 {\n    auto x = paramTys.len\n    return 0\n}")
+    auto file1 = SourceFile::new(String::from("src/main.tk"), source1)
+    
+    println("source1 len = {}", file1.source.len())
+    println("line_starts size = {}", file1.line_starts.len() as i32)
+    auto dbg_i# = 0
+    while dbg_i < file1.line_starts.len() as i32 {
+        println("line_start[{}] = {}", dbg_i, file1.line_starts.get(dbg_i as usize) as i32)
+        dbg_i = dbg_i + 1
+    }
+    
+    // Check lookup_location and get_line_content
+    auto loc1 = file1.lookup_location(32:usize)
+    println("Loc1: line={}, col={}", loc1.line as i32, loc1.column as i32)
+    
+    if loc1.line != 2:usize || loc1.column != 14:usize {
+        println("Assertion failed: loc1.line or loc1.column mismatch")
+        return 1
+    }
+    
+    auto line2 = file1.get_line_content(2:usize)
+    println("Line 2 Content: '{}'", line2)
+    if line2.eq(String::from("    auto x = paramTys.len")) == false {
+        println("Assertion failed: line2 content mismatch")
+        return 1
+    }
+    
+    auto label1 = DiagnosticLabel(
+        offset = 32:usize,
+        length = 12:usize,
+        message = String::from("expected member of struct, found ...")
+    )
+    
+    auto labels = [label1]
+    auto diag1 = Diagnostic(
+        severity = DiagnosticSeverity::Error(),
+        code = String::from("E0421"),
+        message = String::from("mismatched types"),
+        *labels = &labels as *[DiagnosticLabel],
+        labels_count = 1:usize
+    )
+    
+    // Render without color
+    auto result_no_color = diag1.render(file1, false)
+    println("--- NO COLOR RENDERING ---")
+    println("{}", result_no_color)
+    
+    // Render with color
+    auto result_color = diag1.render(file1, true)
+    println("--- COLOR RENDERING ---")
+    println("{}", result_color)
+    
+    // Scene 2: JSON Parser Diagnostics Simulation (Missing comma)
+    auto source2 = String::from("{\n  \"name\": \"toka\",\n  \"version\": \"1.3\"\n  \"desc\": \"awesome\"\n}")
+    auto file2 = SourceFile::new(String::from("package.json"), source2)
+    
+    auto loc2 = file2.lookup_location(37:usize)
+    println("Loc2: line={}, col={}", loc2.line as i32, loc2.column as i32)
+    
+    auto label2 = DiagnosticLabel(
+        offset = 37:usize,
+        length = 1:usize,
+        message = String::from("expected ',' or '}' here")
+    )
+    auto labels2 = [label2]
+    auto diag2 = Diagnostic(
+        severity = DiagnosticSeverity::Warning(),
+        code = String::from("JSON-01"),
+        message = String::from("missing trailing comma"),
+        *labels = &labels2 as *[DiagnosticLabel],
+        labels_count = 1:usize
+    )
+    
+    auto json_no_color = diag2.render(file2, false)
+    println("--- JSON NO COLOR RENDERING ---")
+    println("{}", json_no_color)
+    
+    return 0
+}
