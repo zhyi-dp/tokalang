@@ -1,0 +1,76 @@
+// Copyright (c) 2026 Toka Project. All rights reserved.
+// tests/pass/llvm_shim_test.tk
+// Verification test for the flat LLVM 20 C++ Shim and Toka high-level wrappers.
+
+import std/io::println
+import core/result::{Result}
+import std/string::{String}
+import std/llvm::{
+    LLVMContext,
+    LLVMModule,
+    LLVMType,
+    LLVMValue,
+    LLVMBasicBlock,
+    LLVMBuilder
+}
+
+fn main() -> i32 {
+    println("Starting LLVM Shim verification test...")
+
+    // 1. Create Context
+    auto ctx# = LLVMContext::new()
+
+    // 2. Create Module
+    auto mod# = LLVMModule::new(String::from("test_module"), ctx)
+
+    // 3. Create function signature: fn add(a: i32, b: i32) -> i32
+    auto i32_ty = LLVMType::int(32, ctx)
+    
+    // Create parameter types array
+    auto fn_ty# = LLVMType::void(ctx)
+    unsafe {
+        auto *param_tys# = alloc [2] LLVMType
+        param_tys[0] = i32_ty
+        param_tys[1] = i32_ty
+        
+        fn_ty = LLVMType::function(i32_ty, *param_tys, 2:usize, false)
+        free [2] *param_tys
+    }
+
+    // 4. Add function to module
+    auto add_fn = mod#.add_function(String::from("add"), fn_ty)
+
+    // 5. Append entry block
+    auto entry_block = LLVMBasicBlock::append(ctx, add_fn, String::from("entry"))
+
+    // 6. Create Builder and position it
+    auto builder# = LLVMBuilder::new(ctx)
+    builder#.position_at_end(entry_block)
+
+    // 7. Get function parameters and build addition
+    auto a = add_fn.get_param(0)
+    auto b = add_fn.get_param(1)
+    
+    auto add_res = builder#.build_add(a, b, String::from("add_tmp"))
+    builder#.build_ret(add_res)
+
+    // 8. Verify the module IR
+    match mod.verify() {
+        auto Result::Ok(_) => {
+            println("LLVM IR Verification PASSED!")
+        }
+        auto Result::Err(&err) => {
+            println("LLVM IR Verification FAILED: {}", err)
+            return 1
+        }
+    }
+
+    // 9. Print the generated IR to confirm
+    auto ir_str = mod.print_to_string()
+    println("Generated LLVM IR:")
+    println("{}", ir_str)
+
+    println("LLVM Shim verification test completed successfully.")
+    return 0
+}
+

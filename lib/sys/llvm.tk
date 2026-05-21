@@ -1,0 +1,35 @@
+// Copyright (c) 2026 Toka Project. All rights reserved.
+// lib/sys/llvm.tk
+// Low-level LLVM 20 FFI declarations.
+
+import core/types::{char}
+
+extern fn toka_llvm_create_context() -> *void
+extern fn toka_llvm_create_module(*name: char, *ctx: void) -> *void
+extern fn toka_llvm_dispose_module(*mod: void) -> void
+extern fn toka_llvm_dispose_context(*ctx: void) -> void
+
+extern fn toka_llvm_type_void(*ctx: void) -> *void
+extern fn toka_llvm_type_int(bits: i32, *ctx: void) -> *void
+extern fn toka_llvm_type_double(*ctx: void) -> *void
+extern fn toka_llvm_type_pointer(*ctx: void) -> *void
+extern fn toka_llvm_type_function(*retTy: void, *paramTys: void, paramCount: i32, isVarArg: bool) -> *void
+
+extern fn toka_llvm_create_builder(*ctx: void) -> *void
+extern fn toka_llvm_dispose_builder(*builder: void) -> void
+extern fn toka_llvm_position_builder_at_end(*builder: void, *block: void) -> void
+
+extern fn toka_llvm_build_add(*builder: void, *lhs: void, *rhs: void, *name: char) -> *void
+extern fn toka_llvm_build_sub(*builder: void, *lhs: void, *rhs: void, *name: char) -> *void
+extern fn toka_llvm_build_mul(*builder: void, *lhs: void, *rhs: void, *name: char) -> *void
+extern fn toka_llvm_build_ret(*builder: void, *val: void) -> *void
+extern fn toka_llvm_build_ret_void(*builder: void) -> *void
+extern fn toka_llvm_build_call(*builder: void, *fn_val: void, *args: void, argCount: i32, *name: char) -> *void
+
+extern fn toka_llvm_add_function(*mod: void, *name: char, *fnTy: void) -> *void
+extern fn toka_llvm_append_basic_block(*ctx: void, *fn_val: void, *name: char) -> *void
+extern fn toka_llvm_get_param(*fn_val: void, index: i32) -> *void
+
+extern fn toka_llvm_verify_module(*mod: void, *outError: void) -> bool
+extern fn toka_llvm_print_module_to_string(*mod: void) -> *char
+extern fn toka_llvm_dispose_string(*str: char) -> void

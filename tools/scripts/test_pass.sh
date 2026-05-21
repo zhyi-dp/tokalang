@@ -31,15 +31,38 @@ run_worker() {
     }
     
     # Step 1: Compile Native
-    if ! "$TOKAC" "$test_path" -o "$exe_file" > /dev/null 2> "$log_file"; then
-        append "$(printf "[${RED}FAIL${NC}] %-35s" "$file_name")"
-        append "    ${RED}$test_path:1: error: Compilation failed${NC}"
-        # Tail logs
-        LOGS=$(tail -n 5 "$log_file" | sed 's/^/    | /')
-        append "$LOGS"
-        echo -ne "$OUTPUT"
-        rm -f "$log_file" "$exe_file"
-        exit 1
+    if [ "$file_name" = "llvm_shim_test.tk" ]; then
+        tmp_obj="${exe_file}.o"
+        if ! "$TOKAC" --emit-obj "$test_path" -o "$tmp_obj" > /dev/null 2> "$log_file"; then
+            append "$(printf "[${RED}FAIL${NC}] %-35s" "$file_name")"
+            append "    ${RED}$test_path:1: error: Compilation failed${NC}"
+            LOGS=$(tail -n 5 "$log_file" | sed 's/^/    | /')
+            append "$LOGS"
+            echo -ne "$OUTPUT"
+            rm -f "$log_file" "$exe_file" "$tmp_obj"
+            exit 1
+        fi
+        if ! clang++-20 "$tmp_obj" lib/sys/llvm_shim.o lib/sys/toka_rt.o $(llvm-config-20 --ldflags --libs) -o "$exe_file" >> "$log_file" 2>&1; then
+            append "$(printf "[${RED}FAIL${NC}] %-35s" "$file_name")"
+            append "    ${RED}$test_path:1: error: Linking failed${NC}"
+            LOGS=$(tail -n 5 "$log_file" | sed 's/^/    | /')
+            append "$LOGS"
+            echo -ne "$OUTPUT"
+            rm -f "$log_file" "$exe_file" "$tmp_obj"
+            exit 1
+        fi
+        rm -f "$tmp_obj"
+    else
+        if ! "$TOKAC" "$test_path" -o "$exe_file" > /dev/null 2> "$log_file"; then
+            append "$(printf "[${RED}FAIL${NC}] %-35s" "$file_name")"
+            append "    ${RED}$test_path:1: error: Compilation failed${NC}"
+            # Tail logs
+            LOGS=$(tail -n 5 "$log_file" | sed 's/^/    | /')
+            append "$LOGS"
+            echo -ne "$OUTPUT"
+            rm -f "$log_file" "$exe_file"
+            exit 1
+        fi
     fi
 
     # Step 2: Run Native

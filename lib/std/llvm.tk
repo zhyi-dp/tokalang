@@ -1,0 +1,277 @@
+// Copyright (c) 2026 Toka Project. All rights reserved.
+// lib/std/llvm.tk
+// High-level Object-Oriented LLVM 20 Wrappers for self-hosting.
+
+import core/types::{char, usize, Addr}
+import core/traits::{@encap}
+import core/result::{Result}
+import std/string::{String}
+
+import sys/llvm::{
+    toka_llvm_create_context,
+    toka_llvm_create_module,
+    toka_llvm_dispose_module,
+    toka_llvm_dispose_context,
+    toka_llvm_type_void,
+    toka_llvm_type_int,
+    toka_llvm_type_double,
+    toka_llvm_type_pointer,
+    toka_llvm_type_function,
+    toka_llvm_create_builder,
+    toka_llvm_dispose_builder,
+    toka_llvm_position_builder_at_end,
+    toka_llvm_build_add,
+    toka_llvm_build_sub,
+    toka_llvm_build_mul,
+    toka_llvm_build_ret,
+    toka_llvm_build_ret_void,
+    toka_llvm_build_call,
+    toka_llvm_add_function,
+    toka_llvm_append_basic_block,
+    toka_llvm_get_param,
+    toka_llvm_verify_module,
+    toka_llvm_print_module_to_string,
+    toka_llvm_dispose_string
+}
+
+// 1. LLVMContext
+pub shape LLVMContext (
+    *#handle: void
+)
+
+impl LLVMContext {
+    pub fn new() -> LLVMContext {
+        return LLVMContext(*handle = toka_llvm_create_context() as *#void)
+    }
+
+    pub fn dispose(self#) {
+        if self.*handle != null {
+            toka_llvm_dispose_context(self.*handle)
+            self.*handle = null as *#void
+        }
+    }
+}
+
+impl LLVMContext@encap {
+    pub *
+    fn drop(self#) {
+        self#.dispose()
+    }
+    pub fn clone(self) = delete
+}
+
+// 2. LLVMType
+pub shape LLVMType (
+    *handle: void
+)
+
+impl LLVMType {
+    pub fn void(ctx: LLVMContext) -> LLVMType {
+        return LLVMType(*handle = toka_llvm_type_void(ctx.*handle))
+    }
+
+    pub fn int(bits: i32, ctx: LLVMContext) -> LLVMType {
+        return LLVMType(*handle = toka_llvm_type_int(bits, ctx.*handle))
+    }
+
+    pub fn double(ctx: LLVMContext) -> LLVMType {
+        return LLVMType(*handle = toka_llvm_type_double(ctx.*handle))
+    }
+
+    pub fn pointer(ctx: LLVMContext) -> LLVMType {
+        return LLVMType(*handle = toka_llvm_type_pointer(ctx.*handle))
+    }
+
+    pub fn function(retTy: LLVMType, *paramTys: [LLVMType], count: usize, isVarArg: bool) -> LLVMType {
+        if count == 0:usize {
+            return LLVMType(*handle = toka_llvm_type_function(retTy.*handle, null as *void, 0, isVarArg))
+        }
+
+        unsafe {
+            auto *handles# = unsafe alloc [count] Addr
+            auto idx# = 0:usize
+            while idx < count {
+                handles[idx] = paramTys[idx].*handle as Addr
+                idx = idx + 1:usize
+            }
+            auto *raw_ptr = &handles[0] as *void
+            auto *res_handle = toka_llvm_type_function(retTy.*handle, *raw_ptr, count as i32, isVarArg)
+            unsafe free [count] *handles
+            return LLVMType(*handle = *res_handle)
+        }
+    }
+}
+
+impl LLVMType@encap {
+    pub *
+    fn drop(self#) {
+        // Managed by Context
+    }
+    pub fn clone(self) -> LLVMType {
+        return LLVMType(*handle = self.*handle)
+    }
+}
+
+// 3. LLVMValue
+pub shape LLVMValue (
+    *handle: void
+)
+
+impl LLVMValue {
+    pub fn get_param(self, index: i32) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_get_param(self.*handle, index))
+    }
+}
+
+impl LLVMValue@encap {
+    pub *
+    fn drop(self#) {
+        // Managed by Context/Module
+    }
+    pub fn clone(self) -> LLVMValue {
+        return LLVMValue(*handle = self.*handle)
+    }
+}
+
+// 4. LLVMBasicBlock
+pub shape LLVMBasicBlock (
+    *handle: void
+)
+
+impl LLVMBasicBlock {
+    pub fn append(ctx: LLVMContext, fn_val: LLVMValue, name: String) -> LLVMBasicBlock {
+        return LLVMBasicBlock(*handle = toka_llvm_append_basic_block(ctx.*handle, fn_val.*handle, name.c_str()))
+    }
+}
+
+impl LLVMBasicBlock@encap {
+    pub *
+    fn drop(self#) {
+        // Managed by Context/Module
+    }
+    pub fn clone(self) -> LLVMBasicBlock {
+        return LLVMBasicBlock(*handle = self.*handle)
+    }
+}
+
+// 5. LLVMModule
+pub shape LLVMModule (
+    *#handle: void
+)
+
+impl LLVMModule {
+    pub fn new(name: String, ctx: LLVMContext) -> LLVMModule {
+        return LLVMModule(*handle = toka_llvm_create_module(name.c_str(), ctx.*handle) as *#void)
+    }
+
+    pub fn dispose(self#) {
+        if self.*handle != null {
+            toka_llvm_dispose_module(self.*handle)
+            self.*handle = null as *#void
+        }
+    }
+
+    pub fn add_function(self#, name: String, fnTy: LLVMType) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_add_function(self.*handle, name.c_str(), fnTy.*handle))
+    }
+
+    pub fn print_to_string(self) -> String {
+        auto *c_str = toka_llvm_print_module_to_string(self.*handle)
+        auto res = String::from(*c_str)
+        toka_llvm_dispose_string(*c_str)
+        return res
+    }
+
+    pub fn verify(self) -> Result<(), String> {
+        unsafe {
+            auto *err_ptr# = null as *char
+            auto ok = toka_llvm_verify_module(self.*handle, &err_ptr as *void)
+            if ok {
+                return Result<(), String>::Ok(())
+            }
+            if *err_ptr == null as *char {
+                return Result<(), String>::Err("Unknown LLVM verification error".to_string())
+            }
+            auto err_msg = String::from(*err_ptr)
+            toka_llvm_dispose_string(*err_ptr)
+            return Result<(), String>::Err(err_msg)
+        }
+    }
+}
+
+impl LLVMModule@encap {
+    pub *
+    fn drop(self#) {
+        self#.dispose()
+    }
+    pub fn clone(self) = delete
+}
+
+// 6. LLVMBuilder
+pub shape LLVMBuilder (
+    *#handle: void
+)
+
+impl LLVMBuilder {
+    pub fn new(ctx: LLVMContext) -> LLVMBuilder {
+        return LLVMBuilder(*handle = toka_llvm_create_builder(ctx.*handle) as *#void)
+    }
+
+    pub fn dispose(self#) {
+        if self.*handle != null {
+            toka_llvm_dispose_builder(self.*handle)
+            self.*handle = null as *#void
+        }
+    }
+
+    pub fn position_at_end(self#, block: LLVMBasicBlock) {
+        toka_llvm_position_builder_at_end(self.*handle, block.*handle)
+    }
+
+    pub fn build_add(self#, lhs: LLVMValue, rhs: LLVMValue, name: String) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_add(self.*handle, lhs.*handle, rhs.*handle, name.c_str()))
+    }
+
+    pub fn build_sub(self#, lhs: LLVMValue, rhs: LLVMValue, name: String) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_sub(self.*handle, lhs.*handle, rhs.*handle, name.c_str()))
+    }
+
+    pub fn build_mul(self#, lhs: LLVMValue, rhs: LLVMValue, name: String) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_mul(self.*handle, lhs.*handle, rhs.*handle, name.c_str()))
+    }
+
+    pub fn build_ret(self#, val: LLVMValue) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_ret(self.*handle, val.*handle))
+    }
+
+    pub fn build_ret_void(self#) -> LLVMValue {
+        return LLVMValue(*handle = toka_llvm_build_ret_void(self.*handle))
+    }
+
+    pub fn build_call(self#, fn_val: LLVMValue, *args: [LLVMValue], count: usize, name: String) -> LLVMValue {
+        if count == 0:usize {
+            return LLVMValue(*handle = toka_llvm_build_call(self.*handle, fn_val.*handle, null as *void, 0, name.c_str()))
+        }
+
+        unsafe {
+            auto *handles# = unsafe alloc [count] Addr
+            auto idx# = 0:usize
+            while idx < count {
+                handles[idx] = args[idx].*handle as Addr
+                idx = idx + 1:usize
+            }
+            auto *raw_ptr = &handles[0] as *void
+            auto *res_handle = toka_llvm_build_call(self.*handle, fn_val.*handle, *raw_ptr, count as i32, name.c_str())
+            unsafe free [count] *handles
+            return LLVMValue(*handle = *res_handle)
+        }
+    }
+}
+
+impl LLVMBuilder@encap {
+    pub *
+    fn drop(self#) {
+        self#.dispose()
+    }
+    pub fn clone(self) = delete
+}
