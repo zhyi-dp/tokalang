@@ -1,0 +1,35 @@
+// Copyright (c) 2026 YiZhonghua<zhyi@dpai.com>. All rights reserved.
+//
+// Positive verification test for core/mem::bit_cast.
+
+import std/io::println
+import core/mem::bit_cast
+
+shape Point(x: i32, y: i32)
+
+pub fn main() -> i32 {
+    // 1. Primitive bit_cast
+    auto fval = 1.0:f32
+    auto ival = bit_cast<i32>(fval)
+    
+    // IEEE 754 float 1.0 is 0x3f800000 in hex, which is 1065353216 in decimal
+    if (ival != 1065353216) {
+        println("Primitive float to int bit_cast failed!")
+        return 1
+    }
+    
+    // 2. Struct to Primitive (Aggregate to Scalar) bit_cast
+    auto p = Point(x = 0x12345678, y = 0x11223344)
+    auto packed_val = bit_cast<u64>(p)
+    
+    // On little-endian system, Point(x, y) memory layout is x followed by y
+    // x = 0x12345678, y = 0x11223344
+    // 64-bit integer will load: (y << 32) | x = 0x1122334412345678
+    if (packed_val != 0x1122334412345678:u64) {
+        println("Aggregate to scalar bit_cast failed!")
+        return 1
+    }
+
+    println("All bit_cast tests passed successfully!")
+    return 0
+}

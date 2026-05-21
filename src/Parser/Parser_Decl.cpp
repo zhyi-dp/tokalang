@@ -61,7 +61,8 @@ std::vector<GenericParam> Parser::parseGenericParams() {
 std::unique_ptr<ShapeDecl> Parser::parseShape(bool isPub) {
   bool isUnion = false;
   if (match(TokenType::KwUnion)) {
-    isUnion = true;
+    error(previous(), DiagID::ERR_UNION_DEPRECATED);
+    return nullptr;
   } else {
     match(TokenType::KwShape); // Optional if packed
     match(TokenType::KwPacked);
@@ -107,42 +108,8 @@ std::unique_ptr<ShapeDecl> Parser::parseShape(bool isPub) {
     m.Type = elemTy;
     members.push_back(std::move(m));
   } else if (match(TokenType::KwAs)) {
-    consume(TokenType::KwVariant, "Expected 'variant' after 'as'");
-    kind = ShapeKind::Union;
-    int idx = 0;
-    while (match(TokenType::Pipe)) {
-      ShapeMember m;
-      match(TokenType::KwAs); // Optional 'as' in this syntax
-      if (check(TokenType::Identifier) && checkAt(1, TokenType::Colon)) {
-        Token nameTok = advance();
-        m.Name = nameTok.Text;
-        m.IsValueMutable = nameTok.HasWrite;
-        m.IsValueNullable = nameTok.HasNull;
-        m.IsValueBlocked = nameTok.IsBlocked;
-        consume(TokenType::Colon, "Expected ':'");
-      } else {
-        m.Name = std::to_string(idx);
-      }
-
-      std::string prefixType = "";
-      if (match(TokenType::Star)) {
-        m.HasPointer = true;
-        prefixType = "*";
-      } else if (match(TokenType::Caret)) {
-        m.IsUnique = true;
-        prefixType = "^";
-      } else if (match(TokenType::Tilde)) {
-        m.IsShared = true;
-        prefixType = "~";
-      } else if (match(TokenType::Ampersand)) {
-        m.IsReference = true;
-        prefixType = "&";
-      }
-
-      m.Type = prefixType + parseTypeString();
-      idx++;
-      members.push_back(std::move(m));
-    }
+    error(previous(), DiagID::ERR_UNION_DEPRECATED);
+    return nullptr;
   } else if (match(TokenType::LParen)) {
     bool isEnum = false;
     bool isUnion = false;
@@ -176,43 +143,8 @@ std::unique_ptr<ShapeDecl> Parser::parseShape(bool isPub) {
     }
 
     if (isUnion) {
-      kind = ShapeKind::Union;
-      int idx = 0;
-      while (!check(TokenType::RParen) && !check(TokenType::EndOfFile)) {
-        consume(TokenType::KwAs, "Expected 'as' for union variant");
-        ShapeMember v;
-        if (check(TokenType::Identifier) && checkAt(1, TokenType::Colon)) {
-          Token nameTok = advance();
-          v.Name = nameTok.Text;
-          v.IsValueMutable = nameTok.HasWrite;
-          v.IsValueNullable = nameTok.HasNull;
-          v.IsValueBlocked = nameTok.IsBlocked;
-          consume(TokenType::Colon, "Expected ':'");
-        } else {
-          v.Name = std::to_string(idx);
-        }
-
-        std::string prefixType = "";
-        if (match(TokenType::Star)) {
-          v.HasPointer = true;
-          prefixType = "*";
-        } else if (match(TokenType::Caret)) {
-          v.IsUnique = true;
-          prefixType = "^";
-        } else if (match(TokenType::Tilde)) {
-          v.IsShared = true;
-          prefixType = "~";
-        } else if (match(TokenType::Ampersand)) {
-          v.IsReference = true;
-          prefixType = "&";
-        }
-
-        v.Type = prefixType + parseTypeString();
-        idx++;
-        members.push_back(std::move(v));
-        if (!check(TokenType::RParen))
-          match(TokenType::Pipe);
-      }
+      error(peek(), DiagID::ERR_UNION_DEPRECATED);
+      return nullptr;
     } else if (isEnum) {
       kind = ShapeKind::Enum;
       while (!check(TokenType::RParen) && !check(TokenType::EndOfFile)) {

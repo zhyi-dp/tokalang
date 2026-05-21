@@ -1,5 +1,5 @@
 error[E0470]: Bare union is deprecated and removed in Toka. Use Tagged Enum or explicit type structure with 'core/mem::bit_cast' instead.
- --> tests/fail/generic_union_forbidden.tk:3:5
+ --> tests/fail/deprecated_union.tk:6:15
   |
- 3 |     as val: T |
-  |     ^
+ 6 | shape MyUnion(as i32 | as f32)
+  |               ^

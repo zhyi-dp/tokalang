@@ -1,0 +1,10 @@
+// Copyright (c) 2026 YiZhonghua<zhyi@dpai.com>. All rights reserved.
+//
+// Deprecated Bare Union test to verify parser-level interception.
+// EXPECT: error[E0470]
+
+shape MyUnion(as i32 | as f32)
+
+pub fn main() -> i32 {
+    return 0
+}

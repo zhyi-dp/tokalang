@@ -60,6 +60,8 @@ DIAG(ERR_UNION_PARTIAL_INIT, Error, "E0425", "Partial initialization of Union '{
 DIAG(ERR_UNION_INVALID_MEMBER, Error, "E0426", "Union member '{}' has restricted type '{}' (underlying '{}')")
 DIAG(ERR_UNION_RESOURCE_TYPE, Error, "E0427", "Union member '{}' has type '{}' which manages resources (HasDrop); unions must be data-only")
 DIAG(NOTE_UNION_RESOURCE_TIP, Note,  "N0002", "Unions cannot track active variants to drop resources safely; consider using a raw pointer '*{}' or 'ManuallyDrop<T>'")
+DIAG(ERR_UNION_DEPRECATED,    Error, "E0470", "Bare union is deprecated and removed in Toka. Use Tagged Enum or explicit type structure with 'core/mem::bit_cast' instead.")
+DIAG(ERR_BITCAST_SIZE_MISMATCH, Error, "E0471", "bit_cast source and target types must have the same size (sizeof('{}') = {} vs sizeof('{}') = {})")
 
 // --- Sema: Traits & Interfaces ---
 DIAG(ERR_SIGNATURE_MISMATCH, Error, "E0428", "Method signature mismatch: trait defines '{}' as {}, but implementation is {}")

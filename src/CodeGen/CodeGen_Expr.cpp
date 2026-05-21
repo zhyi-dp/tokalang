@@ -3203,6 +3203,30 @@ void CodeGen::genPatternBinding(const MatchArm::Pattern *pat,
 }
 
 PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
+  if (call->Callee == "core/mem::bit_cast" || call->Callee == "bit_cast") {
+      PhysEntity argEnt = genExpr(call->Args[0].get());
+      llvm::Type *destLLVMTy = getLLVMType(call->ResolvedType);
+      llvm::Value *resVal = nullptr;
+
+      if (argEnt.isAddress) {
+          llvm::Value *srcAddr = argEnt.value;
+          llvm::Value *destPtr = m_Builder.CreatePointerCast(srcAddr, llvm::PointerType::get(destLLVMTy, 0));
+          resVal = m_Builder.CreateLoad(destLLVMTy, destPtr, "bitcast.res");
+      } else {
+          llvm::Value *srcVal = argEnt.load(m_Builder);
+          llvm::Type *srcLLVMTy = srcVal->getType();
+          if (!srcLLVMTy->isAggregateType() && !destLLVMTy->isAggregateType()) {
+              resVal = m_Builder.CreateBitCast(srcVal, destLLVMTy);
+          } else {
+              llvm::Value *temp = m_Builder.CreateAlloca(destLLVMTy, nullptr, "bitcast.temp");
+              llvm::Value *tempSrcPtr = m_Builder.CreatePointerCast(temp, llvm::PointerType::get(srcLLVMTy, 0));
+              m_Builder.CreateStore(srcVal, tempSrcPtr);
+              resVal = m_Builder.CreateLoad(destLLVMTy, temp, "bitcast.res");
+          }
+      }
+      return PhysEntity(resVal, call->ResolvedType->toString(), destLLVMTy, false);
+  }
+
   if (call->Callee == "__builtin_await") {
       if (!m_CurrentCoroHandle) {
           error(call, "await can only be used inside an async function");

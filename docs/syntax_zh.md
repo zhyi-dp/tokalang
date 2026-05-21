@@ -67,7 +67,7 @@
 | `auto p = Person(..)` vs `Person()` | 全量缺省防线 (Strict Defaults) | **高安全工程铁律**：`()` 的空括号调用**仅且只能**用于实例化**真正自带 0 个字段**的标记空结构体！如果结构体中具有任意一个字段（即便是全都有默认值），你想偷懒全量继承的话，**必须强行带上声明符 `..`**（即写成 `Person(..)` ）。这一语法屏障彻底杜绝了后期扩充属性和添加默认值所造成的静默“重构黑洞”！ |
 | `shape Pair(i32, i32)` | 元组 (Tuple) | 匿名结构体，通过 `.0`, `.1` 访问 |
 | `shape Res(Ok(T) \| Err)` | 枚举 (Enum) | `\|` 分隔变体，支持关联数据 (Tagged Union) |
-| `shape IntOrFloat(as i32 \| as f32)` | 联合 (Union) | 内存重叠，使用 `as` 关键字 |
+| **已彻底废弃废除** | 裸联合 (Bare Union) | 为了 100% Zero UB，Toka 已彻底物理超度裸 Union (Bare Union) |
 | `alias ID = i32` | 类型别名 | 为现有类型起别名 |
 | `type ID = i32` | 类型克隆 | 以已有类型为原型声明新类型 |
 | **封装与可见性控制 (Visibility)** | | |
@@ -148,7 +148,7 @@
 | `~m.a` / `*p.field` | `m.a` (读实体)<br>`m.~a` (取指针Handle) | **铁律 (链式访问单帽置尾原则)**：点号 `.` 的左侧必须是灵魂 (Soul，也就是实体结构)，绝不能是戴帽子的 Handle形态。因此，在点号链式访问中，**所有中间环节必须是裸名**。如果你试图操作字段的指针本身，帽子**只能紧挨在最后一环的成员名之前** (如 `a.b.~c`)。向中间环节戴帽（如 `~m.a` / `a.~b.c`）是严重错误。 |
 | `extern fn free(nul *p: void)` | `extern fn libc_free(*p: void)`<br>`unsafe { *p = null }` | **FFI 与 unsafe 可空特权规则**：为了简化 FFI 的调用，外部函数声明可以直接使用不可空指针（如 `*p`），而在 `unsafe` 块中，编译器赋予原始指针（Raw Pointer）隐式绕过严格可空属性类型限制的特权。这意味着，在 `unsafe` 上下文中，你可以合法地将 `null` 赋值给、比较、返回、或通过 FFI 传参给一个不可空的原始指针，而不会触发类型兼容性错误。|
 | `impl Foo@encap { fn drop(self#) {} }` (仅提供 drop) | `impl Foo@encap { fn drop(self#){} pub fn clone(self) = delete }` | **铁律 (@encap 等 Trait 契约完整性)**：所有的 `@encap` 实现块**必须完整提供契约约定的全部生命周期函数**（包括 `drop` 和 `clone`）！绝不允许为了偷懒而隐式省略。如果不允许资源被拷贝复制，**必须**显式标注 `pub fn clone(self) = delete` 进行拦截，借此杜绝模糊不清的静默规则。 |
-| `shape U(as String \| as i32)` (裸联合体包含受控资源) | 为其包裹枚举或手动提供 `@encap` 析构 | **铁律 (E0801: Union 的资源禁令)**：严禁在 `Untagged Union` 内直接存放包含 `@encap/drop` 生命周期管理的类型（如 `String`、`Vec`）。因运行时无从知晓当前变体，放任自动生成 `drop` 会导致严重的段错误。除非开发者为该 Union 显式实现完整的 `@encap` 析构。 |
+| `shape U(as i32 \| as f32)` (声明/使用裸联合体) | 使用 **Tagged Enum** 或使用 **等宽占位类型 + `core/mem::bit_cast`** | **铁律：Toka 已彻底废除并物理超度裸 Union (Bare Union)**，全面杜绝类型双关未定义行为（UB）。在与 C FFI 交互含有 union 的结构体（如 `epoll_event`）时，Toka 端的最佳实践是声明等宽的无符号整数（如 `u64`）或字节数组（如 `[u8; 8]`）作为占位符，在系统边界通过 `bit_cast` 提取。<br>**🚨 C-FFI ABI 调用约定（Calling Convention）致命陷阱**：与 C 语言交互包含 Union 的结构体时，**请务必通过指针（Pointer/Reference）传递，严禁跨越 FFI 边界按值（Pass-by-Value）传递等宽占位符**！在 System V AMD64 ABI 中，C 语言传包含浮点和整数的 Union（按值传递）和传纯 `u64` 或 `[u8; 8]` 使用的 CPU 寄存器类别可能截然不同，按值传递将直接导致严重的 ABI 错乱和数据崩溃。 |
 | `auto x = cede map.inner` | `auto x = cede map` (整体交出) | **铁律 (Partial Move 局部夺舍禁令)**：绝对禁止使用 `cede` 强行剥夺带有生命周期托管的宿主对象（如包含 `@encap` 的复杂容器）内部属性！强行拆散闭环会导致宿主进入不可恢复的报废污染状态，破坏安全析构链。 |
 | `auto Point(x = val, y)` / `Point(x = val, y => ...)` | `auto Point(x = val, y = another_val)` 或者 `Point(1, 2)` | **铁律 (E0105: 混合解构禁令)**：严禁在列表初始化、解构声明和模式匹配中混用具名与位置参数/字段！要么全部使用位置方式，要么全部使用具名方式，不能参杂。 |
 | `auto Point(y = val)` (缺省部分字段且无 `..`) | `auto Point(y = val, ..)` | **铁律 (E042C: 完备性缺失)**：具名解构与模式匹配时，未列出的且没有默认值的字段必须通过 `..` 进行显式省略。若没有 `..` 且有未列出的非默认值字段，则会精准抛出 `E042C`。 |

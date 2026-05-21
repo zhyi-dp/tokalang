@@ -92,6 +92,41 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
       return toka::Type::fromString("void");
   }
 
+  // 1c. core/mem::bit_cast intrinsic
+  if (CallName == "core/mem::bit_cast" || CallName == "bit_cast") {
+      if (Call->Args.size() != 1) {
+          error(Call, "bit_cast requires exactly 1 argument");
+          return toka::Type::fromString("unknown");
+      }
+      if (Call->GenericArgs.empty()) {
+          error(Call, "bit_cast requires the target type as a generic argument, e.g., bit_cast<To>(val)");
+          return toka::Type::fromString("unknown");
+      }
+      
+      auto fromTy = checkExpr(Call->Args[0].get());
+      if (!fromTy || fromTy->isUnknown()) {
+          return toka::Type::fromString("unknown");
+      }
+      
+      std::string toStr = Call->GenericArgs[0];
+      auto toTy = resolveType(toka::Type::fromString(toStr));
+      if (!toTy || toTy->isUnknown()) {
+          error(Call, "Unknown target type '" + toStr + "' in bit_cast");
+          return toka::Type::fromString("unknown");
+      }
+      
+      uint64_t fromSize = getTypeSize(fromTy);
+      uint64_t toSize = getTypeSize(toTy);
+      if (fromSize != toSize) {
+          DiagnosticEngine::report(getLoc(Call), DiagID::ERR_BITCAST_SIZE_MISMATCH,
+                                   fromTy->toString(), fromSize, toTy->toString(), toSize);
+          HasError = true;
+          return toTy;
+      }
+      
+      return toTy;
+  }
+
   // 2. Intrinsics (println, print, String::fmt)
   bool isPrintlnLegacy = (CallName == "println_legacy" || CallName == "std::io::println_legacy" || CallName == "print_legacy" || CallName == "std::io::print_legacy");
   bool isPrintln = (CallName == "println" || CallName == "std::io::println" || CallName == "print" || CallName == "std::io::print");
