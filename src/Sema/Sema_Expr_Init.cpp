@@ -481,25 +481,42 @@ Sema::checkStructInit(InitStructExpr *Init, ShapeDecl *SD,
   bool hasElision = false;
   Expr* elisionTarget = nullptr;
 
+  int elisionCount = 0;
+  for (size_t i = 0; i < Init->Members.size(); ++i) {
+    if (Init->Members[i].first == "..") {
+      elisionCount++;
+    }
+  }
+  if (elisionCount > 1) {
+    error(Init, DiagID::ERR_MULTIPLE_ELISION);
+  }
+
   for (size_t i = 0; i < Init->Members.size(); ++i) {
     auto &pair = Init->Members[i];
     if (pair.first == "..") {
-      if (i != Init->Members.size() - 1) {
-        error(Init, DiagID::ERR_ELISION_NOT_AT_END);
-      }
       hasElision = true;
+      continue;
+    }
+
+    if (pair.first == "") {
       if (auto *elExpr = dynamic_cast<ElisionExpr *>(pair.second.get())) {
-        if (elExpr->Target) {
-            elisionTarget = elExpr->Target.get();
-            auto targetType = checkExpr(elisionTarget);
-            if (targetType && targetType->getSoulName() != SD->Name) {
-                error(elisionTarget, "Target elision must be of type '" + SD->Name + "', but got '" + targetType->toString() + "'");
-                elisionTarget = nullptr;
-            } else if (elisionTarget && !dynamic_cast<VariableExpr*>(elisionTarget) && !dynamic_cast<MemberExpr*>(elisionTarget) && !dynamic_cast<ArrayIndexExpr*>(elisionTarget)) {
-                error(elisionTarget, "Target elision source must be a simple variable or access chain to avoid repeated side-effects");
-                elisionTarget = nullptr;
-            }
+        hasElision = true;
+        continue;
+      }
+      auto targetType = checkExpr(pair.second.get());
+      if (targetType && targetType->getSoulName() == SD->Name) {
+        if (elisionTarget) {
+          error(pair.second.get(), DiagID::ERR_MULTIPLE_ELISION);
         }
+        elisionTarget = pair.second.get();
+        if (elisionTarget && !dynamic_cast<VariableExpr*>(elisionTarget) && 
+            !dynamic_cast<MemberExpr*>(elisionTarget) && 
+            !dynamic_cast<ArrayIndexExpr*>(elisionTarget)) {
+          error(elisionTarget, "Target elision source must be a simple variable or access chain to avoid repeated side-effects");
+          elisionTarget = nullptr;
+        }
+      } else {
+        error(pair.second.get(), "Expression of type '" + (targetType ? targetType->toString() : "unknown") + "' cannot be used as target elision for struct '" + SD->Name + "'");
       }
       continue;
     }
@@ -680,10 +697,8 @@ Sema::checkStructInit(InitStructExpr *Init, ShapeDecl *SD,
     }
   }
 
-  if (hasElision) {
-    Init->Members.erase(std::remove_if(Init->Members.begin(), Init->Members.end(),
-        [](const auto& pair) { return pair.first == ".."; }), Init->Members.end());
-  }
+  Init->Members.erase(std::remove_if(Init->Members.begin(), Init->Members.end(),
+      [](const auto& pair) { return pair.first == ".." || pair.first == ""; }), Init->Members.end());
 
   // Mask Calculation
   uint64_t mask = 0;

@@ -232,6 +232,40 @@ bool Parser::isNextNamedField(int startOffset) const {
   return checkAt(lookAhead, TokenType::Equal);
 }
 
+bool Parser::isNamedInitList() const {
+  int balance = 0;
+  int offset = 0;
+  while (true) {
+    const Token &tok = peekAt(offset);
+    if (tok.Kind == TokenType::EndOfFile) {
+      break;
+    }
+    if (balance == 0 && (tok.Kind == TokenType::RParen || tok.Kind == TokenType::RBrace)) {
+      break;
+    }
+    
+    if (tok.Kind == TokenType::LParen || tok.Kind == TokenType::LBrace || tok.Kind == TokenType::LBracket) {
+      balance++;
+      offset++;
+      continue;
+    }
+    if (tok.Kind == TokenType::RParen || tok.Kind == TokenType::RBrace || tok.Kind == TokenType::RBracket) {
+      balance--;
+      offset++;
+      continue;
+    }
+    
+    if (balance == 0) {
+      if (isNextNamedField(offset)) {
+        return true;
+      }
+    }
+    
+    offset++;
+  }
+  return false;
+}
+
 std::string Parser::parseNamespaceOrIdentifier() {
   Token nameTok = consume(TokenType::Identifier, "Expected identifier");
   std::string name = nameTok.Text;

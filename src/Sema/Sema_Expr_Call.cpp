@@ -880,6 +880,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
       }
       std::set<std::string> providedFields;
       int elisionIndex = -1;
+      int targetArgIdx = -1;
       Expr* elisionTarget = nullptr;
       bool hasNamed = false;
       bool hasPositional = false;
@@ -891,17 +892,6 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
             error(argExpr, DiagID::ERR_MULTIPLE_ELISION);
           }
           elisionIndex = (int)i;
-          if (elExpr->Target) {
-            elisionTarget = elExpr->Target.get();
-            auto targetType = checkExpr(elisionTarget);
-            if (targetType && targetType->getSoulName() != Sh->Name) {
-                error(elisionTarget, "Target elision must be of type '" + Sh->Name + "', but got '" + targetType->toString() + "'");
-                elisionTarget = nullptr;
-            } else if (elisionTarget && !dynamic_cast<VariableExpr*>(elisionTarget) && !dynamic_cast<MemberExpr*>(elisionTarget) && !dynamic_cast<ArrayIndexExpr*>(elisionTarget)) {
-                error(elisionTarget, "Target elision source must be a simple variable or access chain to avoid repeated side-effects");
-                elisionTarget = nullptr;
-            }
-          }
           hasPositional = true;
           continue;
         }
@@ -914,11 +904,39 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
         else hasPositional = true;
       }
 
+      // If elisionIndex is present, search for a candidate base expression
+      if (elisionIndex != -1) {
+        for (size_t i = 0; i < Call->Args.size(); ++i) {
+          if ((int)i == elisionIndex) continue;
+          auto *argExpr = Call->Args[i].get();
+          bool isNamed = false;
+          if (auto *bin = dynamic_cast<BinaryExpr *>(argExpr)) {
+            if (bin->Op == "=") isNamed = true;
+          }
+          if (isNamed) continue;
+
+          auto targetType = checkExpr(argExpr);
+          if (targetType && targetType->getSoulName() == Sh->Name) {
+            if (targetArgIdx != -1) {
+              error(argExpr, DiagID::ERR_MULTIPLE_ELISION);
+            }
+            targetArgIdx = (int)i;
+            elisionTarget = argExpr;
+            if (elisionTarget && !dynamic_cast<VariableExpr*>(elisionTarget) && 
+                !dynamic_cast<MemberExpr*>(elisionTarget) && 
+                !dynamic_cast<ArrayIndexExpr*>(elisionTarget)) {
+              error(elisionTarget, "Target elision source must be a simple variable or access chain to avoid repeated side-effects");
+              elisionTarget = nullptr;
+            }
+          }
+        }
+      }
+
       if (hasNamed) {
         error(Call, DiagID::ERR_MIXED_INIT_MODE);
       }
 
-      int normalArgsCount = Call->Args.size() - (elisionIndex != -1 ? 1 : 0);
+      int normalArgsCount = Call->Args.size() - (elisionIndex != -1 ? 1 : 0) - (targetArgIdx != -1 ? 1 : 0);
       int elisionSkipCount = 0;
       if (elisionIndex != -1) {
         elisionSkipCount = (int)Sh->Members.size() - normalArgsCount;
@@ -941,6 +959,9 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
             }
             memberIdx++;
           }
+          continue;
+        }
+        if ((int)i == targetArgIdx) {
           continue;
         }
 
@@ -1027,6 +1048,9 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
           for (size_t i = 0; i < Call->Args.size(); ++i) {
             if ((int)i == elisionIndex) {
               mIdx += elisionSkipCount;
+              continue;
+            }
+            if ((int)i == targetArgIdx) {
               continue;
             }
             if (Sh->Members[mIdx].Name == M.Name) {

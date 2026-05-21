@@ -488,7 +488,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
             if (dynamic_cast<ElisionExpr*>(expr.get())) {
                 fields.push_back({"..", std::move(expr)});
             } else {
-                error(peek(), "Expected named argument 'key = value' or elision 'expr..'");
+                fields.push_back({"", std::move(expr)});
             }
             if (!check(TokenType::RBrace)) match(TokenType::Comma);
             continue;
@@ -523,7 +523,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
       consume(TokenType::LParen, "Expected '('");
 
       // Check for named initializer syntax: Type(field = val)
-      bool isNamedInit = isNextNamedField(0);
+      bool isNamedInit = isNamedInitList();
 
       if (isNamedInit) {
         std::vector<std::pair<std::string, std::unique_ptr<Expr>>> fields;
@@ -533,7 +533,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
               if (dynamic_cast<ElisionExpr*>(expr.get())) {
                   fields.push_back({"..", std::move(expr)});
               } else {
-                  error(peek(), "Expected named argument 'key = value' or elision 'expr..'");
+                  fields.push_back({"", std::move(expr)});
               }
               if (!check(TokenType::RParen)) match(TokenType::Comma);
               continue;
@@ -637,7 +637,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
       std::unique_ptr<Expr> init = nullptr;
       if (check(TokenType::LParen)) {
         consume(TokenType::LParen, "Expected '('");
-        bool isNamedInit = isNextNamedField(0);
+        bool isNamedInit = isNamedInitList();
         if (isNamedInit) {
           std::vector<std::pair<std::string, std::unique_ptr<Expr>>> fields;
           while (!check(TokenType::RParen) && !check(TokenType::EndOfFile)) {
@@ -646,7 +646,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
                 if (dynamic_cast<ElisionExpr*>(expr.get())) {
                     fields.push_back({"..", std::move(expr)});
                 } else {
-                    error(peek(), "Expected named argument 'key = value' or elision 'expr..'");
+                    fields.push_back({"", std::move(expr)});
                 }
                 if (!check(TokenType::RParen)) match(TokenType::Comma);
                 continue;
@@ -780,7 +780,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
 
     if (match(TokenType::LParen)) {
       // Function Call or Named Struct Init: Type(...) or Type(x=1)
-      bool isNamed = isNextNamedField(0);
+      bool isNamed = isNamedInitList();
 
       if (isNamed) {
         std::vector<std::pair<std::string, std::unique_ptr<Expr>>> fields;
@@ -790,7 +790,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
               if (dynamic_cast<ElisionExpr*>(expr.get())) {
                   fields.push_back({"..", std::move(expr)});
               } else {
-                  error(peek(), "Expected named argument 'key = value' or elision 'expr..'");
+                  fields.push_back({"", std::move(expr)});
               }
               if (!check(TokenType::RParen)) match(TokenType::Comma);
               continue;
@@ -1036,11 +1036,6 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
       auto node = std::make_unique<UnwrapPropagationExpr>(std::move(expr));
       node->setLocation(opTok, m_CurrentFile);
       expr = std::move(node);
-    } else if (match(TokenType::DotDot)) {
-      Token opTok = previous();
-      auto node = std::make_unique<ElisionExpr>(std::move(expr));
-      node->setLocation(opTok, m_CurrentFile);
-      expr = std::move(node);
     } else if (allowTrailingClosure && !isEndOfStatement() && isClosureExpression()) {
       // Trailing Closure Syntax
       auto clo = parseClosureExpr();
@@ -1113,7 +1108,7 @@ std::unique_ptr<Expr> Parser::parseAllocExpr() {
   std::unique_ptr<Expr> init = nullptr;
   if (match(TokenType::LParen)) {
     // Check if it's named field initialization: Hero(id = 1, hp = 2)
-    if (isNextNamedField(0)) {
+    if (isNamedInitList()) {
       std::vector<std::pair<std::string, std::unique_ptr<Expr>>> fields;
       while (!check(TokenType::RParen) && !check(TokenType::EndOfFile)) {
         if (!isNextNamedField(0)) {
@@ -1121,7 +1116,7 @@ std::unique_ptr<Expr> Parser::parseAllocExpr() {
             if (dynamic_cast<ElisionExpr*>(expr.get())) {
                 fields.push_back({"..", std::move(expr)});
             } else {
-                error(peek(), "Expected named argument 'key = value' or elision 'expr..'");
+                fields.push_back({"", std::move(expr)});
             }
             if (!check(TokenType::RParen)) match(TokenType::Comma);
             continue;

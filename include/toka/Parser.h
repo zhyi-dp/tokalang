@@ -96,6 +96,7 @@ private:
   std::unique_ptr<Expr> parsePrimary(bool allowTrailingClosure = true);
   std::string parseTypeString();
   bool isNextNamedField(int startOffset = 0) const;
+  bool isNamedInitList() const;
   std::string parseNamespaceOrIdentifier();
 
   // ... Add more precedence helpers here
