@@ -4,7 +4,8 @@
 
 import core/types::{usize, Addr, ADDR0}
 import core/traits::{@encap}
-import core/libc::{libc_malloc, libc_free}
+import core/libc::{libc_malloc, libc_free, libc_memcpy}
+import core/str::{view_str}
 
 pub shape ArenaChunk (
     data: Addr,
@@ -139,6 +140,36 @@ pub fn alloc_type<'T>(arena#: Arena) -> *'T {
     auto addr = arena#.alloc_bytes(size)
     return addr as *'T
 }
+
+/**
+ * Allocate an array of generic type 'T inside the arena chunk pool.
+ */
+pub fn alloc_array<'T>(arena#: Arena, count: usize) -> *'T {
+    auto size = sizeof('T) * count
+    auto addr = arena#.alloc_bytes(size)
+    return addr as *'T
+}
+
+/**
+ * Copy a string view into the arena chunk pool, returning a new view_str that persists.
+ */
+pub fn alloc_str(arena#: Arena, s: view_str) -> view_str {
+    if s.len() == 0:usize {
+        return s.clone()
+    }
+    auto addr = arena#.alloc_bytes(s.len())
+    if addr == ADDR0 {
+        return s.clone()
+    }
+    unsafe {
+        libc_memcpy(addr as *void, s.raw_ptr() as *void, s.len())
+        auto ret# = s.clone()
+        auto ptr_addr = addr
+        libc_memcpy(&ret as *void, &ptr_addr as *void, 8)
+        return ret
+    }
+}
+
 
 impl Arena@encap {
     pub *

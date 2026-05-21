@@ -2,7 +2,7 @@
 // Comprehensive unit tests for Toka's Arena Allocator
 
 import std/io::println
-import std/arena::{Arena, alloc_type}
+import std/arena::{Arena, alloc_type, alloc_array, alloc_str}
 import core/types::{usize, Addr, ADDR0}
 
 shape Point (
@@ -39,13 +39,45 @@ fn main() -> i32 {
     assert(p_ptr.x == 100, "x should be 100")
     assert(p_ptr.y == 200, "y should be 200")
 
-    // 3. Test reset and reuse
+    // 3. Test alloc_array
+    println("Testing alloc_array...")
+    auto *#arr_ptr# = alloc_array<Point>(arena, 3:usize) as *#[Point]
+    assert((*arr_ptr as Addr) != ADDR0, "arr_ptr should be valid")
+    
+    unsafe {
+        arr_ptr[0] = Point(x = 10, y = 20)
+        arr_ptr[1] = Point(x = 30, y = 40)
+        arr_ptr[2] = Point(x = 50, y = 60)
+
+        println("Array values: [0]=({}, {}), [1]=({}, {}), [2]=({}, {})", 
+                arr_ptr[0].x, arr_ptr[0].y, 
+                arr_ptr[1].x, arr_ptr[1].y, 
+                arr_ptr[2].x, arr_ptr[2].y)
+
+        assert(arr_ptr[0].x == 10, "arr[0].x should be 10")
+        assert(arr_ptr[0].y == 20, "arr[0].y should be 20")
+        assert(arr_ptr[1].x == 30, "arr[1].x should be 30")
+        assert(arr_ptr[1].y == 40, "arr[1].y should be 40")
+        assert(arr_ptr[2].x == 50, "arr[2].x should be 50")
+        assert(arr_ptr[2].y == 60, "arr[2].y should be 60")
+    }
+
+    // 4. Test alloc_str
+    println("Testing alloc_str...")
+    auto orig_str: view_str = "TokaLangSelfHosting AST Node String Persistence"
+    auto arena_str = alloc_str(arena, orig_str)
+    
+    println("orig_str: '{}', arena_str: '{}'", orig_str, arena_str)
+    assert(arena_str == orig_str, "Allocated string must be equal to original string")
+    assert(arena_str.raw_ptr() != orig_str.raw_ptr(), "Allocated string must have different pointer from literal")
+
+    // 5. Test reset and reuse
     arena#.reset()
     auto addr3 = arena#.alloc_bytes(3:usize)
     // After reset, the first allocation should reuse the exact same start address of the head chunk
     assert(addr3 == addr1, "Reset should allow reuse of the head chunk memory")
 
-    // 4. Test Arena manual free (or it will be dropped automatically)
+    // 6. Test Arena manual free (or it will be dropped automatically)
     arena#.release()
     
     println("Arena Allocator tests successfully completed.")
