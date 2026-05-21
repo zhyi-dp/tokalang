@@ -52,6 +52,37 @@ fn test_match_enum() -> i32 {
     return val
 }
 
+fn test_wildcard_underscore() -> i32 {
+    auto p = Point(x = 5, y = 15, z = 25)
+    
+    // 1. Test single underscore in destructuring
+    auto Point(a, _, c) = p
+    if a != 5 || c != 25 {
+        return 1
+    }
+
+    // 2. Test multiple underscores in destructuring
+    auto Point(x, _, _) = p
+    if x != 5 {
+        return 2
+    }
+
+    // 3. Test underscore in match structural pattern
+    auto val = match p {
+        Point(5, _, 25) => {
+            pass 0
+        }
+        default => {
+            pass 99
+        }
+    }
+    if val != 0 {
+        return 3
+    }
+
+    return 0
+}
+
 fn main() -> i32 {
     if test_struct_destruct() != 0 {
         println("test_struct_destruct failed")
@@ -68,6 +99,10 @@ fn main() -> i32 {
     if test_match_enum() != 0 {
         println("test_match_enum failed")
         return 4
+    }
+    if test_wildcard_underscore() != 0 {
+        println("test_wildcard_underscore failed")
+        return 5
     }
     println("All pass tests succeeded")
     return 0
