@@ -872,11 +872,12 @@ void Sema::checkStmt(Stmt *S) {
             error(Destruct, DiagID::ERR_GENERIC_SEMA, "Positional placeholder '_' is not allowed in struct destructuring. Use 'field = _' or '..' instead.");
             continue;
           }
-          if (seenFields.count(v.FieldName)) {
+          std::string cleanField = toka::Type::stripMorphology(v.FieldName);
+          if (seenFields.count(cleanField)) {
             DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_DUPLICATE_FIELD, v.FieldName);
             HasError = true;
           }
-          seenFields.insert(v.FieldName);
+          seenFields.insert(cleanField);
         }
 
         // 3. Verify all specified fields exist in shape
@@ -886,7 +887,7 @@ void Sema::checkStmt(Stmt *S) {
         }
         for (const auto &v : Destruct->Variables) {
           if (v.Name == "..") continue;
-          if (v.FieldName != "_" && !sdMembers.count(v.FieldName)) {
+          if (v.FieldName != "_" && !sdMembers.count(toka::Type::stripMorphology(v.FieldName))) {
             DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_NO_SUCH_MEMBER, soulName, v.FieldName);
             HasError = true;
           }
@@ -920,12 +921,56 @@ void Sema::checkStmt(Stmt *S) {
 
           size_t memberIndex = -1;
           for (size_t m = 0; m < SD->Members.size(); ++m) {
-            if (SD->Members[m].Name == Destruct->Variables[i].FieldName) {
+            auto cleanDef = SD->Members[m].Name;
+            while (!cleanDef.empty() &&
+                   (cleanDef.back() == '#' || cleanDef.back() == '!' ||
+                    cleanDef.back() == '?'))
+              cleanDef.pop_back();
+
+            auto cleanProv = Destruct->Variables[i].FieldName;
+            while (!cleanProv.empty() &&
+                   (cleanProv.back() == '#' || cleanProv.back() == '!' ||
+                    cleanProv.back() == '?'))
+              cleanProv.pop_back();
+
+            if (cleanDef == cleanProv ||
+                toka::Type::stripMorphology(cleanDef) == toka::Type::stripMorphology(cleanProv)) {
               memberIndex = m;
               break;
             }
           }
           if (memberIndex == (size_t)-1) continue;
+
+          // Morphic validation
+          if (!SD->Members[memberIndex].IsMorphicExempt) {
+            MorphKind providedMorph = MorphKind::None;
+            std::string provField = Destruct->Variables[i].FieldName;
+            if (provField.find('^') != std::string::npos) providedMorph = MorphKind::Unique;
+            else if (provField.find('~') != std::string::npos) providedMorph = MorphKind::Shared;
+            else if (provField.find('&') != std::string::npos) providedMorph = MorphKind::Ref;
+            else if (provField.find('*') != std::string::npos) providedMorph = MorphKind::Raw;
+
+            MorphKind expectedMorph = MorphKind::None;
+            auto memberTypeObj = toka::Type::fromString(SD->Members[memberIndex].Type);
+            if (memberTypeObj->isRawPointer()) expectedMorph = MorphKind::Raw;
+            else if (memberTypeObj->isUniquePtr()) expectedMorph = MorphKind::Unique;
+            else if (memberTypeObj->isSharedPtr()) expectedMorph = MorphKind::Shared;
+            else if (memberTypeObj->isReference()) expectedMorph = MorphKind::Ref;
+
+            checkStrictMorphology(Destruct, expectedMorph, providedMorph, SD->Members[memberIndex].Name);
+          }
+
+          {
+            auto memberTypeObj = toka::Type::fromString(SD->Members[memberIndex].Type);
+            bool isMorphicExempt = (!Destruct->Variables[i].Name.empty() && Destruct->Variables[i].Name[0] == '\'');
+            if (memberTypeObj->isReference() && !Destruct->Variables[i].IsReference && !isMorphicExempt) {
+              DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_GENERIC_SEMA,
+                                       "Cannot bind reference member '" + SD->Members[memberIndex].Name +
+                                       "' to a non-reference variable '" + Destruct->Variables[i].Name +
+                                       "'. The variable name must explicitly carry the reference sigil '&'.");
+              HasError = true;
+            }
+          }
 
           SymbolInfo Info;
           std::string fullType = SD->Members[memberIndex].Type;

@@ -190,6 +190,15 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
       break;
     }
 
+    auto expectedTypeObj = toka::Type::fromString(T);
+    bool isMorphicExempt = (!Pat->Name.empty() && Pat->Name[0] == '\'');
+    if (expectedTypeObj->isReference() && !Pat->IsReference && !isMorphicExempt) {
+        DiagnosticEngine::report(getLoc(Pat), DiagID::ERR_GENERIC_SEMA,
+                                 "Cannot bind reference member to a non-reference variable '" + Pat->Name +
+                                 "'. The variable name must explicitly carry the reference sigil '&'.");
+        HasError = true;
+    }
+
     SymbolInfo Info;
     // Type Migration Stage 1: Coexistence
     // Construct type string to parse object. Pattern bindings infer
@@ -297,11 +306,12 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
               std::set<std::string> seenFields;
               for (const auto &name : Pat->SubPatternNames) {
                 if (name.empty() || name == "..") continue;
-                if (seenFields.count(name)) {
+                std::string cleanName = toka::Type::stripMorphology(name);
+                if (seenFields.count(cleanName)) {
                   DiagnosticEngine::report(getLoc(Pat), DiagID::ERR_DUPLICATE_FIELD, name);
                   HasError = true;
                 }
-                seenFields.insert(name);
+                seenFields.insert(cleanName);
               }
 
               // 2. Verify existence
@@ -311,7 +321,7 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
               }
               for (const auto &name : Pat->SubPatternNames) {
                 if (name.empty() || name == "..") continue;
-                if (!sdMembers.count(name)) {
+                if (!sdMembers.count(toka::Type::stripMorphology(name))) {
                   DiagnosticEngine::report(getLoc(Pat), DiagID::ERR_NO_SUCH_MEMBER, SD->Name, name);
                   HasError = true;
                 }
@@ -348,12 +358,43 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
                 std::string fieldName = Pat->SubPatternNames[i];
                 size_t memberIndex = -1;
                 for (size_t m = 0; m < SD->Members.size(); ++m) {
-                  if (SD->Members[m].Name == fieldName) {
+                  auto cleanDef = SD->Members[m].Name;
+                  while (!cleanDef.empty() &&
+                         (cleanDef.back() == '#' || cleanDef.back() == '!' ||
+                          cleanDef.back() == '?'))
+                    cleanDef.pop_back();
+
+                  auto cleanProv = fieldName;
+                  while (!cleanProv.empty() &&
+                         (cleanProv.back() == '#' || cleanProv.back() == '!' ||
+                          cleanProv.back() == '?'))
+                    cleanProv.pop_back();
+
+                  if (cleanDef == cleanProv ||
+                      toka::Type::stripMorphology(cleanDef) == toka::Type::stripMorphology(cleanProv)) {
                     memberIndex = m;
                     break;
                   }
                 }
                 if (memberIndex != (size_t)-1) {
+                  // Morphic validation
+                  if (!SD->Members[memberIndex].IsMorphicExempt) {
+                    MorphKind providedMorph = MorphKind::None;
+                    if (fieldName.find('^') != std::string::npos) providedMorph = MorphKind::Unique;
+                    else if (fieldName.find('~') != std::string::npos) providedMorph = MorphKind::Shared;
+                    else if (fieldName.find('&') != std::string::npos) providedMorph = MorphKind::Ref;
+                    else if (fieldName.find('*') != std::string::npos) providedMorph = MorphKind::Raw;
+
+                    MorphKind expectedMorph = MorphKind::None;
+                    auto memberTypeObj = toka::Type::fromString(SD->Members[memberIndex].Type);
+                    if (memberTypeObj->isRawPointer()) expectedMorph = MorphKind::Raw;
+                    else if (memberTypeObj->isUniquePtr()) expectedMorph = MorphKind::Unique;
+                    else if (memberTypeObj->isSharedPtr()) expectedMorph = MorphKind::Shared;
+                    else if (memberTypeObj->isReference()) expectedMorph = MorphKind::Ref;
+
+                    checkStrictMorphology(Pat, expectedMorph, providedMorph, SD->Members[memberIndex].Name);
+                  }
+
                   checkPattern(Pat->SubPatterns[i].get(), SD->Members[memberIndex].Type, SourceIsMutable);
                 }
               }

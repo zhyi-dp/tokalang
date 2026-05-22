@@ -1,0 +1,17 @@
+import std/io::println
+
+shape RefPair(
+    a: i32,
+    &s: i32
+)
+
+pub fn main() -> i32 {
+    auto val = 42
+    auto t = RefPair(a = 1, &s = &val)
+    
+    // This is ILLEGAL: s is reference member but we destructure it as a value without &!
+    // EXPECT: Pointer morphology mismatch: expected explicit '&' (from LHS/Target), found 'value' (from RHS/Source)
+    auto RefPair(a = a, s = s_val) = t
+    
+    return 0
+}

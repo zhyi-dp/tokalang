@@ -108,12 +108,29 @@ std::unique_ptr<Stmt> Parser::parseVariableDecl(bool isPub) {
       } else {
         if (isNextNamedField(0)) {
           hasNamed = true;
+          std::string prefix = "";
+          if (match(TokenType::Star))
+            prefix = "*";
+          else if (match(TokenType::Caret))
+            prefix = "^";
+          else if (match(TokenType::Tilde))
+            prefix = "~";
+          else if (match(TokenType::Ampersand))
+            prefix = "&";
+
+          if (match(TokenType::TokenNull))
+            prefix += "?";
+          if (match(TokenType::TokenWrite))
+            prefix += "#";
+
           Token fieldNameTok = consume(TokenType::Identifier, "Expected field name");
-          std::string fieldName = fieldNameTok.Text;
+          std::string fieldName = prefix + fieldNameTok.Text;
           while (match(TokenType::Minus)) {
             fieldName += "-";
             fieldName += consume(TokenType::Identifier, "Expected identifier after '-'").Text;
           }
+          if (fieldNameTok.HasWrite || fieldNameTok.IsBlocked)
+            error(fieldNameTok, DiagID::ERR_ILLEGAL_FIELD_MODIFIER);
           consume(TokenType::Equal, "Expected '=' after field name");
           
           bool isRef = match(TokenType::Ampersand);
