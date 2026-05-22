@@ -1,0 +1,11 @@
+shape Pair(
+    v0: i32,
+    v1: i32
+)
+
+fn main() -> i32 {
+    auto t = Pair(v0 = 10, v1 = 20)
+    // Error: Mismatched morphology in named destructuring
+    auto Pair(a = .v0, &s = .v1) = t
+    return 0
+}

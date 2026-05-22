@@ -1,0 +1,18 @@
+shape Pair(
+    v0: i32,
+    v1: i32
+)
+
+fn main() -> i32 {
+    auto t = Pair(v0 = 10, v1 = 20)
+    auto res = match t {
+        // Error: Mismatched morphology in named pattern matching
+        Pair(a = .v0, &s = .v1) => {
+            pass 1
+        }
+        default => {
+            pass 0
+        }
+    }
+    return 0
+}

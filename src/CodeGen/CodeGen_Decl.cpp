@@ -1262,7 +1262,16 @@ llvm::Value *CodeGen::genDestructuringDecl(const DestructuringDecl *dest) {
     if (m_Shapes.count(shapeName)) {
       const auto *sh = m_Shapes[shapeName];
       for (size_t m = 0; m < sh->Members.size(); ++m) {
-        if (sh->Members[m].Name == v.FieldName) {
+        std::string cleanDef = sh->Members[m].Name;
+        while (!cleanDef.empty() && (cleanDef.back() == '#' || cleanDef.back() == '!' || cleanDef.back() == '?')) {
+          cleanDef.pop_back();
+        }
+        std::string cleanProv = v.FieldName;
+        while (!cleanProv.empty() && (cleanProv.back() == '#' || cleanProv.back() == '!' || cleanProv.back() == '?')) {
+          cleanProv.pop_back();
+        }
+        if (cleanDef == cleanProv ||
+            toka::Type::stripMorphology(cleanDef) == toka::Type::stripMorphology(cleanProv)) {
           memberIndex = m;
           break;
         }

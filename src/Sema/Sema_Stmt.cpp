@@ -856,11 +856,41 @@ void Sema::checkStmt(Stmt *S) {
     if (!soulName.empty() && ShapeMap.count(soulName)) {
       ShapeDecl *SD = ShapeMap[soulName];
       if (SD->Kind == ShapeKind::Struct) {
-        // 1. Preprocess and fill in FieldName for Field Punning
-        for (auto &v : Destruct->Variables) {
+        auto getMorphFromString = [](const std::string &str) -> MorphKind {
+          if (str.find('^') != std::string::npos) return MorphKind::Unique;
+          if (str.find('~') != std::string::npos) return MorphKind::Shared;
+          if (str.find('&') != std::string::npos) return MorphKind::Ref;
+          if (str.find('*') != std::string::npos) return MorphKind::Raw;
+          return MorphKind::None;
+        };
+
+        // 1. Preprocess and fill in FieldName for Field Punning and Positional
+        std::vector<bool> wasFieldNameEmpty(Destruct->Variables.size(), false);
+        size_t elisionIndex = -1;
+        size_t elisionCount = 0;
+        for (size_t i = 0; i < Destruct->Variables.size(); ++i) {
+          if (Destruct->Variables[i].Name == "..") {
+            elisionIndex = i;
+            elisionCount++;
+          }
+        }
+
+        size_t expectedSize = SD->Members.size();
+        size_t varsWithoutElision = Destruct->Variables.size() - (elisionCount > 0 ? 1 : 0);
+
+        for (size_t i = 0; i < Destruct->Variables.size(); ++i) {
+          auto &v = Destruct->Variables[i];
           if (v.Name == "..") continue;
           if (v.FieldName.empty()) {
-            v.FieldName = toka::Type::stripMorphology(v.Name);
+            wasFieldNameEmpty[i] = true;
+            size_t memberIndex = i;
+            if (elisionCount == 1) {
+              size_t elidedFields = expectedSize - varsWithoutElision;
+              memberIndex = (i < elisionIndex) ? i : (i + elidedFields);
+            }
+            if (memberIndex < expectedSize) {
+              v.FieldName = SD->Members[memberIndex].Name;
+            }
           }
         }
 
@@ -943,13 +973,6 @@ void Sema::checkStmt(Stmt *S) {
 
           // Morphic validation
           if (!SD->Members[memberIndex].IsMorphicExempt) {
-            MorphKind providedMorph = MorphKind::None;
-            std::string provField = Destruct->Variables[i].FieldName;
-            if (provField.find('^') != std::string::npos) providedMorph = MorphKind::Unique;
-            else if (provField.find('~') != std::string::npos) providedMorph = MorphKind::Shared;
-            else if (provField.find('&') != std::string::npos) providedMorph = MorphKind::Ref;
-            else if (provField.find('*') != std::string::npos) providedMorph = MorphKind::Raw;
-
             MorphKind expectedMorph = MorphKind::None;
             auto memberTypeObj = toka::Type::fromString(SD->Members[memberIndex].Type);
             if (memberTypeObj->isRawPointer()) expectedMorph = MorphKind::Raw;
@@ -957,7 +980,37 @@ void Sema::checkStmt(Stmt *S) {
             else if (memberTypeObj->isSharedPtr()) expectedMorph = MorphKind::Shared;
             else if (memberTypeObj->isReference()) expectedMorph = MorphKind::Ref;
 
-            checkStrictMorphology(Destruct, expectedMorph, providedMorph, SD->Members[memberIndex].Name);
+            bool isMorphicExempt = (!Destruct->Variables[i].Name.empty() && Destruct->Variables[i].Name[0] == '\'');
+            if (!isMorphicExempt) {
+              MorphKind varMorph = getMorphFromString(Destruct->Variables[i].Name);
+              
+              if (!wasFieldNameEmpty[i]) {
+                MorphKind fieldMorph = getMorphFromString(Destruct->Variables[i].FieldName);
+                if (varMorph != fieldMorph) {
+                  auto morphToString = [](MorphKind m) -> std::string {
+                    switch (m) {
+                      case MorphKind::None: return "plain value (None)";
+                      case MorphKind::Raw: return "raw pointer (*)";
+                      case MorphKind::Unique: return "unique pointer (^)";
+                      case MorphKind::Shared: return "shared pointer (~)";
+                      case MorphKind::Ref: return "reference (&)";
+                      default: return "unknown";
+                    }
+                  };
+                  DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_GENERIC_SEMA,
+                                           "Mismatched morphology in named destructuring: left-hand variable '" +
+                                           Destruct->Variables[i].Name + "' has morphology '" + morphToString(varMorph) +
+                                           "', but right-hand field '" + Destruct->Variables[i].FieldName +
+                                           "' has morphology '" + morphToString(fieldMorph) +
+                                           "'. Under Hat Rule, they must be perfectly symmetric (e.g. &s = .&v1).");
+                  HasError = true;
+                }
+              }
+
+              if (!(expectedMorph == MorphKind::None && varMorph == MorphKind::Ref)) {
+                checkStrictMorphology(Destruct, expectedMorph, varMorph, SD->Members[memberIndex].Name);
+              }
+            }
           }
 
           {

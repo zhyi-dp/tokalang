@@ -239,7 +239,7 @@ impl AtomicBool {
         if current { c_val = 1 }
         auto n_val# = 0
         if new_val { n_val = 1 }
-        auto (old = res, success = ok) = core_atomic::__toka_atomic_compare_exchange(
+        auto (res = .old, ok = .success) = core_atomic::__toka_atomic_compare_exchange(
             self.val, c_val, n_val, success, failure
         )
         return (old = res > 0, success = ok)

@@ -11,7 +11,7 @@ pub fn main() -> i32 {
     
     // This is ILLEGAL: s is reference member but we destructure it as a value without &!
     // EXPECT: Pointer morphology mismatch: expected explicit '&' (from LHS/Target), found 'value' (from RHS/Source)
-    auto RefPair(a = a, s = s_val) = t
+    auto RefPair(a = .a, s_val = .s) = t
     
     return 0
 }

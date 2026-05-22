@@ -108,34 +108,48 @@ std::unique_ptr<Stmt> Parser::parseVariableDecl(bool isPub) {
       } else {
         if (isNextNamedField(0)) {
           hasNamed = true;
-          std::string prefix = "";
+          std::string varPrefix = "";
+          bool isRef = false;
+          if (match(TokenType::Ampersand)) {
+            varPrefix = "&";
+            isRef = true;
+          } else if (match(TokenType::Caret)) {
+            varPrefix = "^";
+          } else if (match(TokenType::Tilde)) {
+            varPrefix = "~";
+          } else if (match(TokenType::Star)) {
+            varPrefix = "*";
+          }
+
+          Token varTok = consume(TokenType::Identifier, "Expected variable name or '_'");
+          std::string fullVarName = varPrefix + varTok.Text;
+
+          consume(TokenType::Equal, "Expected '=' after variable name");
+          consume(TokenType::Dot, "Expected '.' after '=' in named destructuring");
+
+          std::string fieldPrefix = "";
           if (match(TokenType::Star))
-            prefix = "*";
+            fieldPrefix = "*";
           else if (match(TokenType::Caret))
-            prefix = "^";
+            fieldPrefix = "^";
           else if (match(TokenType::Tilde))
-            prefix = "~";
+            fieldPrefix = "~";
           else if (match(TokenType::Ampersand))
-            prefix = "&";
+            fieldPrefix = "&";
 
           if (match(TokenType::TokenNull))
-            prefix += "?";
+            fieldPrefix += "?";
           if (match(TokenType::TokenWrite))
-            prefix += "#";
+            fieldPrefix += "#";
 
           Token fieldNameTok = consume(TokenType::Identifier, "Expected field name");
-          std::string fieldName = prefix + fieldNameTok.Text;
+          std::string fieldName = fieldPrefix + fieldNameTok.Text;
           while (match(TokenType::Minus)) {
             fieldName += "-";
             fieldName += consume(TokenType::Identifier, "Expected identifier after '-'").Text;
           }
           if (fieldNameTok.HasWrite || fieldNameTok.IsBlocked)
             error(fieldNameTok, DiagID::ERR_ILLEGAL_FIELD_MODIFIER);
-          consume(TokenType::Equal, "Expected '=' after field name");
-          
-          bool isRef = match(TokenType::Ampersand);
-          Token varTok = consume(TokenType::Identifier, "Expected variable name or '_'");
-          std::string fullVarName = (isRef ? "&" : "") + varTok.Text;
           
           DestructuredVar v;
           v.Name = fullVarName;
@@ -148,9 +162,20 @@ std::unique_ptr<Stmt> Parser::parseVariableDecl(bool isPub) {
           vars.push_back(v);
         } else {
           hasPositional = true;
-          bool isRef = match(TokenType::Ampersand);
+          std::string varPrefix = "";
+          bool isRef = false;
+          if (match(TokenType::Ampersand)) {
+            varPrefix = "&";
+            isRef = true;
+          } else if (match(TokenType::Caret)) {
+            varPrefix = "^";
+          } else if (match(TokenType::Tilde)) {
+            varPrefix = "~";
+          } else if (match(TokenType::Star)) {
+            varPrefix = "*";
+          }
           Token varTok = consume(TokenType::Identifier, "Expected variable name or '_'");
-          std::string fullVarName = (isRef ? "&" : "") + varTok.Text;
+          std::string fullVarName = varPrefix + varTok.Text;
           
           DestructuredVar v;
           v.Name = fullVarName;

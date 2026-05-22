@@ -36,7 +36,7 @@ shape ASTNode(
 fn test_struct_tuple_in_match(p: Point, t: Pair) -> i32 {
     // [Goal 1] Direct matching & destructuring of plain Struct in match expression
     auto x_val = match p {
-        auto Point(x = x, y = y) => {
+        auto Point(x = .x, y = .y) => {
             println("Point x = {}, y = {}", x, y)
             pass x
         }
@@ -45,7 +45,7 @@ fn test_struct_tuple_in_match(p: Point, t: Pair) -> i32 {
     // [Goal 3] Strict resource safety checks on positional destructuring
     // 't' contains a String. A bare destructuring `auto Pair(a, s) = t` must be blocked by the compiler
     // to prevent shallow copy. The developer MUST explicitly borrow the resource:
-    auto Pair(v0 = a, v1 = &s) = t
+    auto Pair(a = .v0, &s = .&v1) = t
     println("Pair string: {}", s.c_str())
 
     return x_val

@@ -289,6 +289,14 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
           DiagnosticEngine::report(getLoc(Pat), DiagID::ERR_UNKNOWN_SHAPE_IN_PAT, variantName);
           HasError = true;
         } else {
+          auto getMorphFromString = [](const std::string &str) -> MorphKind {
+            if (str.find('^') != std::string::npos) return MorphKind::Unique;
+            if (str.find('~') != std::string::npos) return MorphKind::Shared;
+            if (str.find('&') != std::string::npos) return MorphKind::Ref;
+            if (str.find('*') != std::string::npos) return MorphKind::Raw;
+            return MorphKind::None;
+          };
+
           bool isNamed = false;
           for (const auto& name : Pat->SubPatternNames) {
             if (!name.empty() && name != "..") {
@@ -296,6 +304,8 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
               break;
             }
           }
+
+          std::vector<size_t> memberIndices(Pat->SubPatterns.size(), -1);
 
           if (isNamed) {
             if (SD->Kind != ShapeKind::Struct) {
@@ -352,11 +362,10 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
                 }
               }
 
-              // 4. Type check subpatterns
+              // 4. Map subpatterns
               for (size_t i = 0; i < Pat->SubPatterns.size(); ++i) {
                 if (Pat->SubPatterns[i]->PatternKind == MatchArm::Pattern::Elision) continue;
                 std::string fieldName = Pat->SubPatternNames[i];
-                size_t memberIndex = -1;
                 for (size_t m = 0; m < SD->Members.size(); ++m) {
                   auto cleanDef = SD->Members[m].Name;
                   while (!cleanDef.empty() &&
@@ -372,34 +381,14 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
 
                   if (cleanDef == cleanProv ||
                       toka::Type::stripMorphology(cleanDef) == toka::Type::stripMorphology(cleanProv)) {
-                    memberIndex = m;
+                    memberIndices[i] = m;
                     break;
                   }
-                }
-                if (memberIndex != (size_t)-1) {
-                  // Morphic validation
-                  if (!SD->Members[memberIndex].IsMorphicExempt) {
-                    MorphKind providedMorph = MorphKind::None;
-                    if (fieldName.find('^') != std::string::npos) providedMorph = MorphKind::Unique;
-                    else if (fieldName.find('~') != std::string::npos) providedMorph = MorphKind::Shared;
-                    else if (fieldName.find('&') != std::string::npos) providedMorph = MorphKind::Ref;
-                    else if (fieldName.find('*') != std::string::npos) providedMorph = MorphKind::Raw;
-
-                    MorphKind expectedMorph = MorphKind::None;
-                    auto memberTypeObj = toka::Type::fromString(SD->Members[memberIndex].Type);
-                    if (memberTypeObj->isRawPointer()) expectedMorph = MorphKind::Raw;
-                    else if (memberTypeObj->isUniquePtr()) expectedMorph = MorphKind::Unique;
-                    else if (memberTypeObj->isSharedPtr()) expectedMorph = MorphKind::Shared;
-                    else if (memberTypeObj->isReference()) expectedMorph = MorphKind::Ref;
-
-                    checkStrictMorphology(Pat, expectedMorph, providedMorph, SD->Members[memberIndex].Name);
-                  }
-
-                  checkPattern(Pat->SubPatterns[i].get(), SD->Members[memberIndex].Type, SourceIsMutable);
                 }
               }
             }
           } else {
+            // Positional mapping
             size_t elisionIndex = -1;
             size_t elisionCount = 0;
             for (size_t i = 0; i < Pat->SubPatterns.size(); ++i) {
@@ -422,8 +411,7 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
                 size_t elidedFields = expectedSize - subPatsWithoutElision;
                 for (size_t i = 0; i < Pat->SubPatterns.size(); ++i) {
                   if (i == elisionIndex) continue;
-                  size_t memberIndex = (i < elisionIndex) ? i : (i + elidedFields - 1);
-                  checkPattern(Pat->SubPatterns[i].get(), SD->Members[memberIndex].Type, SourceIsMutable);
+                  memberIndices[i] = (i < elisionIndex) ? i : (i + elidedFields - 1);
                 }
               }
             } else {
@@ -432,9 +420,74 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
                 HasError = true;
               } else {
                 for (size_t i = 0; i < Pat->SubPatterns.size(); ++i) {
-                  checkPattern(Pat->SubPatterns[i].get(), SD->Members[i].Type, SourceIsMutable);
+                  memberIndices[i] = i;
                 }
               }
+            }
+          }
+
+          // Unified morphological validation and checking
+          for (size_t i = 0; i < Pat->SubPatterns.size(); ++i) {
+            if (Pat->SubPatterns[i]->PatternKind == MatchArm::Pattern::Elision) continue;
+            size_t memberIndex = memberIndices[i];
+            if (memberIndex != (size_t)-1) {
+              if (!SD->Members[memberIndex].IsMorphicExempt) {
+                MorphKind expectedMorph = MorphKind::None;
+                auto memberTypeObj = toka::Type::fromString(SD->Members[memberIndex].Type);
+                if (memberTypeObj->isRawPointer()) expectedMorph = MorphKind::Raw;
+                else if (memberTypeObj->isUniquePtr()) expectedMorph = MorphKind::Unique;
+                else if (memberTypeObj->isSharedPtr()) expectedMorph = MorphKind::Shared;
+                else if (memberTypeObj->isReference()) expectedMorph = MorphKind::Ref;
+
+                bool subIsMorphicExempt = false;
+                MorphKind subMorph = MorphKind::None;
+                if (Pat->SubPatterns[i]->PatternKind == MatchArm::Pattern::Wildcard) {
+                  subIsMorphicExempt = true;
+                } else if (Pat->SubPatterns[i]->PatternKind == MatchArm::Pattern::Variable) {
+                  if (!Pat->SubPatterns[i]->Name.empty() && Pat->SubPatterns[i]->Name[0] == '\'') {
+                    subIsMorphicExempt = true;
+                  } else {
+                    if (Pat->SubPatterns[i]->IsReference) subMorph = MorphKind::Ref;
+                    else {
+                      subMorph = getMorphFromString(Pat->SubPatterns[i]->Name);
+                    }
+                  }
+                }
+
+                if (!subIsMorphicExempt) {
+                  if (isNamed && i < Pat->SubPatternNames.size() &&
+                      !Pat->SubPatternNames[i].empty() && Pat->SubPatternNames[i] != "..") {
+                    MorphKind fieldMorph = getMorphFromString(Pat->SubPatternNames[i]);
+                    if (subMorph != fieldMorph) {
+                      auto morphToString = [](MorphKind m) -> std::string {
+                        switch (m) {
+                          case MorphKind::None: return "plain value (None)";
+                          case MorphKind::Raw: return "raw pointer (*)";
+                          case MorphKind::Unique: return "unique pointer (^)";
+                          case MorphKind::Shared: return "shared pointer (~)";
+                          case MorphKind::Ref: return "reference (&)";
+                          default: return "unknown";
+                        }
+                      };
+                      std::string subName = Pat->SubPatterns[i]->Name;
+                      if (subName.empty()) subName = "_";
+                      DiagnosticEngine::report(getLoc(Pat), DiagID::ERR_GENERIC_SEMA,
+                                               "Mismatched morphology in named pattern matching: left-hand pattern '" +
+                                               subName + "' has morphology '" + morphToString(subMorph) +
+                                               "', but right-hand field '" + Pat->SubPatternNames[i] +
+                                               "' has morphology '" + morphToString(fieldMorph) +
+                                               "'. Under Hat Rule, they must be perfectly symmetric (e.g. &s = .&v1).");
+                      HasError = true;
+                    }
+                  }
+
+                  if (!(expectedMorph == MorphKind::None && subMorph == MorphKind::Ref)) {
+                    checkStrictMorphology(Pat, expectedMorph, subMorph, SD->Members[memberIndex].Name);
+                  }
+                }
+              }
+
+              checkPattern(Pat->SubPatterns[i].get(), SD->Members[memberIndex].Type, SourceIsMutable);
             }
           }
         }

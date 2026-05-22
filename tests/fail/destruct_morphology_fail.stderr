@@ -1,10 +1,10 @@
 error[E0448]: Pointer morphology mismatch: expected explicit '&' (from LHS/Target), found 'value' (from RHS/Source)
- --> tests/fail/destruct_morphology_fail.tk:14:38
+ --> tests/fail/destruct_morphology_fail.tk:14:40
    |
- 14 |     auto RefPair(a = a, s = s_val) = t
-   |                                      ^
+ 14 |     auto RefPair(a = .a, s_val = .s) = t
+   |                                        ^
 error[E0406]: Cannot bind reference member 's' to a non-reference variable 's_val'. The variable name must explicitly carry the reference sigil '&'.
- --> tests/fail/destruct_morphology_fail.tk:14:38
+ --> tests/fail/destruct_morphology_fail.tk:14:40
    |
- 14 |     auto RefPair(a = a, s = s_val) = t
-   |                                      ^
+ 14 |     auto RefPair(a = .a, s_val = .s) = t
+   |                                        ^

@@ -8,6 +8,6 @@ shape Pair(
 
 pub fn main() -> i32 {
     auto t = Pair(a = 42, s = String::from("Hello Resource"))
-    auto Pair(a = a, s = s) = t
+    auto Pair(a = .a, s = .s) = t
     return 0
 }

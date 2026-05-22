@@ -1,0 +1,7 @@
+[1;31merror[E0105][0m: Parse error: Cannot mix positional and named fields in destructuring
+ --> tests/fail/destruct_named_mix_fail.tk:5:25
+  [1;34m|[0m
+ 5 [1;34m|[0m     auto Point(a = .x, b) = p
+  [1;34m|[0m                         [1;31m^[0m
+
+[1;31m[FAILED][0m Compilation aborted due to previous syntax or I/O errors.

@@ -142,31 +142,35 @@ std::unique_ptr<MatchArm::Pattern> Parser::parseSinglePattern() {
         } else {
           if (isNextNamedField(0)) {
             hasNamed = true;
-            std::string prefix = "";
+            auto pat = parsePattern();
+            consume(TokenType::Equal, "Expected '=' after pattern");
+            consume(TokenType::Dot, "Expected '.' after '=' in named pattern");
+
+            std::string fieldPrefix = "";
             if (match(TokenType::Star))
-              prefix = "*";
+              fieldPrefix = "*";
             else if (match(TokenType::Caret))
-              prefix = "^";
+              fieldPrefix = "^";
             else if (match(TokenType::Tilde))
-              prefix = "~";
+              fieldPrefix = "~";
             else if (match(TokenType::Ampersand))
-              prefix = "&";
+              fieldPrefix = "&";
 
             if (match(TokenType::TokenNull))
-              prefix += "?";
+              fieldPrefix += "?";
             if (match(TokenType::TokenWrite))
-              prefix += "#";
+              fieldPrefix += "#";
 
             Token fieldNameTok = consume(TokenType::Identifier, "Expected field name");
-            std::string fieldName = prefix + fieldNameTok.Text;
+            std::string fieldName = fieldPrefix + fieldNameTok.Text;
             while (match(TokenType::Minus)) {
               fieldName += "-";
               fieldName += consume(TokenType::Identifier, "Expected identifier after '-'").Text;
             }
             if (fieldNameTok.HasWrite || fieldNameTok.IsBlocked)
               error(fieldNameTok, DiagID::ERR_ILLEGAL_FIELD_MODIFIER);
-            consume(TokenType::Equal, "Expected '=' after field name");
-            subs.push_back(parsePattern());
+
+            subs.push_back(std::move(pat));
             subNames.push_back(fieldName);
           } else {
             hasPositional = true;

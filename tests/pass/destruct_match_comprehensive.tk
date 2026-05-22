@@ -50,19 +50,19 @@ fn test_struct_tuple_destructuring() {
     auto t = DataTuple(v0 = 100, v1 = true)
 
     // 2. Destructuring a plain struct in an assignment statement
-    auto Coord(x = cx, y = cy) = c
+    auto Coord(cx = .x, cy = .y) = c
     assert(cx == 10, "cx must be 10")
     assert(cy == 20, "cy must be 20")
 
     // 3. Destructuring a struct in an assignment statement
-    auto DataTuple(v0 = val, v1 = flag) = t
+    auto DataTuple(val = .v0, flag = .v1) = t
     assert(val == 100, "val must be 100")
     assert(flag == true, "flag must be true")
 
     // 4. Reference destructuring of a struct with mutability control
     auto c_mut# = Coord(x = 30, y = 40)
     {
-        auto Coord(x = &rx, y = &ry#) = c_mut
+        auto Coord(&rx = .&x, &ry# = .&y) = c_mut
         assert(rx == 30, "rx must be 30")
         ry = 50
     }

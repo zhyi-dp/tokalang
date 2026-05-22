@@ -1,6 +1,5 @@
 error[E0421]: Member access 'destructuring' on non-shape type 'Pair'
- --> tests/fail/destruct_named_not_struct_fail.tk:8:31
+ --> tests/fail/destruct_named_not_struct_fail.tk:7:33
   |
- 8 |     auto Pair(x = a, y = b) = p
-  |                               ^
-
+ 7 |     auto Pair(a = .x, b = .y) = p
+  |                                 ^

@@ -99,13 +99,13 @@ fn main() -> i32 {
     auto pt: PointTup = PointTup(x = 100, y = 200)
     processPoint(pt)
 
-    auto PointTup(x = tup0, y = tup1) = pt
+    auto PointTup(tup0 = .x, tup1 = .y) = pt
     println("[{}]tup0 is {}", logi++, tup0)
     println("[{}]tup1 is {}", logi++, tup1)
     assert(tup0 == 100, "destructuring tup0 mismatch")
     assert(tup1 == 200, "destructuring tup1 mismatch")
 
-    auto Point(x = v0, y = v1, z = v2) = p
+    auto Point(v0 = .x, v1 = .y, v2 = .z) = p
     println("[{}]v0 is {}", logi++, v0)
     println("[{}]v1 is {}", logi++, v1)
     println("[{}]v2 is {}", logi++, v2)

@@ -3,6 +3,6 @@ shape Point(x: i32, y: i32)
 fn main() -> i32 {
     auto p = Point(x = 10, y = 20)
     // Duplicate fields
-    auto Point(x = a, x = b) = p
+    auto Point(a = .x, b = .x) = p
     return 0
 }

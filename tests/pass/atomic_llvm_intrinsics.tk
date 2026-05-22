@@ -36,14 +36,14 @@ pub fn main() -> i32 {
     assert(val == 99, "swap failed")
 
     // 6. compare_exchange (success)
-    auto (old = old_cx1, success = ok1) = compare_exchange(val, 99, 1000, Ordering::SeqCst, Ordering::Relaxed)
+    auto (old_cx1 = .old, ok1 = .success) = compare_exchange(val, 99, 1000, Ordering::SeqCst, Ordering::Relaxed)
     println("cmpxchg(success): old={}, ok={}, new={}", old_cx1, ok1, val)
     assert(old_cx1 == 99, "cmpxchg failed")
     assert(ok1 == true, "cmpxchg failed")
     assert(val == 1000, "cmpxchg failed")
 
     // 7. compare_exchange (failure)
-    auto (old = old_cx2, success = ok2) = compare_exchange(val, 500, 2000, Ordering::SeqCst, Ordering::Relaxed)
+    auto (old_cx2 = .old, ok2 = .success) = compare_exchange(val, 500, 2000, Ordering::SeqCst, Ordering::Relaxed)
     println("cmpxchg(failure): old={}, ok={}, new={}", old_cx2, ok2, val)
     assert(old_cx2 == 1000, "cmpxchg failed (should return current)")
     assert(ok2 == false, "cmpxchg failed")

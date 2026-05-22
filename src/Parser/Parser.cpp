@@ -215,21 +215,36 @@ std::string Parser::parseTypeString() {
 
 bool Parser::isNextNamedField(int startOffset) const {
   int lookAhead = startOffset;
-  if (checkAt(lookAhead, TokenType::Star) || checkAt(lookAhead, TokenType::Caret) ||
-      checkAt(lookAhead, TokenType::Tilde) || checkAt(lookAhead, TokenType::Ampersand)) {
+  int balance = 0;
+  while (true) {
+    const Token &tok = peekAt(lookAhead);
+    if (tok.Kind == TokenType::EndOfFile) {
+      break;
+    }
+    if (balance == 0 && (tok.Kind == TokenType::RParen || tok.Kind == TokenType::RBrace || tok.Kind == TokenType::Comma)) {
+      break;
+    }
+    
+    if (tok.Kind == TokenType::LParen || tok.Kind == TokenType::LBrace || tok.Kind == TokenType::LBracket) {
+      balance++;
+      lookAhead++;
+      continue;
+    }
+    if (tok.Kind == TokenType::RParen || tok.Kind == TokenType::RBrace || tok.Kind == TokenType::RBracket) {
+      if (balance > 0) {
+        balance--;
+      }
+      lookAhead++;
+      continue;
+    }
+    
+    if (balance == 0 && tok.Kind == TokenType::Equal) {
+      return true;
+    }
+    
     lookAhead++;
   }
-  if (checkAt(lookAhead, TokenType::TokenNull) || checkAt(lookAhead, TokenType::TokenWrite)) {
-    lookAhead++;
-  }
-  if (!checkAt(lookAhead, TokenType::Identifier)) {
-    return false;
-  }
-  lookAhead++;
-  while (checkAt(lookAhead, TokenType::Minus) && checkAt(lookAhead + 1, TokenType::Identifier)) {
-    lookAhead += 2;
-  }
-  return checkAt(lookAhead, TokenType::Equal);
+  return false;
 }
 
 bool Parser::isNamedInitList() const {

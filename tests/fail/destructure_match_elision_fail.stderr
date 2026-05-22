@@ -1,5 +1,5 @@
 error[E042B]: Multiple elision operators '..' are not allowed in positional initialization.
- --> tests/fail/destructure_match_elision_fail.tk:6:40
+ --> tests/fail/destructure_match_elision_fail.tk:6:42
   |
- 6 |     auto Point(x = a, .., y = b, ..) = p
-  |                                        ^
+ 6 |     auto Point(a = .x, .., b = .y, ..) = p
+  |                                          ^

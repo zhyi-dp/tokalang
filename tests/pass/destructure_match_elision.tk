@@ -10,7 +10,7 @@ shape ASTNode(
 
 fn test_struct_destruct() -> i32 {
     auto p = Point(x = 10, y = 20, z = 30)
-    auto Point(x = a, z = c, ..) = p
+    auto Point(a = .x, c = .z, ..) = p
     if a != 10 || c != 30 {
         return 1
     }
@@ -19,7 +19,7 @@ fn test_struct_destruct() -> i32 {
 
 fn test_tuple_destruct() -> i32 {
     auto t = Pair(v0 = 100, v1 = 200, v2 = 300)
-    auto Pair(v0 = a, v2 = c, ..) = t
+    auto Pair(a = .v0, c = .v2, ..) = t
     if a != 100 || c != 300 {
         return 2
     }
@@ -29,7 +29,7 @@ fn test_tuple_destruct() -> i32 {
 fn test_match_struct() -> i32 {
     auto p = Point(x = 1, y = 2, z = 3)
     auto val = match p {
-        Point(x = 1, z = 3, ..) => {
+        Point(1 = .x, 3 = .z, ..) => {
             pass 0
         }
         default => {
@@ -56,20 +56,20 @@ fn test_wildcard_underscore() -> i32 {
     auto p = Point(x = 5, y = 15, z = 25)
     
     // 1. Test single underscore in destructuring
-    auto Point(x = a, y = _, z = c) = p
+    auto Point(a = .x, _ = .y, c = .z) = p
     if a != 5 || c != 25 {
         return 1
     }
 
     // 2. Test multiple underscores in destructuring
-    auto Point(x = x, y = _, z = _) = p
+    auto Point(x = .x, _ = .y, _ = .z) = p
     if x != 5 {
         return 2
     }
 
     // 3. Test underscore in match structural pattern
     auto val = match p {
-        Point(x = 5, y = _, z = 25) => {
+        Point(5 = .x, _ = .y, 25 = .z) => {
             pass 0
         }
         default => {

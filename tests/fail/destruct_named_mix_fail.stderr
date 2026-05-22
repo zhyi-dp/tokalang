@@ -1,5 +1,5 @@
 error[E0105]: Parse error: Cannot mix positional and named fields in destructuring
- --> tests/fail/destruct_named_mix_fail.tk:6:24
+ --> tests/fail/destruct_named_mix_fail.tk:5:25
   |
- 6 |     auto Point(x = a, b) = p
-  |                        ^
+ 5 |     auto Point(a = .x, b) = p
+  |                         ^

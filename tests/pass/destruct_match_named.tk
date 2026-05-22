@@ -6,12 +6,12 @@ shape Config(host: i32, port: i32 = 80, debug: i32 = 0)
 fn test_named_destruct_full() -> i32 {
     auto p = Point(x = 10, y = 20)
     // Full named destructuring
-    auto Point(x = a, y = b) = p
+    auto Point(a = .x, b = .y) = p
     if a != 10 || b != 20 {
         return 1
     }
     // Reverse order
-    auto Point(y = c, x = d) = p
+    auto Point(c = .y, d = .x) = p
     if c != 20 || d != 10 {
         return 2
     }
@@ -21,13 +21,13 @@ fn test_named_destruct_full() -> i32 {
 fn test_named_destruct_elision() -> i32 {
     auto c = Config(host = 127, ..)
     // elide port and debug using ..
-    auto Config(host = h, ..) = c
+    auto Config(h = .host, ..) = c
     if h != 127 {
         return 1
     }
     
     // specify host and port, elide debug using ..
-    auto Config(port = p, host = h2, ..) = c
+    auto Config(p = .port, h2 = .host, ..) = c
     if h2 != 127 || p != 80 {
         return 2
     }
@@ -38,13 +38,13 @@ fn test_named_destruct_elision() -> i32 {
 fn test_named_destruct_wildcard() -> i32 {
     auto c = Config(host = 10, port = 8080, debug = 1)
     // Use _ to ignore port
-    auto Config(host = h, port = _, debug = d) = c
+    auto Config(h = .host, _ = .port, d = .debug) = c
     if h != 10 || d != 1 {
         return 1
     }
     
     // Multiple underscores and ..
-    auto Config(host = h2, port = _, debug = _, ..) = c
+    auto Config(h2 = .host, _ = .port, _ = .debug, ..) = c
     if h2 != 10 {
         return 2
     }
@@ -55,7 +55,7 @@ fn test_named_destruct_wildcard() -> i32 {
 fn test_named_match() -> i32 {
     auto c = Config(host = 10, port = 8080, debug = 1)
     auto val = match c {
-        Config(host = 10, port = 8080, debug = 1) => {
+        Config(10 = .host, 8080 = .port, 1 = .debug) => {
             pass 1
         }
         default => {
@@ -68,7 +68,7 @@ fn test_named_match() -> i32 {
     
     // Match with ..
     auto val2 = match c {
-        Config(port = 8080, debug = _, ..) => {
+        Config(8080 = .port, _ = .debug, ..) => {
             pass 2
         }
         default => {
@@ -81,7 +81,7 @@ fn test_named_match() -> i32 {
     
     // Match with reverse order fields and wildcard
     auto val3 = match c {
-        Config(debug = 1, host = _, ..) => {
+        Config(1 = .debug, _ = .host, ..) => {
             pass 3
         }
         default => {

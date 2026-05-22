@@ -4,7 +4,6 @@ shape Pair(
 
 fn main() -> i32 {
     auto p = Pair::A()
-    // Named destructuring on a Tagged Enum (illegal!)
-    auto Pair(x = a, y = b) = p
+    auto Pair(a = .x, b = .y) = p
     return 0
 }
