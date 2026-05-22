@@ -403,7 +403,7 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
                         
                         if n_out < max {
                             auto *out_ev# = (out_events as usize + (n_out as usize) * 8:usize) as *Addr
-                            out_ev = *p_coro
+                            out_ev = p_coro
                             n_out = n_out + 1
                         }
                         
@@ -414,11 +414,11 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
                             auto *last_is_write = (r.is_write as usize + last_idx * 4:usize) as *i32
                             
                             auto *curr_fd# = (r.fds as usize + (k as usize) * 4:usize) as *i32
-                            curr_fd = *last_fd
+                            curr_fd = last_fd
                             auto *curr_coro# = (r.coros as usize + (k as usize) * 8:usize) as *Addr
-                            curr_coro = *last_coro
+                            curr_coro = last_coro
                             auto *curr_is_write# = (r.is_write as usize + (k as usize) * 4:usize) as *i32
-                            curr_is_write = *last_is_write
+                            curr_is_write = last_is_write
                         }
                         r.count = r.count - 1
                         break
@@ -444,7 +444,7 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
                         
                         if n_out < max {
                             auto *out_ev# = (out_events as usize + (n_out as usize) * 8:usize) as *Addr
-                            out_ev = *p_coro
+                            out_ev = p_coro
                             n_out = n_out + 1
                         }
                         
@@ -455,11 +455,11 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
                             auto *last_is_write = (r.is_write as usize + last_idx * 4:usize) as *i32
                             
                             auto *curr_fd# = (r.fds as usize + (k as usize) * 4:usize) as *i32
-                            curr_fd = *last_fd
+                            curr_fd = last_fd
                             auto *curr_coro# = (r.coros as usize + (k as usize) * 8:usize) as *Addr
-                            curr_coro = *last_coro
+                            curr_coro = last_coro
                             auto *curr_is_write# = (r.is_write as usize + (k as usize) * 4:usize) as *i32
-                            curr_is_write = *last_is_write
+                            curr_is_write = last_is_write
                         }
                         r.count = r.count - 1
                         break
@@ -485,7 +485,7 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
                         
                         if n_out < max {
                             auto *out_ev# = (out_events as usize + (n_out as usize) * 8:usize) as *Addr
-                            out_ev = *p_coro
+                            out_ev = p_coro
                             n_out = n_out + 1
                         }
                         
@@ -496,11 +496,11 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
                             auto *last_is_write = (r.is_write as usize + last_idx * 4:usize) as *i32
                             
                             auto *curr_fd# = (r.fds as usize + (k as usize) * 4:usize) as *i32
-                            curr_fd = *last_fd
+                            curr_fd = last_fd
                             auto *curr_coro# = (r.coros as usize + (k as usize) * 8:usize) as *Addr
-                            curr_coro = *last_coro
+                            curr_coro = last_coro
                             auto *curr_is_write# = (r.is_write as usize + (k as usize) * 4:usize) as *i32
-                            curr_is_write = *last_is_write
+                            curr_is_write = last_is_write
                         }
                         r.count = r.count - 1
                         break
