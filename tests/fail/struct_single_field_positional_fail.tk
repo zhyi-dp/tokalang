@@ -1,0 +1,8 @@
+shape Wrapper(value: i32)
+
+fn main() -> i32 {
+    // Single-field struct MUST be initialized named: Wrapper(value = 123)
+    // Positional initialization Wrapper(123) must trigger a compilation error E042A
+    auto w = Wrapper(123)
+    return 0
+}

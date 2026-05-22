@@ -1,0 +1,5 @@
+error[E042A]: Positional initialization is prohibited for shape 'Wrapper'. Struct initialization must be strictly named (e.g. 'Point(x = 1, y = 2)').
+ --> tests/fail/struct_single_field_positional_fail.tk:6:22
+  |
+ 6 |     auto w = Wrapper(123)
+  |                      ^
