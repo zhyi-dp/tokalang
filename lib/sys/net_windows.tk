@@ -13,8 +13,8 @@ extern fn accept(s: i32, *addr: void, *addrlen: i32) -> i32
 extern fn connect(s: i32, *name: void, namelen: i32) -> i32
 extern fn send(s: i32, *buf: void, len: i32, flags: i32) -> i32
 extern fn recv(s: i32, *buf: void, len: i32, flags: i32) -> i32
-extern fn sendto(s: i32, *buf: void, len: i32, flags: i32, *to: void, tolen: i32) -> i32
-extern fn recvfrom(s: i32, *buf: void, len: i32, flags: i32, *from: void, *fromlen: i32) -> i32
+extern fn sendto(s: i32, *buf: void, len: i32, flags: i32, *dest_addr: void, tolen: i32) -> i32
+extern fn recvfrom(s: i32, *buf: void, len: i32, flags: i32, *src_addr: void, *fromlen: i32) -> i32
 extern fn closesocket(s: i32) -> i32
 extern fn ioctlsocket(s: i32, cmd: u32, *argp: u32) -> i32
 extern fn setsockopt(s: i32, level: i32, optname: i32, *optval: void, optlen: i32) -> i32

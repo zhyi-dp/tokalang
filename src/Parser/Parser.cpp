@@ -140,9 +140,15 @@ void Parser::error(const Token &tok, DiagID id) {
 }
 
 void Parser::synchronize() {
+  size_t startPos = m_Pos;
   PanicMode = false;
   while (!check(TokenType::EndOfFile)) {
-    if (previous().Kind == TokenType::Semicolon) return;
+    if (previous().Kind == TokenType::Semicolon) {
+      if (m_Pos == startPos) {
+        advance();
+      }
+      return;
+    }
     
     switch (peek().Kind) {
       case TokenType::KwPub:
@@ -157,6 +163,9 @@ void Parser::synchronize() {
       case TokenType::KwImpl:
       case TokenType::KwImport:
       case TokenType::RBrace:
+        if (m_Pos == startPos) {
+          advance();
+        }
         return;
       default:
         // continue advancing

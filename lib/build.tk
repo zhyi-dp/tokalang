@@ -315,7 +315,7 @@ pub fn run_build(proj: Executable) -> i32 {
                 cmd2#.push_str(proj.ldflags.c_str())
             }
             
-            if rt_path.ends_with(String::from(".obj")) {
+            if is_windows {
                 cmd2#.push_str(" -lws2_32" as *char)
             }
             
