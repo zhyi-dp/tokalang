@@ -135,7 +135,7 @@ void DiagnosticEngine::reportImpl(SourceLocation loc, int length, DiagID id,
     std::string lineData = SrcMgr->getLineData(Full);
     if (!lineData.empty()) {
       std::string lineNumStr = std::to_string(Full.Line);
-      std::string padding(lineNumStr.length() + 1, ' ');
+      std::string padding(lineNumStr.length() + 2, ' ');
       
       const char *blue = "\033[1;34m";
       const char *reset = "\033[0m";
