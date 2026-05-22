@@ -25,13 +25,13 @@ else
 fi
 
 echo "--- Compiling Toka Build Tool ---"
-$TOKAC tools/toka/src/main.tk > build/toka.ll
+$TOKAC -I tools/toka tools/toka/src/main.tk > build/toka.ll
 
 echo "Generating toka native binary via $CLANG..."
 if [ "$(uname)" == "Darwin" ]; then
-    $CLANG build/toka.ll -isysroot $(xcrun --show-sdk-path) -o build/toka
+    $CLANG build/toka.ll lib/sys/toka_rt.o -lm -isysroot $(xcrun --show-sdk-path) -o build/toka
 else
-    $CLANG build/toka.ll -o build/toka
+    $CLANG build/toka.ll lib/sys/toka_rt.o -lm -o build/toka
 fi
 
 echo "--- Testing 'toka new test_project' ---"
@@ -40,16 +40,16 @@ rm -rf test_project
 ./toka new test_project
 cd test_project
 
-echo "--- Testing 'toka run' (Compiling and Running Project.tk) ---"
+echo "--- Testing 'toka run' (Compiling and Running build.tk) ---"
 ls -lah
-cat Project.tk
+cat build.tk
 
 # Symlink lib so tokac finds the standard library (Toka searches ./lib and ../lib)
 ln -s ../../lib .
 
 # Note: The test environment needs to know where 'tokac' is.
 # We'll export PATH so that 'tokac' and 'lli' can be found.
-export PATH="$PATH:$(pwd)/../src"
+export PATH="$PATH:$(pwd)/../bin"
 export TOKA_LLI="$LLI"
 export TOKA_CLANG="$CLANG"
 

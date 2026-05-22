@@ -200,6 +200,8 @@ void Sema::registerGlobals(Module &M) {
     // We need to resolve PhysicalPath to what's in ModuleMap
     // The ModuleMap is keyed by whatever FileName was set in main.cpp
     for (auto &[path, scope] : ModuleMap) {
+      if (path == M.SourcePath) continue;
+      
       if (path == Imp->PhysicalPath) {
         target = &scope;
         break;

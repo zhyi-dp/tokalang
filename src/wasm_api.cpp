@@ -40,14 +40,56 @@ void parseSource(const std::string &filename,
   std::string resolvedPath = filename;
   bool found = false;
 
+  auto getBasename = [](const std::string &path) -> std::string {
+    size_t lastSlash = path.find_last_of("/\\");
+    if (lastSlash == std::string::npos) return path;
+    return path.substr(lastSlash + 1);
+  };
+
+  bool isStdOrCore = (filename.rfind("std/", 0) == 0) || (filename.rfind("std\\", 0) == 0) ||
+                     (filename.rfind("core/", 0) == 0) || (filename.rfind("core\\", 0) == 0);
+
+  bool isCompilingBuildSystem = false;
+  if (!recursionStack.empty()) {
+    std::string rootBasename = getBasename(recursionStack[0]);
+    if (rootBasename == "build.tk" || rootBasename == "Project.tk") {
+      isCompilingBuildSystem = true;
+    }
+  } else {
+    std::string rootBasename = getBasename(filename);
+    if (rootBasename == "build.tk" || rootBasename == "Project.tk") {
+      isCompilingBuildSystem = true;
+    }
+  }
+
   if (!code_cstr.empty()) {
       found = true;
-  } else if (std::ifstream(filename).good()) {
-      found = true;
-  } else if (filename.find(".tk") == std::string::npos && std::ifstream(filename + ".tk").good()) {
-      resolvedPath = filename + ".tk";
-      found = true;
   } else {
+      bool tryExact = std::ifstream(filename).good();
+      bool tryTk = (filename.find(".tk") == std::string::npos && std::ifstream(filename + ".tk").good());
+      
+      if (isStdOrCore) {
+          tryExact = false;
+          tryTk = false;
+      }
+      if (isCompilingBuildSystem && recursionStack.size() > 1) {
+          if (getBasename(filename) == "build.tk" || getBasename(filename) == "Project.tk") {
+              tryExact = false;
+          }
+          if (getBasename(filename + ".tk") == "build.tk" || getBasename(filename + ".tk") == "Project.tk") {
+              tryTk = false;
+          }
+      }
+      
+      if (tryExact) {
+          found = true;
+      } else if (tryTk) {
+          resolvedPath = filename + ".tk";
+          found = true;
+      }
+  }
+
+  if (!found) {
       std::vector<std::string> pathsToTry = {"lib/", "../lib/"};
       for (const auto &p : searchPaths) {
           pathsToTry.push_back(p.back() == '/' ? p : p + "/");

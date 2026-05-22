@@ -160,6 +160,28 @@ void parseSource(const std::string &filename,
     return std::ifstream(p).good();
   };
 
+  auto getBasename = [](const std::string &path) -> std::string {
+    size_t lastSlash = path.find_last_of("/\\");
+    if (lastSlash == std::string::npos) return path;
+    return path.substr(lastSlash + 1);
+  };
+
+  bool isStdOrCore = (filename.rfind("std/", 0) == 0) || (filename.rfind("std\\", 0) == 0) ||
+                     (filename.rfind("core/", 0) == 0) || (filename.rfind("core\\", 0) == 0);
+
+  bool isCompilingBuildSystem = false;
+  if (!recursionStack.empty()) {
+    std::string rootBasename = getBasename(recursionStack[0]);
+    if (rootBasename == "build.tk" || rootBasename == "Project.tk") {
+      isCompilingBuildSystem = true;
+    }
+  } else {
+    std::string rootBasename = getBasename(filename);
+    if (rootBasename == "build.tk" || rootBasename == "Project.tk") {
+      isCompilingBuildSystem = true;
+    }
+  }
+
   bool hasExt = (filename.find(".tk") != std::string::npos) || 
                 (filename.find(".tki") != std::string::npos);
 
@@ -189,15 +211,39 @@ void parseSource(const std::string &filename,
   }
   // 1. Try exact filename
   else if (fileExists(filename)) {
-    found = true;
+    bool shouldPoison = false;
+    if (isCompilingBuildSystem && recursionStack.size() > 1) {
+      std::string resBasename = getBasename(filename);
+      if (resBasename == "build.tk" || resBasename == "Project.tk") {
+        shouldPoison = true;
+      }
+    }
+    if (!isStdOrCore && !shouldPoison) {
+      found = true;
+    }
   }
   // 2. Try adding .tki or .tk if no extension
-  else if (!hasExt) {
-    if (fileExists(filename + ".tki")) {
-      resolvedPath = filename + ".tki";
+  else if (!hasExt && !isStdOrCore) {
+    std::string resolvedTki = filename + ".tki";
+    std::string resolvedTk = filename + ".tk";
+    
+    bool canUseTki = fileExists(resolvedTki);
+    bool canUseTk = fileExists(resolvedTk);
+    
+    if (isCompilingBuildSystem && recursionStack.size() > 1) {
+      if (getBasename(resolvedTki) == "build.tk" || getBasename(resolvedTki) == "Project.tk") {
+        canUseTki = false;
+      }
+      if (getBasename(resolvedTk) == "build.tk" || getBasename(resolvedTk) == "Project.tk") {
+        canUseTk = false;
+      }
+    }
+    
+    if (canUseTki) {
+      resolvedPath = resolvedTki;
       found = true;
-    } else if (fileExists(filename + ".tk")) {
-      resolvedPath = filename + ".tk";
+    } else if (canUseTk) {
+      resolvedPath = resolvedTk;
       found = true;
     }
   }
