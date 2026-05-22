@@ -4,7 +4,7 @@
 
 import std/io::{File, println, remove_file}
 import std/string::{String}
-import sys/libc::{libc_system}
+import sys/libc::{libc_system, libc_getenv}
 import lib/build::{Executable, run_build}
 
 fn main() -> i32 {
@@ -43,12 +43,36 @@ fn main() -> i32 {
     }
 
     // 5. Execute the compiled hybrid program and check its exit code
-    auto run_res = libc_system("target/debug/temp_main > /dev/null" as *char)
+    auto is_windows# = false
+    auto os_env = libc_getenv("OS" as *char) as Addr
+    if os_env != 0:Addr {
+        auto os_str = String::from(os_env as *char)
+        if os_str == String::from("Windows_NT") {
+            is_windows = true
+        }
+    }
+
+    auto run_cmd# = String::from("")
+    if is_windows {
+        run_cmd = String::from("target\\debug\\temp_main ")
+        run_cmd#.push_char(62:char)
+        run_cmd#.push_str(" nul" as *char)
+    } else {
+        run_cmd = String::from("target/debug/temp_main ")
+        run_cmd#.push_char(62:char)
+        run_cmd#.push_str(" /dev/null" as *char)
+    }
+
+    auto run_res = libc_system(run_cmd.c_str())
     if run_res != 0 {
         println("Hybrid executable execution failed with code: {}", run_res)
         remove_file(String::from("tests/pass/temp_shim.c"))
         remove_file(String::from("tests/pass/temp_main.tk"))
-        libc_system("rm -rf target/debug/temp_main" as *char)
+        if is_windows {
+            remove_file(String::from("target/debug/temp_main.exe"))
+        } else {
+            remove_file(String::from("target/debug/temp_main"))
+        }
         return 1
     }
 
@@ -57,6 +81,10 @@ fn main() -> i32 {
     // 6. Clean up temporary files
     remove_file(String::from("tests/pass/temp_shim.c"))
     remove_file(String::from("tests/pass/temp_main.tk"))
-    libc_system("rm -rf target/debug/temp_main" as *char)
+    if is_windows {
+        remove_file(String::from("target/debug/temp_main.exe"))
+    } else {
+        remove_file(String::from("target/debug/temp_main"))
+    }
     return 0
 }

@@ -245,9 +245,17 @@ find tests/pass -name "*.tk" -print0 | xargs -0 -P $CORES -n 1 "$0" --worker | t
 pass_count=$(sed 's/\x1b\[[0-9;]*m//g' "$RESULTS_FILE" | grep -c "\[PASS")
 fail_count=$(sed 's/\x1b\[[0-9;]*m//g' "$RESULTS_FILE" | grep -c "\[FAIL")
 
+echo "---------------------------------"
+
+if [ $fail_count -gt 0 ]; then
+    echo -e "${RED}!!! Concentrated Failure Summary !!!${NC}"
+    echo "---------------------------------"
+    awk '/\[FAIL\]/ {print; print_block=1; next} /^[[:space:]]/ && print_block {print; next} {print_block=0}' "$RESULTS_FILE"
+    echo "---------------------------------"
+fi
+
 rm -f "$RESULTS_FILE"
 
-echo "---------------------------------"
 echo "Summary:"
 echo -e "  Passed: ${GREEN}$pass_count${NC}"
 echo -e "  Failed: ${RED}$fail_count${NC}"

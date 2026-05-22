@@ -229,7 +229,7 @@ impl TcpStream {
             }
             
             auto errno = sysnet::get_errno_impl()
-            if errno != 36 && errno != 115 {
+            if errno != 36 && errno != 115 && errno != 10035 {
                 sysnet::net_close_impl(fd)
                 sleep_async(0:i64).await
                 return TcpStream(fd=-1, closed=true)

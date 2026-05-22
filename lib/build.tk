@@ -92,9 +92,6 @@ impl Executable {
 
 pub fn run_build(proj: Executable) -> i32 {
     unsafe {
-        // Create target directory using std/fs or system()
-        libc_system("mkdir -p target/debug" as *char)
-        
         auto *n = proj.*name
         auto *v = proj.*version
         auto *s = proj.*src
@@ -121,6 +118,12 @@ pub fn run_build(proj: Executable) -> i32 {
         }
         if libc_access("build/bin/tokac.exe" as *char, 0) == 0 {
             is_windows = true
+        }
+
+        if is_windows {
+            libc_system("if not exist target\\debug mkdir target\\debug" as *char)
+        } else {
+            libc_system("mkdir -p target/debug" as *char)
         }
 
         // Build tokac string: "tokac src_path > target/debug/main.ll"
@@ -330,9 +333,16 @@ pub fn run_build(proj: Executable) -> i32 {
             }
             
             // Clean up temporary .o file
-            auto rm_cmd# = String::from("rm -f target/debug/")
-            rm_cmd#.push_str(&n)
-            rm_cmd#.push_str(".o" as *char)
+            auto rm_cmd# = String::from("")
+            if is_windows {
+                rm_cmd = String::from("del /f /q target\\debug\\")
+                rm_cmd#.push_str(&n)
+                rm_cmd#.push_str(".o" as *char)
+            } else {
+                rm_cmd = String::from("rm -f target/debug/")
+                rm_cmd#.push_str(&n)
+                rm_cmd#.push_str(".o" as *char)
+            }
             libc_system(rm_cmd.c_str())
         }
         
