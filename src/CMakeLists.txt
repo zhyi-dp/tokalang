@@ -1,5 +1,6 @@
 add_executable(tokac main.cpp Basic/SourceManager.cpp Lexer/Lexer.cpp 
 DiagnosticEngine.cpp
+AST/TKIExporter.cpp
 Parser/Parser.cpp 
 Parser/Parser_Decl.cpp
 Parser/Parser_Stmt.cpp
@@ -20,8 +21,9 @@ Type.cpp
 CodeGen/CodeGen.cpp 
 CodeGen/CodeGen_Expr.cpp 
 CodeGen/CodeGen_Stmt.cpp 
-CodeGen/CodeGen_Memory.cpp 
-CodeGen/CodeGen_Decl.cpp 
+CodeGen/CodeGen_Memory.cpp
+CodeGen/CodeGen_Decl.cpp
+AST/TKIExporter.cpp
 )
 
 # Link against LLVM libraries

@@ -1762,6 +1762,8 @@ public:
 
 class Module : public ASTNode {
 public:
+  std::string SourcePath;
+  bool IsRootModule = false;
   std::vector<std::unique_ptr<ImportDecl>> Imports;
   std::vector<std::unique_ptr<TypeAliasDecl>> TypeAliases;
   std::vector<std::unique_ptr<ShapeDecl>> Shapes;

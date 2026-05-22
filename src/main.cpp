@@ -16,6 +16,7 @@
 #include "toka/Lexer.h"
 #include "toka/Parser.h"
 #include "toka/Sema.h"
+#include "toka/TKIExporter.h"
 #include "toka/SourceLocation.h"
 #include "toka/SourceManager.h"
 #include "llvm/Support/InitLLVM.h"
@@ -153,24 +154,54 @@ void parseSource(const std::string &filename,
   std::string resolvedPath = filename;
   bool found = false;
 
+  auto fileExists = [](const std::string &p) {
+    return std::ifstream(p).good();
+  };
+
+  bool hasExt = (filename.find(".tk") != std::string::npos) || 
+                (filename.find(".tki") != std::string::npos);
+
   // 0. Check package aliases
   auto pkgIt = pkgMap.find(filename);
   if (pkgIt != pkgMap.end()) {
-    resolvedPath = pkgIt->second;
-    found = true;
+    std::string mapped = pkgIt->second;
+    bool mappedHasExt = (mapped.find(".tk") != std::string::npos) || 
+                        (mapped.find(".tki") != std::string::npos);
+    if (!mappedHasExt) {
+      if (fileExists(mapped + ".tki")) {
+        resolvedPath = mapped + ".tki";
+        found = true;
+      } else if (fileExists(mapped + ".tk")) {
+        resolvedPath = mapped + ".tk";
+        found = true;
+      } else if (fileExists(mapped)) {
+        resolvedPath = mapped;
+        found = true;
+      }
+    } else {
+      if (fileExists(mapped)) {
+        resolvedPath = mapped;
+        found = true;
+      }
+    }
   }
   // 1. Try exact filename
-  else if (std::ifstream(filename).good()) {
+  else if (fileExists(filename)) {
     found = true;
   }
-  // 2. Try adding .tk
-  else if (filename.find(".tk") == std::string::npos &&
-           std::ifstream(filename + ".tk").good()) {
-    resolvedPath = filename + ".tk";
-    found = true;
+  // 2. Try adding .tki or .tk if no extension
+  else if (!hasExt) {
+    if (fileExists(filename + ".tki")) {
+      resolvedPath = filename + ".tki";
+      found = true;
+    } else if (fileExists(filename + ".tk")) {
+      resolvedPath = filename + ".tk";
+      found = true;
+    }
   }
-  // 3. Try user-provided search paths and default lib/ paths
-  else {
+
+  // 3. Try search paths and lib/ paths
+  if (!found) {
     std::vector<std::string> pathsToTry;
     pathsToTry.push_back("lib/");
     pathsToTry.push_back("../lib/");
@@ -183,15 +214,19 @@ void parseSource(const std::string &filename,
     }
     for (const auto &p : pathsToTry) {
       std::string libPath = p + filename;
-      if (std::ifstream(libPath).good()) {
+      if (fileExists(libPath)) {
         resolvedPath = libPath;
         found = true;
         break;
       }
-      if (filename.find(".tk") == std::string::npos) {
-        libPath += ".tk";
-        if (std::ifstream(libPath).good()) {
-          resolvedPath = libPath;
+      if (!hasExt) {
+        if (fileExists(libPath + ".tki")) {
+          resolvedPath = libPath + ".tki";
+          found = true;
+          break;
+        }
+        if (fileExists(libPath + ".tk")) {
+          resolvedPath = libPath + ".tk";
           found = true;
           break;
         }
@@ -221,6 +256,10 @@ void parseSource(const std::string &filename,
 
   toka::Parser parser(tokens, resolvedPath);
   auto module = parser.parseModule();
+  if (module) {
+    module->SourcePath = resolvedPath;
+    module->IsRootModule = (recursionStack.size() == 1);
+  }
 
   // Recursively parse imports
   for (const auto &imp : module->Imports) {
@@ -284,6 +323,7 @@ int main(int argc, char **argv) {
   bool disableBorrowCheck = false;
   bool emitObj = false;
   bool compileOnly = false;
+  bool emitInterface = false;
   llvm::OptimizationLevel optLevel = llvm::OptimizationLevel::O0;
   std::string outputFile = "";
   for (int i = 1; i < argc; ++i) {
@@ -354,6 +394,8 @@ int main(int argc, char **argv) {
       emitObj = true;
     } else if (arg == "--emit-llvm") {
       emitObj = false;
+    } else if (arg == "--emit-interface") {
+      emitInterface = true;
     } else if (arg.rfind("-", 0) == 0) {
       // Ignore other flags for now or report error
     } else {
@@ -363,6 +405,10 @@ int main(int argc, char **argv) {
         sourceFiles.push_back(arg);
       }
     }
+  }
+
+  if (compileOnly) {
+    emitInterface = true;
   }
 
   if (sourceFiles.empty()) {
@@ -394,6 +440,33 @@ int main(int argc, char **argv) {
     if (!sema.checkModule(*ast) || toka::DiagnosticEngine::hasErrors()) {
       llvm::errs() << "\033[1;31m[FAILED]\033[0m Compilation aborted due to previous semantic errors.\n";
       return 1;
+    }
+  }
+
+  if (emitInterface) {
+    for (const auto &ast : astModules) {
+      if (ast->IsRootModule) {
+        std::string sourcePath = ast->SourcePath;
+        std::string outPath = sourcePath;
+        size_t dotPos = outPath.find_last_of('.');
+        if (dotPos != std::string::npos && outPath.substr(dotPos) == ".tk") {
+          outPath = outPath.substr(0, dotPos) + ".tki";
+        } else {
+          outPath += ".tki";
+        }
+        
+        if (verboseMode) llvm::errs() << "Exporting TKI Interface to " << outPath << "...\n";
+        
+        std::error_code EC;
+        llvm::raw_fd_ostream os(outPath, EC, llvm::sys::fs::OF_None);
+        if (EC) {
+          llvm::errs() << "Error writing TKI file " << outPath << ": " << EC.message() << "\n";
+          return 1;
+        }
+        
+        toka::TKIExporter exporter(os);
+        exporter.exportModule(*ast);
+      }
     }
   }
 

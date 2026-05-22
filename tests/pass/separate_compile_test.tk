@@ -1,0 +1,10 @@
+import ./separate_compile_test_lib::*
+
+fn main() -> i32 {
+    auto pt = MyPoint(x = MY_CONST, y = 100)
+    auto sum = add<i32>(pt.x, pt.y)
+    if (sum != 142) {
+        return 1
+    }
+    return 0
+}
