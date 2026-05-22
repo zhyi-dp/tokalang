@@ -22,6 +22,8 @@
 #include <set>
 #include <typeinfo>
 
+extern bool verboseMode;
+
 namespace toka {
 
 void CodeGen::emitAcquire(llvm::Value *sharedHandle, std::shared_ptr<Type> pointeeType) {
@@ -5461,8 +5463,10 @@ PhysEntity CodeGen::genInitStructExpr(const InitStructExpr *init) {
   if (init->ResolvedType && init->ResolvedType->isShape()) {
     shapeName = init->ResolvedType->getSoulName();
   }
-  std::cerr << "[DEBUG] genInitStructExpr shapeName=" << shapeName
-            << " insertBlock=" << (m_Builder.GetInsertBlock() ? m_Builder.GetInsertBlock()->getName().str() : "NULL") << std::endl;
+  if (verboseMode) {
+    std::cerr << "[DEBUG] genInitStructExpr shapeName=" << shapeName
+              << " insertBlock=" << (m_Builder.GetInsertBlock() ? m_Builder.GetInsertBlock()->getName().str() : "NULL") << std::endl;
+  }
 
   // Suppress drop for any variables ceded by base.*
   for (const auto &varName : init->CededBases) {

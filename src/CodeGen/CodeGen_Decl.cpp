@@ -24,6 +24,8 @@
 #include <string>
 #include <typeinfo>
 
+extern bool verboseMode;
+
 namespace toka {
 
 llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
@@ -36,7 +38,9 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
     return nullptr;
 
   std::string funcName = overrideName.empty() ? func->Name : overrideName;
-  std::cerr << "[DEBUG] genFunction funcName=" << funcName << " declOnly=" << declOnly << std::endl;
+  if (verboseMode) {
+    std::cerr << "[DEBUG] genFunction funcName=" << funcName << " declOnly=" << declOnly << std::endl;
+  }
 
   // [Fix] Context Guard: Save/Restore symbol table to prevent corruption during
   // recursive generation
@@ -54,7 +58,9 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
 
   llvm::Function *f = m_Module->getFunction(funcName);
   if (f) {
-    std::cerr << "[DEBUG EXISTS] funcName=" << funcName << " existing_f_arg_size=" << f->arg_size() << " declOnly=" << declOnly << std::endl;
+    if (verboseMode) {
+      std::cerr << "[DEBUG EXISTS] funcName=" << funcName << " existing_f_arg_size=" << f->arg_size() << " declOnly=" << declOnly << std::endl;
+    }
   }
 
   std::shared_ptr<Type> retTypeObj;
@@ -1556,7 +1562,9 @@ void CodeGen::genShape(const ShapeDecl *sh) {
   if (sh->Kind == ShapeKind::Struct || sh->Kind == ShapeKind::Tuple) {
     std::vector<std::string> fieldNames;
     for (const auto &member : sh->Members) {
-      std::cerr << "[DEBUG genShape] shape=" << sh->Name << " member=" << member.Name << " Type=" << member.Type << " ResolvedType=" << (member.ResolvedType ? member.ResolvedType->toString() : "NULL") << " HasPointer=" << member.HasPointer << " IsUnique=" << member.IsUnique << " IsShared=" << member.IsShared << " IsReference=" << member.IsReference << std::endl;
+      if (verboseMode) {
+        std::cerr << "[DEBUG genShape] shape=" << sh->Name << " member=" << member.Name << " Type=" << member.Type << " ResolvedType=" << (member.ResolvedType ? member.ResolvedType->toString() : "NULL") << " HasPointer=" << member.HasPointer << " IsUnique=" << member.IsUnique << " IsShared=" << member.IsShared << " IsReference=" << member.IsReference << std::endl;
+      }
       llvm::Type *t = nullptr;
       if (member.ResolvedType) {
         t = getLLVMType(member.ResolvedType);

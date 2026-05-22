@@ -3,3 +3,5 @@ error[E0469]: You are trying to return the Soul (i32) of a reference, but a Hand
   |
  2 |     return x
   |     ^
+  |   👉 help: Return requires Handle but Soul is returned. Did you mean '&var'?
+

@@ -9,6 +9,7 @@
 #include <iostream>
 
 bool g_JsonDiagnostics = false;
+bool verboseMode = false;
 
 // Intercept std::cout to capture JSON output
 class StringbufStream : public std::stringbuf {

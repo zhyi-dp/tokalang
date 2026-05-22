@@ -171,20 +171,20 @@ fn cmd_add(pkg_url_or_name: String) -> i32 {
         }
         
         if pkg_alias.is_empty() {
-            println("Error: Invalid package URL or name")
+            println("\x1b[1;31m       Error\x1b[0m invalid package URL or name")
             return 1
         }
         
-        println("Adding package {} -> {}", pkg_alias, pkg_url)
+        println("\x1b[1;32m      Adding\x1b[0m package {} -> {}", pkg_alias, pkg_url)
         
         if libc_system("test -f package.tk" as *char) != 0 {
-            println("Error: package.tk not found. Are you in a Toka project?")
+            println("\x1b[1;31m       Error\x1b[0m package.tk not found. Are you in a Toka project?")
             return 1
         }
         
         auto res = read_to_string(String::from("package.tk"))
         if res.is_err() {
-            println("Error: Failed to read package.tk")
+            println("\x1b[1;31m       Error\x1b[0m failed to read package.tk")
             return 1
         }
         
@@ -209,15 +209,15 @@ fn cmd_add(pkg_url_or_name: String) -> i32 {
         
         auto file# = File::open(String::from("package.tk"), String::from("w"))
         if !file.is_valid() {
-            println("Error: Failed to open package.tk for writing")
+            println("\x1b[1;31m       Error\x1b[0m failed to open package.tk for writing")
             return 1
         }
         file.write(new_content)
         file#.close()
         
-        println("Successfully added {} to package.tk", pkg_alias)
+        println("\x1b[1;32m       Added\x1b[0m {} to package.tk", pkg_alias)
         
-        println("Updating package.lock...")
+        println("\x1b[1;32m    Updating\x1b[0m package.lock...")
         auto lock_file# = File::open(String::from("package.lock"), String::from("a"))
         if lock_file.is_valid() {
             auto lock_entry# = String::from("")
@@ -267,7 +267,7 @@ fn cmd_build() -> i32 {
                 println("\n\x1b[33mWarning: Project.tk is deprecated. Please rename it to build.tk\x1b[0m\n")
                 build_file = String::from("Project.tk")
             } else {
-                println("Error: build.tk not found in current directory.")
+                println("\x1b[1;31m       Error\x1b[0m build.tk not found in current directory.")
                 return 1
             }
         }
@@ -277,7 +277,7 @@ fn cmd_build() -> i32 {
 
         auto res = libc_system(cmd.c_str())
         if res != 0 {
-            println("Error executing {} -> compile failed", build_file)
+            println("\x1b[1;31m       Error\x1b[0m executing {} -> compile failed", build_file)
         }
         libc_system("rm -f .toka_build_exe" as *char)
         if res != 0 { return 1 }
@@ -303,7 +303,7 @@ fn cmd_run_single(file: String) -> i32 {
 
         auto res = libc_system(cmd.c_str())
         if res != 0 {
-            println("Error executing {}", file)
+            println("\x1b[1;31m       Error\x1b[0m executing {}", file)
         }
         libc_system("rm -f .toka_single_exe" as *char)
         if res != 0 { return 1 }

@@ -1,6 +1,7 @@
 import sys/libc::{libc_system, libc_access, libc_getenv}
 import std/string::{String}
 import core/traits::{@encap}
+import std/io::println
 
 pub shape Executable (
     *name: char,
@@ -149,11 +150,16 @@ pub fn run_build(proj: Executable) -> i32 {
             cmd1#.push_str(&n)
             cmd1#.push_str(" -O3" as *char)
         }
+
+        auto name_str = String::from(*n)
+        auto version_str = String::from(*v)
+        println("\x1b[1;32m   Compiling\x1b[0m {} v{} ...", name_str, version_str)
         
         // Execute compiler
         auto res1 = libc_system(cmd1.c_str())
         if res1 != 0 {
-            libc_system("echo 'Toka compilation failed.'" as *char)
+            auto fail_name = String::from(*n)
+            println("\x1b[1;31m       Error\x1b[0m failed to compile {}", fail_name)
             return res1
         }
 
@@ -259,7 +265,8 @@ pub fn run_build(proj: Executable) -> i32 {
             
             auto res2 = libc_system(cmd2.c_str())
             if res2 != 0 {
-                libc_system("echo 'Linking failed.'" as *char)
+                auto fail_name = String::from(*n)
+                println("\x1b[1;31m       Error\x1b[0m linking failed for {}", fail_name)
                 return res2
             }
             
@@ -270,7 +277,7 @@ pub fn run_build(proj: Executable) -> i32 {
             libc_system(rm_cmd.c_str())
         }
         
-        libc_system("echo 'Build successful!\n'" as *char)
+        println("\x1b[1;35m    Finished\x1b[0m release [optimized] target(s)")
         return 0
     }
 }

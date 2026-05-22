@@ -521,7 +521,7 @@ void Sema::checkStmt(Stmt *S) {
                Inferred[0] == '&') &&
               Inferred.substr(0, 3) != "cstring") {
             std::string sigilStr = std::string(1, Inferred[0]);
-            DiagnosticEngine::report(getLoc(Var),
+            DiagnosticEngine::report(getLoc(Var), (int)Var->Name.length(),
                                      DiagID::ERR_POINTER_SIGIL_MISSING,
                                      Var->Name, Inferred, sigilStr, Var->Name);
             HasError = true;

@@ -19,6 +19,8 @@
 #include <set>
 #include <typeinfo>
 
+extern bool verboseMode;
+
 namespace toka {
 
 // Inside the genExpr function of src/CodeGen/CodeGen.cpp
@@ -447,17 +449,20 @@ void CodeGen::restoreContext(const GenContext &ctx) {
   }
 }
 
+
 llvm::AllocaInst *CodeGen::createEntryBlockAlloca(llvm::Type *type, llvm::Value *ArraySize, const std::string &varName) {
-  std::cerr << "[DEBUG createEntryBlockAlloca] varName=" << varName << " type=";
-  if (type) {
-    std::string typeStr;
-    llvm::raw_string_ostream os(typeStr);
-    type->print(os);
-    std::cerr << os.str();
-  } else {
-    std::cerr << "NULL";
+  if (verboseMode) {
+    std::cerr << "[DEBUG createEntryBlockAlloca] varName=" << varName << " type=";
+    if (type) {
+      std::string typeStr;
+      llvm::raw_string_ostream os(typeStr);
+      type->print(os);
+      std::cerr << os.str();
+    } else {
+      std::cerr << "NULL";
+    }
+    std::cerr << std::endl;
   }
-  std::cerr << std::endl;
   llvm::Function *TheFunction = m_Builder.GetInsertBlock()->getParent();
   if (TheFunction->empty()) {
     llvm::BasicBlock *Entry = llvm::BasicBlock::Create(m_Context, "entry", TheFunction);

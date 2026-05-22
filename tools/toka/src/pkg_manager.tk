@@ -76,7 +76,7 @@ pub fn cmd_fetch() -> i32 {
         return 0
     }
     
-    println("Fetching dependencies from package.tk...")
+    println("\x1b[1;36m   Resolving\x1b[0m dependency graph...")
     auto i# = 0:usize
     while i < deps.len() {
         auto entry = deps.get(i)
@@ -84,12 +84,12 @@ pub fn cmd_fetch() -> i32 {
         auto pkg_val = entry.val
         
         if pkg_val.starts_with(String::from(".")) || pkg_val.starts_with(String::from("/")) {
-            println(" -> Resolving {} @ {} (Local Path)", pkg_name, pkg_val)
+            println("\x1b[1;36m   Resolving\x1b[0m {} @ {} (Local Path)", pkg_name, pkg_val)
         } else if pkg_val.contains(String::from("/")) && pkg_val.contains(String::from(":")) {
             auto colon_idx = pkg_val.find_str(String::from(":"))
             auto repo_url = pkg_val.substring(0, colon_idx)
             auto tag = pkg_val.substring(colon_idx + 1, pkg_val.len() as i32)
-            println(" -> Resolving {} @ {} (Git)", pkg_name, pkg_val)
+            println("\x1b[1;36m   Resolving\x1b[0m {} @ {}", pkg_name, pkg_val)
             
             auto target_dir# = String::from(".toka/packages/")
             target_dir#.push_str(pkg_name.c_str())
@@ -120,7 +120,7 @@ pub fn cmd_fetch() -> i32 {
                 real_name = pkg_val.clone()
             }
             
-            println(" -> Resolving {} @ {} (Registry)", real_name, version)
+            println("\x1b[1;36m   Resolving\x1b[0m {} v{}", real_name, version)
             auto target_dir# = String::from(".toka/packages/")
             target_dir#.push_str(real_name.c_str())
             target_dir#.push_str("-")
@@ -150,7 +150,7 @@ pub fn cmd_fetch() -> i32 {
                     url#.push_str(version.c_str())
                     url#.push_str(".tar.gz")
                     
-                    println("    [Registry] Downloading from {}...", url)
+                    println("\x1b[1;32m Downloading\x1b[0m {} v{}", real_name, version)
                     
                     auto curl_cmd# = String::from("curl -sL \"")
                     curl_cmd#.push_str(url.c_str())
@@ -170,7 +170,7 @@ pub fn cmd_fetch() -> i32 {
                         if tar_res != 0 {
                             println("    \x1b[31m[Error]\x1b[0m Failed to extract package {}", pkg_name)
                         } else {
-                            println("    \x1b[32m[Success]\x1b[0m Package {} downloaded and extracted.", pkg_name)
+                            println("\x1b[1;32m  Downloaded\x1b[0m {}", pkg_name)
                         }
                     }
                     libc_system("rm -f .toka_tmp_dl.tar.gz" as *char)
@@ -180,7 +180,7 @@ pub fn cmd_fetch() -> i32 {
         i = i + 1
     }
     
-    println("Fetch complete.")
+    println("\x1b[1;32m  Downloaded\x1b[0m all dependencies successfully.")
     return 0
 }
 

@@ -26,6 +26,7 @@ struct DiagLoc {
   std::string File;
   int Line;
   int Col;
+  int Length = 1;
 };
 
 enum class DiagLevel { Warning, Error, Note };
@@ -57,9 +58,16 @@ public:
     reportImpl(loc, id, formatMessage(id, std::forward<Args>(args)...));
   }
 
+  template <typename... Args>
+  static void report(SourceLocation loc, int length, DiagID id, Args &&...args) {
+    reportImpl(loc, length, id, formatMessage(id, std::forward<Args>(args)...));
+  }
+
 private:
   static void reportImpl(DiagLoc loc, DiagID id, const std::string &message);
   static void reportImpl(SourceLocation loc, DiagID id,
+                         const std::string &message);
+  static void reportImpl(SourceLocation loc, int length, DiagID id,
                          const std::string &message);
   static const char *getFormatString(DiagID id);
   static DiagLevel getLevel(DiagID id);

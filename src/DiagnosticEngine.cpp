@@ -117,9 +117,14 @@ void DiagnosticEngine::reportImpl(DiagLoc loc, DiagID id,
 
 void DiagnosticEngine::reportImpl(SourceLocation loc, DiagID id,
                                   const std::string &message) {
+  reportImpl(loc, 1, id, message);
+}
+
+void DiagnosticEngine::reportImpl(SourceLocation loc, int length, DiagID id,
+                                  const std::string &message) {
   if (SrcMgr) {
     FullSourceLoc Full = SrcMgr->getFullSourceLoc(loc);
-    DiagLoc DL{Full.FileName, (int)Full.Line, (int)Full.Column};
+    DiagLoc DL{Full.FileName, (int)Full.Line, (int)Full.Column, length};
     
     // Print the basic header first
     reportImpl(DL, id, message);
@@ -143,11 +148,28 @@ void DiagnosticEngine::reportImpl(SourceLocation loc, DiagID id,
       if (Full.Column > 0) {
         std::cerr << std::string(Full.Column - 1, ' ');
       }
-      std::cerr << caretColor << "^" << reset << "\n\n";
+      std::cerr << caretColor << "^";
+      if (length > 1) {
+        std::cerr << std::string(length - 1, '~');
+      }
+      std::cerr << reset << "\n";
+
+      // 👉 紧接着输出启发式智能修复建议 (Suggestions)
+      if (id == DiagID::ERR_POINTER_SIGIL_MISSING) {
+        std::cerr << padding << blue << "|" << reset << "   \033[1;32m👉 help:\033[0m Variable implies pointer type but lacks explicit sigil. Did you mean '^var'?\n";
+      } else if (id == DiagID::ERR_MEMBER_SIGIL_MISMATCH) {
+        std::cerr << padding << blue << "|" << reset << "   \033[1;32m👉 help:\033[0m Dot operator '.' cannot be used with pointer. Did you mean '^ptr->member' or 'ptr.member'?\n";
+      } else if (id == DiagID::ERR_ARROW_SIGIL_REQUIRED) {
+        std::cerr << padding << blue << "|" << reset << "   \033[1;32m👉 help:\033[0m Arrow operator '->' requires explicit pointer sigil on variable. Did you mean '^ptr->member'?\n";
+      } else if (id == DiagID::ERR_MISSING_AMPERSAND_RETURN) {
+        std::cerr << padding << blue << "|" << reset << "   \033[1;32m👉 help:\033[0m Return requires Handle but Soul is returned. Did you mean '&var'?\n";
+      }
+
+      std::cerr << "\n";
     }
     
   } else {
-    DiagLoc DL{"<unknown>", 0, 0};
+    DiagLoc DL{"<unknown>", 0, 0, length};
     reportImpl(DL, id,
                message + " [RawLoc: " + std::to_string(loc.getRawEncoding()) +
                    "]");
