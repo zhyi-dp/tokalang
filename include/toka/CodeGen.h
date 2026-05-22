@@ -24,6 +24,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <set>
 
 namespace toka {
 class Type;
@@ -137,6 +138,10 @@ private:
   llvm::BasicBlock *m_CurrentCoroSuspendRetBB = nullptr;
   llvm::BasicBlock *m_CurrentCoroCleanupBB = nullptr;
   llvm::BasicBlock *m_CurrentCoroFinalSuspendBB = nullptr;
+  llvm::Value *m_CurrentSRetPtr = nullptr;
+  llvm::Type *m_CurrentSRetTy = nullptr;
+  bool shouldReturnSRet(std::shared_ptr<Type> retTypeObj);
+  uint64_t estimateTypeSize(std::shared_ptr<Type> type, std::set<std::string> &visited);
   void genCoroutineReturn(llvm::Value *retVal);
   // Although m_ValueElementTypes is redundant with m_Symbols for Variables, it
   // might be used elsewhere. But m_StructTypes, m_Shapes, etc. are absolutely
@@ -287,6 +292,8 @@ private:
     llvm::BasicBlock *CurrentCoroSuspendRetBB;
     llvm::BasicBlock *CurrentCoroCleanupBB;
     llvm::BasicBlock *CurrentCoroFinalSuspendBB;
+    llvm::Value *CurrentSRetPtr;
+    llvm::Type *CurrentSRetTy;
   };
 
   GenContext saveContext();

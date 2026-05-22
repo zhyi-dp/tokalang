@@ -149,6 +149,19 @@ llvm::Value *CodeGen::genReturnStmt(const ReturnStmt *ret) {
     }
   }
 
+  if (m_CurrentSRetPtr && m_CurrentSRetTy) {
+    if (retVal) {
+      if (retVal->getType() != m_CurrentSRetTy) {
+        llvm::Value *tempSrcPtr = m_Builder.CreatePointerCast(m_CurrentSRetPtr, llvm::PointerType::get(retVal->getType(), 0));
+        m_Builder.CreateStore(retVal, tempSrcPtr);
+      } else {
+        m_Builder.CreateStore(retVal, m_CurrentSRetPtr);
+      }
+    }
+    cleanupScopes(0);
+    return m_Builder.CreateRetVoid();
+  }
+
   llvm::Function *f = m_Builder.GetInsertBlock()->getParent();
   cleanupScopes(0);
 

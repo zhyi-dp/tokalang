@@ -51,6 +51,17 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
   m_Symbols.clear();
 
   llvm::Function *f = m_Module->getFunction(funcName);
+  if (f) {
+    std::cerr << "[DEBUG EXISTS] funcName=" << funcName << " existing_f_arg_size=" << f->arg_size() << " declOnly=" << declOnly << std::endl;
+  }
+
+  std::shared_ptr<Type> retTypeObj;
+  if (func->ResolvedReturnType) {
+    retTypeObj = func->ResolvedReturnType;
+  } else {
+    retTypeObj = Type::fromString(func->ReturnType);
+  }
+  bool isSRet = shouldReturnSRet(retTypeObj) && func->Effect != EffectKind::Async;
 
   if (!f) {
     std::vector<llvm::Type *> argTypes;
@@ -139,14 +150,6 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
         argTypes.push_back(t);
     }
 
-    // Return Type
-    std::shared_ptr<Type> retTypeObj;
-    if (func->ResolvedReturnType) {
-      retTypeObj = func->ResolvedReturnType;
-    } else {
-      retTypeObj = Type::fromString(func->ReturnType);
-    }
-
     llvm::Type *retType = getLLVMType(retTypeObj);
     if (!retType) {
       error(func, "Unresolved return type for function '" + funcName + "'");
@@ -157,9 +160,17 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
       retType = llvm::PointerType::getUnqual(m_Context);
     }
 
-    llvm::FunctionType *ft = llvm::FunctionType::get(retType, argTypes, false);
+    llvm::Type *actualRetTy = isSRet ? llvm::Type::getVoidTy(m_Context) : retType;
+    if (isSRet) {
+      argTypes.insert(argTypes.begin(), llvm::PointerType::getUnqual(m_Context));
+    }
+
+    llvm::FunctionType *ft = llvm::FunctionType::get(actualRetTy, argTypes, false);
     f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, funcName,
                                m_Module.get());
+    if (isSRet) {
+      f->addParamAttr(0, llvm::Attribute::get(m_Context, llvm::Attribute::StructRet, getLLVMType(retTypeObj)));
+    }
     if (func->Effect == EffectKind::Async) {
       f->setPresplitCoroutine();
     }
@@ -239,8 +250,23 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
       m_CurrentCoroFinalSuspendBB = nullptr;
   }
 
+  auto argIt = f->arg_begin();
+  m_CurrentSRetPtr = nullptr;
+  m_CurrentSRetTy = nullptr;
+  if (isSRet) {
+    llvm::Value *sretPtr = &(*argIt);
+    sretPtr->setName("sret.slot");
+    m_CurrentSRetPtr = sretPtr;
+    m_CurrentSRetTy = getLLVMType(retTypeObj);
+    argIt++;
+  }
+
   size_t idx = 0;
-  for (auto &arg : f->args()) {
+  for (; argIt != f->arg_end(); ++argIt) {
+    if (idx >= func->Args.size()) {
+      break;
+    }
+    llvm::Argument &arg = *argIt;
     const auto &argDecl = func->Args[idx];
     std::string argName = argDecl.Name;
     
@@ -1503,13 +1529,14 @@ void CodeGen::genShape(const ShapeDecl *sh) {
   if (sh->Kind == ShapeKind::Struct || sh->Kind == ShapeKind::Tuple) {
     std::vector<std::string> fieldNames;
     for (const auto &member : sh->Members) {
+      std::cerr << "[DEBUG genShape] shape=" << sh->Name << " member=" << member.Name << " Type=" << member.Type << " ResolvedType=" << (member.ResolvedType ? member.ResolvedType->toString() : "NULL") << " HasPointer=" << member.HasPointer << " IsUnique=" << member.IsUnique << " IsShared=" << member.IsShared << " IsReference=" << member.IsReference << std::endl;
       llvm::Type *t = nullptr;
       if (member.ResolvedType) {
         t = getLLVMType(member.ResolvedType);
       } else {
         // Fallback (Should be unreachable if Sema Pass 2 worked)
         if (member.Type == "unknown") { // Assuming "unknown" is the string
-                                        // representation for unresolved types
+                                         // representation for unresolved types
           DiagnosticEngine::report({"<codegen>", 0, 0},
                                    DiagID::WARN_CODEGEN_UNRESOLVED,
                                    member.Name);
@@ -1833,13 +1860,27 @@ PhysEntity toka::CodeGen::genMethodCall(const toka::MethodCallExpr *expr) {
           argTypes.push_back(av->getType());
         }
 
+        bool isSRet = expr->ResolvedType && shouldReturnSRet(expr->ResolvedType);
+        llvm::Value *sretAlloc = nullptr;
+        if (isSRet) {
+            llvm::Type *retLLVMTy = getLLVMType(expr->ResolvedType);
+            sretAlloc = createEntryBlockAlloca(retLLVMTy, nullptr, "sret.tmp");
+            args.insert(args.begin(), sretAlloc);
+            argTypes.insert(argTypes.begin(), llvm::PointerType::getUnqual(m_Context));
+        }
+
         // 4. Determine Return Type
-        llvm::Type *retTy = resolveType(methodDecl->ReturnType, false);
+        llvm::Type *retTy = isSRet ? llvm::Type::getVoidTy(m_Context) : resolveType(methodDecl->ReturnType, false);
         llvm::FunctionType *ft =
             llvm::FunctionType::get(retTy, argTypes, false);
 
         // 5. Call
-        return m_Builder.CreateCall(ft, voidFuncPtr, args);
+        llvm::CallInst *ci = m_Builder.CreateCall(ft, voidFuncPtr, args);
+        if (isSRet) {
+            ci->addParamAttr(0, llvm::Attribute::get(m_Context, llvm::Attribute::StructRet, getLLVMType(expr->ResolvedType)));
+            return PhysEntity(sretAlloc, expr->ResolvedType->getSoulName(), getLLVMType(expr->ResolvedType), true);
+        }
+        return ci;
       }
     }
   }
@@ -1924,6 +1965,10 @@ PhysEntity toka::CodeGen::genMethodCall(const toka::MethodCallExpr *expr) {
     fd = m_Functions[funcName];
   }
 
+  bool isMethodAsync = (fd && fd->Effect == EffectKind::Async);
+  bool isSRet = expr->ResolvedType && shouldReturnSRet(expr->ResolvedType) && !isMethodAsync;
+  size_t selfLlvmIdx = isSRet ? 1 : 0;
+
   std::vector<llvm::Value *> args;
 
   // 1. Handle Self (Argument 0)
@@ -1935,14 +1980,14 @@ PhysEntity toka::CodeGen::genMethodCall(const toka::MethodCallExpr *expr) {
       selfIsMutable = true;
   }
   // Fallback: Check LLVM Arg Type
-  if (!fd && callee->arg_size() > 0 &&
-      callee->getArg(0)->getType()->isPointerTy()) {
+  if (!fd && callee->arg_size() > selfLlvmIdx &&
+      callee->getArg(selfLlvmIdx)->getType()->isPointerTy()) {
     selfIsMutable = true;
   }
 
   llvm::Value *finalObjVal = objVal;
   bool targetExpectsPtr =
-      (callee->arg_size() > 0 && callee->getArg(0)->getType()->isPointerTy());
+      (callee->arg_size() > selfLlvmIdx && callee->getArg(selfLlvmIdx)->getType()->isPointerTy());
 
   if (selfIsMutable || targetExpectsPtr) {
     // Must pass address
@@ -1963,8 +2008,8 @@ PhysEntity toka::CodeGen::genMethodCall(const toka::MethodCallExpr *expr) {
   bool isStatic = (fd && (fd->Args.empty() || fd->Args[0].Name != "self"));
   // Type Check Self
   if (!isStatic) {
-    if (callee->arg_size() > 0) {
-      llvm::Type *targetTy = callee->getArg(0)->getType();
+    if (callee->arg_size() > selfLlvmIdx) {
+      llvm::Type *targetTy = callee->getArg(selfLlvmIdx)->getType();
       if (finalObjVal->getType() != targetTy) {
         if (finalObjVal->getType()->isPointerTy() && !targetTy->isPointerTy()) {
           // Implicit Dereference (Pass Reference as Value - Rare for self but
@@ -1980,6 +2025,7 @@ PhysEntity toka::CodeGen::genMethodCall(const toka::MethodCallExpr *expr) {
   for (size_t i = 0; i < expr->Args.size(); ++i) {
     bool isCaptured = false;
     size_t targetArgIdx = isStatic ? i : (i + 1);
+    size_t llvmArgIdx = targetArgIdx + (isSRet ? 1 : 0);
     // Arg i maps to fd->Args[targetArgIdx]
     if (fd && targetArgIdx < fd->Args.size()) {
       const auto &arg = fd->Args[targetArgIdx];
@@ -2030,8 +2076,8 @@ PhysEntity toka::CodeGen::genMethodCall(const toka::MethodCallExpr *expr) {
       argVal = genExpr(expr->Args[i].get()).load(m_Builder);
 
       // Implicit By-Ref Fix for Method Arguments
-      if (argVal && callee->arg_size() > targetArgIdx) {
-        llvm::Type *paramTy = callee->getFunctionType()->getParamType(targetArgIdx);
+      if (argVal && callee->arg_size() > llvmArgIdx) {
+        llvm::Type *paramTy = callee->getFunctionType()->getParamType(llvmArgIdx);
         if (paramTy->isPointerTy() && argVal->getType()->isStructTy()) {
           llvm::AllocaInst *tmp = createEntryBlockAlloca(
               argVal->getType(), nullptr, "arg_byref_tmp");
@@ -2081,12 +2127,25 @@ PhysEntity toka::CodeGen::genMethodCall(const toka::MethodCallExpr *expr) {
     args.push_back(argVal);
   }
 
-  llvm::Value *retVal = m_Builder.CreateCall(callee, args);
+  llvm::Value *sretAlloc = nullptr;
+  if (isSRet) {
+      llvm::Type *retLLVMTy = getLLVMType(expr->ResolvedType);
+      sretAlloc = createEntryBlockAlloca(retLLVMTy, nullptr, "sret.tmp");
+      args.insert(args.begin(), sretAlloc);
+  }
+
+  llvm::CallInst *ci = m_Builder.CreateCall(callee, args);
+
+  if (isSRet) {
+      ci->addParamAttr(0, llvm::Attribute::get(m_Context, llvm::Attribute::StructRet, getLLVMType(expr->ResolvedType)));
+      return PhysEntity(sretAlloc, expr->ResolvedType->getSoulName(), getLLVMType(expr->ResolvedType), true);
+  }
+
   std::string retTypeName = "";
   if (fd)
     retTypeName = fd->ReturnType;
 
-  return PhysEntity(retVal, retTypeName, retVal->getType(), false);
+  return PhysEntity(ci, retTypeName, ci->getType(), false);
 }
 
 void CodeGen::fillSymbolMetadata(TokaSymbol &sym, const std::string &typeStr,
@@ -2274,11 +2333,14 @@ llvm::Type *CodeGen::resolveType(const std::string &baseType, bool hasPointer) {
         }
       }
     }
-    if (m_StructTypes.count(actualType))
+    if (m_StructTypes.count(actualType)) {
       type = m_StructTypes[actualType];
-    else if (m_Shapes.count(actualType))
-      type = m_StructTypes[actualType];
-    else if (baseType == "unknown") {
+    } else if (m_Shapes.count(actualType)) {
+      genShape(m_Shapes[actualType]);
+      if (m_StructTypes.count(actualType)) {
+        type = m_StructTypes[actualType];
+      }
+    } else if (baseType == "unknown") {
       return nullptr;
     } else {
       return nullptr;

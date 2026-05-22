@@ -1,0 +1,29 @@
+import std/io::println
+
+shape LargeResult(
+    v1: i64,
+    v2: i64,
+    v3: i64
+)
+
+shape Env(
+    base: i64
+)
+
+fn create_sret_closure(b: i64) -> dyn fn(i64) -> LargeResult {
+    auto env = Env(base = b)
+    auto f: dyn fn(i64) -> LargeResult = { [cede env] x =>
+        LargeResult(v1 = env.base + x, v2 = env.base + x + 1, v3 = env.base + x + 2)
+    }
+    return f
+}
+
+fn main() -> i32 {
+    auto closure = create_sret_closure(100)
+    auto res = closure(50)
+    if res.v1 != 150 { return 1 }
+    if res.v2 != 151 { return 2 }
+    if res.v3 != 152 { return 3 }
+    println("sret_closure passed")
+    return 0
+}

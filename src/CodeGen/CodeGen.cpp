@@ -297,6 +297,106 @@ void CodeGen::error(const ASTNode *node, const std::string &message) {
   }
 }
 
+uint64_t CodeGen::estimateTypeSize(std::shared_ptr<Type> type, std::set<std::string> &visited) {
+  if (!type) return 0;
+
+  // Handle nullable wrapper: { T, bool } aligned
+  if (type->IsNullable && !type->isPointer() && !type->isSmartPointer() &&
+      !type->isReference() && !type->isVoid()) {
+    auto baseTyObj = type->withAttributes(type->IsWritable, false, type->IsBlocked);
+    return estimateTypeSize(baseTyObj, visited) + 8;
+  }
+
+  if (type->typeKind == Type::Primitive) {
+    auto prim = std::static_pointer_cast<PrimitiveType>(type);
+    if (prim->Name == "i8" || prim->Name == "u8" || prim->Name == "byte" || prim->Name == "char" || prim->Name == "bool" || prim->Name == "i1")
+      return 1;
+    if (prim->Name == "i16" || prim->Name == "u16")
+      return 2;
+    if (prim->Name == "i32" || prim->Name == "u32" || prim->Name == "int" || prim->Name == "f32" || prim->Name == "float")
+      return 4;
+    return 8; // i64, u64, usize, isize, double, cstring, Addr, OAddr, null, etc.
+  }
+
+  if (type->typeKind == Type::Void) return 0;
+
+  if (type->typeKind == Type::RawPtr || type->typeKind == Type::UniquePtr || type->typeKind == Type::Reference) {
+    if (type->isFatPointer()) return 16;
+    return 8;
+  }
+
+  if (type->typeKind == Type::SharedPtr) return 16;
+
+  if (type->typeKind == Type::UninitWrapper) {
+    auto uninit = std::static_pointer_cast<UninitType>(type);
+    return estimateTypeSize(uninit->InnerType, visited);
+  }
+
+  if (type->typeKind == Type::Slice) return 16; // passed by fat pointer reference or similar
+
+  if (type->typeKind == Type::Array) {
+    auto arrType = std::static_pointer_cast<ArrayType>(type);
+    return estimateTypeSize(arrType->ElementType, visited) * arrType->Size;
+  }
+
+  if (type->typeKind == Type::Shape) {
+    auto shapeType = std::static_pointer_cast<ShapeType>(type);
+    std::string shapeName = shapeType->Name;
+
+    // Break cycle if visited
+    if (visited.count(shapeName)) return 8; // fallback to pointer size to prevent cycles
+    visited.insert(shapeName);
+
+    const ShapeDecl *sh = nullptr;
+    if (shapeType->Decl) sh = shapeType->Decl;
+    else if (m_Shapes.count(shapeName)) sh = m_Shapes[shapeName];
+
+    if (sh) {
+      if (sh->Kind == ShapeKind::Struct || sh->Kind == ShapeKind::Tuple) {
+        uint64_t totalSize = 0;
+        for (const auto &member : sh->Members) {
+          std::shared_ptr<Type> membType = member.ResolvedType;
+          totalSize += membType ? estimateTypeSize(membType, visited) : 8;
+        }
+        visited.erase(shapeName);
+        return totalSize;
+      } else if (sh->Kind == ShapeKind::Array) {
+        std::shared_ptr<Type> elemTy = sh->Members[0].ResolvedType;
+        uint64_t elemSize = elemTy ? estimateTypeSize(elemTy, visited) : 8;
+        visited.erase(shapeName);
+        return elemSize * sh->ArraySize;
+      } else if (sh->Kind == ShapeKind::Union) {
+        uint64_t maxSize = 0;
+        for (const auto &member : sh->Members) {
+          std::shared_ptr<Type> membType = member.ResolvedType;
+          uint64_t s = membType ? estimateTypeSize(membType, visited) : 8;
+          if (s > maxSize) maxSize = s;
+        }
+        visited.erase(shapeName);
+        return maxSize;
+      }
+    }
+    visited.erase(shapeName);
+  }
+
+  if (type->typeKind == Type::Function) return 16;
+  if (type->typeKind == Type::DynFn) return 24;
+
+  return 8;
+}
+
+bool CodeGen::shouldReturnSRet(std::shared_ptr<Type> retTypeObj) {
+  if (!retTypeObj)
+    return false;
+  auto soul = retTypeObj->getSoulType();
+  if (soul->isShape() || soul->isArray()) {
+    std::set<std::string> visited;
+    uint64_t size = estimateTypeSize(soul, visited);
+    return size > 16;
+  }
+  return false;
+}
+
 CodeGen::GenContext CodeGen::saveContext() {
   GenContext ctx;
   ctx.Symbols = m_Symbols;
@@ -315,6 +415,8 @@ CodeGen::GenContext CodeGen::saveContext() {
   ctx.CurrentCoroSuspendRetBB = m_CurrentCoroSuspendRetBB;
   ctx.CurrentCoroCleanupBB = m_CurrentCoroCleanupBB;
   ctx.CurrentCoroFinalSuspendBB = m_CurrentCoroFinalSuspendBB;
+  ctx.CurrentSRetPtr = m_CurrentSRetPtr;
+  ctx.CurrentSRetTy = m_CurrentSRetTy;
   return ctx;
 }
 
@@ -332,6 +434,8 @@ void CodeGen::restoreContext(const GenContext &ctx) {
   m_CurrentCoroSuspendRetBB = ctx.CurrentCoroSuspendRetBB;
   m_CurrentCoroCleanupBB = ctx.CurrentCoroCleanupBB;
   m_CurrentCoroFinalSuspendBB = ctx.CurrentCoroFinalSuspendBB;
+  m_CurrentSRetPtr = ctx.CurrentSRetPtr;
+  m_CurrentSRetTy = ctx.CurrentSRetTy;
   if (ctx.InsertBlock) {
     if (ctx.InsertPoint != ctx.InsertBlock->end())
       m_Builder.SetInsertPoint(ctx.InsertBlock, ctx.InsertPoint);
@@ -343,6 +447,16 @@ void CodeGen::restoreContext(const GenContext &ctx) {
 }
 
 llvm::AllocaInst *CodeGen::createEntryBlockAlloca(llvm::Type *type, llvm::Value *ArraySize, const std::string &varName) {
+  std::cerr << "[DEBUG createEntryBlockAlloca] varName=" << varName << " type=";
+  if (type) {
+    std::string typeStr;
+    llvm::raw_string_ostream os(typeStr);
+    type->print(os);
+    std::cerr << os.str();
+  } else {
+    std::cerr << "NULL";
+  }
+  std::cerr << std::endl;
   llvm::Function *TheFunction = m_Builder.GetInsertBlock()->getParent();
   if (TheFunction->empty()) {
     llvm::BasicBlock *Entry = llvm::BasicBlock::Create(m_Context, "entry", TheFunction);

@@ -2960,21 +2960,50 @@ PhysEntity CodeGen::genForExpr(const ForExpr *fe) {
         error(fe, "Iterator setup failed: function '" + iterMangled + "' not found in IR module (stripped name: " + stripName + ")");
         return nullptr;
     }
-    
-    if (collVal_ent.typeName[0] != '*' && collVal_ent.typeName[0] != '&' && collVal_ent.typeName[0] != '^' && collVal_ent.typeName[0] != '~') {
-       if (iterFn && iterFn->arg_size() > 0 && iterFn->getArg(0)->getType()->isPointerTy()) {
-           llvm::AllocaInst *tmp = createEntryBlockAlloca(collVal->getType());
-           m_Builder.CreateStore(collVal, tmp);
-           iterVal = m_Builder.CreateCall(iterFn, {tmp}, "iter_inst");
-       } else {
-           iterVal = m_Builder.CreateCall(iterFn, {collVal}, "iter_inst");
-       }
-    } else {
-       iterVal = m_Builder.CreateCall(iterFn, {collVal}, "iter_inst");
+
+    bool isSRet = false;
+    llvm::Type *sretTy = nullptr;
+    if (iterFn && iterFn->arg_size() > 0 && iterFn->hasParamAttribute(0, llvm::Attribute::StructRet)) {
+        isSRet = true;
+        sretTy = iterFn->getParamAttribute(0, llvm::Attribute::StructRet).getValueAsType();
     }
 
-    iterAlloca = createEntryBlockAlloca(iterVal->getType(), nullptr, "iter_state");
-    m_Builder.CreateStore(iterVal, iterAlloca);
+    if (isSRet) {
+        llvm::Value *sretAlloc = createEntryBlockAlloca(sretTy, nullptr, "iter_state");
+        std::vector<llvm::Value *> args;
+        args.push_back(sretAlloc);
+
+        if (collVal_ent.typeName[0] != '*' && collVal_ent.typeName[0] != '&' && collVal_ent.typeName[0] != '^' && collVal_ent.typeName[0] != '~') {
+           if (iterFn && iterFn->arg_size() > 1 && iterFn->getArg(1)->getType()->isPointerTy()) {
+               llvm::AllocaInst *tmp = createEntryBlockAlloca(collVal->getType());
+               m_Builder.CreateStore(collVal, tmp);
+               args.push_back(tmp);
+           } else {
+               args.push_back(collVal);
+           }
+        } else {
+           args.push_back(collVal);
+        }
+
+        llvm::CallInst *ci = m_Builder.CreateCall(iterFn, args);
+        ci->addParamAttr(0, llvm::Attribute::get(m_Context, llvm::Attribute::StructRet, sretTy));
+        iterAlloca = llvm::cast<llvm::AllocaInst>(sretAlloc);
+    } else {
+        if (collVal_ent.typeName[0] != '*' && collVal_ent.typeName[0] != '&' && collVal_ent.typeName[0] != '^' && collVal_ent.typeName[0] != '~') {
+           if (iterFn && iterFn->arg_size() > 0 && iterFn->getArg(0)->getType()->isPointerTy()) {
+               llvm::AllocaInst *tmp = createEntryBlockAlloca(collVal->getType());
+               m_Builder.CreateStore(collVal, tmp);
+               iterVal = m_Builder.CreateCall(iterFn, {tmp}, "iter_inst");
+           } else {
+               iterVal = m_Builder.CreateCall(iterFn, {collVal}, "iter_inst");
+           }
+        } else {
+           iterVal = m_Builder.CreateCall(iterFn, {collVal}, "iter_inst");
+        }
+
+        iterAlloca = createEntryBlockAlloca(iterVal->getType(), nullptr, "iter_state");
+        m_Builder.CreateStore(iterVal, iterAlloca);
+    }
   }
 
   // Define loop variable scope (moved here to allow optAlloca to bind correctly if needed, though alloca is block-level)
@@ -3022,7 +3051,9 @@ PhysEntity CodeGen::genForExpr(const ForExpr *fe) {
       m_Builder.CreateCondBr(cond, loopBB, elseBB);
   } else {
     std::string iterTyName = "";
-    if (m_TypeToName.count(iterVal->getType())) iterTyName = m_TypeToName[iterVal->getType()];
+    if (iterAlloca && m_TypeToName.count(iterAlloca->getAllocatedType())) {
+        iterTyName = m_TypeToName[iterAlloca->getAllocatedType()];
+    }
     std::string nextMethodName = fe->IsReference ? "next_ref" : "next";
     std::string nextFnName = "encap_" + iterTyName + "_" + nextMethodName;
     llvm::Function *nextFn = m_Module->getFunction(nextFnName);
@@ -3034,19 +3065,41 @@ PhysEntity CodeGen::genForExpr(const ForExpr *fe) {
         error(fe, "Iterator protocol failed: next function '" + nextFnName + "' not found in IR module (iterTyName: " + iterTyName + ")");
         return nullptr;
     }
-    
-    llvm::Value *optRes = nullptr;
-    if (nextFn && nextFn->arg_size() > 0 && nextFn->getArg(0)->getType()->isPointerTy()) {
-        optRes = m_Builder.CreateCall(nextFn, {iterAlloca}, "next_opt");
-    } else {
-        llvm::Value *loadedIter = m_Builder.CreateLoad(iterVal->getType(), iterAlloca);
-        optRes = m_Builder.CreateCall(nextFn, {loadedIter}, "next_opt");
+
+    bool isNextSRet = false;
+    llvm::Type *nextSRetTy = nullptr;
+    if (nextFn && nextFn->arg_size() > 0 && nextFn->hasParamAttribute(0, llvm::Attribute::StructRet)) {
+        isNextSRet = true;
+        nextSRetTy = nextFn->getParamAttribute(0, llvm::Attribute::StructRet).getValueAsType();
     }
 
-    optAlloca = createEntryBlockAlloca(optRes->getType(), nullptr, "opt_struct");
-    m_Builder.CreateStore(optRes, optAlloca);
+    llvm::Type *optTy = nullptr;
+    if (isNextSRet) {
+        optAlloca = createEntryBlockAlloca(nextSRetTy, nullptr, "opt_struct");
+        llvm::CallInst *optResCall = nullptr;
+        if (nextFn && nextFn->arg_size() > 1 && nextFn->getArg(1)->getType()->isPointerTy()) {
+            optResCall = m_Builder.CreateCall(nextFn, {optAlloca, iterAlloca});
+        } else {
+            llvm::Value *loadedIter = m_Builder.CreateLoad(iterAlloca->getAllocatedType(), iterAlloca);
+            optResCall = m_Builder.CreateCall(nextFn, {optAlloca, loadedIter});
+        }
+        optResCall->addParamAttr(0, llvm::Attribute::get(m_Context, llvm::Attribute::StructRet, nextSRetTy));
+        optTy = nextSRetTy;
+    } else {
+        llvm::Value *optRes = nullptr;
+        if (nextFn && nextFn->arg_size() > 0 && nextFn->getArg(0)->getType()->isPointerTy()) {
+            optRes = m_Builder.CreateCall(nextFn, {iterAlloca}, "next_opt");
+        } else {
+            llvm::Value *loadedIter = m_Builder.CreateLoad(iterAlloca->getAllocatedType(), iterAlloca);
+            optRes = m_Builder.CreateCall(nextFn, {loadedIter}, "next_opt");
+        }
 
-    llvm::Value *tagPtr = m_Builder.CreateStructGEP(optRes->getType(), optAlloca, 0);
+        optAlloca = createEntryBlockAlloca(optRes->getType(), nullptr, "opt_struct");
+        m_Builder.CreateStore(optRes, optAlloca);
+        optTy = optRes->getType();
+    }
+
+    llvm::Value *tagPtr = m_Builder.CreateStructGEP(optTy, optAlloca, 0);
     llvm::Value *tagVal = m_Builder.CreateLoad(m_Builder.getInt8Ty(), tagPtr);
     llvm::Value *isSome = m_Builder.CreateICmpEQ(tagVal, m_Builder.getInt8(1), "is_some");
     m_Builder.CreateCondBr(isSome, loopBB, elseBB);
@@ -3969,9 +4022,10 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
                   }
 
                   if (toStrFn) {
+                      bool isSRet = toStrFn->getReturnType()->isVoidTy();
                       llvm::Value *finalArg = argVal;
-                      if (toStrFn->arg_size() > 0) {
-                          llvm::Type *targetTy = toStrFn->getArg(0)->getType();
+                      if (toStrFn->arg_size() > (isSRet ? 1 : 0)) {
+                          llvm::Type *targetTy = toStrFn->getArg(isSRet ? 1 : 0)->getType();
                           if (targetTy->isPointerTy() && !argVal->getType()->isPointerTy()) {
                               finalArg = argEnt.isAddress ? argEnt.value : nullptr;
                               if (!finalArg) {
@@ -3984,8 +4038,14 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
                           }
                       }
 
+                      llvm::Value *sretAlloca = nullptr;
+                      if (isSRet) {
+                          llvm::Type *stringTy = getLLVMType(toka::Type::fromString("String"));
+                          sretAlloca = createEntryBlockAlloca(stringTy, nullptr, "sret.tmp");
+                      }
+
                       llvm::Value *tmpStr = nullptr;
-                      if (isFmt && toStrFn->arg_size() > 1) {
+                      if (isFmt && toStrFn->arg_size() > (isSRet ? 2 : 1)) {
                           llvm::Value *fmtStr = m_Builder.CreateGlobalString(formatSpecifier);
                           llvm::StructType *viewStrTy = llvm::StructType::get(m_Context, std::vector<llvm::Type*>{m_Builder.getPtrTy(), m_Builder.getInt64Ty()});
                           llvm::Value *viewStrVal = llvm::UndefValue::get(viewStrTy);
@@ -3996,17 +4056,33 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
                           m_Builder.CreateStore(viewStrVal, viewStrAlloca);
 
                           llvm::Value *fmtArg = viewStrAlloca;
-                          if (!toStrFn->getArg(1)->getType()->isPointerTy()) {
+                          if (!toStrFn->getArg(isSRet ? 2 : 1)->getType()->isPointerTy()) {
                               fmtArg = m_Builder.CreateLoad(viewStrTy, viewStrAlloca);
                           }
-                          tmpStr = m_Builder.CreateCall(toStrFn, {finalArg, fmtArg});
+                          
+                          if (isSRet) {
+                              m_Builder.CreateCall(toStrFn, {sretAlloca, finalArg, fmtArg});
+                              tmpStr = sretAlloca;
+                          } else {
+                              tmpStr = m_Builder.CreateCall(toStrFn, {finalArg, fmtArg});
+                          }
                       } else {
-                          tmpStr = m_Builder.CreateCall(toStrFn, {finalArg});
+                          if (isSRet) {
+                              m_Builder.CreateCall(toStrFn, {sretAlloca, finalArg});
+                              tmpStr = sretAlloca;
+                          } else {
+                              tmpStr = m_Builder.CreateCall(toStrFn, {finalArg});
+                          }
                       }
 
                       if (tmpStr) {
-                          llvm::Value *tmpAlloca = m_Builder.CreateAlloca(tmpStr->getType());
-                          m_Builder.CreateStore(tmpStr, tmpAlloca);
+                          llvm::Value *tmpAlloca = nullptr;
+                          if (isSRet) {
+                              tmpAlloca = tmpStr;
+                          } else {
+                              tmpAlloca = m_Builder.CreateAlloca(tmpStr->getType());
+                              m_Builder.CreateStore(tmpStr, tmpAlloca);
+                          }
 
                           llvm::Function *cStrFn = m_Module->getFunction("String_c_str");
                           llvm::Function *dropFn = m_Module->getFunction("encap_String_drop");
@@ -4079,13 +4155,10 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
         return nullptr;
     }
 
-    // sVal = String::from("")
+    llvm::Type *stringTy = getLLVMType(toka::Type::fromString("String"));
+    llvm::Value *sAlloca = createEntryBlockAlloca(stringTy, nullptr, "fmt_string_builder");
     llvm::Value *emptyStr = m_Builder.CreateGlobalString("");
-    llvm::Value *sVal = m_Builder.CreateCall(fromFn, {emptyStr});
-
-    // sAlloca = alloca String
-    llvm::Value *sAlloca = m_Builder.CreateAlloca(sVal->getType());
-    m_Builder.CreateStore(sVal, sAlloca);
+    m_Builder.CreateCall(fromFn, {sAlloca, emptyStr});
 
     
     while (lastPos < fmt.size()) {
@@ -4162,11 +4235,18 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
                     }
                 }
             } else {
+                bool isSRet = toStrFn->getReturnType()->isVoidTy();
+                llvm::Value *sretAlloca = nullptr;
+                if (isSRet) {
+                    llvm::Type *stringTy = getLLVMType(toka::Type::fromString("String"));
+                    sretAlloca = createEntryBlockAlloca(stringTy, nullptr, "sret.tmp");
+                }
+
                 llvm::Value *tmpStr = nullptr;
                 if (toStrFn && argVal) {
                     llvm::Value *finalArg = argVal;
-                    if (toStrFn->arg_size() > 0) {
-                        llvm::Type *targetTy = toStrFn->getArg(0)->getType();
+                    if (toStrFn->arg_size() > (isSRet ? 1 : 0)) {
+                        llvm::Type *targetTy = toStrFn->getArg(isSRet ? 1 : 0)->getType();
                         if (targetTy->isPointerTy() && !argVal->getType()->isPointerTy()) {
                             finalArg = argEnt.isAddress ? argEnt.value : nullptr;
                             if (!finalArg) {
@@ -4179,7 +4259,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
                         }
                     }
                     
-                    if (isFmt && toStrFn->arg_size() > 1) {
+                    if (isFmt && toStrFn->arg_size() > (isSRet ? 2 : 1)) {
                         llvm::Value *fmtStr = m_Builder.CreateGlobalString(formatSpecifier);
                         llvm::StructType *viewStrTy = llvm::StructType::get(m_Context, std::vector<llvm::Type*>{m_Builder.getPtrTy(), m_Builder.getInt64Ty()});
                         llvm::Value *viewStrVal = llvm::UndefValue::get(viewStrTy);
@@ -4190,18 +4270,34 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
                         m_Builder.CreateStore(viewStrVal, viewStrAlloca);
                         
                         llvm::Value *fmtArg = viewStrAlloca;
-                        if (!toStrFn->getArg(1)->getType()->isPointerTy()) {
+                        if (!toStrFn->getArg(isSRet ? 2 : 1)->getType()->isPointerTy()) {
                             fmtArg = m_Builder.CreateLoad(viewStrTy, viewStrAlloca);
                         }
-                        tmpStr = m_Builder.CreateCall(toStrFn, {finalArg, fmtArg});
+                        
+                        if (isSRet) {
+                            m_Builder.CreateCall(toStrFn, {sretAlloca, finalArg, fmtArg});
+                            tmpStr = sretAlloca;
+                        } else {
+                            tmpStr = m_Builder.CreateCall(toStrFn, {finalArg, fmtArg});
+                        }
                     } else {
-                        tmpStr = m_Builder.CreateCall(toStrFn, {finalArg});
+                        if (isSRet) {
+                            m_Builder.CreateCall(toStrFn, {sretAlloca, finalArg});
+                            tmpStr = sretAlloca;
+                        } else {
+                            tmpStr = m_Builder.CreateCall(toStrFn, {finalArg});
+                        }
                     }
                 }
                 
                 if (tmpStr) {
-                    llvm::Value *tmpAlloca = m_Builder.CreateAlloca(tmpStr->getType());
-                    m_Builder.CreateStore(tmpStr, tmpAlloca);
+                    llvm::Value *tmpAlloca = nullptr;
+                    if (isSRet) {
+                        tmpAlloca = tmpStr;
+                    } else {
+                        tmpAlloca = m_Builder.CreateAlloca(tmpStr->getType());
+                        m_Builder.CreateStore(tmpStr, tmpAlloca);
+                    }
                     
                     llvm::Value *cstrVal = m_Builder.CreateCall(cStrFn, {tmpAlloca});
                     m_Builder.CreateCall(pushStrFn, {sAlloca, cstrVal});
@@ -4228,7 +4324,8 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
     }
 
     if (isStringFmt) {
-        return m_Builder.CreateLoad(sVal->getType(), sAlloca);
+        llvm::Type *stringTy = getLLVMType(toka::Type::fromString("String"));
+        return m_Builder.CreateLoad(stringTy, sAlloca);
     } else {
         llvm::Value *cstrVal = m_Builder.CreateCall(cStrFn, {sAlloca});
         auto printfFunc = m_Module->getOrInsertFunction("printf", llvm::FunctionType::get(m_Builder.getInt32Ty(), {m_Builder.getPtrTy()}, true));
@@ -4323,6 +4420,16 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
                 
                 std::vector<llvm::Type*> argTys;
                 std::vector<llvm::Value*> argVals;
+
+                bool isSRet = returnType && shouldReturnSRet(returnType);
+                llvm::Value *sretAlloc = nullptr;
+                if (isSRet) {
+                    llvm::Type *retLLVMTy = getLLVMType(returnType);
+                    sretAlloc = createEntryBlockAlloca(retLLVMTy, nullptr, "sret.tmp");
+                    argTys.push_back(llvm::PointerType::getUnqual(m_Context));
+                    argVals.push_back(sretAlloc);
+                }
+                
                 argTys.push_back(llvm::PointerType::getUnqual(m_Context));
                 argVals.push_back(envPtr);
                 
@@ -4341,11 +4448,15 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
                     argTys.push_back(expectedTy);
                 }
                 
-                llvm::Type *retTy = getLLVMType(returnType);
+                llvm::Type *retTy = isSRet ? llvm::Type::getVoidTy(m_Context) : getLLVMType(returnType);
                 llvm::FunctionType *llFnTy = llvm::FunctionType::get(retTy, argTys, false);
                 
-                llvm::Value *retVal = m_Builder.CreateCall(llFnTy, funcPtr, argVals);
-                return PhysEntity(retVal, returnType->getSoulName(), retVal->getType(), false);
+                llvm::CallInst *ci = m_Builder.CreateCall(llFnTy, funcPtr, argVals);
+                if (isSRet) {
+                    ci->addParamAttr(0, llvm::Attribute::get(m_Context, llvm::Attribute::StructRet, getLLVMType(returnType)));
+                    return PhysEntity(sretAlloc, returnType->getSoulName(), getLLVMType(returnType), true);
+                }
+                return PhysEntity(ci, returnType->getSoulName(), ci->getType(), false);
             }
         }
     }
@@ -4461,6 +4572,12 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
   if (!funcDecl && m_Externs.count(calleeName))
     extDecl = m_Externs[calleeName];
 
+  bool isAsync = false;
+  if (funcDecl && funcDecl->Effect == EffectKind::Async) isAsync = true;
+  if (extDecl && extDecl->Effect == EffectKind::Async) isAsync = true;
+
+  bool isSRet = call->ResolvedType && shouldReturnSRet(call->ResolvedType) && !isAsync;
+
   std::vector<llvm::Value *> argsV;
   for (size_t i = 0; i < call->Args.size(); ++i) {
     bool isRef = false;
@@ -4473,8 +4590,9 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
     llvm::Value *val = nullptr;
     bool shouldPassAddr = isRef;
     llvm::Type *pTy = nullptr;
-    if (callee && i < callee->getFunctionType()->getNumParams())
-      pTy = callee->getFunctionType()->getParamType(i);
+    size_t paramIdx = isSRet ? i + 1 : i;
+    if (callee && paramIdx < callee->getFunctionType()->getNumParams())
+      pTy = callee->getFunctionType()->getParamType(paramIdx);
 
     bool isCaptured = false;
 
@@ -4737,8 +4855,8 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
 
     // Fallback: If we generated a Value (e.g. Struct) but Function expects
     // Pointer (Implicit ByRef), wrap it now.
-    if (val && i < callee->getFunctionType()->getNumParams()) {
-      llvm::Type *paramTy = callee->getFunctionType()->getParamType(i);
+    if (val && paramIdx < callee->getFunctionType()->getNumParams()) {
+      llvm::Type *paramTy = callee->getFunctionType()->getParamType(paramIdx);
       if (paramTy->isPointerTy() && val->getType()->isStructTy()) {
         llvm::AllocaInst *tmp = createEntryBlockAlloca(val->getType(), nullptr,
                                                        "arg_fallback_byref");
@@ -4747,8 +4865,8 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
       }
     }
 
-    if (i < callee->getFunctionType()->getNumParams()) {
-      llvm::Type *paramType = callee->getFunctionType()->getParamType(i);
+    if (paramIdx < callee->getFunctionType()->getNumParams()) {
+      llvm::Type *paramType = callee->getFunctionType()->getParamType(paramIdx);
 
       // Unsizing Coercion (Concrete -> dyn @Trait)
       std::string targetArgType =
@@ -4968,11 +5086,19 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
   }
   }
 
+  llvm::Value *sretAlloc = nullptr;
+  if (isSRet) {
+      llvm::Type *retLLVMTy = getLLVMType(call->ResolvedType);
+      sretAlloc = createEntryBlockAlloca(retLLVMTy, nullptr, "sret.tmp");
+      argsV.insert(argsV.begin(), sretAlloc);
+  }
+
   llvm::CallInst *ci = m_Builder.CreateCall(callee->getFunctionType(), callee, argsV);
 
-  bool isAsync = false;
-  if (funcDecl && funcDecl->Effect == EffectKind::Async) isAsync = true;
-  if (extDecl && extDecl->Effect == EffectKind::Async) isAsync = true;
+  if (isSRet) {
+      ci->addParamAttr(0, llvm::Attribute::get(m_Context, llvm::Attribute::StructRet, getLLVMType(call->ResolvedType)));
+      return PhysEntity(sretAlloc, call->ResolvedType->getSoulName(), getLLVMType(call->ResolvedType), true);
+  }
 
   if (isAsync) {
       if (!call->ResolvedType) {
@@ -5044,7 +5170,7 @@ PhysEntity CodeGen::genUnwrapPropagationExpr(const UnwrapPropagationExpr *expr) 
   m_Builder.SetInsertPoint(failBB);
   
   if (soul == "Option" || soul == "Option" || soul.find("Option_") == 0) {
-    llvm::Type *targetRetTy = m_CurrentCoroRetTy ? m_CurrentCoroRetTy : f->getReturnType();
+    llvm::Type *targetRetTy = m_CurrentCoroRetTy ? m_CurrentCoroRetTy : (m_CurrentSRetTy ? m_CurrentSRetTy : f->getReturnType());
     llvm::Value *retVal = llvm::UndefValue::get(targetRetTy);
     if (targetRetTy->isStructTy() && targetRetTy->getStructNumElements() > 0) {
       llvm::Type *tagTy = targetRetTy->getStructElementType(0);
@@ -5055,13 +5181,21 @@ PhysEntity CodeGen::genUnwrapPropagationExpr(const UnwrapPropagationExpr *expr) 
     
     if (m_CurrentCoroRetTy) {
        genCoroutineReturn(retVal);
+    } else if (m_CurrentSRetPtr && m_CurrentSRetTy) {
+       if (retVal->getType() != m_CurrentSRetTy) {
+         llvm::Value *tempSrcPtr = m_Builder.CreatePointerCast(m_CurrentSRetPtr, llvm::PointerType::get(retVal->getType(), 0));
+         m_Builder.CreateStore(retVal, tempSrcPtr);
+       } else {
+         m_Builder.CreateStore(retVal, m_CurrentSRetPtr);
+       }
+       m_Builder.CreateRetVoid();
     } else {
        m_Builder.CreateRet(retVal);
     }
   } else if (soul == "Result" || soul == "Result" || soul.find("Result_") == 0) {
     llvm::Value *unionData = m_Builder.CreateExtractValue(baseVal, {1}, "unwrap.err_data");
 
-    llvm::Type *targetRetTy = m_CurrentCoroRetTy ? m_CurrentCoroRetTy : f->getReturnType();
+    llvm::Type *targetRetTy = m_CurrentCoroRetTy ? m_CurrentCoroRetTy : (m_CurrentSRetTy ? m_CurrentSRetTy : f->getReturnType());
     llvm::Value *retVal = llvm::UndefValue::get(targetRetTy);
     
     if (targetRetTy->isStructTy() && targetRetTy->getStructNumElements() >= 2) {
@@ -5082,6 +5216,14 @@ PhysEntity CodeGen::genUnwrapPropagationExpr(const UnwrapPropagationExpr *expr) 
 
     if (m_CurrentCoroRetTy) {
        genCoroutineReturn(retVal);
+    } else if (m_CurrentSRetPtr && m_CurrentSRetTy) {
+       if (retVal->getType() != m_CurrentSRetTy) {
+         llvm::Value *tempSrcPtr = m_Builder.CreatePointerCast(m_CurrentSRetPtr, llvm::PointerType::get(retVal->getType(), 0));
+         m_Builder.CreateStore(retVal, tempSrcPtr);
+       } else {
+         m_Builder.CreateStore(retVal, m_CurrentSRetPtr);
+       }
+       m_Builder.CreateRetVoid();
     } else {
        m_Builder.CreateRet(retVal);
     }

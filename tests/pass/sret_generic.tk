@@ -1,0 +1,20 @@
+import std/io::println
+
+shape Pair<'T, 'U>(
+    first: 'T,
+    second: 'U
+)
+
+fn make_pair<'T, 'U>(f: 'T, s: 'U) -> Pair<'T, 'U> {
+    return Pair<'T, 'U>(first=f, second=s)
+}
+
+fn main() -> i32 {
+    auto inner = Pair<i64, i64>(first=10, second=20)
+    auto p = make_pair<i64, Pair<i64, i64>>(30, inner)
+    if p.first != 30 { return 1 }
+    if p.second.first != 10 { return 2 }
+    if p.second.second != 20 { return 3 }
+    println("sret_generic passed")
+    return 0
+}
