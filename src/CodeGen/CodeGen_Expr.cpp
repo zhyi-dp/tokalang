@@ -1941,8 +1941,16 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
     baseShapeName = baseShapeName.substr(0, baseShapeName.find('<'));
   }
 
+  bool anyArmHasGuard = false;
+  for (const auto &arm : expr->Arms) {
+    if (arm->Guard) {
+      anyArmHasGuard = true;
+      break;
+    }
+  }
+
   if (baseShapeName != "" && m_Shapes.count(baseShapeName) &&
-      m_Shapes[baseShapeName]->Kind == ShapeKind::Enum) {
+      m_Shapes[baseShapeName]->Kind == ShapeKind::Enum && !anyArmHasGuard) {
     const ShapeDecl *sh = m_Shapes[baseShapeName];
     llvm::Value *tagVal = m_Builder.CreateExtractValue(targetVal, 0, "tag");
 
@@ -2227,6 +2235,120 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
           return m_Builder.getInt1(true);
         } else if (pat->PatternKind == MatchArm::Pattern::Decons) {
           llvm::Value *accum = m_Builder.getInt1(true);
+
+          std::string baseShapeName = "";
+          llvm::StructType *st = nullptr;
+          if (currVal->getType()->isStructTy()) {
+            st = llvm::cast<llvm::StructType>(currVal->getType());
+            if (m_TypeToName.count(st)) {
+              baseShapeName = m_TypeToName[st];
+              size_t lt = baseShapeName.find('<');
+              if (lt != std::string::npos) {
+                baseShapeName = baseShapeName.substr(0, lt);
+              }
+            }
+          }
+
+          bool isEnum = false;
+          const ShapeDecl *sh = nullptr;
+          if (!baseShapeName.empty() && m_Shapes.count(baseShapeName)) {
+            sh = m_Shapes[baseShapeName];
+            if (sh->Kind == ShapeKind::Enum) {
+              isEnum = true;
+            }
+          }
+
+          if (isEnum) {
+            std::string patName = pat->Name;
+            size_t scopePos = patName.rfind("::");
+            if (scopePos != std::string::npos) {
+              patName = patName.substr(scopePos + 2);
+            }
+
+            const ShapeMember *variant = nullptr;
+            int variantTag = -1;
+            for (size_t m = 0; m < sh->Members.size(); ++m) {
+              if (sh->Members[m].Name == patName) {
+                variant = &sh->Members[m];
+                variantTag = (sh->Members[m].TagValue == -1) ? (int)m : (int)sh->Members[m].TagValue;
+                break;
+              }
+            }
+
+            if (!variant) return m_Builder.getInt1(false);
+
+            llvm::Value *tagVal = m_Builder.CreateExtractValue(currVal, 0, "tag");
+            llvm::Value *tagCond = m_Builder.CreateICmpEQ(tagVal, llvm::ConstantInt::get(tagVal->getType(), variantTag));
+            accum = tagCond;
+
+            if (!pat->SubPatterns.empty() && (!variant->SubMembers.empty() || !variant->Type.empty())) {
+              llvm::Value *tempAddr = createEntryBlockAlloca(currVal->getType(), nullptr, "match_enum_temp");
+              m_Builder.CreateStore(currVal, tempAddr);
+              llvm::Value *payloadAddr = m_Builder.CreateStructGEP(currVal->getType(), tempAddr, 1);
+
+              llvm::Type *payloadLayoutType = nullptr;
+              std::vector<llvm::Type *> fieldTypes;
+              if (!variant->SubMembers.empty()) {
+                for (const auto &f : variant->SubMembers) {
+                  if (f.ResolvedType) {
+                    fieldTypes.push_back(getLLVMType(f.ResolvedType));
+                  } else {
+                    fieldTypes.push_back(resolveType(f.Type, false));
+                  }
+                }
+                payloadLayoutType = llvm::StructType::get(m_Context, fieldTypes, true);
+              } else if (!variant->Type.empty()) {
+                if (variant->ResolvedType) {
+                  payloadLayoutType = getLLVMType(variant->ResolvedType);
+                } else {
+                  payloadLayoutType = resolveType(variant->Type, false);
+                }
+              }
+
+              if (payloadLayoutType) {
+                llvm::Value *variantAddr = m_Builder.CreateBitCast(payloadAddr, llvm::PointerType::getUnqual(m_Context));
+
+                size_t elisionIndex = -1;
+                size_t elisionCount = 0;
+                for (size_t i = 0; i < pat->SubPatterns.size(); ++i) {
+                  if (pat->SubPatterns[i]->PatternKind == MatchArm::Pattern::Elision) {
+                    elisionIndex = i;
+                    elisionCount++;
+                  }
+                }
+
+                size_t expectedSize = fieldTypes.empty() ? 1 : fieldTypes.size();
+                size_t elidedCount = 0;
+                if (elisionCount == 1) {
+                  elidedCount = expectedSize - (pat->SubPatterns.size() - 1);
+                }
+
+                for (size_t i = 0; i < pat->SubPatterns.size(); ++i) {
+                  if (pat->SubPatterns[i]->PatternKind == MatchArm::Pattern::Elision) {
+                    continue;
+                  }
+
+                  size_t memberIndex = i;
+                  if (elisionCount == 1) {
+                    memberIndex = (i < elisionIndex) ? i : (i + elidedCount - 1);
+                  }
+
+                  llvm::Value *fieldAddr = variantAddr;
+                  llvm::Type *fieldTy = payloadLayoutType;
+                  if (!fieldTypes.empty()) {
+                    fieldAddr = m_Builder.CreateStructGEP(payloadLayoutType, variantAddr, memberIndex);
+                    fieldTy = fieldTypes[memberIndex];
+                  }
+
+                  llvm::Value *fieldVal = m_Builder.CreateLoad(fieldTy, fieldAddr, "subpat_val");
+                  llvm::Value *subCond = genValuePatCond(pat->SubPatterns[i].get(), fieldVal);
+                  accum = m_Builder.CreateAnd(accum, subCond);
+                }
+              }
+            }
+            return accum;
+          }
+
           bool isNamed = false;
           for (const auto& name : pat->SubPatternNames) {
             if (!name.empty() && name != "..") {
@@ -2245,7 +2367,7 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
           }
 
           size_t expectedSize = 1;
-          llvm::StructType *st = nullptr;
+          st = nullptr;
           if (currVal->getType()->isStructTy()) {
             st = llvm::cast<llvm::StructType>(currVal->getType());
             expectedSize = st->getNumElements();
@@ -3141,88 +3263,173 @@ void CodeGen::genPatternBinding(const MatchArm::Pattern *pat,
   } else if (pat->PatternKind == MatchArm::Pattern::Decons) {
     if (targetType->isStructTy()) {
       auto *st = llvm::cast<llvm::StructType>(targetType);
-      bool isNamed = false;
-      for (const auto& name : pat->SubPatternNames) {
-        if (!name.empty() && name != "..") {
-          isNamed = true;
-          break;
-        }
+
+      std::string baseShapeName = "";
+      if (m_TypeToName.count(st)) {
+        baseShapeName = m_TypeToName[st];
+        size_t lt = baseShapeName.find('<');
+        if (lt != std::string::npos) baseShapeName = baseShapeName.substr(0, lt);
       }
 
-      size_t elisionIndex = -1;
-      size_t elisionCount = 0;
-      for (size_t i = 0; i < pat->SubPatterns.size(); ++i) {
-        if (pat->SubPatterns[i]->PatternKind == MatchArm::Pattern::Elision) {
-          elisionIndex = i;
-          elisionCount++;
-        }
+      bool isEnum = false;
+      const ShapeDecl *sh = nullptr;
+      if (!baseShapeName.empty() && m_Shapes.count(baseShapeName)) {
+        sh = m_Shapes[baseShapeName];
+        if (sh->Kind == ShapeKind::Enum) isEnum = true;
       }
 
-      size_t expectedSize = st->getNumElements();
-      size_t elidedCount = 0;
-      if (elisionCount == 1) {
-        elidedCount = expectedSize - (pat->SubPatterns.size() - 1);
-      }
+      if (isEnum) {
+        std::string patName = pat->Name;
+        size_t scopePos = patName.rfind("::");
+        if (scopePos != std::string::npos) patName = patName.substr(scopePos + 2);
 
-      for (size_t i = 0; i < pat->SubPatterns.size(); ++i) {
-        if (pat->SubPatterns[i]->PatternKind == MatchArm::Pattern::Elision) {
-          continue;
-        }
-
-        // Skip wildcard ignoring fields
-        if (pat->SubPatterns[i]->PatternKind == MatchArm::Pattern::Wildcard) {
-          continue;
-        }
-
-        size_t memberIndex = -1;
-        if (isNamed) {
-          std::string shapeName = Type::stripMorphology(pat->Name);
-          if (shapeName.empty()) {
-            if (st && m_TypeToName.count(st)) {
-              shapeName = m_TypeToName[st];
-            } else if (st) {
-              shapeName = st->getName().str();
-            }
+        const ShapeMember *variant = nullptr;
+        for (size_t m = 0; m < sh->Members.size(); ++m) {
+          if (sh->Members[m].Name == patName) {
+            variant = &sh->Members[m];
+            break;
           }
-          if (!shapeName.empty() && shapeName.front() == '(' && shapeName.back() == ')') {
-            if (m_ParenthesizedRecordTypes.count(shapeName)) {
-              auto resolved = m_ParenthesizedRecordTypes[shapeName];
-              if (resolved && resolved->typeKind == Type::Shape) {
-                shapeName = std::static_pointer_cast<ShapeType>(resolved)->Name;
+        }
+
+        if (variant && (!variant->SubMembers.empty() || !variant->Type.empty())) {
+          llvm::Value *payloadAddr = m_Builder.CreateStructGEP(st, targetAddr, 1);
+          llvm::Type *payloadLayoutType = nullptr;
+          std::vector<llvm::Type *> fieldTypes;
+          if (!variant->SubMembers.empty()) {
+            for (const auto &f : variant->SubMembers) {
+              fieldTypes.push_back(f.ResolvedType ? getLLVMType(f.ResolvedType) : resolveType(f.Type, false));
+            }
+            payloadLayoutType = llvm::StructType::get(m_Context, fieldTypes, true);
+          } else if (!variant->Type.empty()) {
+            payloadLayoutType = variant->ResolvedType ? getLLVMType(variant->ResolvedType) : resolveType(variant->Type, false);
+          }
+
+          if (payloadLayoutType) {
+            llvm::Value *variantAddr = m_Builder.CreateBitCast(payloadAddr, llvm::PointerType::getUnqual(m_Context));
+
+            size_t elisionIndex = -1;
+            size_t elisionCount = 0;
+            for (size_t i = 0; i < pat->SubPatterns.size(); ++i) {
+              if (pat->SubPatterns[i]->PatternKind == MatchArm::Pattern::Elision) {
+                elisionIndex = i;
+                elisionCount++;
               }
             }
+
+            size_t expectedSize = fieldTypes.empty() ? 1 : fieldTypes.size();
+            size_t elidedCount = (elisionCount == 1) ? (expectedSize - (pat->SubPatterns.size() - 1)) : 0;
+
+            for (size_t i = 0; i < pat->SubPatterns.size(); ++i) {
+              if (pat->SubPatterns[i]->PatternKind == MatchArm::Pattern::Elision) continue;
+              if (pat->SubPatterns[i]->PatternKind == MatchArm::Pattern::Wildcard) continue;
+
+              size_t memberIndex = i;
+              if (elisionCount == 1) {
+                memberIndex = (i < elisionIndex) ? i : (i + elidedCount - 1);
+              }
+
+              llvm::Value *fieldAddr = variantAddr;
+              llvm::Type *fieldTy = payloadLayoutType;
+              if (!fieldTypes.empty()) {
+                fieldAddr = m_Builder.CreateStructGEP(payloadLayoutType, variantAddr, memberIndex);
+                fieldTy = fieldTypes[memberIndex];
+              }
+
+              std::shared_ptr<Type> subTypeObj = nullptr;
+              if (!variant->SubMembers.empty() && variant->SubMembers.size() > memberIndex) {
+                subTypeObj = variant->SubMembers[memberIndex].ResolvedType;
+              } else {
+                subTypeObj = variant->ResolvedType;
+              }
+
+              genPatternBinding(pat->SubPatterns[i].get(), fieldAddr, fieldTy, subTypeObj);
+            }
           }
-          if (m_Shapes.count(shapeName)) {
-            const auto *sh = m_Shapes[shapeName];
-            for (size_t m = 0; m < sh->Members.size(); ++m) {
-              if (sh->Members[m].Name == pat->SubPatternNames[i]) {
-                memberIndex = m;
-                break;
+        }
+      } else {
+        bool isNamed = false;
+        for (const auto& name : pat->SubPatternNames) {
+          if (!name.empty() && name != "..") {
+            isNamed = true;
+            break;
+          }
+        }
+
+        size_t elisionIndex = -1;
+        size_t elisionCount = 0;
+        for (size_t i = 0; i < pat->SubPatterns.size(); ++i) {
+          if (pat->SubPatterns[i]->PatternKind == MatchArm::Pattern::Elision) {
+            elisionIndex = i;
+            elisionCount++;
+          }
+        }
+
+        size_t expectedSize = st->getNumElements();
+        size_t elidedCount = 0;
+        if (elisionCount == 1) {
+          elidedCount = expectedSize - (pat->SubPatterns.size() - 1);
+        }
+
+        for (size_t i = 0; i < pat->SubPatterns.size(); ++i) {
+          if (pat->SubPatterns[i]->PatternKind == MatchArm::Pattern::Elision) {
+            continue;
+          }
+
+          // Skip wildcard ignoring fields
+          if (pat->SubPatterns[i]->PatternKind == MatchArm::Pattern::Wildcard) {
+            continue;
+          }
+
+          size_t memberIndex = -1;
+          if (isNamed) {
+            std::string shapeName = Type::stripMorphology(pat->Name);
+            if (shapeName.empty()) {
+              if (st && m_TypeToName.count(st)) {
+                shapeName = m_TypeToName[st];
+              } else if (st) {
+                shapeName = st->getName().str();
               }
             }
-          }
-        } else {
-          memberIndex = i;
-          if (elisionCount == 1) {
-            memberIndex = (i < elisionIndex) ? i : (i + elidedCount - 1);
-          }
-        }
-
-        if (memberIndex >= expectedSize || memberIndex == (size_t)-1) {
-          continue;
-        }
-
-        llvm::Value *fieldAddr =
-            m_Builder.CreateStructGEP(st, targetAddr, memberIndex);
-        std::shared_ptr<Type> subTypeObj = nullptr;
-        if (targetTypeObj && targetTypeObj->isShape()) {
-            auto stType = std::static_pointer_cast<ShapeType>(targetTypeObj);
-            if (stType->Decl && stType->Decl->Members.size() > memberIndex && stType->Decl->Members[memberIndex].ResolvedType) {
-                subTypeObj = stType->Decl->Members[memberIndex].ResolvedType;
+            if (!shapeName.empty() && shapeName.front() == '(' && shapeName.back() == ')') {
+              if (m_ParenthesizedRecordTypes.count(shapeName)) {
+                auto resolved = m_ParenthesizedRecordTypes[shapeName];
+                if (resolved && resolved->typeKind == Type::Shape) {
+                  shapeName = std::static_pointer_cast<ShapeType>(resolved)->Name;
+                }
+              }
             }
+            if (m_Shapes.count(shapeName)) {
+              const auto *sh = m_Shapes[shapeName];
+              for (size_t m = 0; m < sh->Members.size(); ++m) {
+                if (sh->Members[m].Name == pat->SubPatternNames[i]) {
+                  memberIndex = m;
+                  break;
+                }
+              }
+            }
+          } else {
+            memberIndex = i;
+            if (elisionCount == 1) {
+              memberIndex = (i < elisionIndex) ? i : (i + elidedCount - 1);
+            }
+          }
+
+          if (memberIndex >= expectedSize || memberIndex == (size_t)-1) {
+            continue;
+          }
+
+          llvm::Value *fieldAddr =
+              m_Builder.CreateStructGEP(st, targetAddr, memberIndex);
+          std::shared_ptr<Type> subTypeObj = nullptr;
+          if (targetTypeObj && targetTypeObj->isShape()) {
+              auto stType = std::static_pointer_cast<ShapeType>(targetTypeObj);
+              if (stType->Decl && stType->Decl->Members.size() > memberIndex && stType->Decl->Members[memberIndex].ResolvedType) {
+                  subTypeObj = stType->Decl->Members[memberIndex].ResolvedType;
+              }
+          }
+          genPatternBinding(pat->SubPatterns[i].get(), fieldAddr,
+                            st->getElementType(memberIndex), subTypeObj);
         }
-        genPatternBinding(pat->SubPatterns[i].get(), fieldAddr,
-                          st->getElementType(memberIndex), subTypeObj);
       }
     } else if (!pat->SubPatterns.empty()) {
       // Single payload case (not wrapped in tuple/struct)

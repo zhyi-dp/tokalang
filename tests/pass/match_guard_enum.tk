@@ -1,0 +1,68 @@
+// Copyright (c) 2026 YiZhonghua<zhyi@dpai.com>. All rights reserved.
+import std/io::println
+
+shape Msg(
+    Quit |
+    Text(i32) |
+    Move(i32, i32)
+)
+
+fn test_msg(m: Msg) -> i32 {
+    auto res = match m {
+        auto Msg::Text(val) if val == 100 => {
+            println("Matched Text(100): {}", val)
+            pass 1
+        }
+        auto Msg::Text(val) if val > 200 => {
+            println("Matched Text(>200): {}", val)
+            pass 2
+        }
+        auto Msg::Text(val) => {
+            println("Matched other Text: {}", val)
+            pass 3
+        }
+        auto Msg::Move(x, y) if x + y > 10 => {
+            println("Matched Move large: x={}, y={}", x, y)
+            pass 4
+        }
+        auto Msg::Move(x, y) => {
+            println("Matched Move small: x={}, y={}", x, y)
+            pass 5
+        }
+        auto Msg::Quit => {
+            println("Matched Quit")
+            pass 6
+        }
+        _ => {
+            println("Wildcard")
+            pass 0
+        }
+    }
+    return res
+}
+
+fn main() -> i32 {
+    auto m1 = Msg::Text(100)
+    auto m2 = Msg::Text(300)
+    auto m3 = Msg::Text(50)
+    auto m4 = Msg::Move(8, 5)
+    auto m5 = Msg::Move(3, 2)
+    auto m6 = Msg::Quit
+
+    auto r1 = test_msg(m1)
+    auto r2 = test_msg(m2)
+    auto r3 = test_msg(m3)
+    auto r4 = test_msg(m4)
+    auto r5 = test_msg(m5)
+    auto r6 = test_msg(m6)
+
+    assert(r1 == 1, "r1 mismatch")
+    assert(r2 == 2, "r2 mismatch")
+    assert(r3 == 3, "r3 mismatch")
+    assert(r4 == 4, "r4 mismatch")
+    assert(r5 == 5, "r5 mismatch")
+    assert(r6 == 6, "r6 mismatch")
+
+    println("All Msg Match Guard tests pass successfully!")
+    return 0
+}
