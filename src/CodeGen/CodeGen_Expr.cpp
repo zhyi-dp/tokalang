@@ -2192,34 +2192,88 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
           [&](const MatchArm::Pattern *pat, llvm::Value *currVal) -> llvm::Value * {
         llvm::Type *currTy = currVal->getType();
         if (pat->PatternKind == MatchArm::Pattern::Literal) {
-          if (currTy->isIntegerTy() || currTy->isPointerTy()) {
-            llvm::Value *litVal = nullptr;
-            if (pat->Name == "true") {
-              litVal = llvm::ConstantInt::getTrue(m_Context);
-            } else if (pat->Name == "false") {
-              litVal = llvm::ConstantInt::getFalse(m_Context);
-            } else if (!pat->Name.empty() && pat->Name[0] == '\'') {
-              litVal = llvm::ConstantInt::get(currTy, pat->LiteralVal);
-            } else {
-              litVal = llvm::ConstantInt::get(currTy, pat->LiteralVal);
-            }
-            return m_Builder.CreateICmpEQ(currVal, litVal);
-          } else if (!pat->Name.empty() && pat->Name[0] == '"') {
-            llvm::Value *currAddr = createEntryBlockAlloca(currTy, nullptr, "match_curr_addr");
-            m_Builder.CreateStore(currVal, currAddr);
+          if (!pat->Name.empty() && pat->Name[0] == '"') {
             std::string rawLit = pat->Name.substr(1, pat->Name.size() - 2);
             auto strLit = std::make_unique<StringExpr>(rawLit);
             strLit->ResolvedType = toka::Type::fromString("cstring");
             PhysEntity litEnt = genExpr(strLit.get());
             llvm::Value *rawPtr = litEnt.load(m_Builder);
-            if (auto *fromFn = m_Module->getFunction("String_from")) {
-              llvm::Value *otherVal = m_Builder.CreateCall(fromFn, {rawPtr});
-              llvm::Value *otherAddr = createEntryBlockAlloca(
-                  otherVal->getType(), nullptr, "match_other_addr");
-              m_Builder.CreateStore(otherVal, otherAddr);
-              if (auto *llvmFn = m_Module->getFunction("PartialEq_String_eq")) {
-                return m_Builder.CreateCall(llvmFn, {currAddr, otherAddr});
+
+            std::string shapeName = "";
+            if (currTy->isStructTy()) {
+              auto *st = llvm::cast<llvm::StructType>(currTy);
+              if (m_TypeToName.count(st)) {
+                shapeName = m_TypeToName[st];
+                size_t lt = shapeName.find('<');
+                if (lt != std::string::npos) {
+                  shapeName = shapeName.substr(0, lt);
+                }
               }
+            }
+
+            if (currTy->isPointerTy()) {
+              llvm::FunctionCallee strcmpFn = m_Module->getOrInsertFunction(
+                  "strcmp",
+                  llvm::FunctionType::get(m_Builder.getInt32Ty(), {m_Builder.getPtrTy(), m_Builder.getPtrTy()}, false)
+              );
+              llvm::Value *cmpRes = m_Builder.CreateCall(strcmpFn, {currVal, rawPtr});
+              return m_Builder.CreateICmpEQ(cmpRes, m_Builder.getInt32(0));
+            } else if (shapeName == "view_str" || shapeName == "str" || shapeName == "String") {
+              llvm::Value *currBuf = m_Builder.CreateExtractValue(currVal, 0, "str_buf");
+              llvm::Value *currLen = m_Builder.CreateExtractValue(currVal, 1, "str_len");
+
+              size_t litSize = rawLit.size();
+              llvm::Value *lenMatch = m_Builder.CreateICmpEQ(currLen, llvm::ConstantInt::get(currLen->getType(), litSize));
+
+              if (litSize == 0) {
+                return lenMatch;
+              } else {
+                // 1. 获取当前块，并创建两个新块
+                llvm::BasicBlock *CurrentBB = m_Builder.GetInsertBlock();
+                llvm::Function *TheFunction = CurrentBB->getParent();
+                llvm::BasicBlock *MemcmpBB = llvm::BasicBlock::Create(m_Context, "str_memcmp", TheFunction);
+                llvm::BasicBlock *MergeBB = llvm::BasicBlock::Create(m_Context, "str_match_merge", TheFunction);
+
+                // 2. 长度匹配才跳入 memcmp，否则直接跳到 merge
+                m_Builder.CreateCondBr(lenMatch, MemcmpBB, MergeBB);
+
+                // 3. 构建 Memcmp 块
+                m_Builder.SetInsertPoint(MemcmpBB);
+                llvm::FunctionCallee memcmpFn = m_Module->getOrInsertFunction(
+                    "memcmp",
+                    llvm::FunctionType::get(m_Builder.getInt32Ty(), {m_Builder.getPtrTy(), m_Builder.getPtrTy(), m_Builder.getInt64Ty()}, false)
+                );
+                llvm::Value *memcmpRes = m_Builder.CreateCall(memcmpFn, {
+                    currBuf,
+                    rawPtr,
+                    llvm::ConstantInt::get(m_Builder.getInt64Ty(), litSize)
+                });
+                llvm::Value *contentMatch = m_Builder.CreateICmpEQ(memcmpRes, m_Builder.getInt32(0));
+                m_Builder.CreateBr(MergeBB);
+
+                // 4. 构建 Merge 块，利用 Phi 节点收束结果
+                m_Builder.SetInsertPoint(MergeBB);
+                llvm::PHINode *phiMatch = m_Builder.CreatePHI(m_Builder.getInt1Ty(), 2, "is_str_match");
+                phiMatch->addIncoming(m_Builder.getInt1(false), CurrentBB); // 长度不等，直接 false
+                phiMatch->addIncoming(contentMatch, MemcmpBB);              // 长度相等，取 memcmp 结果
+
+                return phiMatch;
+              }
+            }
+            return m_Builder.getInt1(false);
+          } else {
+            if (currTy->isIntegerTy() || currTy->isPointerTy()) {
+              llvm::Value *litVal = nullptr;
+              if (pat->Name == "true") {
+                litVal = llvm::ConstantInt::getTrue(m_Context);
+              } else if (pat->Name == "false") {
+                litVal = llvm::ConstantInt::getFalse(m_Context);
+              } else if (!pat->Name.empty() && pat->Name[0] == '\'') {
+                litVal = llvm::ConstantInt::get(currTy, pat->LiteralVal);
+              } else {
+                litVal = llvm::ConstantInt::get(currTy, pat->LiteralVal);
+              }
+              return m_Builder.CreateICmpEQ(currVal, litVal);
             }
           }
           return m_Builder.getInt1(false);

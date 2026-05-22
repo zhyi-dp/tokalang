@@ -72,7 +72,11 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
     if (Pat->Name == "true" || Pat->Name == "false") {
       litType = toka::Type::fromString("bool");
     } else if (!Pat->Name.empty() && Pat->Name[0] == '"') {
-      litType = toka::Type::fromString("String");
+      if (T == "cstring" || T == "view_str" || T == "str") {
+        litType = toka::Type::fromString(T);
+      } else {
+        litType = toka::Type::fromString("String");
+      }
     } else if (!Pat->Name.empty() && Pat->Name[0] == '\'') {
       litType = toka::Type::fromString("char");
     } else {
@@ -94,9 +98,11 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
     // Trait Check: If it's not a primitive, it must implement @PartialEq
     if (targetObj && !targetObj->isInteger() && !targetObj->isBoolean()) {
         std::string resolvedTarget = resolveType(T);
-        std::string implKey = resolvedTarget + "@PartialEq";
-        if (ImplMap.find(implKey) == ImplMap.end()) {
-            error(Pat, DiagID::ERR_TRAIT_NOT_FOUND, "@PartialEq", T);
+        if (!targetObj->isPointer() && resolvedTarget != "cstring") {
+            std::string implKey = resolvedTarget + "@PartialEq";
+            if (ImplMap.find(implKey) == ImplMap.end()) {
+                error(Pat, DiagID::ERR_TRAIT_NOT_FOUND, "@PartialEq", T);
+            }
         }
     }
     break;

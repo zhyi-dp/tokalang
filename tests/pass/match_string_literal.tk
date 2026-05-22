@@ -1,0 +1,92 @@
+import std/io::println
+import std/string::String
+import core/str::view_str
+
+fn test_cstring(s: cstring) -> i32 {
+    match s {
+        "hello" => {
+            println("cstring: hello matched")
+            return 1
+        }
+        "world" => {
+            println("cstring: world matched")
+            return 2
+        }
+        _ => {
+            println("cstring: default matched")
+            return 3
+        }
+    }
+}
+
+fn test_view_str(s: view_str) -> i32 {
+    match s {
+        "hello" => {
+            println("view_str: hello matched")
+            return 4
+        }
+        "world" => {
+            println("view_str: world matched")
+            return 5
+        }
+        "" => {
+            println("view_str: empty matched")
+            return 6
+        }
+        _ => {
+            println("view_str: default matched")
+            return 7
+        }
+    }
+}
+
+fn test_string(s: String) -> i32 {
+    match s {
+        "hello" => {
+            println("String: hello matched")
+            return 8
+        }
+        "world" => {
+            println("String: world matched")
+            return 9
+        }
+        _ => {
+            println("String: default matched")
+            return 10
+        }
+    }
+}
+
+fn main() -> i32 {
+    // 1. Test cstring matching
+    auto r1 = test_cstring("hello")
+    auto r2 = test_cstring("world")
+    auto r3 = test_cstring("other")
+    assert(r1 == 1, "cstring hello")
+    assert(r2 == 2, "cstring world")
+    assert(r3 == 3, "cstring default")
+
+    // 2. Test view_str matching
+    auto r4 = test_view_str(s"hello")
+    auto r5 = test_view_str(s"world")
+    auto r6 = test_view_str(s"")
+    auto r7 = test_view_str(s"other")
+    assert(r4 == 4, "view_str hello")
+    assert(r5 == 5, "view_str world")
+    assert(r6 == 6, "view_str empty")
+    assert(r7 == 7, "view_str default")
+
+    // 3. Test String matching
+    auto s1 = String::from("hello")
+    auto s2 = String::from("world")
+    auto s3 = String::from("other")
+    auto r8 = test_string(s1)
+    auto r9 = test_string(s2)
+    auto r10 = test_string(s3)
+    assert(r8 == 8, "String hello")
+    assert(r9 == 9, "String world")
+    assert(r10 == 10, "String default")
+
+    println("All string literal matching tests passed successfully!")
+    return 0
+}
