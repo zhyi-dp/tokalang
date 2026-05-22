@@ -883,14 +883,7 @@ void Sema::checkStmt(Stmt *S) {
           if (v.Name == "..") continue;
           if (v.FieldName.empty()) {
             wasFieldNameEmpty[i] = true;
-            size_t memberIndex = i;
-            if (elisionCount == 1) {
-              size_t elidedFields = expectedSize - varsWithoutElision;
-              memberIndex = (i < elisionIndex) ? i : (i + elidedFields);
-            }
-            if (memberIndex < expectedSize) {
-              v.FieldName = SD->Members[memberIndex].Name;
-            }
+            v.FieldName = v.Name;
           }
         }
 

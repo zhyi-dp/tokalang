@@ -305,6 +305,33 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
             }
           }
 
+          if (SD->Kind == ShapeKind::Struct) {
+            isNamed = true;
+            if (Pat->SubPatternNames.size() < Pat->SubPatterns.size()) {
+              Pat->SubPatternNames.resize(Pat->SubPatterns.size(), "");
+            }
+            for (size_t i = 0; i < Pat->SubPatterns.size(); ++i) {
+              if (Pat->SubPatterns[i]->PatternKind == MatchArm::Pattern::Elision) {
+                Pat->SubPatternNames[i] = "..";
+                continue;
+              }
+              if (Pat->SubPatternNames[i].empty() || Pat->SubPatternNames[i] == "..") {
+                if (Pat->SubPatterns[i]->PatternKind == MatchArm::Pattern::Variable) {
+                  std::string inferredName = Pat->SubPatterns[i]->Name;
+                  if (Pat->SubPatterns[i]->IsReference) {
+                    inferredName = "&" + inferredName;
+                  }
+                  Pat->SubPatternNames[i] = inferredName;
+                } else {
+                  DiagnosticEngine::report(getLoc(Pat), DiagID::ERR_GENERIC_SEMA,
+                                           "Positional destructuring element is prohibited for struct '" + SD->Name +
+                                           "'. Use explicitly named binding (e.g. 'x = .x') or homonymous elision (e.g. 'x').");
+                  HasError = true;
+                }
+              }
+            }
+          }
+
           std::vector<size_t> memberIndices(Pat->SubPatterns.size(), -1);
 
           if (isNamed) {
