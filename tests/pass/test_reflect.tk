@@ -16,7 +16,7 @@ pub fn print_user_info(u: User) {
 
 pub fn main() -> i32 {
     auto name_obj = String::from("Alice")
-    auto u = User(name_obj.as_str(), 25)
+    auto u = User(name = name_obj.as_str(), age = 25)
     print_user_info(u)
 
     // Test CodeGen materialization

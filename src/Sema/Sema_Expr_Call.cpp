@@ -913,6 +913,42 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
               }
           }
       }
+
+      // [Sema Defense] Enforce 100% Named Struct Initialization (Positional struct init is strictly prohibited)
+      bool allowed = false;
+      if (Sh->Members.empty()) {
+        if (Call->Args.empty()) {
+          allowed = true;
+        }
+      } else {
+        if (Call->Args.size() == 1) {
+          if (dynamic_cast<ElisionExpr *>(Call->Args[0].get())) {
+            allowed = true;
+          }
+        }
+      }
+
+      if (!allowed) {
+        for (size_t i = 0; i < Call->Args.size(); ++i) {
+          auto *argExpr = Call->Args[i].get();
+          bool isNamed = false;
+          if (auto *bin = dynamic_cast<BinaryExpr *>(argExpr)) {
+            if (bin->Op == "=") {
+              if (dynamic_cast<VariableExpr *>(bin->LHS.get())) {
+                isNamed = true;
+              }
+            }
+          } else if (dynamic_cast<ElisionExpr *>(argExpr)) {
+            isNamed = true;
+          }
+
+          if (!isNamed) {
+            DiagnosticEngine::report(getLoc(argExpr), DiagID::ERR_STRUCT_POSITIONAL_INIT_PROHIBITED, Sh->Name);
+            HasError = true;
+            return toka::Type::fromString("unknown");
+          }
+        }
+      }
       std::set<std::string> providedFields;
       int elisionIndex = -1;
       bool hasNamed = false;
@@ -938,7 +974,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
       }
 
       if (hasNamed) {
-        error(Call, DiagID::ERR_MIXED_INIT_MODE);
+        error(Call, DiagID::ERR_STRUCT_POSITIONAL_INIT_PROHIBITED, Sh->Name);
       }
 
       int normalArgsCount = Call->Args.size() - (elisionIndex != -1 ? 1 : 0);

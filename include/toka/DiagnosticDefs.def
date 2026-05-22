@@ -51,7 +51,7 @@ DIAG(ERR_NOT_A_STRUCT,       Error, "E0421", "Member access '{}' on non-shape ty
 DIAG(ERR_MEMBER_TYPE_MISMATCH, Error, "E0422", "Type mismatch for member '{}': expected '{}', but got '{}'")
 DIAG(ERR_MISSING_MEMBER,     Error, "E0423", "Missing initialization for member '{}' of shape '{}'")
 DIAG(ERR_DUPLICATE_FIELD,    Error, "E0424", "Duplicate field '{}' in shape initialization")
-DIAG(ERR_MIXED_INIT_MODE,    Error, "E042A", "Cannot mix positional arguments and named assignments ('=') in object initialization. Be strictly positional or strictly named.")
+DIAG(ERR_STRUCT_POSITIONAL_INIT_PROHIBITED, Error, "E042A", "Positional initialization is prohibited for shape '{}'. Struct initialization must be strictly named (e.g. 'Point(x = 1, y = 2)').")
 DIAG(ERR_MULTIPLE_ELISION,   Error, "E042B", "Multiple elision operators '..' are not allowed in positional initialization.")
 DIAG(ERR_MISSING_DEFAULT_FOR_ELIDED, Error, "E042C", "Elided member '{}' of shape '{}' does not have a default value.")
 DIAG(ERR_ELISION_NOT_AT_END, Error, "E042D", "Elision operator '..' in named initialization mode must be placed at the very end of the list.")

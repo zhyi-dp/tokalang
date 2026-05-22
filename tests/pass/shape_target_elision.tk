@@ -6,12 +6,12 @@ shape Person(
 )
 
 fn main() -> i32 {
-    // 1. Positional elision: Person(.., 25, 100.0) -> name gets default "Anonymous"
-    auto p1 = Person(.., 25, 100.0 as f32)
+    // 1. Named elision: Person(age = 25, score = 100.0 as f32, ..) -> name gets default "Anonymous"
+    auto p1 = Person(age = 25, score = 100.0 as f32, ..)
     println("p1: name: {}, age: {}, score: {}", p1.name, p1.age, p1.score)
 
-    // 2. Positional elision at the end: Person("Alice", ..) -> age gets 18, score gets 0.0
-    auto p2 = Person("Alice", ..)
+    // 2. Named elision at the end: Person(name = "Alice", ..) -> age gets 18, score gets 0.0
+    auto p2 = Person(name = "Alice", ..)
     println("p2: name: {}, age: {}, score: {}", p2.name, p2.age, p2.score)
 
     // 3. Named elision with .. at the beginning: Person(.., score = 88.0)

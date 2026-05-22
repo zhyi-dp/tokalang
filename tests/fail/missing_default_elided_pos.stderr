@@ -1,5 +1,5 @@
-error[E042C]: Elided member 'name' of shape 'Person' does not have a default value.
- --> tests/fail/missing_default_elided_pos.tk:8:22
+error[E042A]: Positional initialization is prohibited for shape 'Person'. Struct initialization must be strictly named (e.g. 'Point(x = 1, y = 2)').
+ --> tests/fail/missing_default_elided_pos.tk:8:26
   |
  8 |     auto p1 = Person(.., 20)
-  |                      ^
+  |                          ^

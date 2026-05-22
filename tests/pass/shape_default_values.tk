@@ -27,8 +27,8 @@ fn main() -> i32 {
         return 3
     }
     
-    // 4. Positional arguments with default
-    auto p4 = Point(0, ..)
+    // 4. Named arguments with default
+    auto p4 = Point(x = 0, ..)
     if p4.x != 0 || p4.y != 20 {
         println("Fail 4: p4.x={}, p4.y={}", p4.x, p4.y)
         return 4
