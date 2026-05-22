@@ -3,7 +3,7 @@
 
 import core/types::{char, usize, Addr, ADDR0}
 import core/libc::{libc_malloc, libc_free}
-import sys/libc::{libc_htons, toka_ensure_wsa_initialized}
+import sys/libc::{libc_htons, toka_ensure_wsa_initialized, libc_usleep}
 
 extern fn WSAGetLastError() -> i32
 extern fn socket(af: i32, kind: i32, protocol: i32) -> i32
@@ -250,7 +250,7 @@ pub fn reactor_add_write_impl(reactor_fd: i32, fd: i32, coro_handle: Addr) -> bo
 pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, max: i32) -> i32 {
     if timeout_ms > 0 {
         unsafe {
-            sys/libc::libc_usleep((timeout_ms * 1000) as u32)
+            libc_usleep((timeout_ms * 1000) as u32)
         }
     }
     return -1 
