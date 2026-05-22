@@ -46,6 +46,8 @@
 
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/Program.h"
+#include "llvm/TargetParser/Triple.h"
 #include <unistd.h>
 #include <sys/stat.h>
 #include <cstdio>
@@ -295,27 +297,40 @@ void parseSource(const std::string &filename,
 
 int main(int argc, char **argv) {
   std::vector<std::string> searchPaths;
-  if (const char* env_p = std::getenv("TOKA_LIB")) {
-    std::string envStr(env_p);
-    std::stringstream ss(envStr);
-    std::string item;
-    while (std::getline(ss, item, ':')) {
+  auto splitEnvPaths = [&](const char* envName) {
+    if (const char* env_p = std::getenv(envName)) {
+      std::string envStr(env_p);
+      std::stringstream ss(envStr);
+      std::string item;
+      while (std::getline(ss, item, llvm::sys::EnvPathSeparator)) {
         if (!item.empty()) {
-            searchPaths.push_back(item);
+          searchPaths.push_back(item);
         }
+      }
+      
+      // Dual-Separator Fallback for MSYS2/MinGW mixed environments on Windows
+      if (llvm::sys::EnvPathSeparator == ';' && searchPaths.size() <= 1) {
+        std::string singlePath = searchPaths.empty() ? envStr : searchPaths[0];
+        size_t colonCount = 0;
+        for (char c : singlePath) if (c == ':') colonCount++;
+        
+        // If it contains colons and doesn't look like a standard Windows drive letter path (like C:\)
+        if (colonCount > 0 && (singlePath.size() < 2 || singlePath[1] != ':')) {
+          searchPaths.clear();
+          std::stringstream ss2(singlePath);
+          std::string item2;
+          while (std::getline(ss2, item2, ':')) {
+            if (!item2.empty()) {
+              searchPaths.push_back(item2);
+            }
+          }
+        }
+      }
     }
-  }
+  };
 
-  if (const char* env_p = std::getenv("TOKA_PATH")) {
-    std::string envStr(env_p);
-    std::stringstream ss(envStr);
-    std::string item;
-    while (std::getline(ss, item, ':')) {
-        if (!item.empty()) {
-            searchPaths.push_back(item);
-        }
-    }
-  }
+  splitEnvPaths("TOKA_LIB");
+  splitEnvPaths("TOKA_PATH");
 
   std::vector<std::string> sourceFiles;
   std::vector<std::string> objectFiles;
@@ -646,43 +661,59 @@ int main(int argc, char **argv) {
       if (verboseMode) fprintf(stderr, "Linking executable (internal LLD): %s\n", finalOutput.c_str());
       fflush(stderr);
       
+      std::string rtExtension = (llvm::Triple(llvm::sys::getDefaultTargetTriple()).isOSWindows()) ? ".obj" : ".o";
+      std::string rtFileName = "toka_rt" + rtExtension;
       std::string tokaRtPath;
       
       // 1. Prioritize local relative paths to ensure local development overrides global installations
-      if (llvm::sys::fs::exists("lib/sys/toka_rt.o")) {
-        tokaRtPath = "lib/sys/toka_rt.o";
-      } else if (llvm::sys::fs::exists("../lib/sys/toka_rt.o")) {
-        tokaRtPath = "../lib/sys/toka_rt.o";
+      {
+        llvm::SmallString<128> localPath1("lib");
+        llvm::sys::path::append(localPath1, "sys", rtFileName);
+        if (llvm::sys::fs::exists(localPath1)) {
+          tokaRtPath = std::string(localPath1.str());
+        } else {
+          llvm::SmallString<128> localPath2("../lib");
+          llvm::sys::path::append(localPath2, "sys", rtFileName);
+          if (llvm::sys::fs::exists(localPath2)) {
+            tokaRtPath = std::string(localPath2.str());
+          }
+        }
       }
       
       // 2. Search in searchPaths (including TOKA_LIB and -I)
       if (tokaRtPath.empty()) {
         for (const auto &p : searchPaths) {
-          std::string testPath = p;
-          if (!testPath.empty() && testPath.back() != '/') {
-            testPath += "/";
-          }
-          testPath += "sys/toka_rt.o";
+          llvm::SmallString<128> testPath(p);
+          llvm::sys::path::append(testPath, "sys", rtFileName);
           if (llvm::sys::fs::exists(testPath)) {
-            tokaRtPath = testPath;
+            tokaRtPath = std::string(testPath.str());
             break;
           }
         }
       }
 
       // 3. Absolute fallback
-      if (tokaRtPath.empty() && llvm::sys::fs::exists("/usr/local/lib/toka/sys/toka_rt.o")) {
-        tokaRtPath = "/usr/local/lib/toka/sys/toka_rt.o";
+      if (tokaRtPath.empty()) {
+        llvm::SmallString<128> fallbackPath("/usr/local/lib/toka");
+        llvm::sys::path::append(fallbackPath, "sys", rtFileName);
+        if (llvm::sys::fs::exists(fallbackPath)) {
+          tokaRtPath = std::string(fallbackPath.str());
+        }
       }
 
       if (tokaRtPath.empty()) {
-        llvm::errs() << "\033[1;31m[FAILED]\033[0m Core runtime 'toka_rt.o' not found in search paths. Please ensure TOKA_LIB is set correctly.\n";
+        llvm::errs() << "\033[1;31m[FAILED]\033[0m Core runtime '" << rtFileName << "' not found in search paths. Please ensure TOKA_LIB is set correctly.\n";
         return 1;
+      }
+
+      // Convert all backslashes to forward slashes to prevent escape sequences in LLD / shells
+      for (char &c : tokaRtPath) {
+        if (c == '\\') c = '/';
       }
       
       bool hasRt = false;
       for (const auto &obj : objectFiles) {
-        if (obj.find("toka_rt.o") != std::string::npos) {
+        if (obj.find("toka_rt") != std::string::npos) {
           hasRt = true;
           break;
         }
