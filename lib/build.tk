@@ -319,11 +319,14 @@ pub fn run_build(proj: Executable) -> i32 {
             }
             
             if is_windows {
-                cmd2#.push_str(" -lws2_32" as *char)
+                cmd2#.push_str(" -lws2_32 -lshell32" as *char)
             }
             
             cmd2#.push_str(" -o target/debug/" as *char)
             cmd2#.push_str(&n)
+            if is_windows {
+                cmd2#.push_str(".exe" as *char)
+            }
             
             auto res2 = libc_system(cmd2.c_str())
             if res2 != 0 {

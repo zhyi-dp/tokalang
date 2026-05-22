@@ -82,7 +82,7 @@ bool linkWithLLD(std::string objFile, std::vector<std::string> extraObjs, std::s
     for (const auto &extra : extraObjs) {
         cmd += " \"" + extra + "\"";
     }
-    cmd += " -o \"" + outputFile + "\" -lws2_32";
+    cmd += " -o \"" + outputFile + "\" -lws2_32 -lshell32";
     return system(cmd.c_str()) == 0;
 #elif defined(__APPLE__)
     args.push_back("-w");
