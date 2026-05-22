@@ -561,6 +561,7 @@ class InitStructExpr : public Expr {
 public:
   std::string ShapeName;
   std::vector<std::pair<std::string, std::unique_ptr<Expr>>> Members;
+  std::vector<std::string> CededBases;
   InitStructExpr(
       const std::string &name,
       std::vector<std::pair<std::string, std::unique_ptr<Expr>>> members)
@@ -575,6 +576,7 @@ public:
     auto n = std::make_unique<InitStructExpr>(ShapeName, std::move(members));
     n->Loc = Loc;
     n->ResolvedType = ResolvedType;
+    n->CededBases = CededBases;
     return n;
   }
 };
@@ -790,6 +792,25 @@ public:
     auto n = std::make_unique<ElisionExpr>(cloneNode(Target));
     n->Loc = Loc;
     n->ResolvedType = ResolvedType;
+    return n;
+  }
+};
+
+class SpreadExpr : public Expr {
+public:
+  std::unique_ptr<Expr> Base;
+  SpreadExpr(std::unique_ptr<Expr> base) : Base(std::move(base)) {}
+
+  std::string toString() const override {
+    return Base->toString() + ".*";
+  }
+  std::unique_ptr<ASTNode> clone() const override {
+    auto n = std::make_unique<SpreadExpr>(cloneNode(Base));
+    n->Loc = Loc;
+    n->ResolvedType = ResolvedType;
+    n->IsMorphicExempt = IsMorphicExempt;
+    n->HasParens = HasParens;
+    n->ExtendLifetime = ExtendLifetime;
     return n;
   }
 };

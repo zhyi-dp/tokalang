@@ -1,0 +1,10 @@
+error[E0438]: Use of moved value: 'r1'
+ --> tests/fail/spread_partial_move.tk:11:14
+   |
+ 11 |     auto x = r1.id
+   |              ^
+error[E0438]: Use of moved value: 'r1'
+ --> tests/fail/spread_partial_move.tk:11:14
+   |
+ 11 |     auto x = r1.id
+   |              ^

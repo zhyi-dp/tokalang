@@ -1,0 +1,8 @@
+shape Point(x: i32, y: i32)
+
+fn main() -> i32 {
+    auto p1 = Point(x = 10, y = 20)
+    // Spread operator is in the middle, which is illegal.
+    auto p2 = Point(p1.*, y = 30)
+    return 0
+}

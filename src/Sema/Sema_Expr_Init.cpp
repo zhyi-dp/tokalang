@@ -803,6 +803,107 @@ Sema::checkStructInit(InitStructExpr *Init, ShapeDecl *SD,
     error(Init, DiagID::ERR_MULTIPLE_ELISION);
   }
 
+  Expr* spreadExprObj = nullptr;
+  bool hasSpread = false;
+  bool isSpreadCede = false;
+  size_t spreadIdx = -1;
+  std::string baseVarActualName = "";
+
+  for (size_t i = 0; i < Init->Members.size(); ++i) {
+    if (Init->Members[i].first == "*") {
+      if (hasSpread) {
+        error(Init, "Multiple spread operators are not allowed");
+      }
+      hasSpread = true;
+      spreadExprObj = Init->Members[i].second.get();
+      spreadIdx = i;
+    }
+  }
+
+  SpreadExpr* spreadNode = nullptr;
+  if (hasSpread) {
+    if (auto* cedeNode = dynamic_cast<CedeExpr*>(spreadExprObj)) {
+      isSpreadCede = true;
+      spreadNode = dynamic_cast<SpreadExpr*>(cedeNode->Value.get());
+    } else {
+      spreadNode = dynamic_cast<SpreadExpr*>(spreadExprObj);
+    }
+
+    if (!spreadNode) {
+      error(Init, "Invalid spread operator");
+    } else {
+      auto baseType = checkExpr(spreadNode->Base.get());
+      std::string targetNominalName = resolveType(resolvedName);
+      std::string baseNominalName = resolveType(baseType->getSoulName());
+
+      if (targetNominalName != baseNominalName) {
+        error(spreadExprObj, "Type mismatch for spread: nominal type of base '" + baseType->getSoulName() + 
+                             "' does not match target shape type '" + resolvedName + "'");
+      }
+
+      if (isSpreadCede) {
+        if (auto *Var = dynamic_cast<VariableExpr *>(spreadNode->Base.get())) {
+          SymbolInfo *Info = nullptr;
+          std::string actualName;
+          if (CurrentScope->findVariableWithDeref(Var->Name, Info, actualName)) {
+            baseVarActualName = actualName;
+            Init->CededBases.push_back(actualName);
+          }
+        }
+      }
+
+      std::set<std::string> explicitlyProvided;
+      for (const auto& member : Init->Members) {
+        if (member.first != ".." && member.first != "*") {
+          explicitlyProvided.insert(member.first);
+        }
+      }
+
+      for (const auto &defField : SD->Members) {
+        if (!explicitlyProvided.count(defField.Name) &&
+            !explicitlyProvided.count("^" + defField.Name) &&
+            !explicitlyProvided.count("*" + defField.Name) &&
+            !explicitlyProvided.count("~" + defField.Name) &&
+            !explicitlyProvided.count("&" + defField.Name) &&
+            !explicitlyProvided.count("^?" + defField.Name)) {
+          
+          auto memberTypeObj = defField.ResolvedType ? defField.ResolvedType : toka::Type::fromString(defField.Type);
+
+          std::string prefix = "";
+          if (memberTypeObj->isUniquePtr()) prefix = "^";
+          else if (memberTypeObj->isSharedPtr()) prefix = "~";
+          else if (memberTypeObj->isRawPointer()) prefix = "*";
+          else if (memberTypeObj->isReference()) prefix = "&";
+
+          auto memberAccess = std::make_unique<MemberExpr>(cloneNode(spreadNode->Base), prefix + defField.Name);
+          memberAccess->Loc = spreadExprObj->Loc;
+
+          bool isResource = memberTypeObj->isUniquePtr();
+          std::string fieldSoul = toka::Type::stripMorphology(memberTypeObj->getSoulName());
+          if (!isResource && m_ShapeProps.count(fieldSoul) && m_ShapeProps[fieldSoul].HasDrop) {
+            isResource = true;
+          }
+
+          if (isResource) {
+            bool isBaseTemporary = dynamic_cast<MethodCallExpr*>(spreadNode->Base.get()) != nullptr || 
+                                   dynamic_cast<CallExpr*>(spreadNode->Base.get()) != nullptr;
+                                   
+            if (!isSpreadCede && !isBaseTemporary) {
+              error(spreadExprObj, "Field '" + defField.Name + "' of type '" + memberTypeObj->toString() + 
+                                   "' is non-Copyable. You must explicitly use 'cede base.*' or 'base.clone().*' to initialize.");
+            }
+          }
+
+          Init->Members.push_back({prefix + defField.Name, std::move(memberAccess)});
+        }
+      }
+
+      // Remove the spread operator placeholder from Members
+      Init->Members.erase(std::remove_if(Init->Members.begin(), Init->Members.end(),
+          [](const auto& pair) { return pair.first == "*"; }), Init->Members.end());
+    }
+  }
+
   for (size_t i = 0; i < Init->Members.size(); ++i) {
     auto &pair = Init->Members[i];
     if (pair.first == "..") {
@@ -995,6 +1096,10 @@ Sema::checkStructInit(InitStructExpr *Init, ShapeDecl *SD,
     }
   }
   m_LastInitMask = mask;
+
+  if (!baseVarActualName.empty()) {
+    CurrentScope->markMoved(baseVarActualName);
+  }
 
   return toka::Type::fromString(resolvedName);
 }

@@ -5217,7 +5217,13 @@ PhysEntity CodeGen::genCedeExpr(const CedeExpr *ce) {
   // Cede is a move semantic marker checked heavily in Sema. 
   // In LLVM IR, we evaluate it to the underlying value explicitly transferring ownership.
   if (ce->Value) {
-    if (auto *ve = dynamic_cast<const VariableExpr *>(ce->Value.get())) {
+    const VariableExpr *ve = dynamic_cast<const VariableExpr *>(ce->Value.get());
+    if (!ve) {
+      if (auto *se = dynamic_cast<const SpreadExpr *>(ce->Value.get())) {
+        ve = dynamic_cast<const VariableExpr *>(se->Base.get());
+      }
+    }
+    if (ve) {
       std::string varName = Type::stripMorphology(ve->Name);
       bool found = false;
       for (int i = (int)m_ScopeStack.size() - 1; i >= 0; --i) {
@@ -5308,6 +5314,24 @@ PhysEntity CodeGen::genInitStructExpr(const InitStructExpr *init) {
   }
   std::cerr << "[DEBUG] genInitStructExpr shapeName=" << shapeName
             << " insertBlock=" << (m_Builder.GetInsertBlock() ? m_Builder.GetInsertBlock()->getName().str() : "NULL") << std::endl;
+
+  // Suppress drop for any variables ceded by base.*
+  for (const auto &varName : init->CededBases) {
+    bool found = false;
+    for (int i = (int)m_ScopeStack.size() - 1; i >= 0; --i) {
+      auto &scope = m_ScopeStack[i];
+      for (auto &entry : scope) {
+        if (Type::stripMorphology(entry.Name) == varName) {
+          if (entry.HasDrop) {
+            entry.HasDrop = false; // SUPPRESS DROP (Moved by spread cede)
+          }
+          found = true;
+          break;
+        }
+      }
+      if (found) break;
+    }
+  }
 
   llvm::StructType *st = m_StructTypes[shapeName];
   if (!st) {

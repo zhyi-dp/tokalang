@@ -897,6 +897,21 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
               auto expr = parseExpr();
               if (dynamic_cast<ElisionExpr*>(expr.get())) {
                   fields.push_back({"..", std::move(expr)});
+              } else if (dynamic_cast<SpreadExpr*>(expr.get())) {
+                  // Check if it's the last element (allowing trailing comma)
+                  if (!check(TokenType::RParen) && !(check(TokenType::Comma) && checkAt(1, TokenType::RParen))) {
+                      error(peek(), "Spread operator '.*' must strictly be the last argument");
+                  }
+                  fields.push_back({"*", std::move(expr)});
+              } else if (auto* cedeE = dynamic_cast<CedeExpr*>(expr.get())) {
+                  if (dynamic_cast<SpreadExpr*>(cedeE->Value.get())) {
+                      if (!check(TokenType::RParen) && !(check(TokenType::Comma) && checkAt(1, TokenType::RParen))) {
+                          error(peek(), "Spread operator '.*' must strictly be the last argument");
+                      }
+                      fields.push_back({"*", std::move(expr)});
+                  } else {
+                      error(peek(), "Expected named argument 'key = value' or elision '..'");
+                  }
               } else {
                   error(peek(), "Expected named argument 'key = value' or elision '..'");
               }
@@ -1017,6 +1032,22 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
   while (expr) {
     if (match(TokenType::Dot)) {
       Token dotTok = previous();
+
+      // Check if it's Spread operator .*
+      // We must avoid conflicts with obj.*ptr (raw pointer hat member access).
+      // If we see Star and the next token is NOT a member name (Identifier, KwUnset, KwNull, KwSelf),
+      // we consume the Star and parse it as a SpreadExpr.
+      if (check(TokenType::Star) &&
+          !checkAt(1, TokenType::Identifier) &&
+          !checkAt(1, TokenType::KwUnset) &&
+          !checkAt(1, TokenType::KwNull) &&
+          !checkAt(1, TokenType::KwSelf)) {
+        consume(TokenType::Star, ""); // Safely consume the Star
+        auto node = std::make_unique<SpreadExpr>(std::move(expr));
+        node->setLocation(dotTok, m_CurrentFile);
+        expr = std::move(node);
+        continue;
+      }
 
       std::string prefix = "";
       if (match(TokenType::Star))

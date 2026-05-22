@@ -1,0 +1,5 @@
+error[E0105]: Parse error: Spread operator '.*' must strictly be the last argument
+ --> tests/fail/spread_not_last.tk:6:25
+  |
+ 6 |     auto p2 = Point(p1.*, y = 30)
+  |                         ^

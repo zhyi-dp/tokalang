@@ -1,0 +1,57 @@
+import std/io::println
+
+shape Point(
+    x: i32,
+    y: i32
+)
+
+shape ResourceBox(
+    id: i32,
+    ^ptr: i32
+)
+
+impl ResourceBox {
+    pub fn deepCopy(self) -> ResourceBox {
+        return ResourceBox(id = self.id, ^ptr = new i32(self.ptr))
+    }
+}
+
+fn main() -> i32 {
+    // 1. Basic Nominal Spread
+    auto p1 = Point(x = 10, y = 20)
+    auto p2 = Point(y = 30, p1.*)
+    
+    if p2.x != 10 || p2.y != 30 {
+        println("Fail 1: p2.x={}, p2.y={}", p2.x, p2.y)
+        return 1
+    }
+
+    // 2. Self Assignment Topology (Safe Self-Override)
+    auto p3 = Point(x = 5, y = 15)
+    p3 = Point(x = p3.x + 1, p3.*)
+    if p3.x != 6 || p3.y != 15 {
+        println("Fail 2: p3.x={}, p3.y={}", p3.x, p3.y)
+        return 2
+    }
+
+    // 3. Resource Spread with Cede
+    auto r1 = ResourceBox(id = 100, ^ptr = new i32(999))
+    auto r2 = ResourceBox(id = 200, cede r1.*)
+
+    if r2.id != 200 || r2.ptr != 999 {
+        println("Fail 3: r2.id={}, r2.ptr={}", r2.id, r2.ptr)
+        return 3
+    }
+
+    // 4. Resource Spread with Clone (Base temporary)
+    auto r3 = ResourceBox(id = 300, ^ptr = new i32(888))
+    auto r4 = ResourceBox(id = 400, r3.deepCopy().*)
+
+    if r4.id != 400 || r4.ptr != 888 {
+        println("Fail 4: r4.id={}, r4.ptr={}", r4.id, r4.ptr)
+        return 4
+    }
+
+    println("Spread nominal pass tests completed successfully!")
+    return 0
+}

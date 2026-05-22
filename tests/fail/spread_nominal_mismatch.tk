@@ -1,0 +1,9 @@
+shape Point(x: i32, y: i32)
+shape Vector(x: i32, y: i32)
+
+fn main() -> i32 {
+    auto p1 = Point(x = 10, y = 20)
+    // Point is nominal, Vector is nominal. They cannot coercively spread.
+    auto v1 = Vector(p1.*)
+    return 0
+}

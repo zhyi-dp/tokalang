@@ -1,0 +1,12 @@
+shape ResourceBox(
+    id: i32,
+    ^ptr: i32
+)
+
+fn main() -> i32 {
+    auto r1 = ResourceBox(id = 100, ^ptr = new i32(999))
+    // r1 contains a unique pointer (^ptr) which is non-Copyable.
+    // Plain r1.* is illegal; it must explicitly be 'cede r1.*' or 'r1.clone().*'.
+    auto r2 = ResourceBox(id = 200, r1.*)
+    return 0
+}

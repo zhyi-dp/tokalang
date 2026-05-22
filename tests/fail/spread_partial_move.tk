@@ -1,0 +1,13 @@
+shape ResourceBox(
+    id: i32,
+    ^ptr: i32
+)
+
+fn main() -> i32 {
+    auto r1 = ResourceBox(id = 100, ^ptr = new i32(999))
+    auto r2 = ResourceBox(id = 200, cede r1.*)
+    
+    // r1 is now moved/destroyed. Accessing it is a compile error!
+    auto x = r1.id
+    return 0
+}
