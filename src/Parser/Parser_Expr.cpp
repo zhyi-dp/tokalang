@@ -76,12 +76,15 @@ std::unique_ptr<MatchArm::Pattern> Parser::parseSinglePattern() {
   }
 
   if (check(TokenType::Integer) || check(TokenType::String) ||
+      check(TokenType::CharLiteral) ||
       check(TokenType::KwTrue) || check(TokenType::KwFalse)) {
     auto p = std::make_unique<MatchArm::Pattern>(MatchArm::Pattern::Literal);
     p->Loc = peek().Loc;
     Token t = advance();
     if (t.Kind == TokenType::String) {
       p->Name = "\"" + t.Text + "\"";
+    } else if (t.Kind == TokenType::CharLiteral) {
+      p->Name = "'" + t.Text + "'";
     } else {
       p->Name = t.Text;
     }
@@ -92,6 +95,54 @@ std::unique_ptr<MatchArm::Pattern> Parser::parseSinglePattern() {
       } catch (...) {
         p->LiteralVal = 0;
       }
+    } else if (t.Kind == TokenType::CharLiteral) {
+      if (!t.Text.empty()) {
+        p->LiteralVal = static_cast<uint64_t>(static_cast<unsigned char>(t.Text[0]));
+      }
+    }
+
+    // Support Range patterns: start ..< end or start ..= end
+    if (check(TokenType::DotDotLess) || check(TokenType::DotDotEqual)) {
+      if (t.Kind != TokenType::Integer && t.Kind != TokenType::CharLiteral) {
+        error(peek(), "Range pattern start must be an integer or character literal");
+      }
+      Token opTok = peek();
+      if (!opTok.HasSpacesAround) {
+        error(opTok, "Range operators '..<' and '..=' must be surrounded by spaces");
+      }
+      bool isInclusive = (opTok.Kind == TokenType::DotDotEqual);
+      advance(); // consume the operator
+
+      if (!check(TokenType::Integer) && !check(TokenType::CharLiteral)) {
+        error(peek(), "Expected integer or character literal for the range end pattern");
+      }
+      
+      auto endPat = std::make_unique<MatchArm::Pattern>(MatchArm::Pattern::Literal);
+      endPat->Loc = peek().Loc;
+      Token endTok = advance();
+      if (endTok.Kind == TokenType::CharLiteral) {
+        endPat->Name = "'" + endTok.Text + "'";
+      } else {
+        endPat->Name = endTok.Text;
+      }
+      if (endTok.Kind == TokenType::Integer) {
+        try {
+          endPat->LiteralVal = std::stoull(endTok.Text, nullptr, 0);
+        } catch (...) {
+          endPat->LiteralVal = 0;
+        }
+      } else {
+        if (!endTok.Text.empty()) {
+          endPat->LiteralVal = static_cast<uint64_t>(static_cast<unsigned char>(endTok.Text[0]));
+        }
+      }
+
+      auto rangePat = std::make_unique<MatchArm::Pattern>(MatchArm::Pattern::Range);
+      rangePat->Loc = p->Loc;
+      rangePat->IsInclusive = isInclusive;
+      rangePat->SubPatterns.push_back(std::move(p));
+      rangePat->SubPatterns.push_back(std::move(endPat));
+      return rangePat;
     }
     return p;
   }

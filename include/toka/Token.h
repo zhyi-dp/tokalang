@@ -141,6 +141,8 @@ enum class TokenType {
   Pipe,       // |
   DotDot,     // ..
   DotDotDot,  // ...
+  DotDotLess,  // ..<
+  DotDotEqual, // ..=
   Ampersand,  // &
 
   // Arithmetic/Logic (Basic set)
@@ -188,6 +190,7 @@ struct Token {
   bool IsSwappablePtr = false;   // "swappable" property for pointers
   bool IsBlocked = false;        // "$" attribute for inherent restriction
   bool HasNewlineBefore = false; // Support optional semicolons
+  bool HasSpacesAround = false;  // Whether token is surrounded by spaces
 
   std::string toString() const {
     // Debug helper

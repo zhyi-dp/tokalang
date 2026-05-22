@@ -1872,6 +1872,7 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
   PhysEntity targetVal_ent = genExpr(expr->Target.get());
   llvm::Value *targetVal = targetVal_ent.load(m_Builder);
   llvm::Type *targetType = targetVal->getType();
+  std::string targetSemaType = expr->Target->ResolvedType ? expr->Target->ResolvedType->toString() : "";
 
   std::string shapeName;
   if (targetType->isStructTy() && m_TypeToName.count(targetType)) {
@@ -2188,8 +2189,8 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
           llvm::BasicBlock::Create(m_Context, "match_next", func);
 
       // 1. Check Pattern (Recursive helper for value/or patterns)
-      std::function<llvm::Value *(const MatchArm::Pattern *, llvm::Value *)> genValuePatCond =
-          [&](const MatchArm::Pattern *pat, llvm::Value *currVal) -> llvm::Value * {
+      std::function<llvm::Value *(const MatchArm::Pattern *, llvm::Value *, const std::string &)> genValuePatCond =
+          [&](const MatchArm::Pattern *pat, llvm::Value *currVal, const std::string &currSemaType) -> llvm::Value * {
         llvm::Type *currTy = currVal->getType();
         if (pat->PatternKind == MatchArm::Pattern::Literal) {
           if (!pat->Name.empty() && pat->Name[0] == '"') {
@@ -2277,10 +2278,34 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
             }
           }
           return m_Builder.getInt1(false);
+        } else if (pat->PatternKind == MatchArm::Pattern::Range) {
+          llvm::Type* valTy = currVal->getType();
+
+          // 精准提取左右边界字面量并物化为 LLVM 常量
+          uint64_t startVal = pat->SubPatterns[0]->LiteralVal;
+          uint64_t endVal = pat->SubPatterns[1]->LiteralVal;
+          llvm::Value* startLit = llvm::ConstantInt::get(valTy, startVal);
+          llvm::Value* endLit = llvm::ConstantInt::get(valTy, endVal);
+
+          // 动态判定物理符号属性：规避整型默认有符号带来的字符区间越界灾难
+          bool isSigned = currTy->isIntegerTy() && 
+                          (currSemaType.rfind("u", 0) != 0) && 
+                          currSemaType != "Char16" && 
+                          currSemaType != "char";
+
+          // 区间比较指令合并下发
+          llvm::Value *ge = isSigned ? m_Builder.CreateICmpSGE(currVal, startLit) 
+                                     : m_Builder.CreateICmpUGE(currVal, startLit);
+
+          llvm::Value *leOrLt = pat->IsInclusive 
+              ? (isSigned ? m_Builder.CreateICmpSLE(currVal, endLit) : m_Builder.CreateICmpULE(currVal, endLit))
+              : (isSigned ? m_Builder.CreateICmpSLT(currVal, endLit) : m_Builder.CreateICmpULT(currVal, endLit));
+
+          return m_Builder.CreateAnd(ge, leOrLt);
         } else if (pat->PatternKind == MatchArm::Pattern::Or) {
           llvm::Value *accum = m_Builder.getInt1(false);
           for (auto &sub : pat->SubPatterns) {
-            accum = m_Builder.CreateOr(accum, genValuePatCond(sub.get(), currVal));
+            accum = m_Builder.CreateOr(accum, genValuePatCond(sub.get(), currVal, currSemaType));
           }
           return accum;
         } else if (pat->PatternKind == MatchArm::Pattern::Wildcard ||
@@ -2395,7 +2420,15 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
                   }
 
                   llvm::Value *fieldVal = m_Builder.CreateLoad(fieldTy, fieldAddr, "subpat_val");
-                  llvm::Value *subCond = genValuePatCond(pat->SubPatterns[i].get(), fieldVal);
+                  std::string fieldSemaType = "";
+                  if (!variant->SubMembers.empty()) {
+                    auto subTypeObj = variant->SubMembers[memberIndex].ResolvedType;
+                    fieldSemaType = subTypeObj ? subTypeObj->toString() : variant->SubMembers[memberIndex].Type;
+                  } else if (!variant->Type.empty()) {
+                    auto subTypeObj = variant->ResolvedType;
+                    fieldSemaType = subTypeObj ? subTypeObj->toString() : variant->Type;
+                  }
+                  llvm::Value *subCond = genValuePatCond(pat->SubPatterns[i].get(), fieldVal, fieldSemaType);
                   accum = m_Builder.CreateAnd(accum, subCond);
                 }
               }
@@ -2482,7 +2515,15 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
               memberVal = currVal;
             }
 
-            llvm::Value *subCond = genValuePatCond(pat->SubPatterns[i].get(), memberVal);
+            std::string memberSemaType = "";
+            if (st && m_Shapes.count(baseShapeName)) {
+              const auto *sh = m_Shapes[baseShapeName];
+              if (memberIndex < sh->Members.size()) {
+                auto subTypeObj = sh->Members[memberIndex].ResolvedType;
+                memberSemaType = subTypeObj ? subTypeObj->toString() : sh->Members[memberIndex].Type;
+              }
+            }
+            llvm::Value *subCond = genValuePatCond(pat->SubPatterns[i].get(), memberVal, memberSemaType);
             accum = m_Builder.CreateAnd(accum, subCond);
           }
           return accum;
@@ -2490,7 +2531,7 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
         return m_Builder.getInt1(false);
       };
 
-      llvm::Value *cond = genValuePatCond(arm->Pat.get(), targetVal);
+      llvm::Value *cond = genValuePatCond(arm->Pat.get(), targetVal, targetSemaType);
 
       // 2. Branch to guard-check, arm or next
       if (arm->Guard) {

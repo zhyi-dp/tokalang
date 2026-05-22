@@ -797,14 +797,15 @@ public:
 class MatchArm {
 public:
   struct Pattern : public ASTNode {
-    enum Kind { Literal, Variable, Decons, Wildcard, Or, Elision };
+    enum Kind { Literal, Variable, Decons, Wildcard, Or, Elision, Range };
     Kind PatternKind;
     std::string Name;        // For Variable/Decons (e.g., "Maybe::One")
     uint64_t LiteralVal = 0; // For Literal
     bool IsReference = false;
     bool IsValueMutable = false;
     bool IsValueBlocked = false;
-    std::vector<std::unique_ptr<Pattern>> SubPatterns; // For Decons and Or
+    bool IsInclusive = false; // For Range (true for ..=, false for ..<)
+    std::vector<std::unique_ptr<Pattern>> SubPatterns; // For Decons, Or, and Range (SubPatterns[0] = Start, SubPatterns[1] = End)
     std::vector<std::string> SubPatternNames;          // [NEW] For named deconstruction/matching (parallel to SubPatterns)
 
     Pattern(Kind k) : PatternKind(k) {}
@@ -831,6 +832,12 @@ public:
         return "_";
       case Elision:
         return "..";
+      case Range: {
+        if (SubPatterns.size() == 2) {
+          return SubPatterns[0]->toString() + (IsInclusive ? " ..= " : " ..< ") + SubPatterns[1]->toString();
+        }
+        return "RangePattern(invalid)";
+      }
       case Or: {
         std::string s = "";
         for (size_t i = 0; i < SubPatterns.size(); ++i) {
@@ -855,6 +862,7 @@ public:
       n->IsReference = IsReference;
       n->IsValueMutable = IsValueMutable;
       n->IsValueBlocked = IsValueBlocked;
+      n->IsInclusive = IsInclusive;
       for (auto& sp : SubPatterns) {
           n->SubPatterns.push_back(sp->clonePattern());
       }

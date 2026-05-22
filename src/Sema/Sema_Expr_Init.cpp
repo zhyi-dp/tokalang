@@ -65,6 +65,31 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
     break;
   }
 
+  case MatchArm::Pattern::Range: {
+    if (Pat->SubPatterns.size() != 2) {
+      error(Pat, DiagID::ERR_GENERIC_SEMA, "Invalid range pattern structure");
+      break;
+    }
+    checkPattern(Pat->SubPatterns[0].get(), TargetType, SourceIsMutable);
+    checkPattern(Pat->SubPatterns[1].get(), TargetType, SourceIsMutable);
+
+    std::string resolvedT = resolveType(T, true);
+    auto targetObj = toka::Type::fromString(resolvedT);
+    if (!targetObj || !targetObj->isInteger()) {
+      error(Pat, DiagID::ERR_GENERIC_SEMA, "Range pattern is only allowed for integer or character types, got '" + T + "'");
+      break;
+    }
+
+    uint64_t startVal = Pat->SubPatterns[0]->LiteralVal;
+    uint64_t endVal = Pat->SubPatterns[1]->LiteralVal;
+    if (startVal > endVal) {
+      error(Pat, DiagID::ERR_GENERIC_SEMA, "Range start value (" + std::to_string(startVal) + ") cannot be greater than end value (" + std::to_string(endVal) + ")");
+    } else if (!Pat->IsInclusive && startVal == endVal) {
+      error(Pat, DiagID::ERR_GENERIC_SEMA, "Exclusive range start value (" + std::to_string(startVal) + ") cannot be equal to end value (" + std::to_string(endVal) + ")");
+    }
+    break;
+  }
+
   case MatchArm::Pattern::Literal: {
     // Literal patterns don't bind variables, but we must check types.
     // Pat->Name contains the raw text of the literal (Integer, String, true, false)
@@ -78,7 +103,11 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
         litType = toka::Type::fromString("String");
       }
     } else if (!Pat->Name.empty() && Pat->Name[0] == '\'') {
-      litType = toka::Type::fromString("char");
+      if (T == "Char16" || resolveType(T, true) == "u16") {
+        litType = toka::Type::fromString("Char16");
+      } else {
+        litType = toka::Type::fromString("char");
+      }
     } else {
       // Assume integer for now (Parser sets LiteralVal for these)
       // We'll use the target type to disambiguate if it's an integer type
@@ -96,7 +125,8 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
     }
 
     // Trait Check: If it's not a primitive, it must implement @PartialEq
-    if (targetObj && !targetObj->isInteger() && !targetObj->isBoolean()) {
+    auto resolvedTargetObj = toka::Type::fromString(resolveType(T, true));
+    if (targetObj && resolvedTargetObj && !resolvedTargetObj->isInteger() && !resolvedTargetObj->isBoolean()) {
         std::string resolvedTarget = resolveType(T);
         if (!targetObj->isPointer() && resolvedTarget != "cstring") {
             std::string implKey = resolvedTarget + "@PartialEq";

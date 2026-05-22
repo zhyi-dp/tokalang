@@ -1,0 +1,11 @@
+fn main() -> i32 {
+    auto x = 5
+    match x {
+        10 ..= 0 => {
+            return 1
+        }
+        default => {
+            return 0
+        }
+    }
+}

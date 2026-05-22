@@ -1,0 +1,93 @@
+import std/io::println
+
+shape Node(val: Char16, count: u32)
+
+fn test_int(x: i32) -> i32 {
+    match x {
+        0 ..< 10 => {
+            println("0 to 9")
+            return 1
+        }
+        10 ..= 20 => {
+            println("10 to 20")
+            return 2
+        }
+        default => {
+            println("others")
+            return 0
+        }
+    }
+}
+
+fn test_char(c: char) -> i32 {
+    match c {
+        'a' ..= 'z' => {
+            println("lowercase")
+            return 1
+        }
+        'A' ..< 'Z' => {
+            println("uppercase except Z")
+            return 2
+        }
+        default => {
+            println("other char")
+            return 0
+        }
+    }
+}
+
+fn test_nested(n: Node) -> i32 {
+    match n {
+        Node('a' ..= 'z' = .val, 1 ..= 10 = .count) => {
+            println("matched node")
+            return 1
+        }
+        default => {
+            println("other node")
+            return 0
+        }
+    }
+}
+
+fn main() -> i32 {
+    auto r1 = test_int(5)
+    if r1 != 1 {
+        return 1
+    }
+    auto r2 = test_int(15)
+    if r2 != 2 {
+        return 2
+    }
+    auto r3 = test_int(25)
+    if r3 != 0 {
+        return 3
+    }
+
+    auto c1 = test_char('g')
+    if c1 != 1 {
+        return 4
+    }
+    auto c2 = test_char('B')
+    if c2 != 2 {
+        return 5
+    }
+    auto c3 = test_char('Z')
+    if c3 != 0 {
+        return 6
+    }
+
+    auto n1 = Node(val = 'd':Char16, count = 5)
+    auto n1_res = test_nested(n1)
+    if n1_res != 1 {
+        return 7
+    }
+
+    auto n2 = Node(val = 'A':Char16, count = 5)
+    auto n2_res = test_nested(n2)
+    if n2_res != 0 {
+        return 8
+    }
+
+    println("All range match tests passed!")
+    return 0
+}

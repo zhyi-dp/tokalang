@@ -448,6 +448,24 @@ Token Lexer::punctuation() {
     return Token{TokenType::Greater, ">", line, col};
   case '.':
     if (peek() == '.') {
+      if (peekNext() == '<') {
+        bool spaceBefore = (m_Current - 2 >= m_Source) && std::isspace(m_Current[-2]);
+        bool spaceAfter = std::isspace(m_Current[2]);
+        advance();
+        advance();
+        Token t{TokenType::DotDotLess, "..<", line, col};
+        t.HasSpacesAround = spaceBefore && spaceAfter;
+        return t;
+      }
+      if (peekNext() == '=') {
+        bool spaceBefore = (m_Current - 2 >= m_Source) && std::isspace(m_Current[-2]);
+        bool spaceAfter = std::isspace(m_Current[2]);
+        advance();
+        advance();
+        Token t{TokenType::DotDotEqual, "..=", line, col};
+        t.HasSpacesAround = spaceBefore && spaceAfter;
+        return t;
+      }
       if (peekNext() == '.') {
         advance();
         advance();

@@ -924,9 +924,11 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     auto targetType = resolveType(toka::Type::fromString(Cast->TargetType));
 
     // Rule: Numeric Casts (Always allowed for standard numeric types)
-    bool srcIsNumeric = srcType->isInteger() || srcType->isFloatingPoint();
+    auto srcTypeResolved = resolveType(srcType, true);
+    auto targetTypeResolved = resolveType(targetType, true);
+    bool srcIsNumeric = srcTypeResolved->isInteger() || srcTypeResolved->isFloatingPoint();
     bool targetIsNumeric =
-        targetType->isInteger() || targetType->isFloatingPoint();
+        targetTypeResolved->isInteger() || targetTypeResolved->isFloatingPoint();
 
     // Rule: Pointer Morphologies or Addr
     bool srcIsAddr = srcType->isAddrType();
