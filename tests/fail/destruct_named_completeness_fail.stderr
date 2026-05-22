@@ -1,5 +1,5 @@
 error[E042C]: Elided member 'host' of shape 'Config' does not have a default value.
  --> tests/fail/destruct_named_completeness_fail.tk:6:42
-  |
+   |
  6 |     auto Config(p = .port, d = .debug) = c
-  |                                          ^
+   |                                          ^

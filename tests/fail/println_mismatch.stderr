@@ -1,5 +1,5 @@
 error[E0406]: Format string placeholder count (2) does not match provided arguments count (1)
  --> tests/fail/println_mismatch.tk:6:5
-  |
+   |
  6 |     println("Value is {} and square is {}", x)
-  |     ^
+   |     ^

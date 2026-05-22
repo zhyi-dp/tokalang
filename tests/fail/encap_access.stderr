@@ -1,10 +1,10 @@
 error[E0429]: Trait 'encap' requires implementation of method 'clone'
  --> tests/import_test/encap_lib.tk:20:1
-   |
+    |
  20 | impl Data@encap {
-   | ^
+    | ^
 error[E0429]: Trait 'encap' requires implementation of method 'drop'
  --> tests/import_test/encap_lib.tk:20:1
-   |
+    |
  20 | impl Data@encap {
-   | ^
+    | ^

@@ -47,6 +47,7 @@ if [ -f build/bin/tokac ] || [ -f build/bin/tokac.exe ]; then
     cp -a build/bin/toka build/bin/toka.exe "${PACKAGE_DIR}/bin/" 2>/dev/null || true
     cp -a build/bin/tokac build/bin/tokac.exe "${PACKAGE_DIR}/bin/" 2>/dev/null || true
     cp -a build/bin/tokafmt build/bin/tokafmt.exe "${PACKAGE_DIR}/bin/" 2>/dev/null || true
+    cp -a build/bin/tokalsp build/bin/tokalsp.exe "${PACKAGE_DIR}/bin/" 2>/dev/null || true
 else
     echo "Error: tokac binary not found in build/bin/. Please build the compiler first."
     exit 1

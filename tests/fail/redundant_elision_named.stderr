@@ -1,5 +1,5 @@
 error[E042E]: Elision operator '..' provided but all arguments/fields are already present.
  --> tests/fail/redundant_elision_named.tk:8:15
-  |
+   |
  8 |     auto p2 = Person(name = "Alice", age = 20, ..)
-  |               ^
+   |               ^

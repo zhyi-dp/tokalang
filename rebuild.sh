@@ -40,11 +40,12 @@ make -C build -j8
 # Ensure the newly built tokac is in the PATH so it can compile the toka wrapper
 export PATH="$BIN_DIR:$PATH"
 
-echo "   -> Compiling Toka Runtime (toka_rt.o)..."
+echo "   -> Compiling Toka Runtime (toka_rt.o / toka_rt.obj)..."
 if [ "$(uname)" == "Darwin" ]; then
     $LLVM_CLANG -isysroot $(xcrun --show-sdk-path) -c lib/sys/toka_rt.c -o lib/sys/toka_rt.o
 else
     $LLVM_CLANG -c lib/sys/toka_rt.c -o lib/sys/toka_rt.o
+    cp lib/sys/toka_rt.o lib/sys/toka_rt.obj 2>/dev/null || true
 fi
 
 echo ""

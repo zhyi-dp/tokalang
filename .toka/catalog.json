@@ -1,44 +1,8 @@
 {
   "lastUpdated": "2026-05-19T13:48:28.295Z",
-  "totalPackages": 5,
-  "totalDownloads": 15420,
+  "totalPackages": 1,
+  "totalDownloads": 0,
   "packages": [
-    {
-      "name": "tokamq",
-      "version": "1.0.0",
-      "description": "A high-performance message queue for Toka, utilizing zero-copy strings.",
-      "downloads": 8250,
-      "repository": "github.com/tokalang/tokamq",
-      "license": "MIT",
-      "author": "YiZhonghua"
-    },
-    {
-      "name": "utils",
-      "version": "0.5.1",
-      "description": "Standard utility library extending Toka core.",
-      "downloads": 4320,
-      "repository": "github.com/tokalang/utils",
-      "license": "Apache-2.0",
-      "author": "Toka Team"
-    },
-    {
-      "name": "router",
-      "version": "1.2.0",
-      "description": "Fast and safe HTTP routing for Toka backend services.",
-      "downloads": 2100,
-      "repository": "github.com/lumicore/router",
-      "license": "MIT",
-      "author": "Lumicore"
-    },
-    {
-      "name": "ansi",
-      "version": "0.1.0",
-      "description": "Terminal color manipulation library.",
-      "downloads": 750,
-      "repository": "pkg.tokalang.dev/zhyi/ansi",
-      "license": "MIT",
-      "author": "YiZhonghua"
-    },
     {
       "name": "toka-ink",
       "version": "0.2.1",

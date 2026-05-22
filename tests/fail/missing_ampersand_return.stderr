@@ -1,7 +1,6 @@
 error[E0469]: You are trying to return the Soul (i32) of a reference, but a Handle (&i32) is required. Did you mean '&x'?
  --> tests/fail/missing_ampersand_return.tk:2:5
-  |
+   |
  2 |     return x
-  |     ^
-  |   👉 help: Return requires Handle but Soul is returned. Did you mean '&var'?
-
+   |     ^
+   |   👉 help: Return requires Handle but Soul is returned. Did you mean '&var'?

@@ -1,5 +1,5 @@
 error[E042A]: Positional initialization is prohibited for shape 'Vector'. Struct initialization must be strictly named (e.g. 'Point(x = 1, y = 2)').
  --> tests/fail/spread_nominal_mismatch.tk:7:24
-  |
+   |
  7 |     auto v1 = Vector(p1.*)
-  |                        ^
+   |                        ^

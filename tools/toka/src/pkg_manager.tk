@@ -417,7 +417,7 @@ pub fn cmd_search(query: String) -> i32 {
         libc_system("mkdir -p .toka")
         libc_system("curl -sL https://pkg.tokalang.dev/catalog.json -o .toka/catalog.json > /dev/null 2>&1")
         if libc_system("test -s .toka/catalog.json") != 0 {
-            libc_system("echo '{\"packages\":[{\"name\":\"toka_ink\",\"version\":\"0.2.1\",\"description\":\"Terminal UI components and animations\"},{\"name\":\"tokamq\",\"version\":\"1.0.0\",\"description\":\"High performance message queue\"},{\"name\":\"toka_web\",\"version\":\"0.1.0\",\"description\":\"Web framework for Toka\"}]}' > .toka/catalog.json")
+            libc_system("echo '{\"packages\":[{\"name\":\"toka_ink\",\"version\":\"0.2.1\",\"description\":\"Terminal UI components and animations\"}]}' > .toka/catalog.json")
         }
     }
     

@@ -1,95 +1,95 @@
 error[E0459]: Implicit heap-boxing via pointer initialization is prohibited. Use explicit allocation like 'new i32(...)' stringently
  --> tests/fail/morphology_fail.tk:4:11
-  |
+   |
  4 |     auto ^p = 10;
-  |           ^
+   |           ^
 error[E0409]: Cannot initialize variable of type '*(Raw Pointer)' with value of type 'i32'
  --> tests/fail/morphology_fail.tk:5:11
-  |
+   |
  5 |     auto *r = 10;
-  |           ^
+   |           ^
 error[E0402]: Use of undeclared identifier 'p'
  --> tests/fail/morphology_fail.tk:8:10
-  |
+   |
  8 |     r = ^p;
-  |          ^
+   |          ^
 error[E0402]: Use of undeclared identifier 'r'
  --> tests/fail/morphology_fail.tk:8:5
-  |
+   |
  8 |     r = ^p;
-  |     ^
+   |     ^
 error[E0402]: Use of undeclared identifier 'p'
  --> tests/fail/morphology_fail.tk:14:16
-   |
+    |
  14 |     auto ^p2 = p; 
-   |                ^
+    |                ^
 error[E0402]: Use of undeclared identifier 'p'
  --> tests/fail/morphology_fail.tk:14:16
-   |
+    |
  14 |     auto ^p2 = p; 
-   |                ^
+    |                ^
 error[E0459]: Implicit heap-boxing via pointer initialization is prohibited. Use explicit allocation like 'new Unresolved(unknown)(...)' stringently
  --> tests/fail/morphology_fail.tk:14:11
-   |
+    |
  14 |     auto ^p2 = p; 
-   |           ^
+    |           ^
 error[E0459]: Implicit heap-boxing via pointer initialization is prohibited. Use explicit allocation like 'new i32(...)' stringently
  --> tests/fail/morphology_fail.tk:18:11
-   |
+    |
  18 |     auto ^uniq = 10;
-   |           ^
+    |           ^
 error[E0402]: Use of undeclared identifier 'uniq'
  --> tests/fail/morphology_fail.tk:21:16
-   |
+    |
  21 |     auto ^p = *uniq;
-   |                ^
+    |                ^
 error[E0402]: Use of undeclared identifier 'uniq'
  --> tests/fail/morphology_fail.tk:21:16
-   |
+    |
  21 |     auto ^p = *uniq;
-   |                ^
+    |                ^
 error[E0459]: Implicit heap-boxing via pointer initialization is prohibited. Use explicit allocation like 'new Unresolved(unknown)(...)' stringently
  --> tests/fail/morphology_fail.tk:21:11
-   |
+    |
  21 |     auto ^p = *uniq;
-   |           ^
+    |           ^
 error[E0402]: Use of undeclared identifier 'uniq'
  --> tests/fail/morphology_fail.tk:24:18
-   |
+    |
  24 |     auto *raw = ^uniq;
-   |                  ^
+    |                  ^
 error[E0409]: Cannot initialize variable of type '*(Raw Pointer)' with value of type 'Unresolved(unknown)'
  --> tests/fail/morphology_fail.tk:24:11
-   |
+    |
  24 |     auto *raw = ^uniq;
-   |           ^
+    |           ^
 error[E0448]: Pointer morphology mismatch: expected explicit '*' (from LHS/Target), found '&' (from RHS/Source)
  --> tests/fail/morphology_fail.tk:30:11
-   |
+    |
  30 |     auto *p = &val;
-   |           ^
+    |           ^
 error[E0455]: Returning reference to local variable 'val' is unsafe
  --> tests/fail/morphology_fail.tk:36:5
-   |
+    |
  36 |     return &val;
-   |     ^
+    |     ^
 error[E0448]: Pointer morphology mismatch: expected explicit '^' (from LHS/Target), found '&' (from RHS/Source)
  --> tests/fail/morphology_fail.tk:44:17
-   |
+    |
  44 |     take_unique(&val);
-   |                 ^
+    |                 ^
 error[E0459]: Implicit heap-boxing via pointer initialization is prohibited. Use explicit allocation like 'new i32(...)' stringently
  --> tests/fail/morphology_fail.tk:46:11
-   |
+    |
  46 |     auto ^u = 10;
-   |           ^
+    |           ^
 error[E0402]: Use of undeclared identifier 'u'
  --> tests/fail/morphology_fail.tk:48:17
-   |
+    |
  48 |     take_unique(u); 
-   |                 ^
+    |                 ^
 error[E0448]: Pointer morphology mismatch: expected explicit '^' (from LHS/Target), found 'value' (from RHS/Source)
  --> tests/fail/morphology_fail.tk:48:17
-   |
+    |
  48 |     take_unique(u); 
-   |                 ^
+    |                 ^

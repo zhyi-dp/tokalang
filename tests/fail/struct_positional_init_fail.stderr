@@ -1,5 +1,5 @@
 error[E042A]: Positional initialization is prohibited for shape 'Point'. Struct initialization must be strictly named (e.g. 'Point(x = 1, y = 2)').
  --> tests/fail/struct_positional_init_fail.tk:19:21
-   |
+    |
  19 |     auto p1 = Point(10, 20)
-   |                     ^
+    |                     ^

@@ -1,5 +1,5 @@
 error[E042A]: Positional initialization is prohibited for shape 'Person'. Struct initialization must be strictly named (e.g. 'Point(x = 1, y = 2)').
  --> tests/fail/redundant_elision.tk:8:22
-  |
+   |
  8 |     auto p1 = Person("Alice", 20, ..)
-  |                      ^
+   |                      ^

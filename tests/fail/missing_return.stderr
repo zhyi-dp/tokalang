@@ -1,5 +1,5 @@
 error[E0431]: Control flow reaches end of non-void function 'missing_return'
  --> tests/fail/missing_return.tk:14:4
-   |
+    |
  14 | fn missing_return(x: i32) -> i32 {
-   |    ^
+    |    ^
