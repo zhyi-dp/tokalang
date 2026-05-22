@@ -1,0 +1,11 @@
+pub trait @MyTrait {
+    pub fn do_something(self) -> i32
+}
+
+pub shape MyBucket<T>(val: T)
+
+impl<T> @MyTrait for MyBucket<T> {
+    pub fn do_something(self) -> i32 {
+        return 42
+    }
+}

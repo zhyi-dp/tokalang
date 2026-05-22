@@ -52,6 +52,38 @@ run_worker() {
             exit 1
         fi
         rm -f "$tmp_obj"
+    elif [ "$file_name" = "odr_main.tk" ]; then
+        lib_obj="${out_dir}/tests_pass_odr_test_lib.o"
+        helper_obj="${out_dir}/tests_pass_odr_helper.o"
+        # Compile lib
+        if ! "$TOKAC" -c "tests/pass/odr_test_lib.tk_lib" -o "$lib_obj" > /dev/null 2> "$log_file"; then
+            append "$(printf "[${RED}FAIL${NC}] %-35s" "$file_name")"
+            append "    ${RED}$test_path:1: error: Compiling odr_test_lib failed${NC}"
+            LOGS=$(tail -n 5 "$log_file" | sed 's/^/    | /')
+            append "$LOGS"
+            echo -ne "$OUTPUT"
+            exit 1
+        fi
+        # Compile helper
+        if ! "$TOKAC" -c "tests/pass/odr_helper.tk_lib" -o "$helper_obj" > /dev/null 2> "$log_file"; then
+            append "$(printf "[${RED}FAIL${NC}] %-35s" "$file_name")"
+            append "    ${RED}$test_path:1: error: Compiling odr_helper failed${NC}"
+            LOGS=$(tail -n 5 "$log_file" | sed 's/^/    | /')
+            append "$LOGS"
+            echo -ne "$OUTPUT"
+            exit 1
+        fi
+        # Compile and link main with lib and helper
+        if ! "$TOKAC" "$test_path" "$lib_obj" "$helper_obj" -o "$exe_file" > /dev/null 2> "$log_file"; then
+            append "$(printf "[${RED}FAIL${NC}] %-35s" "$file_name")"
+            append "    ${RED}$test_path:1: error: Compilation failed${NC}"
+            LOGS=$(tail -n 5 "$log_file" | sed 's/^/    | /')
+            append "$LOGS"
+            echo -ne "$OUTPUT"
+            rm -f "$log_file" "$exe_file" "$lib_obj" "$helper_obj"
+            exit 1
+        fi
+        rm -f "$lib_obj" "$helper_obj"
     else
         if ! "$TOKAC" "$test_path" -o "$exe_file" > /dev/null 2> "$log_file"; then
             append "$(printf "[${RED}FAIL${NC}] %-35s" "$file_name")"

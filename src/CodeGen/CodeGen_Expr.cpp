@@ -4928,6 +4928,13 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
           std::string vtableName = "_VTable_" + concreteName + "_" + traitName;
           llvm::GlobalVariable *vtable =
               m_Module->getGlobalVariable(vtableName);
+          if (!vtable) {
+            llvm::Type *voidPtrTy = llvm::PointerType::getUnqual(m_Context);
+            llvm::ArrayType *arrTy = llvm::ArrayType::get(voidPtrTy, 0);
+            vtable = new llvm::GlobalVariable(*m_Module, arrTy, true,
+                                             llvm::GlobalValue::ExternalLinkage,
+                                             nullptr, vtableName);
+          }
           if (vtable) {
             llvm::Type *fatPtrTy = resolveType(targetArgType, false);
             llvm::Value *ctxPtr = m_Builder.CreateBitCast(

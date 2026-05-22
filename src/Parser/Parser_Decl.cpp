@@ -855,6 +855,10 @@ std::unique_ptr<ImplDecl> Parser::parseImpl() {
     typeName = firstTypeStr;
   }
 
+  if (!traitName.empty() && traitName[0] == '@') {
+    traitName = traitName.substr(1);
+  }
+
   consume(TokenType::LBrace, "Expected '{'");
 
   std::vector<std::unique_ptr<FunctionDecl>> methods;

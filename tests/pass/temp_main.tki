@@ -1,0 +1,6 @@
+import std/io :: {println}
+
+fn main() -> i32
+
+extern fn get_magic_number() -> i32
+

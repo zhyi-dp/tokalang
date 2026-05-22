@@ -176,15 +176,19 @@ void TKIExporter::exportImport(const ImportDecl &decl) {
         m_OS << " as " << decl.Alias;
     }
     if (!decl.Items.empty()) {
-        m_OS << " :: {";
-        for (size_t i = 0; i < decl.Items.size(); ++i) {
-            if (i > 0) m_OS << ", ";
-            m_OS << decl.Items[i].Symbol;
-            if (!decl.Items[i].Alias.empty()) {
-                m_OS << " as " << decl.Items[i].Alias;
+        if (decl.Items.size() == 1 && decl.Items[0].Symbol == "*") {
+            m_OS << " :: *";
+        } else {
+            m_OS << " :: {";
+            for (size_t i = 0; i < decl.Items.size(); ++i) {
+                if (i > 0) m_OS << ", ";
+                m_OS << decl.Items[i].Symbol;
+                if (!decl.Items[i].Alias.empty()) {
+                    m_OS << " as " << decl.Items[i].Alias;
+                }
             }
+            m_OS << "}";
         }
-        m_OS << "}";
     }
     m_OS << "\n";
 }

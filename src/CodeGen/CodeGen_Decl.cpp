@@ -16,6 +16,8 @@
 #include "toka/DiagnosticEngine.h"
 #include "toka/Type.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
+#include "llvm/IR/Comdat.h"
+#include "llvm/TargetParser/Triple.h"
 #include <cctype>
 #include <iostream>
 #include <set>
@@ -173,6 +175,16 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
     }
     if (func->Effect == EffectKind::Async) {
       f->setPresplitCoroutine();
+    }
+  }
+
+  bool isGenericSpec = (funcName.find("_M") != std::string::npos && func->Body != nullptr && !declOnly);
+  bool isImportedSource = (!m_AST->IsRootModule && !declOnly && func->Body != nullptr);
+  if (isGenericSpec || isImportedSource) {
+    f->setLinkage(llvm::Function::LinkOnceODRLinkage);
+    llvm::Triple triple(m_Module->getTargetTriple());
+    if (triple.supportsCOMDAT()) {
+      f->setComdat(m_Module->getOrInsertComdat(f->getName()));
     }
   }
 
@@ -1433,14 +1445,29 @@ void CodeGen::genGlobal(const Stmt *stmt) {
       type = llvm::Type::getInt32Ty(m_Context);
     }
 
+    bool declOnly = !m_AST->IsRootModule && (m_AST->SourcePath.length() > 4 && m_AST->SourcePath.substr(m_AST->SourcePath.length() - 4) == ".tki");
     llvm::Constant *finalConstInit = constInit;
-    if (!constInit) {
+    if (declOnly && !var->IsConst) {
+      finalConstInit = nullptr;
+    } else if (!constInit) {
       finalConstInit = llvm::Constant::getNullValue(type);
     }
 
+    llvm::GlobalValue::LinkageTypes linkage = llvm::GlobalValue::ExternalLinkage;
+    if (var->IsConst) {
+      linkage = llvm::GlobalValue::LinkOnceODRLinkage;
+    }
+
     auto *globalVar = new llvm::GlobalVariable(
-        *m_Module, type, false, llvm::GlobalValue::ExternalLinkage, finalConstInit,
+        *m_Module, type, false, linkage, finalConstInit,
         var->Name);
+
+    if (var->IsConst) {
+      llvm::Triple triple(m_Module->getTargetTriple());
+      if (triple.supportsCOMDAT()) {
+        globalVar->setComdat(m_Module->getOrInsertComdat(globalVar->getName()));
+      }
+    }
 
     m_NamedValues[var->Name] = globalVar;
 
@@ -1454,7 +1481,7 @@ void CodeGen::genGlobal(const Stmt *stmt) {
     m_Symbols[var->Name] = sym;
 
     // Do actual assignment in .init_array constructor
-    if (needsDynamicInit) {
+    if (needsDynamicInit && !declOnly) {
        getOrCreateGlobalInit();
        CodeGen::GenContext ctx = saveContext();
        m_Builder.SetInsertPoint(m_GlobalInitBuilder->GetInsertBlock(), m_GlobalInitBuilder->GetInsertPoint());
@@ -1734,9 +1761,14 @@ void toka::CodeGen::genImpl(const toka::ImplDecl *decl, bool declOnly) {
         llvm::Constant *init = llvm::ConstantArray::get(arrTy, vtableMethods);
         std::string vtableName =
             "_VTable_" + decl->TypeName + "_" + decl->TraitName;
-        new llvm::GlobalVariable(*m_Module, arrTy, true,
+        auto *vtableGV = new llvm::GlobalVariable(*m_Module, arrTy, true,
                                  llvm::GlobalValue::ExternalLinkage, init,
                                  vtableName);
+        vtableGV->setLinkage(llvm::GlobalValue::LinkOnceODRLinkage);
+        llvm::Triple triple(m_Module->getTargetTriple());
+        if (triple.supportsCOMDAT()) {
+          vtableGV->setComdat(m_Module->getOrInsertComdat(vtableName));
+        }
       }
     }
   }

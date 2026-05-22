@@ -449,7 +449,7 @@ int main(int argc, char **argv) {
         std::string sourcePath = ast->SourcePath;
         std::string outPath = sourcePath;
         size_t dotPos = outPath.find_last_of('.');
-        if (dotPos != std::string::npos && outPath.substr(dotPos) == ".tk") {
+        if (dotPos != std::string::npos && (outPath.substr(dotPos) == ".tk" || outPath.substr(dotPos) == ".tk_lib")) {
           outPath = outPath.substr(0, dotPos) + ".tki";
         } else {
           outPath += ".tki";

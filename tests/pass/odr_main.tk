@@ -1,0 +1,14 @@
+import ./odr_test_lib::*
+import ./odr_helper::*
+import std/io::println
+
+fn main() -> i32 {
+    auto b = MyBucket(val = 20)
+    auto v1 = b.do_something()
+    auto v2 = helper_call()
+    println("v1 + v2 is {}", v1 + v2)
+    if (v1 + v2 == 84) {
+        return 0
+    }
+    return 1
+}

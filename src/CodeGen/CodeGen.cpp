@@ -258,6 +258,7 @@ void CodeGen::resolveSignatures(const Module &ast) {
 
 void CodeGen::generate(const Module &ast) {
   m_AST = &ast;
+  bool declOnly = !ast.IsRootModule && (ast.SourcePath.length() > 4 && ast.SourcePath.substr(ast.SourcePath.length() - 4) == ".tki");
 
   // Generate Globals (Emission)
   for (const auto &glob : ast.Globals) {
@@ -267,13 +268,13 @@ void CodeGen::generate(const Module &ast) {
 
   // [Fix] Generate Impl bodies BEFORE function bodies so drop() exists
   for (const auto &impl : ast.Impls) {
-    genImpl(impl.get(), false);
+    genImpl(impl.get(), declOnly);
     if (hasErrors()) return;
   }
 
   // Generate Functions (Body Phase)
   for (const auto &func : ast.Functions) {
-    genFunction(func.get(), "", false);
+    genFunction(func.get(), "", declOnly);
     if (hasErrors())
       return;
   }
