@@ -517,3 +517,4 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
         libc_free(*tv as *void)
         return n_out
     }
+}

@@ -49,6 +49,11 @@ else
     LLVM_CONFIG="llvm-config"
 fi
 
+EXTRA_LIBS=""
+if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" || "$OSTYPE" == "win32" ]]; then
+    EXTRA_LIBS="-lws2_32"
+fi
+
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[0;33m'
@@ -67,7 +72,7 @@ if [ "$BASE_NAME" = "llvm_shim_test.tk" ] || [ "$BASE_NAME" = "llvm_backend_inst
         rm -f "$LOG_FILE" "$EXE_FILE" "$tmp_obj"
         exit 1
     fi
-    if ! "$CLANGXX" "$tmp_obj" lib/sys/llvm_shim.o lib/sys/toka_rt.o $($LLVM_CONFIG --ldflags --libs) -o "$EXE_FILE" >> "$LOG_FILE" 2>&1; then
+    if ! "$CLANGXX" "$tmp_obj" lib/sys/llvm_shim.o lib/sys/toka_rt.o $($LLVM_CONFIG --ldflags --libs) $EXTRA_LIBS -o "$EXE_FILE" >> "$LOG_FILE" 2>&1; then
         echo -e "  - ${RED}Linking FAILED${NC}"
         echo "  - Error Log:"
         cat "$LOG_FILE"

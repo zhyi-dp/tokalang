@@ -22,6 +22,11 @@ else
 fi
 # LLI is no longer used. We natively compile the tests to binary.
 
+EXTRA_LIBS=""
+if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" || "$OSTYPE" == "win32" ]]; then
+    EXTRA_LIBS="-lws2_32"
+fi
+
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[0;33m'
@@ -59,7 +64,7 @@ run_worker() {
             rm -f "$log_file" "$exe_file" "$tmp_obj"
             exit 1
         fi
-        if ! "$CLANGXX" "$tmp_obj" lib/sys/llvm_shim.o lib/sys/toka_rt.o $($LLVM_CONFIG --ldflags --libs) -o "$exe_file" >> "$log_file" 2>&1; then
+        if ! "$CLANGXX" "$tmp_obj" lib/sys/llvm_shim.o lib/sys/toka_rt.o $($LLVM_CONFIG --ldflags --libs) $EXTRA_LIBS -o "$exe_file" >> "$log_file" 2>&1; then
             append "$(printf "[${RED}FAIL${NC}] %-35s" "$file_name")"
             append "    ${RED}$test_path:1: error: Linking failed${NC}"
             LOGS=$(tail -n 5 "$log_file" | sed 's/^/    | /')
@@ -250,7 +255,7 @@ echo "---------------------------------"
 if [ $fail_count -gt 0 ]; then
     echo -e "${RED}!!! Concentrated Failure Summary !!!${NC}"
     echo "---------------------------------"
-    awk '/\[FAIL\]/ {print; print_block=1; next} /^[[:space:]]/ && print_block {print; next} {print_block=0}' "$RESULTS_FILE"
+    awk '/\[.*FAIL.*\]/ {print; print_block=1; next} /^[[:space:]]/ && print_block {print; next} {print_block=0}' "$RESULTS_FILE"
     echo "---------------------------------"
 fi
 
