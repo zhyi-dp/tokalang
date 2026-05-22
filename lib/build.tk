@@ -111,12 +111,32 @@ pub fn run_build(proj: Executable) -> i32 {
             }
         }
         
+        auto is_windows# = false
+        auto os_env = libc_getenv("OS" as *char) as Addr
+        if os_env != 0:Addr {
+            auto os_str = String::from(os_env as *char)
+            if os_str == String::from("Windows_NT") {
+                is_windows = true
+            }
+        }
+        if libc_access("build/bin/tokac.exe" as *char, 0) == 0 {
+            is_windows = true
+        }
+
         // Build tokac string: "tokac src_path > target/debug/main.ll"
         auto cmd1# = String::from("")
-        if libc_access("build/bin/tokac" as *char, 0) == 0 {
-            cmd1 = String::from("./build/bin/tokac ")
+        if is_windows {
+            if libc_access("build/bin/tokac.exe" as *char, 0) == 0 {
+                cmd1 = String::from("./build/bin/tokac.exe ")
+            } else {
+                cmd1 = String::from("tokac ")
+            }
         } else {
-            cmd1 = String::from("tokac ")
+            if libc_access("build/bin/tokac" as *char, 0) == 0 {
+                cmd1 = String::from("./build/bin/tokac ")
+            } else {
+                cmd1 = String::from("tokac ")
+            }
         }
         auto toka_lib = libc_getenv("TOKA_LIB" as *char) as Addr
         if toka_lib != 0:Addr {
@@ -181,30 +201,65 @@ pub fn run_build(proj: Executable) -> i32 {
             }
             
             auto rt_path# = String::from("")
-            if libc_access("lib/sys/toka_rt.o" as *char, 0) == 0 {
-                rt_path = String::from("lib/sys/toka_rt.o")
-            } else if libc_access("../lib/sys/toka_rt.o" as *char, 0) == 0 {
-                rt_path = String::from("../lib/sys/toka_rt.o")
+            if is_windows {
+                if libc_access("lib/sys/toka_rt.obj" as *char, 0) == 0 {
+                    rt_path = String::from("lib/sys/toka_rt.obj")
+                } else if libc_access("lib/sys/toka_rt.o" as *char, 0) == 0 {
+                    rt_path = String::from("lib/sys/toka_rt.o")
+                } else if libc_access("../lib/sys/toka_rt.obj" as *char, 0) == 0 {
+                    rt_path = String::from("../lib/sys/toka_rt.obj")
+                } else if libc_access("../lib/sys/toka_rt.o" as *char, 0) == 0 {
+                    rt_path = String::from("../lib/sys/toka_rt.o")
+                }
             } else {
+                if libc_access("lib/sys/toka_rt.o" as *char, 0) == 0 {
+                    rt_path = String::from("lib/sys/toka_rt.o")
+                } else if libc_access("../lib/sys/toka_rt.o" as *char, 0) == 0 {
+                    rt_path = String::from("../lib/sys/toka_rt.o")
+                }
+            }
+            
+            if rt_path.len() == 0:usize {
                 auto toka_lib = libc_getenv("TOKA_LIB" as *char) as Addr
                 if toka_lib != 0:Addr {
                     auto env_rt# = String::from(toka_lib as *char)
                     if !env_rt.ends_with(String::from("/")) {
                         env_rt#.push_str("/" as *char)
                     }
-                    env_rt#.push_str("sys/toka_rt.o" as *char)
-                    if libc_access(env_rt.c_str(), 0) == 0 {
-                        rt_path = env_rt.clone()
+                    if is_windows {
+                        auto env_rt_obj# = env_rt.clone()
+                        env_rt_obj#.push_str("sys/toka_rt.obj" as *char)
+                        if libc_access(env_rt_obj.c_str(), 0) == 0 {
+                            rt_path = env_rt_obj.clone()
+                        }
+                    }
+                    if rt_path.len() == 0:usize {
+                        auto env_rt_o# = env_rt.clone()
+                        env_rt_o#.push_str("sys/toka_rt.o" as *char)
+                        if libc_access(env_rt_o.c_str(), 0) == 0 {
+                            rt_path = env_rt_o.clone()
+                        }
                     }
                 }
             }
             if rt_path.len() == 0:usize {
-                if libc_access("/usr/local/lib/toka/sys/toka_rt.o" as *char, 0) == 0 {
-                    rt_path = String::from("/usr/local/lib/toka/sys/toka_rt.o")
+                if is_windows {
+                    if libc_access("/usr/local/lib/toka/sys/toka_rt.obj" as *char, 0) == 0 {
+                        rt_path = String::from("/usr/local/lib/toka/sys/toka_rt.obj")
+                    }
+                }
+                if rt_path.len() == 0:usize {
+                    if libc_access("/usr/local/lib/toka/sys/toka_rt.o" as *char, 0) == 0 {
+                        rt_path = String::from("/usr/local/lib/toka/sys/toka_rt.o")
+                    }
                 }
             }
             if rt_path.len() == 0:usize {
-                rt_path = String::from("lib/sys/toka_rt.o")
+                if is_windows {
+                    rt_path = String::from("lib/sys/toka_rt.obj")
+                } else {
+                    rt_path = String::from("lib/sys/toka_rt.o")
+                }
             }
             
             auto cmd2# = cxx.clone()
@@ -258,6 +313,10 @@ pub fn run_build(proj: Executable) -> i32 {
             if proj.ldflags.len() > 0:usize {
                 cmd2#.push_str(" " as *char)
                 cmd2#.push_str(proj.ldflags.c_str())
+            }
+            
+            if rt_path.ends_with(String::from(".obj")) {
+                cmd2#.push_str(" -lws2_32" as *char)
             }
             
             cmd2#.push_str(" -o target/debug/" as *char)

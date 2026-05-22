@@ -1,4 +1,7 @@
 import std/io::println
+
+extern fn strcmp(s1: cstring, s2: cstring) -> i32
+
 shape Person(
     name: cstring = "Anonymous",
     age: i32 = 18,
@@ -27,11 +30,11 @@ fn main() -> i32 {
     println("p5: name: {}, age: {}, score: {}", p5.name, p5.age, p5.score)
 
     // Assertions
-    if p1.name != "Anonymous" || p1.age != 25 || p1.score != 100.0 as f32 { return 1 }
-    if p2.name != "Alice" || p2.age != 18 || p2.score != 0.0 as f32 { return 1 }
-    if p3.name != "Anonymous" || p3.age != 18 || p3.score != 88.0 as f32 { return 1 }
-    if p4.name != "Bob" || p4.age != 18 || p4.score != 99.0 as f32 { return 1 }
-    if p5.name != "Charlie" || p5.age != 30 || p5.score != 0.0 as f32 { return 1 }
+    if strcmp(p1.name, "Anonymous") != 0 || p1.age != 25 || p1.score != 100.0 as f32 { return 1 }
+    if strcmp(p2.name, "Alice") != 0 || p2.age != 18 || p2.score != 0.0 as f32 { return 1 }
+    if strcmp(p3.name, "Anonymous") != 0 || p3.age != 18 || p3.score != 88.0 as f32 { return 1 }
+    if strcmp(p4.name, "Bob") != 0 || p4.age != 18 || p4.score != 99.0 as f32 { return 1 }
+    if strcmp(p5.name, "Charlie") != 0 || p5.age != 30 || p5.score != 0.0 as f32 { return 1 }
 
     return 0
 }

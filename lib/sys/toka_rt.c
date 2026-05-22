@@ -1,15 +1,28 @@
 #include <stdio.h>
 #include <time.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 void* toka_localtime_r(const time_t *timep, struct tm *result) {
 #ifdef _WIN32
-    struct tm *res = localtime(timep);
-    if (res) { *result = *res; return result; }
+    if (localtime_s(result, timep) == 0) { return result; }
     return NULL;
 #else
     return localtime_r(timep, result);
 #endif
 }
+
+void* toka_gmtime_r(const time_t *timep, struct tm *result) {
+#ifdef _WIN32
+    if (gmtime_s(result, timep) == 0) { return result; }
+    return NULL;
+#else
+    return gmtime_r(timep, result);
+#endif
+}
+
 
 #ifdef _WIN32
 #include <io.h>
@@ -81,12 +94,13 @@ void toka_panic(const char* msg, int len) {
     _write(2, prefix, 27);
     _write(2, msg, len);
     _write(2, suffix, 2);
+    ExitProcess(3);
 #else
     write(2, prefix, 27);
     write(2, msg, len);
     write(2, suffix, 2);
-#endif
     abort();
+#endif
 }
 
 #include <sys/stat.h>
@@ -116,14 +130,25 @@ void toka_stat_free(void* handle) { free(handle); }
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
+static int wsa_initialized = 0;
+void toka_ensure_wsa_initialized() {
+    if (!wsa_initialized) {
+        WSADATA wsaData;
+        if (WSAStartup(MAKEWORD(2, 2), &wsaData) == 0) {
+            wsa_initialized = 1;
+        }
+    }
+}
 #else
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <arpa/inet.h>
+void toka_ensure_wsa_initialized() {}
 #endif
 
 unsigned int toka_resolve_ipv4(const char* host) {
+    toka_ensure_wsa_initialized();
     struct addrinfo hints = {0};
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;

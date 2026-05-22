@@ -3,6 +3,23 @@
 
 # --- Configuration ---
 TOKAC="./build/bin/tokac"
+
+# Autodetect compiler and tools
+if command -v clang++-20 &> /dev/null; then
+    CLANGXX="clang++-20"
+elif command -v clang++ &> /dev/null; then
+    CLANGXX="clang++"
+else
+    CLANGXX="clang++"
+fi
+
+if command -v llvm-config-20 &> /dev/null; then
+    LLVM_CONFIG="llvm-config-20"
+elif command -v llvm-config &> /dev/null; then
+    LLVM_CONFIG="llvm-config"
+else
+    LLVM_CONFIG="llvm-config"
+fi
 # LLI is no longer used. We natively compile the tests to binary.
 
 GREEN='\033[0;32m'
@@ -42,7 +59,7 @@ run_worker() {
             rm -f "$log_file" "$exe_file" "$tmp_obj"
             exit 1
         fi
-        if ! clang++-20 "$tmp_obj" lib/sys/llvm_shim.o lib/sys/toka_rt.o $(llvm-config-20 --ldflags --libs) -o "$exe_file" >> "$log_file" 2>&1; then
+        if ! "$CLANGXX" "$tmp_obj" lib/sys/llvm_shim.o lib/sys/toka_rt.o $($LLVM_CONFIG --ldflags --libs) -o "$exe_file" >> "$log_file" 2>&1; then
             append "$(printf "[${RED}FAIL${NC}] %-35s" "$file_name")"
             append "    ${RED}$test_path:1: error: Linking failed${NC}"
             LOGS=$(tail -n 5 "$log_file" | sed 's/^/    | /')

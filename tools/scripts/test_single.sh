@@ -32,6 +32,23 @@ LOG_FILE="${OUT_DIR}/${SAFE_TARGET}.log"
 # --- Configuration ---
 TOKAC="./build/bin/tokac"
 
+# Autodetect compiler and tools
+if command -v clang++-20 &> /dev/null; then
+    CLANGXX="clang++-20"
+elif command -v clang++ &> /dev/null; then
+    CLANGXX="clang++"
+else
+    CLANGXX="clang++"
+fi
+
+if command -v llvm-config-20 &> /dev/null; then
+    LLVM_CONFIG="llvm-config-20"
+elif command -v llvm-config &> /dev/null; then
+    LLVM_CONFIG="llvm-config"
+else
+    LLVM_CONFIG="llvm-config"
+fi
+
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[0;33m'
@@ -50,7 +67,7 @@ if [ "$BASE_NAME" = "llvm_shim_test.tk" ] || [ "$BASE_NAME" = "llvm_backend_inst
         rm -f "$LOG_FILE" "$EXE_FILE" "$tmp_obj"
         exit 1
     fi
-    if ! clang++-20 "$tmp_obj" lib/sys/llvm_shim.o lib/sys/toka_rt.o $(llvm-config-20 --ldflags --libs) -o "$EXE_FILE" >> "$LOG_FILE" 2>&1; then
+    if ! "$CLANGXX" "$tmp_obj" lib/sys/llvm_shim.o lib/sys/toka_rt.o $($LLVM_CONFIG --ldflags --libs) -o "$EXE_FILE" >> "$LOG_FILE" 2>&1; then
         echo -e "  - ${RED}Linking FAILED${NC}"
         echo "  - Error Log:"
         cat "$LOG_FILE"

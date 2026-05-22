@@ -1,30 +1,247 @@
 // Copyright (c) 2025 Toka Project. All rights reserved.
 // lib/sys/net_windows.tk
-// Placeholder for WinSock2 based networking.
 
-import core/types::{Addr, usize}
-import sys/libc
+import core/types::{char, usize, Addr, ADDR0}
+import core/libc::{libc_malloc, libc_free}
+import sys/libc::{libc_htons, toka_ensure_wsa_initialized}
 
-pub fn get_last_error() -> i32 { return -1 }
-pub fn net_socket_impl() -> i32 { return -1 }
-pub fn net_socket_udp_impl() -> i32 { return -1 }
-pub fn net_setsockopt_reuse_impl(fd: i32) -> i32 { return -1 }
-pub fn net_sendto_impl(fd: i32, *buf: u8, len: usize, host: usize, port: i32) -> i64 { return -1 }
-pub fn net_recvfrom_impl(fd: i32, *buf: u8, len: usize, *out_host: usize, *out_port: i32) -> i64 { return -1 }
-pub fn get_errno_impl() -> i32 { return -1 }
-pub fn net_getsockopt_error_impl(fd: i32) -> i32 { return -1 }
+extern fn WSAGetLastError() -> i32
+extern fn socket(af: i32, kind: i32, protocol: i32) -> i32
+extern fn bind(s: i32, *name: void, namelen: i32) -> i32
+extern fn listen(s: i32, backlog: i32) -> i32
+extern fn accept(s: i32, *addr: void, *addrlen: i32) -> i32
+extern fn connect(s: i32, *name: void, namelen: i32) -> i32
+extern fn send(s: i32, *buf: void, len: i32, flags: i32) -> i32
+extern fn recv(s: i32, *buf: void, len: i32, flags: i32) -> i32
+extern fn sendto(s: i32, *buf: void, len: i32, flags: i32, *to: void, tolen: i32) -> i32
+extern fn recvfrom(s: i32, *buf: void, len: i32, flags: i32, *from: void, *fromlen: i32) -> i32
+extern fn closesocket(s: i32) -> i32
+extern fn ioctlsocket(s: i32, cmd: u32, *argp: u32) -> i32
+extern fn setsockopt(s: i32, level: i32, optname: i32, *optval: void, optlen: i32) -> i32
+extern fn getsockopt(s: i32, level: i32, optname: i32, *optval: void, *optlen: i32) -> i32
 
-pub fn net_bind_impl(fd: i32, ip: u32, port: u16) -> i32 { return -1 }
-pub fn net_listen_impl(fd: i32) -> i32 { return -1 }
-pub fn net_connect_impl(fd: i32, ip: u32, port: u16) -> i32 { return -1 }
-pub fn net_accept_impl(fd: i32) -> i32 { return -1 }
+pub fn get_last_error() -> i32 {
+    unsafe { return WSAGetLastError() }
+}
 
-pub fn net_close_impl(fd: i32) { }
-pub fn net_read_impl(fd: i32, *buf: u8, len: usize) -> i64 { return -1 }
-pub fn net_write_impl(fd: i32, *buf: u8, len: usize) -> i64 { return -1 }
-pub fn get_eagain_impl() -> i32 { return 11 } // EWOULDBLOCK
+pub fn get_errno_impl() -> i32 {
+    unsafe { return WSAGetLastError() }
+}
 
-pub fn net_set_nonblocking_impl(fd: i32) -> bool { return false }
+pub fn get_eagain_impl() -> i32 {
+    return 10035 // WSAEWOULDBLOCK
+}
+
+pub fn net_socket_impl() -> i32 {
+    unsafe {
+        toka_ensure_wsa_initialized()
+        return socket(2, 1, 0)
+    }
+}
+
+pub fn net_socket_udp_impl() -> i32 {
+    unsafe {
+        toka_ensure_wsa_initialized()
+        return socket(2, 2, 0)
+    }
+}
+
+pub fn net_setsockopt_reuse_impl(fd: i32) -> i32 {
+    unsafe {
+        if fd == -1 { return -1 }
+        toka_ensure_wsa_initialized()
+        auto *opt# = unsafe alloc [4] byte as *[i32]
+        opt[0] = 1
+        auto res = setsockopt(fd, 0xFFFF, 4, *opt as *void, 4)
+        libc_free(*opt as *void)
+        return res
+    }
+}
+
+fn fill_sockaddr_in(*addr_buf: char, ip: usize, port: i32) -> bool {
+    unsafe {
+        auto *base_ptr# = *addr_buf
+        
+        // Offset 0: family = 2 (u16)
+        auto *p_family# = *base_ptr as *u16
+        p_family = 2:u16
+        
+        // Offset 2: port (u16)
+        auto nport: u16 = libc_htons(port as u16)
+        auto *p_port# = (*base_ptr as usize + 2) as *u16
+        p_port = nport
+        
+        // Offset 4: addr (u32)
+        auto *p_addr# = (*base_ptr as usize + 4) as *u32
+        p_addr = ip as u32
+        
+        // Offset 8..16: Zero
+        auto i#: usize = 8
+        while i < 16 {
+            auto *p_z# = (*base_ptr as usize + i) as *char
+            p_z = 0 as char
+            i += 1
+        }
+        return true
+    }
+}
+
+pub fn net_bind_impl(fd: i32, ip: u32, port: u16) -> i32 {
+    unsafe {
+        if fd == -1 { return -1 }
+        toka_ensure_wsa_initialized()
+        auto *addr_buf# = unsafe alloc [32] byte as *char
+        if *addr_buf as usize == 0 { return -1 }
+        
+        if !fill_sockaddr_in(*addr_buf, ip as usize, port as i32) {
+            libc_free(*addr_buf as *void)
+            return -1
+        }
+        
+        auto res = bind(fd, *addr_buf as *void, 16)
+        libc_free(*addr_buf as *void)
+        return res
+    }
+}
+
+pub fn net_listen_impl(fd: i32) -> i32 {
+    unsafe {
+        if fd == -1 { return -1 }
+        toka_ensure_wsa_initialized()
+        return listen(fd, 128)
+    }
+}
+
+pub fn net_connect_impl(fd: i32, ip: u32, port: u16) -> i32 {
+    unsafe {
+        if fd == -1 { return -1 }
+        toka_ensure_wsa_initialized()
+        auto *addr_buf# = unsafe alloc [32] byte as *char
+        if *addr_buf as usize == 0 { return -2 }
+        
+        if !fill_sockaddr_in(*addr_buf, ip as usize, port as i32) {
+            libc_free(*addr_buf as *void)
+            return -3
+        }
+        
+        auto res = connect(fd, *addr_buf as *void, 16)
+        libc_free(*addr_buf as *void)
+        return res
+    }
+}
+
+pub fn net_accept_impl(fd: i32) -> i32 {
+    unsafe {
+        if fd == -1 { return -1 }
+        toka_ensure_wsa_initialized()
+        auto *addr_len_ptr# = unsafe alloc [4] byte as *[i32]
+        addr_len_ptr[0] = 16
+        auto *addr_buf# = unsafe alloc [16] byte as *void
+        
+        auto res = accept(fd, *addr_buf, *addr_len_ptr as *i32)
+        
+        libc_free(*addr_len_ptr as *void)
+        libc_free(*addr_buf)
+        return res
+    }
+}
+
+pub fn net_close_impl(fd: i32) {
+    if fd == -1 { return }
+    unsafe {
+        closesocket(fd)
+    }
+}
+
+pub fn net_read_impl(fd: i32, *buf: u8, len: usize) -> i64 {
+    unsafe {
+        if fd == -1 { return -1 }
+        return recv(fd, *buf as *void, len as i32, 0) as i64
+    }
+}
+
+pub fn net_write_impl(fd: i32, *buf: u8, len: usize) -> i64 {
+    unsafe {
+        if fd == -1 { return -1 }
+        return send(fd, *buf as *void, len as i32, 0) as i64
+    }
+}
+
+pub fn net_sendto_impl(fd: i32, *buf: u8, len: usize, host: usize, port: i32) -> i64 {
+    unsafe {
+        if fd == -1 { return -1 }
+        toka_ensure_wsa_initialized()
+        auto *addr_buf# = unsafe alloc [32] byte as *char
+        if *addr_buf as usize == 0 { return -1 }
+        if !fill_sockaddr_in(*addr_buf, host, port) {
+            libc_free(*addr_buf as *void)
+            return -1
+        }
+        auto res = sendto(fd, *buf as *void, len as i32, 0, *addr_buf as *void, 16)
+        libc_free(*addr_buf as *void)
+        return res as i64
+    }
+}
+
+pub fn net_recvfrom_impl(fd: i32, *buf: u8, len: usize, *out_host: usize, *out_port: i32) -> i64 {
+    unsafe {
+        if fd == -1 { return -1 }
+        toka_ensure_wsa_initialized()
+        auto *addr_buf# = unsafe alloc [32] byte as *char
+        auto *addrlen# = unsafe alloc [4] byte as *i32
+        addrlen = 16
+        
+        auto res = recvfrom(fd, *buf as *void, len as i32, 0, *addr_buf as *void, *addrlen)
+        if res >= 0 {
+            auto *p0 = (*addr_buf as usize + 2) as *u8
+            auto *p1 = (*addr_buf as usize + 3) as *u8
+            auto *pp# = *out_port
+            pp = ((p0 as i32) bshl 8) bor (p1 as i32)
+            
+            auto *a = (*addr_buf as usize + 4) as *u8
+            auto *b = (*addr_buf as usize + 5) as *u8
+            auto *c = (*addr_buf as usize + 6) as *u8
+            auto *d = (*addr_buf as usize + 7) as *u8
+            auto au = a as usize
+            auto bu = b as usize
+            auto cu = c as usize
+            auto du = d as usize
+            auto *ph# = *out_host
+            ph = au bor (bu bshl 8) bor (cu bshl 16) bor (du bshl 24)
+        }
+        libc_free(*addr_buf as *void)
+        libc_free(*addrlen as *void)
+        return res as i64
+    }
+}
+
+pub fn net_getsockopt_error_impl(fd: i32) -> i32 {
+    unsafe {
+        if fd == -1 { return -1 }
+        toka_ensure_wsa_initialized()
+        auto pval = unsafe alloc [4] byte as Addr
+        auto pvlen = unsafe alloc [4] byte as Addr
+        auto *val# = pval as *i32
+        auto *vlen# = pvlen as *i32
+        val = 0
+        vlen = 4
+        auto res = getsockopt(fd, 0xFFFF, 0x1007, pval as *void, pvlen as *i32)
+        auto err = val
+        libc_free(pval as *void)
+        libc_free(pvlen as *void)
+        if res != 0 { return -1 }
+        return err
+    }
+}
+
+pub fn net_set_nonblocking_impl(fd: i32) -> bool {
+    unsafe {
+        if fd == -1 { return false }
+        toka_ensure_wsa_initialized()
+        auto mode#: u32 = 1
+        return ioctlsocket(fd, 0x8004667e:u32, *(mode) as *u32) == 0
+    }
+}
 
 pub fn reactor_create_impl() -> i32 { return -1 }
 pub fn reactor_add_read_impl(reactor_fd: i32, fd: i32, coro_handle: Addr) -> bool { return false }
@@ -33,8 +250,7 @@ pub fn reactor_add_write_impl(reactor_fd: i32, fd: i32, coro_handle: Addr) -> bo
 pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, max: i32) -> i32 {
     if timeout_ms > 0 {
         unsafe {
-            // Import the C-runtime sleep equivalent
-            libc::libc_usleep((timeout_ms * 1000) as u32)
+            sys/libc::libc_usleep((timeout_ms * 1000) as u32)
         }
     }
     return -1 
