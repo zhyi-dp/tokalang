@@ -260,9 +260,9 @@ fn win_reactor_add(fd: i32, coro: Addr, is_write: bool) -> bool {
     unsafe {
         if g_win_reactor == 0:Addr {
             auto *r# = libc_malloc(sizeof(WinReactor)) as *WinReactor
-            r.fds = libc_malloc(128 * 4:usize)
-            r.coros = libc_malloc(128 * 8:usize)
-            r.is_write = libc_malloc(128 * 4:usize)
+            r.fds = libc_malloc(128 * 4:usize) as Addr
+            r.coros = libc_malloc(128 * 8:usize) as Addr
+            r.is_write = libc_malloc(128 * 4:usize) as Addr
             r.count = 0
             r.capacity = 128
             g_win_reactor = *r as Addr
@@ -274,7 +274,13 @@ fn win_reactor_add(fd: i32, coro: Addr, is_write: bool) -> bool {
         while i < r.count {
             auto *p_fd = (r.fds as usize + (i as usize) * 4:usize) as *i32
             auto *p_is_write = (r.is_write as usize + (i as usize) * 4:usize) as *i32
-            if *p_fd == fd && *p_is_write == (if is_write { 1 } else { 0 }) {
+            
+            auto expected_is_write#: i32 = 0
+            if is_write {
+                expected_is_write = 1
+            }
+            
+            if p_fd == fd && p_is_write == expected_is_write {
                 auto *p_coro# = (r.coros as usize + (i as usize) * 8:usize) as *Addr
                 p_coro = coro
                 return true
@@ -284,7 +290,7 @@ fn win_reactor_add(fd: i32, coro: Addr, is_write: bool) -> bool {
         
         // Strict boundary check (Max 64 concurrent descriptors in Windows select)
         if r.count >= 64 {
-            auto msg = "Windows Select Reactor capacity exceeded (Max 64 concurrent descriptors)"
+            auto msg: str = "Windows Select Reactor capacity exceeded (Max 64 concurrent descriptors)"
             toka_panic(msg.raw_ptr() as Addr, msg.len() as i32)
             return false
         }
@@ -293,8 +299,13 @@ fn win_reactor_add(fd: i32, coro: Addr, is_write: bool) -> bool {
         p_fd = fd
         auto *p_coro# = (r.coros as usize + (r.count as usize) * 8:usize) as *Addr
         p_coro = coro
+        
+        auto is_w#: i32 = 0
+        if is_write {
+            is_w = 1
+        }
         auto *p_is_write# = (r.is_write as usize + (r.count as usize) * 4:usize) as *i32
-        p_is_write = if is_write { 1 } else { 0 }
+        p_is_write = is_w
         
         r.count = r.count + 1
         return true
@@ -305,9 +316,9 @@ pub fn reactor_create_impl() -> i32 {
     unsafe {
         if g_win_reactor == 0:Addr {
             auto *r# = libc_malloc(sizeof(WinReactor)) as *WinReactor
-            r.fds = libc_malloc(128 * 4:usize)
-            r.coros = libc_malloc(128 * 8:usize)
-            r.is_write = libc_malloc(128 * 4:usize)
+            r.fds = libc_malloc(128 * 4:usize) as Addr
+            r.coros = libc_malloc(128 * 8:usize) as Addr
+            r.is_write = libc_malloc(128 * 4:usize) as Addr
             r.count = 0
             r.capacity = 128
             g_win_reactor = *r as Addr
@@ -358,20 +369,20 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
             auto *p_fd = (r.fds as usize + (idx as usize) * 4:usize) as *i32
             auto *p_is_write = (r.is_write as usize + (idx as usize) * 4:usize) as *i32
             
-            if *p_is_write == 0 {
+            if p_is_write == 0 {
                 auto rc = read_count
                 auto *p_sock# = (*readfds as usize + 8:usize + (rc as usize) * 8:usize) as *Addr
-                p_sock = (*p_fd) as Addr
+                p_sock = p_fd as Addr
                 read_count = rc + 1:u32
             } else {
                 auto wc = write_count
                 auto *p_sock# = (*writefds as usize + 8:usize + (wc as usize) * 8:usize) as *Addr
-                p_sock = (*p_fd) as Addr
+                p_sock = p_fd as Addr
                 write_count = wc + 1:u32
                 
                 auto ec = except_count
                 auto *p_sock_ex# = (*exceptfds as usize + 8:usize + (ec as usize) * 8:usize) as *Addr
-                p_sock_ex = (*p_fd) as Addr
+                p_sock_ex = p_fd as Addr
                 except_count = ec + 1:u32
             }
             idx += 1
@@ -392,13 +403,13 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
             auto i# = 0:u32
             while i < rc {
                 auto *p_sock = (*readfds as usize + 8:usize + (i as usize) * 8:usize) as *Addr
-                auto sock_fd = (*p_sock) as i32
+                auto sock_fd = p_sock as i32
                 
                 auto k# = 0
                 while k < r.count {
                     auto *p_fd = (r.fds as usize + (k as usize) * 4:usize) as *i32
                     auto *p_is_write = (r.is_write as usize + (k as usize) * 4:usize) as *i32
-                    if *p_fd == sock_fd && *p_is_write == 0 {
+                    if p_fd == sock_fd && p_is_write == 0 {
                         auto *p_coro = (r.coros as usize + (k as usize) * 8:usize) as *Addr
                         
                         if n_out < max {
@@ -433,13 +444,13 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
             auto j# = 0:u32
             while j < wc {
                 auto *p_sock = (*writefds as usize + 8:usize + (j as usize) * 8:usize) as *Addr
-                auto sock_fd = (*p_sock) as i32
+                auto sock_fd = p_sock as i32
                 
                 auto k# = 0
                 while k < r.count {
                     auto *p_fd = (r.fds as usize + (k as usize) * 4:usize) as *i32
                     auto *p_is_write = (r.is_write as usize + (k as usize) * 4:usize) as *i32
-                    if *p_fd == sock_fd && *p_is_write == 1 {
+                    if p_fd == sock_fd && p_is_write == 1 {
                         auto *p_coro = (r.coros as usize + (k as usize) * 8:usize) as *Addr
                         
                         if n_out < max {
@@ -474,13 +485,13 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
             auto j_ex# = 0:u32
             while j_ex < ec {
                 auto *p_sock = (*exceptfds as usize + 8:usize + (j_ex as usize) * 8:usize) as *Addr
-                auto sock_fd = (*p_sock) as i32
+                auto sock_fd = p_sock as i32
                 
                 auto k# = 0
                 while k < r.count {
                     auto *p_fd = (r.fds as usize + (k as usize) * 4:usize) as *i32
                     auto *p_is_write = (r.is_write as usize + (k as usize) * 4:usize) as *i32
-                    if *p_fd == sock_fd && *p_is_write == 1 {
+                    if p_fd == sock_fd && p_is_write == 1 {
                         auto *p_coro = (r.coros as usize + (k as usize) * 8:usize) as *Addr
                         
                         if n_out < max {
