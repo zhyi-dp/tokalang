@@ -359,17 +359,17 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
             auto *p_is_write = (r.is_write as usize + (idx as usize) * 4:usize) as *i32
             
             if *p_is_write == 0 {
-                auto rc = *read_count
+                auto rc = read_count
                 auto *p_sock# = (*readfds as usize + 8:usize + (rc as usize) * 8:usize) as *Addr
                 p_sock = (*p_fd) as Addr
                 read_count = rc + 1:u32
             } else {
-                auto wc = *write_count
+                auto wc = write_count
                 auto *p_sock# = (*writefds as usize + 8:usize + (wc as usize) * 8:usize) as *Addr
                 p_sock = (*p_fd) as Addr
                 write_count = wc + 1:u32
                 
-                auto ec = *except_count
+                auto ec = except_count
                 auto *p_sock_ex# = (*exceptfds as usize + 8:usize + (ec as usize) * 8:usize) as *Addr
                 p_sock_ex = (*p_fd) as Addr
                 except_count = ec + 1:u32
@@ -388,7 +388,7 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
         auto n_out# = 0
         if res > 0 {
             // Process ready read events
-            auto rc = *read_count
+            auto rc = read_count
             auto i# = 0:u32
             while i < rc {
                 auto *p_sock = (*readfds as usize + 8:usize + (i as usize) * 8:usize) as *Addr
@@ -429,7 +429,7 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
             }
             
             // Process ready write events
-            auto wc = *write_count
+            auto wc = write_count
             auto j# = 0:u32
             while j < wc {
                 auto *p_sock = (*writefds as usize + 8:usize + (j as usize) * 8:usize) as *Addr
@@ -470,7 +470,7 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
             }
             
             // Process ready exception events (connection failures)
-            auto ec = *except_count
+            auto ec = except_count
             auto j_ex# = 0:u32
             while j_ex < ec {
                 auto *p_sock = (*exceptfds as usize + 8:usize + (j_ex as usize) * 8:usize) as *Addr
