@@ -44,3 +44,4 @@
 - toka 代码行尾不需要分号 toka 代码行尾不需要分号 toka 代码行尾不需要分号
 - test tk 文件名不需要 test_前缀
 - 临时文件不需要 git 管理的，请在**当前目录**的 ./tmp/ 下创建，不要使用 /tmp/ ！！！！
+- 跨平台静态联审原则（路由欺骗）：在 Linux 本地修改 Windows/macOS 等专属平台代码（如 net_windows.tk）时，必须通过临时将编译器平台分流代码（如 src/Parser/Parser_Decl.cpp）中的平台导入路由强行修改为目标平台（如 redirect 强制指向 sys/net_windows 与 sys/windows），在本地编译并对相关网络/IO用例进行前端类型与语法联审，将所有潜在的编译错误和指针隐患在本地一次性杀灭，严禁直接推送未经验证的跨平台代码！
