@@ -1,0 +1,67 @@
+import std/io::println
+import core/option::{Option}
+import core/types::{Addr}
+
+shape Resource (
+    &drop_flag#: i32
+)
+impl Resource@encap {
+    pub *
+    pub fn clone(self) = delete
+    fn drop(self#) {
+        self.drop_flag += 1
+    }
+}
+
+shape SharedHandle (
+    data: Addr,
+    *ref_ptr: i32
+)
+impl SharedHandle@encap {
+    pub *
+    pub fn clone(self) = delete
+    fn drop(self#) {}
+}
+
+fn get_ref_count(~res: Resource) -> i32 {
+    auto *handle_ptr = &(*res) as *SharedHandle
+    if *handle_ptr.ref_ptr is null {
+        return 0
+    }
+    return handle_ptr.ref_ptr
+}
+
+fn main() -> i32 {
+    auto flag# = 0
+    {
+        auto ~res = new Resource(&drop_flag = &flag)
+        
+        // Initial refcount must be 1
+        println("Initial refcount: {}", get_ref_count(~res))
+        assert(get_ref_count(~res) == 1, "Initial refcount must be 1")
+
+        auto opt = Option<~Resource>::Some(~res)
+        
+        // After passing to Some, refcount must be 2
+        println("Refcount after Some: {}", get_ref_count(~res))
+        assert(get_ref_count(~res) == 2, "Refcount must be 2 after Some")
+
+        match opt {
+            auto Option<~Resource>::Some(~x) => {
+                // Inside match arm:
+                // Under our new IncRef logic:
+                // x is bound as a shared pointer, which increments refcount to 3!
+                println("Refcount in match arm: {}", get_ref_count(~x))
+                assert(get_ref_count(~x) == 3, "Refcount must be 3 inside match arm")
+            }
+            _ => {}
+        }
+
+        // After leaving match arm:
+        // x is dropped, decrementing refcount back to 2!
+        println("Refcount after match arm: {}", get_ref_count(~res))
+        assert(get_ref_count(~res) == 2, "Refcount must be 2 after match arm")
+
+    }
+    return 0
+}

@@ -49,12 +49,35 @@ std::unique_ptr<MatchArm::Pattern> Parser::parseSinglePattern() {
 
   bool isMut = false;
   bool isRef = false;
+  bool isUnique = false;
+  bool isShared = false;
+  bool isPointer = false;
   match(TokenType::KwAuto); // skip auto if present
 
-  if (match(TokenType::Ampersand)) {
-    isRef = true;
-    if (match(TokenType::KwMut))
-      isMut = true;
+  std::string morphologyPrefix = "";
+  while (true) {
+    if (match(TokenType::Ampersand)) {
+      isRef = true;
+      morphologyPrefix += "&";
+      if (match(TokenType::KwMut))
+        isMut = true;
+    } else if (match(TokenType::And)) {
+      isRef = true;
+      morphologyPrefix += "&&";
+      if (match(TokenType::KwMut))
+        isMut = true;
+    } else if (match(TokenType::Caret)) {
+      isUnique = true;
+      morphologyPrefix += "^";
+    } else if (match(TokenType::Tilde)) {
+      isShared = true;
+      morphologyPrefix += "~";
+    } else if (match(TokenType::Star)) {
+      isPointer = true;
+      morphologyPrefix += "*";
+    } else {
+      break;
+    }
   }
 
   if (check(TokenType::LParen)) {
@@ -247,7 +270,7 @@ std::unique_ptr<MatchArm::Pattern> Parser::parseSinglePattern() {
 
     auto p = std::make_unique<MatchArm::Pattern>(MatchArm::Pattern::Variable);
     p->Loc = nameTok.Loc;
-    p->Name = name;
+    p->Name = morphologyPrefix + name;
     p->IsReference = isRef;
     p->IsValueMutable = nameTok.HasWrite;
     p->IsValueBlocked = nameTok.IsBlocked;
@@ -270,6 +293,10 @@ std::unique_ptr<Expr> Parser::parseMatchExpr() {
   std::vector<std::unique_ptr<MatchArm>> arms;
   while (!check(TokenType::RBrace) && !check(TokenType::EndOfFile)) {
     auto pat = parsePattern();
+    if (!pat) {
+      advance(); // Prevent infinite loop on syntax error
+      continue;
+    }
     std::unique_ptr<Expr> guard = nullptr;
     if (match(TokenType::KwIf)) {
       guard = parseExpr();

@@ -1919,6 +1919,11 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
       if (!baseShapeName.empty() && m_Shapes.count(baseShapeName)) {
           hasDrop = true;
       }
+      bool isUnique = expr->Target->ResolvedType ? expr->Target->ResolvedType->isUniquePtr() : false;
+      bool isShared = expr->Target->ResolvedType ? expr->Target->ResolvedType->isSharedPtr() : false;
+      if (isUnique || isShared) {
+          hasDrop = true;
+      }
       
       if (hasDrop) {
           VariableScopeInfo vsi;
@@ -1926,8 +1931,8 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
           vsi.Name = ".match_ext_" + std::to_string(matchExtId++);
           vsi.Alloca = targetAddr;
           vsi.AllocType = targetType;
-          vsi.IsUniquePointer = false;
-          vsi.IsShared = false;
+          vsi.IsUniquePointer = isUnique;
+          vsi.IsShared = isShared;
           vsi.HasDrop = true;
           vsi.SoulName = shapeName; // Original full shape name
           m_ScopeStack.back().push_back(vsi);
@@ -2548,9 +2553,9 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
         PhysEntity guardVal_ent = genExpr(arm->Guard.get()).load(m_Builder);
         llvm::Value *guardVal = guardVal_ent.load(m_Builder);
 
-        m_Builder.CreateCondBr(guardVal, armBB, nextArmBB);
         cleanupScopes(m_ScopeStack.size() - 1);
         m_ScopeStack.pop_back(); // Clean up guard scope
+        m_Builder.CreateCondBr(guardVal, armBB, nextArmBB);
       } else {
         m_Builder.CreateCondBr(cond, armBB, nextArmBB);
       }
@@ -3296,6 +3301,37 @@ void CodeGen::genPatternBinding(const MatchArm::Pattern *pat,
 
     if (!pat->IsReference) {
       val = m_Builder.CreateLoad(targetType, targetAddr, pName);
+      
+      if (isShared && val->getType()->isStructTy()) {
+          llvm::Value *refPtr = m_Builder.CreateExtractValue(val, 1, pName + "_refptr");
+          llvm::Value *refNN = m_Builder.CreateIsNotNull(refPtr, pName + "_ref_nn");
+
+          llvm::Function *F = m_Builder.GetInsertBlock()->getParent();
+          llvm::BasicBlock *doIncBB = llvm::BasicBlock::Create(m_Context, pName + "_inc", F);
+          llvm::BasicBlock *contBB = llvm::BasicBlock::Create(m_Context, pName + "_cont", F);
+
+          m_Builder.CreateCondBr(refNN, doIncBB, contBB);
+          m_Builder.SetInsertPoint(doIncBB);
+
+          bool isAtomic = false;
+          if (targetTypeObj) {
+              auto st = std::dynamic_pointer_cast<ShapeType>(targetTypeObj->getSoulType());
+              if (st) {
+                  isAtomic = st->IsSync;
+              }
+          }
+
+          if (isAtomic) {
+              m_Builder.CreateAtomicRMW(llvm::AtomicRMWInst::Add, refPtr, m_Builder.getInt32(1), llvm::MaybeAlign(4), llvm::AtomicOrdering::SequentiallyConsistent);
+          } else {
+              llvm::Value *cnt = m_Builder.CreateLoad(llvm::Type::getInt32Ty(m_Context), refPtr);
+              llvm::Value *inc = m_Builder.CreateAdd(cnt, m_Builder.getInt32(1));
+              m_Builder.CreateStore(inc, refPtr);
+          }
+
+          m_Builder.CreateBr(contBB);
+          m_Builder.SetInsertPoint(contBB);
+      }
     }
 
     if (alreadyRegistered) {

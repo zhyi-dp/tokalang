@@ -1,0 +1,55 @@
+import std/io::println
+import core/option::{Option}
+import core/types::{Addr}
+
+shape Resource (
+    &drop_flag#: i32
+)
+impl Resource@encap {
+    pub *
+    pub fn clone(self) = delete
+    fn drop(self#) {
+        self.drop_flag += 1
+    }
+}
+
+shape SharedHandle (
+    data: Addr,
+    *ref_ptr: i32
+)
+impl SharedHandle@encap {
+    pub *
+    pub fn clone(self) = delete
+    fn drop(self#) {}
+}
+
+fn get_ref_count(~res: Resource) -> i32 {
+    auto *handle_ptr = &(*res) as *SharedHandle
+    if *handle_ptr.ref_ptr is null {
+        return 0
+    }
+    return handle_ptr.ref_ptr
+}
+
+fn main() -> i32 {
+    auto flag# = 0
+    {
+        auto ~res = new Resource(&drop_flag = &flag)
+        auto opt = Option<~Resource>::Some(~res)
+        
+        assert(get_ref_count(~res) == 2, "Refcount must be 2 after Some")
+
+        match opt {
+            auto Option<~Resource>::Some(~x) if false => {
+                // Guard fails
+            }
+            _ => {}
+        }
+
+        // Under the bug: guard scope leaked, so refcount remains 3!
+        // Under our fix: guard scope cleaned up, so refcount is back to 2!
+        println("Refcount after match with failed guard: {}", get_ref_count(~res))
+        assert(get_ref_count(~res) == 2, "Refcount must be 2 after failed guard")
+    }
+    return 0
+}
