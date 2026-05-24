@@ -86,7 +86,7 @@ jobs:
               CC=$LLVM_PATH/bin/clang CXX=$LLVM_PATH/bin/clang++ cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_SYSROOT=$(xcrun --show-sdk-path) -DCMAKE_OSX_ARCHITECTURES=x86_64 -DLLVM_DIR=$LLVM_PATH/lib/cmake/llvm -DLLD_DIR=$LLD_PATH/lib/cmake/lld -DCMAKE_EXE_LINKER_FLAGS="-L$HOME/intel-brew/lib"
             else
               export LLVM_PATH=$(brew --prefix llvm@20 || brew --prefix llvm)
-              CC=$LLVM_PATH/bin/clang CXX=$LLVM_PATH/bin/clang++ cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_SYSROOT=$(xcrun --show-sdk-path) -DCMAKE_OSX_ARCHITECTURES=arm64
+              CC=$LLVM_PATH/bin/clang CXX=$LLVM_PATH/bin/clang++ cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_SYSROOT=$(xcrun --show-sdk-path) -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_EXE_LINKER_FLAGS="-L/opt/homebrew/lib -L/usr/local/lib"
             fi
           else
             cmake .. -DCMAKE_BUILD_TYPE=Release
