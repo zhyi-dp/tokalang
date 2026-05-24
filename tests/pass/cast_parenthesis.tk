@@ -1,0 +1,15 @@
+import std/io::{println}
+
+shape MyType(val: i32)
+
+impl MyType {
+    pub fn test(self) {
+        println("Parenthesis cast validation: OK!")
+    }
+}
+
+fn main() -> i32 {
+    auto x = MyType(val = 42)
+    (x as MyType).test()
+    return 0
+}

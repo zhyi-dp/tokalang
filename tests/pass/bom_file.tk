@@ -1,0 +1,5 @@
+﻿import std/io::{println}
+fn main() -> i32 {
+    println("BOM filter is working perfectly!")
+    return 0
+}
