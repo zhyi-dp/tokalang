@@ -3,3 +3,8 @@ error[E0105]: Parse error: Range operators '..<' and '..=' must be surrounded by
    |
  4 |         0..=10 => {
    |          ^
+error[E0105]: Parse error: Expected expression
+ --> tests/fail/match_range_space_err.tk:7:9
+   |
+ 7 |         default => {
+   |         ^

@@ -1,0 +1,5 @@
+error[E0101]: Expected ';' or newline after statement
+ --> tests/fail/cast_no_parenthesis.tk:12:25
+    |
+ 12 |     auto y = x as MyType.test()
+    |                         ^
