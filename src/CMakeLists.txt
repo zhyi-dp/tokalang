@@ -42,4 +42,12 @@ foreach(libname ${lld_names})
     endif()
 endforeach()
 
-target_link_libraries(tokac PUBLIC ${lld_libs} ${llvm_libs} zstd z curses)
+target_link_libraries(tokac PUBLIC ${lld_libs} ${llvm_libs})
+
+if(APPLE)
+    target_link_libraries(tokac PUBLIC zstd z curses)
+elseif(UNIX)
+    target_link_libraries(tokac PUBLIC zstd z)
+else()
+    target_link_libraries(tokac PUBLIC zstd)
+endif()
