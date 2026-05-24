@@ -42,4 +42,4 @@ foreach(libname ${lld_names})
     endif()
 endforeach()
 
-target_link_libraries(tokac PUBLIC ${lld_libs} ${llvm_libs})
+target_link_libraries(tokac PUBLIC ${lld_libs} ${llvm_libs} ${LLVM_SYSTEM_LIBS})
