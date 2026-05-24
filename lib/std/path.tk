@@ -15,6 +15,7 @@
 import std/string::{String}
 import core/types::{char, Addr, usize}
 import core/option::{Option}
+import sys/os as sys
 
 /**
  * A structure representing a filesystem path.
@@ -34,7 +35,12 @@ impl Path {
 
     pub fn is_absolute(self) -> bool {
         if self.inner.len() > 0 {
-            if self.inner.at(0).unwrap() == 47:char { return true } // '/'
+            auto first = self.inner.at(0).unwrap()
+            if first == 47:char || first == 92:char { return true } // '/' or '\\'
+            if self.inner.len() > 1 {
+                auto second = self.inner.at(1).unwrap()
+                if second == 58:char { return true } // ':' (e.g. C:)
+            }
         }
         return false
     }
@@ -43,14 +49,15 @@ impl Path {
         auto res# = self.inner.clone()
         if res.len() > 0 {
             auto last = res.at(res.len() - 1).unwrap()
-            if last != 47:char { // '/'
-                res#.push_char(47:char)
+            if last != 47:char && last != 92:char { // neither '/' nor '\\'
+                res#.push_char(sys::path_sep())
             }
         }
         
         auto sub_start#: usize = 0
         if sub.len() > 0 {
-            if sub.at(0).unwrap() == 47:char {
+            auto first = sub.at(0).unwrap()
+            if first == 47:char || first == 92:char {
                 sub_start = 1
             }
         }
@@ -92,7 +99,8 @@ impl Path {
         auto last_slash#: i64 = -1
         auto i#: usize = 0
         while i < self.inner.len() {
-            if self.inner.at(i).unwrap() == 47:char { // '/'
+            auto c = self.inner.at(i).unwrap()
+            if c == 47:char || c == 92:char { // '/' or '\\'
                 last_slash = i as i64
             }
             i = i + 1
@@ -114,7 +122,8 @@ impl Path {
         auto last_slash#: i64 = -1
         auto i#: usize = 0
         while i < self.inner.len() {
-            if self.inner.at(i).unwrap() == 47:char { // '/'
+            auto c = self.inner.at(i).unwrap()
+            if c == 47:char || c == 92:char { // '/' or '\\'
                 last_slash = i as i64
             }
             i = i + 1
@@ -125,6 +134,10 @@ impl Path {
         }
         
         if last_slash == 0 {
+            auto first = self.inner.at(0).unwrap()
+            if first == 92:char {
+                return String::from("\\")
+            }
             return String::from("/")
         }
         

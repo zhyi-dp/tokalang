@@ -4,6 +4,10 @@ import std/string::{String}
 import core/libc::*
 import sys/libc::*
 
+pub fn path_sep() -> char {
+    return 47:char
+}
+
 // Removed raw syscalls in favor of libc_fopen/fread
 
 // Returns the number of command-line arguments.

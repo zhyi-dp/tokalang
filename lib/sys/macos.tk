@@ -5,6 +5,10 @@ import core/libc::*
 import sys/libc::*
 import core/option::{Option}
 
+pub fn path_sep() -> char {
+    return 47:char
+}
+
 // macOS specific argument retrieval externs.
 extern fn _NSGetArgc() -> *i32
 extern fn _NSGetArgv() -> *Addr 
