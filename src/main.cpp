@@ -254,7 +254,7 @@ void parseSource(const std::string &filename,
     pathsToTry.push_back("lib/");
     pathsToTry.push_back("../lib/");
     for (const auto &p : searchPaths) {
-      if (!p.empty() && p.back() != '/') {
+      if (!p.empty() && p.back() != '/' && p.back() != '\\') {
         pathsToTry.push_back(p + "/");
       } else {
         pathsToTry.push_back(p);
