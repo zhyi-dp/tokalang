@@ -81,7 +81,7 @@ jobs:
             if [ "${{ matrix.name }}" = "macos-x64" ]; then
               export LLVM_PATH=~/intel-brew/opt/llvm@20
               if [ ! -d "$LLVM_PATH" ]; then export LLVM_PATH=~/intel-brew/opt/llvm; fi
-              CC=$LLVM_PATH/bin/clang CXX=$LLVM_PATH/bin/clang++ cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_SYSROOT=$(xcrun --show-sdk-path) -DCMAKE_OSX_ARCHITECTURES=x86_64
+              CC=$LLVM_PATH/bin/clang CXX=$LLVM_PATH/bin/clang++ cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_SYSROOT=$(xcrun --show-sdk-path) -DCMAKE_OSX_ARCHITECTURES=x86_64 -DLLVM_DIR=$LLVM_PATH/lib/cmake/llvm -DLLD_DIR=$LLVM_PATH/lib/cmake/lld
             else
               export LLVM_PATH=$(brew --prefix llvm@20 || brew --prefix llvm)
               CC=$LLVM_PATH/bin/clang CXX=$LLVM_PATH/bin/clang++ cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_SYSROOT=$(xcrun --show-sdk-path) -DCMAKE_OSX_ARCHITECTURES=arm64
