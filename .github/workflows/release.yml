@@ -20,7 +20,7 @@ jobs:
             display_os: Linux (x64)
             name: linux-x64
             pkg_cmd: OS=linux ARCH=x64 ./tools/scripts/package_release.sh ${{ github.ref_name }}
-          - os: macos-13
+          - os: macos-latest
             display_os: macOS (Intel)
             name: macos-x64
             pkg_cmd: OS=macos ARCH=x64 ./tools/scripts/package_release.sh ${{ github.ref_name }}
@@ -49,8 +49,15 @@ jobs:
       - name: Install LLVM 20 (macOS)
         if: runner.os == 'macOS'
         run: |
-          brew install llvm@20 lld@20 || brew install llvm lld
-          brew link --force llvm@20 || brew link --force llvm
+          if [ "${{ matrix.name }}" = "macos-x64" ]; then
+            # Install an independent Intel Homebrew to fetch x86_64 bottles on Apple Silicon
+            git clone --depth=1 https://github.com/Homebrew/brew ~/intel-brew
+            arch -x86_64 ~/intel-brew/bin/brew install llvm@20 lld@20 || arch -x86_64 ~/intel-brew/bin/brew install llvm lld
+            arch -x86_64 ~/intel-brew/bin/brew link --force llvm@20 || arch -x86_64 ~/intel-brew/bin/brew link --force llvm
+          else
+            brew install llvm@20 lld@20 || brew install llvm lld
+            brew link --force llvm@20 || brew link --force llvm
+          fi
 
       - name: Setup MSYS2 (Windows)
         if: runner.os == 'Windows'
@@ -71,8 +78,14 @@ jobs:
         run: |
           mkdir build && cd build
           if [ "${{ runner.os }}" = "macOS" ]; then
-            export LLVM_PATH=$(brew --prefix llvm@20 || brew --prefix llvm)
-            CC=$LLVM_PATH/bin/clang CXX=$LLVM_PATH/bin/clang++ cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_SYSROOT=$(xcrun --show-sdk-path)
+            if [ "${{ matrix.name }}" = "macos-x64" ]; then
+              export LLVM_PATH=~/intel-brew/opt/llvm@20
+              if [ ! -d "$LLVM_PATH" ]; then export LLVM_PATH=~/intel-brew/opt/llvm; fi
+              CC=$LLVM_PATH/bin/clang CXX=$LLVM_PATH/bin/clang++ cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_SYSROOT=$(xcrun --show-sdk-path) -DCMAKE_OSX_ARCHITECTURES=x86_64
+            else
+              export LLVM_PATH=$(brew --prefix llvm@20 || brew --prefix llvm)
+              CC=$LLVM_PATH/bin/clang CXX=$LLVM_PATH/bin/clang++ cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_SYSROOT=$(xcrun --show-sdk-path) -DCMAKE_OSX_ARCHITECTURES=arm64
+            fi
           else
             cmake .. -DCMAKE_BUILD_TYPE=Release
           fi
@@ -83,9 +96,16 @@ jobs:
           
           # Compile Runtime
           if [ "${{ runner.os }}" = "macOS" ]; then
-            export LLVM_PATH=$(brew --prefix llvm@20 || brew --prefix llvm)
-            $LLVM_PATH/bin/clang -isysroot $(xcrun --show-sdk-path) -c $GITHUB_WORKSPACE/lib/sys/toka_rt.c -o $GITHUB_WORKSPACE/lib/sys/toka_rt.o
-            $LLVM_PATH/bin/clang++ -isysroot $(xcrun --show-sdk-path) -O3 -c $GITHUB_WORKSPACE/lib/sys/llvm_shim.cpp -o $GITHUB_WORKSPACE/lib/sys/llvm_shim.o -I$LLVM_PATH/include
+            if [ "${{ matrix.name }}" = "macos-x64" ]; then
+              export LLVM_PATH=~/intel-brew/opt/llvm@20
+              if [ ! -d "$LLVM_PATH" ]; then export LLVM_PATH=~/intel-brew/opt/llvm; fi
+              $LLVM_PATH/bin/clang -isysroot $(xcrun --show-sdk-path) -arch x86_64 -c $GITHUB_WORKSPACE/lib/sys/toka_rt.c -o $GITHUB_WORKSPACE/lib/sys/toka_rt.o
+              $LLVM_PATH/bin/clang++ -isysroot $(xcrun --show-sdk-path) -arch x86_64 -O3 -c $GITHUB_WORKSPACE/lib/sys/llvm_shim.cpp -o $GITHUB_WORKSPACE/lib/sys/llvm_shim.o -I$LLVM_PATH/include
+            else
+              export LLVM_PATH=$(brew --prefix llvm@20 || brew --prefix llvm)
+              $LLVM_PATH/bin/clang -isysroot $(xcrun --show-sdk-path) -arch arm64 -c $GITHUB_WORKSPACE/lib/sys/toka_rt.c -o $GITHUB_WORKSPACE/lib/sys/toka_rt.o
+              $LLVM_PATH/bin/clang++ -isysroot $(xcrun --show-sdk-path) -arch arm64 -O3 -c $GITHUB_WORKSPACE/lib/sys/llvm_shim.cpp -o $GITHUB_WORKSPACE/lib/sys/llvm_shim.o -I$LLVM_PATH/include
+            fi
           else
             clang-20 -c $GITHUB_WORKSPACE/lib/sys/toka_rt.c -o $GITHUB_WORKSPACE/lib/sys/toka_rt.o
             clang++-20 -O3 -c $GITHUB_WORKSPACE/lib/sys/llvm_shim.cpp -o $GITHUB_WORKSPACE/lib/sys/llvm_shim.o $(llvm-config-20 --cppflags)
