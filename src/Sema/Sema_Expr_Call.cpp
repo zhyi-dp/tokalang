@@ -680,7 +680,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
       return resolveType(fnTy->ReturnType, false);
     }
 
-    if (CallName != "cstring" && CallName != "unknown") {
+    if (CallName != "unknown") {
       DiagnosticEngine::report(getLoc(Call), DiagID::ERR_UNDECLARED, CallName);
       HasError = true;
     }

@@ -1746,17 +1746,25 @@ PhysEntity CodeGen::genLiteralExpr(const Expr *expr) {
   if (auto *str = dynamic_cast<const StringExpr *>(expr)) {
     llvm::Value *ptr = m_Builder.CreateGlobalString(str->Value);
     if (str->ResolvedType && str->ResolvedType->isShape()) {
-      llvm::Type *fatTy = getLLVMType(str->ResolvedType);
-      llvm::Value *fatVal = llvm::UndefValue::get(fatTy);
-      fatVal = m_Builder.CreateInsertValue(fatVal, ptr, {0});
-      fatVal = m_Builder.CreateInsertValue(
-          fatVal,
-          llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context),
-                                 str->Value.size()),
-          {1});
-      return PhysEntity(fatVal, "str", fatVal->getType(), false);
+      std::string shpName = str->ResolvedType->toString();
+      if (shpName == "str") {
+        llvm::Type *fatTy = getLLVMType(str->ResolvedType);
+        llvm::Value *fatVal = llvm::UndefValue::get(fatTy);
+        fatVal = m_Builder.CreateInsertValue(fatVal, ptr, {0});
+        fatVal = m_Builder.CreateInsertValue(
+            fatVal,
+            llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context),
+                                   str->Value.size()),
+            {1});
+        return PhysEntity(fatVal, "str", fatVal->getType(), false);
+      } else if (shpName == "cstr") {
+        llvm::Type *cstrTy = getLLVMType(str->ResolvedType);
+        llvm::Value *cstrVal = llvm::UndefValue::get(cstrTy);
+        cstrVal = m_Builder.CreateInsertValue(cstrVal, ptr, {0});
+        return PhysEntity(cstrVal, "cstr", cstrVal->getType(), false);
+      }
     }
-    return PhysEntity(ptr, "cstring", ptr->getType(), false);
+    return PhysEntity(ptr, "*char", ptr->getType(), false);
   }
   if (auto *vstr = dynamic_cast<const ViewStringExpr *>(expr)) {
     llvm::Value *ptr = m_Builder.CreateGlobalString(vstr->Value);
@@ -2203,7 +2211,7 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
           if (!pat->Name.empty() && pat->Name[0] == '"') {
             std::string rawLit = pat->Name.substr(1, pat->Name.size() - 2);
             auto strLit = std::make_unique<StringExpr>(rawLit);
-            strLit->ResolvedType = toka::Type::fromString("cstring");
+            strLit->ResolvedType = toka::Type::fromString("*char");
             PhysEntity litEnt = genExpr(strLit.get());
             llvm::Value *rawPtr = litEnt.load(m_Builder);
 
@@ -4754,15 +4762,13 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
                bool isNakedCString = false;
                if (argTyObj) {
                    std::string argStr = argTyObj->toString();
-                   if (argStr == "*char" || argStr == "cstring") isNakedCString = true;
+                   if (argStr == "*char") isNakedCString = true;
                }
                auto *strExpr = dynamic_cast<const StringExpr *>(call->Args[i].get());
                
-                            // std::cout << ", isPointerTy=" << (val && val->getType()->isPointerTy()) << "\n";
-                            
                if (isNakedCString && !strExpr) {
                    // User requested Safety Mode B: Do not allow dynamic *char implicitly!
-                   error(call->Args[i].get(), "Unsafe implicit cast: cannot automatically elevate a dynamic 'cstring' (*char) to a boundary-checked 'str'. Only string literals are permitted.");
+                   error(call->Args[i].get(), "Unsafe implicit cast: cannot automatically elevate a dynamic '*char' to a boundary-checked 'str'. Only string literals are permitted.");
                    return nullptr;
                }
            }
@@ -4976,14 +4982,19 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
       if (val && call->Args[i]->ResolvedType && call->Args[i]->ResolvedType->isShape()) {
           auto shp = std::static_pointer_cast<toka::ShapeType>(call->Args[i]->ResolvedType);
           if (shp->Name == "cstr") {
-              if (paramType->isPointerTy()) {
-                  if (val->getType()->isPointerTy()) {
-                      // If val is a pointer to the cstr struct, load the pointer field
-                      llvm::Value *ptrGEP = m_Builder.CreateStructGEP(getLLVMType(call->Args[i]->ResolvedType), val, 0);
-                      val = m_Builder.CreateLoad(m_Builder.getPtrTy(), ptrGEP);
-                  } else {
-                      // If val is the struct value itself, extract the first field
-                      val = m_Builder.CreateExtractValue(val, 0);
+              std::string targetArgType =
+                  (funcDecl && i < funcDecl->Args.size() ? funcDecl->Args[i].Type
+                            : (extDecl && i < extDecl->Args.size() ? extDecl->Args[i].Type : ""));
+              if (targetArgType.find("cstr") == std::string::npos) {
+                  if (paramType->isPointerTy()) {
+                      if (val->getType()->isPointerTy()) {
+                          // If val is a pointer to the cstr struct, load the pointer field
+                          llvm::Value *ptrGEP = m_Builder.CreateStructGEP(getLLVMType(call->Args[i]->ResolvedType), val, 0);
+                          val = m_Builder.CreateLoad(m_Builder.getPtrTy(), ptrGEP);
+                      } else {
+                          // If val is the struct value itself, extract the first field
+                          val = m_Builder.CreateExtractValue(val, 0);
+                      }
                   }
               }
           }

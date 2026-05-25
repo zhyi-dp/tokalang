@@ -1,20 +1,23 @@
 import std/io::println
 import std/string::String
 import core/str::str
+import core/str::cstr
 
-fn test_cstring(s: cstring) -> i32 {
-    match s {
-        "hello" => {
-            println("cstring: hello matched")
-            return 1
-        }
-        "world" => {
-            println("cstring: world matched")
-            return 2
-        }
-        _ => {
-            println("cstring: default matched")
-            return 3
+fn test_cstr(s: cstr) -> i32 {
+    unsafe {
+        match s.raw_ptr() {
+            "hello" => {
+                println("cstr: hello matched")
+                return 1
+            }
+            "world" => {
+                println("cstr: world matched")
+                return 2
+            }
+            _ => {
+                println("cstr: default matched")
+                return 3
+            }
         }
     }
 }
@@ -58,13 +61,13 @@ fn test_string(s: String) -> i32 {
 }
 
 fn main() -> i32 {
-    // 1. Test cstring matching
-    auto r1 = test_cstring("hello")
-    auto r2 = test_cstring("world")
-    auto r3 = test_cstring("other")
-    assert(r1 == 1, "cstring hello")
-    assert(r2 == 2, "cstring world")
-    assert(r3 == 3, "cstring default")
+    // 1. Test cstr matching
+    auto r1 = test_cstr("hello")
+    auto r2 = test_cstr("world")
+    auto r3 = test_cstr("other")
+    assert(r1 == 1, "cstr hello")
+    assert(r2 == 2, "cstr world")
+    assert(r3 == 3, "cstr default")
 
     // 2. Test str matching
     auto r4 = test_str(s"hello")

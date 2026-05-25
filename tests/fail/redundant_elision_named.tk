@@ -1,5 +1,5 @@
 shape Person(
-    name: cstring = "Anonymous",
+    name: str = "Anonymous",
     age: i32 = 18
 )
 

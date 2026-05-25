@@ -572,6 +572,10 @@ impl cstr@encap {
         return cstr(*buf = self.*buf)
     }
 
+    pub fn raw_ptr(self) -> *char {
+        return self.*buf
+    }
+
     fn drop(self#) {}
 }
 

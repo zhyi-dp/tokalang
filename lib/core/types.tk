@@ -37,7 +37,7 @@ pub type String16 = Vec < u16 > // UTF-16 String
 pub type String32 = Vec < Char32 > // UTF-32 String
 pub alias String = String8
 
-//Slice (like C++ std::string_view or Rust &cstring)
+//Slice (like C++ std::string_view or Rust &cstr)
 
 pub type Str8 = Slice < byte >
 pub type Str16 = Slice < u16 >

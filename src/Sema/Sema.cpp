@@ -174,7 +174,7 @@ void Sema::registerGlobals(Module &M) {
         } else if (dynamic_cast<BoolExpr *>(v->Init.get())) {
           v->TypeName = "bool";
         } else if (dynamic_cast<StringExpr *>(v->Init.get())) {
-          v->TypeName = "cstring";
+          v->TypeName = "str";
         } else {
           // Last resort: run full checkExpr (e.g. for AnonymousRecordExpr)
           std::shared_ptr<toka::Type> inferredType = checkExpr(v->Init.get());

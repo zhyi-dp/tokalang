@@ -59,7 +59,7 @@ pub fn __toka_time() -> i64 {
 }
 
 /*
-pub fn __toka_panic(message: cstring, file_name: cstring) {
+pub fn __toka_panic(*message: char, *file_name: char) {
     println("Panic: {}, {}", message, file_name)
     unsafe {
         libc_abort()

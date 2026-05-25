@@ -97,7 +97,7 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
     if (Pat->Name == "true" || Pat->Name == "false") {
       litType = toka::Type::fromString("bool");
     } else if (!Pat->Name.empty() && Pat->Name[0] == '"') {
-      if (T == "cstring" || T == "str" || T == "cstr") {
+      if (T == "*char" || T == "str" || T == "cstr") {
         litType = toka::Type::fromString(T);
       } else {
         litType = toka::Type::fromString("String");
@@ -128,7 +128,7 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
     auto resolvedTargetObj = toka::Type::fromString(resolveType(T, true));
     if (targetObj && resolvedTargetObj && !resolvedTargetObj->isInteger() && !resolvedTargetObj->isBoolean()) {
         std::string resolvedTarget = resolveType(T);
-        if (!targetObj->isPointer() && resolvedTarget != "cstring") {
+        if (!targetObj->isPointer()) {
             std::string implKey = resolvedTarget + "@PartialEq";
             if (ImplMap.find(implKey) == ImplMap.end()) {
                 error(Pat, DiagID::ERR_TRAIT_NOT_FOUND, "@PartialEq", T);

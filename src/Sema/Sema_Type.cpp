@@ -926,14 +926,11 @@ bool Sema::isTypeCompatible(std::shared_ptr<toka::Type> Target,
       }
     }
 
-    // String Literal (str -> str)
-    if (primS->Name == "cstring" && primT->Name == "cstring")
-      return true;
   }
 
-  // String literal to pointer
-  if (primS && primS->Name == "cstring") {
-    // T could be *i8 or *u8 or *char or ^...
+  // String literal (str) to pointer (*char) decay
+  if (primS && primS->Name == "str") {
+    // T could be *i8 or *u8 or *char
     if (auto ptr = std::dynamic_pointer_cast<toka::PointerType>(T)) {
       if (auto pte = std::dynamic_pointer_cast<toka::PrimitiveType>(
               ptr->getPointeeType())) {

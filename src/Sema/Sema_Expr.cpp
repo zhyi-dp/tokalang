@@ -542,7 +542,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
             }
         }
         std::string soul = m_ExpectedType->getSoulName();
-        if (soul == "cstring" || soul == "cstr" || soul == "Addr" || soul == "OAddr") {
+        if (soul == "cstr" || soul == "Addr" || soul == "OAddr") {
             return m_ExpectedType;
         }
     }

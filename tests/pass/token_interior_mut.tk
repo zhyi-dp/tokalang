@@ -3,7 +3,7 @@
 
 shape CounterInfo(
     accesses#: i32, // Zero-cost interior mutability, pure value type
-    name: cstring
+    name: str
 )
 
 fn process_info(info: CounterInfo) {

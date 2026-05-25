@@ -1,14 +1,14 @@
-fn read_config() -> wait cstring {
+fn read_config() -> wait str {
     return "config"
 }
 
-fn fetch() -> async cstring {
+fn fetch() -> async str {
     // Should trigger an error.
     read_config()
     return "hello"
 }
 
-fn fetch2() -> async cstring {
+fn fetch2() -> async str {
     // Should trigger an error
     "hello".wait
     return "hello"

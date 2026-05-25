@@ -515,11 +515,9 @@ void Sema::checkStmt(Stmt *S) {
             }
           }
         } else {
-          // Strict: No sigil, no pointer, except for "cstring" (implicit *char)
           if (!Var->IsMorphicExempt && !Inferred.empty() &&
               (Inferred[0] == '*' || Inferred[0] == '^' || Inferred[0] == '~' ||
-               Inferred[0] == '&') &&
-              Inferred.substr(0, 3) != "cstring") {
+               Inferred[0] == '&')) {
             std::string sigilStr = std::string(1, Inferred[0]);
             DiagnosticEngine::report(getLoc(Var), (int)Var->Name.length(),
                                      DiagID::ERR_POINTER_SIGIL_MISSING,

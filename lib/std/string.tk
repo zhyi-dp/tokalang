@@ -826,9 +826,9 @@ impl usize {
     }
 }
 
-impl cstring {
+impl cstr {
     pub fn to_string(self) -> String {
-        return String::from(self as *char)
+        return String::from(self.raw_ptr())
     }
 }
 
