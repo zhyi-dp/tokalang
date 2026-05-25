@@ -19,12 +19,12 @@ fn main() -> i32 {
     auto content = String::from("Hello File IO!\nLine 2")
     
     // Write
-    auto f1# = File::open(String::from("test_io.txt"), String::from("w"))
-    f1.write(content)
+    auto f1# = File::open(String::from("test_io.txt"), s"w")
+    f1.write(content.as_view())
     f1#.close()
     
     // Read
-    auto f2# = File::open(String::from("test_io.txt"), String::from("r"))
+    auto f2# = File::open(String::from("test_io.txt"), s"r")
     
     println("Reading lines:")
     

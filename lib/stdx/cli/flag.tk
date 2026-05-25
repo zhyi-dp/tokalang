@@ -237,7 +237,7 @@ impl Parser {
                 return Result<ParsedArgs, String>::Err(String::from("help requested"))
             }
 
-            if arg.starts_with(String::from("--")) {
+            if arg.starts_with(s"--") {
                 // Long option
                 auto view = arg.as_view()
                 auto eq_idx = view.index_of(61:char) // '='
@@ -330,7 +330,7 @@ impl Parser {
                         parsed.values#.insert(def.name, FlagValue::Str(val_str))
                     }
                 }
-            } else if arg.starts_with(String::from("-")) && arg.len() > 1 {
+            } else if arg.starts_with(s"-") && arg.len() > 1 {
                 // Short option(s)
                 auto view = arg.as_view()
                 auto eq_idx = view.index_of(61:char) // '='

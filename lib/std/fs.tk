@@ -148,7 +148,7 @@ pub fn metadata(path: String) -> Result<Metadata, String> {
  * Read the entire contents of a file into a string.
  */
 pub fn read_to_string(path: String) -> IoStringResult {
-    auto f# = File::open(path, String::from("r"))
+    auto f# = File::open(path, s"r")
     if !f.is_valid() {
         return IoStringResult::Err(String::from("Failed to open file for reading"))
     }
@@ -162,8 +162,8 @@ pub fn read_to_string(path: String) -> IoStringResult {
 /**
  * Write a slice as the entire contents of a file.
  */
-pub fn write_string(path: String, content: String) -> Result<bool, String> {
-    auto f# = File::open(path, String::from("w"))
+pub fn write_string(path: String, content: view_str) -> Result<bool, String> {
+    auto f# = File::open(path, s"w")
     if !f.is_valid() {
         return Result<bool, String>::Err(String::from("Failed to open file for writing"))
     }
@@ -171,7 +171,7 @@ pub fn write_string(path: String, content: String) -> Result<bool, String> {
     auto write_len = f#.write(content)
     f#.close()
     
-    if write_len != content.len() as usize {
+    if write_len != content.len() {
         return Result<bool, String>::Err(String::from("Failed to write all content to file"))
     }
     

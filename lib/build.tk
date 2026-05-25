@@ -226,7 +226,7 @@ pub fn run_build(proj: Executable) -> i32 {
                 auto toka_lib = libc_getenv("TOKA_LIB" as *char) as Addr
                 if toka_lib != 0:Addr {
                     auto env_rt# = String::from(toka_lib as *char)
-                    if !env_rt.ends_with(String::from("/")) {
+                    if !env_rt.ends_with(s"/") {
                         env_rt#.push_str("/" as *char)
                     }
                     if is_windows {

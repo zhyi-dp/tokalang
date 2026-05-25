@@ -59,9 +59,26 @@ impl File@encap {
 }
 
 impl File {
-    pub fn open(path: String, mode: String) -> File {
+    pub fn open(path: String, mode: view_str) -> File {
         unsafe {
-            auto *p = libc_fopen(path.c_str(), mode.c_str())
+            auto temp_buf# = [0:char; 8]
+            auto mode_len = mode.len()
+            if mode_len > 7 {
+                return File(
+                    *handle = ADDR0 as *void,
+                    opened = false,
+                    owned = true
+                )
+            }
+            auto i#: usize = 0
+            auto *src = mode.raw_ptr() as *[char]
+            loop i < mode_len {
+                temp_buf[i] = src[i]
+                i = i + 1
+            }
+            temp_buf[mode_len] = 0 as char
+
+            auto *p = libc_fopen(path.c_str(), &temp_buf[0] as *char)
             if *p == (ADDR0 as *void) {
                 return File(
                     *handle = ADDR0 as *void,
@@ -131,10 +148,11 @@ impl File {
         }
     }
     
-    pub fn write(self, s: String) -> usize {
+    pub fn write(self, s: view_str) -> usize {
         unsafe {
             if !self.opened { return 0 as usize }
-            return libc_fwrite(s.c_str() as *void, 1, s.len() as usize, self.*handle)
+            if s.len() == 0 { return 0 as usize }
+            return libc_fwrite(s.raw_ptr() as *void, 1, s.len(), self.*handle)
         }
     }
     pub fn is_eof(self) -> bool {
@@ -262,8 +280,8 @@ pub fn stderr() -> File {
 
 pub fn print_line(s: String) {
     auto out = get_stdout()
-    out.write(s)
-    out.write(String::from("\n"))
+    out.write(s.as_view())
+    out.write(s"\n")
 }
 
 // === File Utilities ===

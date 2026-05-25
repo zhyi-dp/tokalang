@@ -476,16 +476,16 @@ impl String {
         return opt.unwrap() as i32
     }
 
-    pub fn starts_with(self, other: String) -> bool {
-        return self.as_str().starts_with(other.as_str())
+    pub fn starts_with(self, other: view_str) -> bool {
+        return self.as_str().starts_with(other)
     }
 
-    pub fn ends_with(self, other: String) -> bool {
-        return self.as_str().ends_with(other.as_str())
+    pub fn ends_with(self, other: view_str) -> bool {
+        return self.as_str().ends_with(other)
     }
 
-    pub fn contains(self, other: String) -> bool {
-        return self.as_str().index_of_str(other.as_str()).is_some()
+    pub fn contains(self, other: view_str) -> bool {
+        return self.as_str().index_of_str(other).is_some()
     }
 
     pub fn starts_with_char(self, c: char) -> bool {
@@ -573,13 +573,13 @@ impl String {
         }
     }
 
-    pub fn find_str(self, needle: String) -> i32 {
-        auto opt = self.as_str().index_of_str(needle.as_str())
+    pub fn find_str(self, needle: view_str) -> i32 {
+        auto opt = self.as_str().index_of_str(needle)
         if opt.is_none() { return -1 }
         return opt.unwrap() as i32
     }
 
-    pub fn replace_str(self, old_s: String, new_s: String) -> String {
+    pub fn replace_str(self, old_s: view_str, new_s: view_str) -> String {
         if old_s.len() == 0 { return self.clone() }
         
         auto res# = String::from("")
@@ -587,7 +587,7 @@ impl String {
              auto i#: usize = 0
              // Get pointers to buffers
              auto *s_buf = self.*buf
-             auto *old_buf = old_s.c_str() as *[char]
+             auto *old_buf = old_s.raw_ptr() as *[char]
              
              loop i < self.len {
                   auto is_match# = true
@@ -607,7 +607,7 @@ impl String {
                   }
                   
                   if is_match {
-                      res#.push_str(new_s.c_str())
+                      res#.push_view(new_s)
                       i = i + old_s.len()
                   } else {
                       res#.push_char(s_buf[i])

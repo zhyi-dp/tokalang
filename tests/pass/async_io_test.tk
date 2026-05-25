@@ -5,9 +5,9 @@ import std/string::{String}
 
 fn async_write(file_name: String) -> async bool {
     auto res# = false
-    auto file# = File::open(file_name, String::from("w"))
+    auto file# = File::open(file_name, s"w")
     if file.is_valid() {
-        file#.write(String::from("Hello Async IO"))
+        file#.write(s"Hello Async IO")
         file#.close()
         res = true
     }
@@ -16,7 +16,7 @@ fn async_write(file_name: String) -> async bool {
 
 fn async_read(file_name: String) -> async String {
     auto res# = String::from("")
-    auto file# = File::open(file_name, String::from("r"))
+    auto file# = File::open(file_name, s"r")
     if file.is_valid() {
         auto content = file#.read_to_string()
         file#.close()

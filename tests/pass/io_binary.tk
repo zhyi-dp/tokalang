@@ -9,7 +9,7 @@ fn main() -> i32 {
         
         // Write
         {
-            auto f# = File::open(filename.clone(), String::from("wb"))
+            auto f# = File::open(filename.clone(), s"wb")
             if f.is_valid() {
                 auto *data# = alloc [4] u8
                 data[0] = 65:u8 // 'A'
@@ -28,7 +28,7 @@ fn main() -> i32 {
         
         // Read
         {
-            auto f# = File::open(filename.clone(), String::from("rb"))
+            auto f# = File::open(filename.clone(), s"rb")
             if f.is_valid() {
                 auto *buf# = alloc [10] u8
                 // Clear buffer

@@ -88,9 +88,9 @@ fn main() -> i32 {
         
         // 1. Create File and Write
         {
-            auto f# = File::open(filename.clone(), String::from("w"))
+            auto f# = File::open(filename.clone(), s"w")
             if f.is_valid() {
-                f.write(String::from("Hello Metadata"))
+                f.write(s"Hello Metadata")
                 f#.close()
             } else {
                 println("Failed to write file")

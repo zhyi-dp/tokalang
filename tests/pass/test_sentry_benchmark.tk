@@ -9,8 +9,7 @@ pub shape SentryScope (
 
 pub fn main() -> i32 {
     auto path_str = String::from("./tests/pass/scope_v2.json")
-    auto mode_str = String::from("r")
-    auto f# = File::open(path_str, mode_str)
+    auto f# = File::open(path_str, s"r")
     if !f.is_valid() {
         println("File not found")
         return 1
