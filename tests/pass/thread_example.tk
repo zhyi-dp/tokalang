@@ -9,7 +9,7 @@ pub fn main() -> i32 {
         sleep_ms(1000:u32)
         auto text# = String::from("Toka Threading with generics: target = ")
         auto num_s = String::from_i64(target)
-        text#.push_str(num_s.c_str())
+        text#.push_str(num_s.as_str())
         println("Thread 1 OK")
         return cede text
     }

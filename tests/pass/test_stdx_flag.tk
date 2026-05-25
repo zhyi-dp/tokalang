@@ -25,7 +25,7 @@ fn main() -> i32 {
     
     if res.is_err() {
         auto err_msg# = String::from("Parse failed: ")
-        err_msg#.push_str(res.unwrap_err().c_str())
+        err_msg#.push_str(res.unwrap_err().as_str())
         println("{}", err_msg.c_str())
         return 1
     }

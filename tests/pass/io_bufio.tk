@@ -7,7 +7,7 @@ pub fn main() -> i32 {
     
     // 1. Test Writing with BufferedWriter
     {
-        auto raw_f# = File::open(path.clone(), s"w")
+        auto raw_f# = File::open(path.clone(), "w")
         assert(raw_f.opened, "Failed to open raw file for writing")
         
         auto writer# = BufferedWriter<File>::new(raw_f#.take())
@@ -21,7 +21,7 @@ pub fn main() -> i32 {
     
     // 2. Test Reading with BufferedReader
     {
-        auto raw_f# = File::open(path.clone(), s"r")
+        auto raw_f# = File::open(path.clone(), "r")
         assert(raw_f.opened, "Failed to open raw file for reading")
         
         auto reader# = BufferedReader<File>::new(raw_f#.take())

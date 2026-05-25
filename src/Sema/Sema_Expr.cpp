@@ -125,11 +125,11 @@ std::unique_ptr<Expr> Sema::foldGenericConstant(std::unique_ptr<Expr> E) {
     Memb->Object = foldGenericConstant(std::move(Memb->Object));
     if (auto *CFE = dynamic_cast<ComptimeFieldExpr *>(Memb->Object.get())) {
       if (Memb->Member == "name") {
-        auto str = std::make_unique<StringExpr>(CFE->FieldName);
+        auto str = std::make_unique<ViewStringExpr>(CFE->FieldName);
         str->Loc = Memb->Loc;
         return str;
       } else if (Memb->Member == "type_name") {
-        auto str = std::make_unique<StringExpr>(CFE->FieldTypeName);
+        auto str = std::make_unique<ViewStringExpr>(CFE->FieldTypeName);
         str->Loc = Memb->Loc;
         return str;
       } else if (Memb->Member == "offset") {
@@ -168,10 +168,28 @@ std::unique_ptr<Expr> Sema::foldGenericConstant(std::unique_ptr<Expr> E) {
     Bin->LHS = foldGenericConstant(std::move(Bin->LHS));
     Bin->RHS = foldGenericConstant(std::move(Bin->RHS));
     if (Bin->Op == "==" || Bin->Op == "!=") {
-        auto *lhsStr = dynamic_cast<StringExpr *>(Bin->LHS.get());
-        auto *rhsStr = dynamic_cast<StringExpr *>(Bin->RHS.get());
-        if (lhsStr && rhsStr) {
-            bool matches = (lhsStr->Value == rhsStr->Value);
+        std::string lhsVal;
+        bool lhsIsStr = false;
+        if (auto *s = dynamic_cast<StringExpr *>(Bin->LHS.get())) {
+            lhsVal = s->Value;
+            lhsIsStr = true;
+        } else if (auto *vs = dynamic_cast<ViewStringExpr *>(Bin->LHS.get())) {
+            lhsVal = vs->Value;
+            lhsIsStr = true;
+        }
+
+        std::string rhsVal;
+        bool rhsIsStr = false;
+        if (auto *s = dynamic_cast<StringExpr *>(Bin->RHS.get())) {
+            rhsVal = s->Value;
+            rhsIsStr = true;
+        } else if (auto *vs = dynamic_cast<ViewStringExpr *>(Bin->RHS.get())) {
+            rhsVal = vs->Value;
+            rhsIsStr = true;
+        }
+
+        if (lhsIsStr && rhsIsStr) {
+            bool matches = (lhsVal == rhsVal);
             bool result = (Bin->Op == "==") ? matches : !matches;
             auto boolExpr = std::make_unique<BoolExpr>(result);
             boolExpr->Loc = Bin->Loc;
@@ -546,7 +564,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
             return m_ExpectedType;
         }
     }
-    auto t = toka::Type::fromString("str");
+    auto t = toka::Type::fromString("cstr");
     return resolveType(t);
   } else if (auto *VStr = dynamic_cast<ViewStringExpr *>(E)) {
       auto t = toka::Type::fromString("str");

@@ -100,7 +100,7 @@ impl<'T> Vec<'T> {
     pub fn insert(self#, index: usize, 'val: T) {
         if index > self.len {
             unsafe {
-                libc_printf("[Vec] panic: insert index out of bounds\n" as *char)
+                libc_printf(c"[Vec] panic: insert index out of bounds\n")
                 libc_abort()
             }
         }

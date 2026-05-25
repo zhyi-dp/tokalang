@@ -15,19 +15,19 @@ fn main() -> i32 {
     if idx != 6 { return 2 }
     
     // Test starts_with
-    if !s.starts_with(s"Hello") { 
+    if !s.starts_with("Hello") { 
         println("starts_with failed")
         return 3 
     }
     
     // Test ends_with
-    if !s.ends_with(s"World!") { 
+    if !s.ends_with("World!") { 
         println("ends_with failed")
         return 4 
     }
     
     // Test contains
-    if !s.contains(s"Toka") { 
+    if !s.contains("Toka") { 
         println("contains failed")
         return 5 
     }

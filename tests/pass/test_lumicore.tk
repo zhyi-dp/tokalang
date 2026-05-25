@@ -15,7 +15,7 @@ fn spark_char(val: i32) -> String {
 }
 
 fn test_formatting() {
-    auto color = s"\x1b[31m"
+    auto color = "\x1b[31m"
     auto label = String::from("Progress")
     auto pct = 85
     
@@ -24,8 +24,8 @@ fn test_formatting() {
 }
 
 fn main() -> i32 {
-    auto red = s"\x1b[31m"
-    auto reset = s"\x1b[0m"
+    auto red = "\x1b[31m"
+    auto reset = "\x1b[0m"
     
     // 1. print str (P0/P1)
     print("{}LumiCore{} ", red, reset)
@@ -38,7 +38,7 @@ fn main() -> i32 {
     println("Spark: {}", cede spark)
     
     // 4. str repeat
-    auto line# = s"-".repeat(10)
+    auto line# = "-".repeat(10)
     println("Line: {}", cede line)
 
     return 0

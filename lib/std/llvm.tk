@@ -285,7 +285,7 @@ impl LLVMModule {
 
     pub fn print_to_string(self) -> String {
         auto *c_str = toka_llvm_print_module_to_string(self.*handle)
-        auto res = String::from(*c_str)
+        auto res = String::from_cstr(*c_str)
         toka_llvm_dispose_string(*c_str)
         return res
     }
@@ -300,7 +300,7 @@ impl LLVMModule {
             if *err_ptr == null as *char {
                 return Result<(), String>::Err("Unknown LLVM verification error".to_string())
             }
-            auto err_msg = String::from(*err_ptr)
+            auto err_msg = String::from_cstr(*err_ptr)
             toka_llvm_dispose_string(*err_ptr)
             return Result<(), String>::Err(err_msg)
         }

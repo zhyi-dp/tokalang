@@ -6,14 +6,14 @@ fn main() -> i32 {
     
     // Scope 1: Write
     {
-        auto f# = File::open(path, s"w")
-        f.write(s"Hello RAII\n")
+        auto f# = File::open(path, "w")
+        f.write("Hello RAII\n")
         // f drops here, should close
     }
     
     // Scope 2: Read
     {
-        auto f# = File::open(path, s"r")
+        auto f# = File::open(path, "r")
         // read_line returns IoResult
         auto tmp# = f.read_line()
         auto s = tmp#.unwrap()

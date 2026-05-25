@@ -17,7 +17,7 @@ pub fn parse_package_tk() -> Vec<DepEntry> {
     if res.is_err() { return deps }
     
     auto content = res.unwrap()
-    auto deps_idx = content.find_str(s"dependencies = (")
+    auto deps_idx = content.find_str("dependencies = (")
     if deps_idx == -1 { return deps }
     
     auto lines# = content.split('\n' as i32)
@@ -25,39 +25,39 @@ pub fn parse_package_tk() -> Vec<DepEntry> {
     
     loop !lines.is_done() {
         auto line = lines#.next().trim()
-        if line.starts_with(s"dependencies = (") {
+        if line.starts_with("dependencies = (") {
             in_deps = true
             continue
         }
         if in_deps {
-            if line.equals(s")") {
+            if line.equals(")") {
                 break
             }
-            if line.starts_with(s"//") || line.len() == 0 {
+            if line.starts_with("//") || line.len() == 0 {
                 continue
             }
             
-            auto eq_idx = line.find_str(s"=")
+            auto eq_idx = line.find_str("=")
             if eq_idx != -1 {
                 auto name_part = line.substring(0, eq_idx).trim()
                 auto val_part# = line.substring(eq_idx + 1, line.len() as i32).trim()
                 
-                if val_part.ends_with(s",") {
+                if val_part.ends_with(",") {
                     val_part = val_part.substring(0, (val_part.len() as i32) - 1)
                 }
                 
-                if val_part.starts_with(s"\"") && val_part.ends_with(s"\"") {
+                if val_part.starts_with("\"") && val_part.ends_with("\"") {
                     val_part = val_part.substring(1, (val_part.len() as i32) - 1)
                 }
                 
-                if val_part.starts_with(s"Git(") {
-                    auto first_quote = val_part.find_str(s"\"")
+                if val_part.starts_with("Git(") {
+                    auto first_quote = val_part.find_str("\"")
                     if first_quote != -1 {
                         auto rest = val_part.substring(first_quote + 1, val_part.len() as i32)
-                        auto second_quote = rest.find_str(s"\"")
+                        auto second_quote = rest.find_str("\"")
                         if second_quote != -1 {
                             val_part = rest.substring(0, second_quote)
-                            val_part#.push_str(":latest" as *char) 
+                            val_part#.push_str(":latest") 
                         }
                     }
                 }
@@ -83,34 +83,34 @@ pub fn cmd_fetch() -> i32 {
         auto pkg_name = entry.name
         auto pkg_val = entry.val
         
-        if pkg_val.starts_with(s".") || pkg_val.starts_with(s"/") {
+        if pkg_val.starts_with(".") || pkg_val.starts_with("/") {
             println("\x1b[1;36m   Resolving\x1b[0m {} @ {} (Local Path)", pkg_name, pkg_val)
-        } else if pkg_val.contains(s"/") && pkg_val.contains(s":") {
-            auto colon_idx = pkg_val.find_str(s":")
+        } else if pkg_val.contains("/") && pkg_val.contains(":") {
+            auto colon_idx = pkg_val.find_str(":")
             auto repo_url = pkg_val.substring(0, colon_idx)
             auto tag = pkg_val.substring(colon_idx + 1, pkg_val.len() as i32)
             println("\x1b[1;36m   Resolving\x1b[0m {} @ {}", pkg_name, pkg_val)
             
             auto target_dir# = String::from(".toka/packages/")
-            target_dir#.push_str(pkg_name.c_str())
+            target_dir#.push_str(pkg_name.as_str())
             target_dir#.push_str("-")
-            target_dir#.push_str(tag.c_str())
+            target_dir#.push_str(tag.as_str())
             
             unsafe {
                 auto check_cmd# = String::from("test -d ")
-                check_cmd#.push_str(target_dir.c_str())
+                check_cmd#.push_str(target_dir.as_str())
                 if libc_system(check_cmd.c_str()) != 0 {
                     auto git_cmd# = String::from("git clone --depth 1 --branch ")
-                    git_cmd#.push_str(tag.c_str())
+                    git_cmd#.push_str(tag.as_str())
                     git_cmd#.push_str(" https://")
-                    git_cmd#.push_str(repo_url.c_str())
+                    git_cmd#.push_str(repo_url.as_str())
                     git_cmd#.push_str(" ")
-                    git_cmd#.push_str(target_dir.c_str())
+                    git_cmd#.push_str(target_dir.as_str())
                     libc_system(git_cmd.c_str())
                 }
             }
         } else {
-            auto colon_idx = pkg_val.find_str(s":")
+            auto colon_idx = pkg_val.find_str(":")
             auto real_name# = pkg_name.clone()
             auto version# = String::from("latest")
             if colon_idx != -1 {
@@ -122,38 +122,38 @@ pub fn cmd_fetch() -> i32 {
             
             println("\x1b[1;36m   Resolving\x1b[0m {} v{}", real_name, version)
             auto target_dir# = String::from(".toka/packages/")
-            target_dir#.push_str(real_name.c_str())
+            target_dir#.push_str(real_name.as_str())
             target_dir#.push_str("-")
-            target_dir#.push_str(version.c_str())
+            target_dir#.push_str(version.as_str())
             
             unsafe {
                 auto check_cmd# = String::from("test -d ")
-                check_cmd#.push_str(target_dir.c_str())
+                check_cmd#.push_str(target_dir.as_str())
                 if libc_system(check_cmd.c_str()) != 0 {
                     auto safe_name# = real_name.clone()
-                    auto slash_idx = safe_name.find_str(s"/")
+                    auto slash_idx = safe_name.find_str("/")
                     if slash_idx != -1 {
                         safe_name = safe_name.substring(slash_idx + 1, safe_name.len() as i32)
                     }
 
                     auto url# = String::from("http://localhost:8080/")
-                    auto env_url = libc_getenv("TOKA_REGISTRY_URL" as *char) as Addr
+                    auto env_url = libc_getenv(c"TOKA_REGISTRY_URL") as Addr
                     if env_url != 0:Addr {
-                        url = String::from(env_url as *char)
-                        if !url.ends_with(s"/") {
+                        url = String::from_cstr(env_url as *char)
+                        if !url.ends_with("/") {
                             url#.push_str("/")
                         }
                     }
                     
-                    url#.push_str(safe_name.c_str())
+                    url#.push_str(safe_name.as_str())
                     url#.push_str("-")
-                    url#.push_str(version.c_str())
+                    url#.push_str(version.as_str())
                     url#.push_str(".tar.gz")
                     
                     println("\x1b[1;32m Downloading\x1b[0m {} v{}", real_name, version)
                     
                     auto curl_cmd# = String::from("curl -sL \"")
-                    curl_cmd#.push_str(url.c_str())
+                    curl_cmd#.push_str(url.as_str())
                     curl_cmd#.push_str("\" -o .toka_tmp_dl.tar.gz")
                     
                     auto dl_res = libc_system(curl_cmd.c_str())
@@ -161,11 +161,11 @@ pub fn cmd_fetch() -> i32 {
                         println("    \x1b[31m[Error]\x1b[0m Failed to download package {} from registry", pkg_name)
                     } else {
                         auto mkdir_cmd# = String::from("mkdir -p ")
-                        mkdir_cmd#.push_str(target_dir.c_str())
+                        mkdir_cmd#.push_str(target_dir.as_str())
                         libc_system(mkdir_cmd.c_str())
                         
                         auto tar_cmd# = String::from("tar -xzf .toka_tmp_dl.tar.gz -C ")
-                        tar_cmd#.push_str(target_dir.c_str())
+                        tar_cmd#.push_str(target_dir.as_str())
                         auto tar_res = libc_system(tar_cmd.c_str())
                         if tar_res != 0 {
                             println("    \x1b[31m[Error]\x1b[0m Failed to extract package {}", pkg_name)
@@ -173,7 +173,7 @@ pub fn cmd_fetch() -> i32 {
                             println("\x1b[1;32m  Downloaded\x1b[0m {}", pkg_name)
                         }
                     }
-                    libc_system("rm -f .toka_tmp_dl.tar.gz" as *char)
+                    libc_system(c"rm -f .toka_tmp_dl.tar.gz")
                 }
             }
         }
@@ -195,31 +195,31 @@ pub fn build_pkg_args() -> String {
         auto pkg_val = entry.val
         
         out#.push_str("--pkg ")
-        out#.push_str(pkg_name.c_str())
+        out#.push_str(pkg_name.as_str())
         out#.push_str("=")
         
-        if pkg_val.starts_with(s".") || pkg_val.starts_with(s"/") {
-            out#.push_str(pkg_val.c_str())
+        if pkg_val.starts_with(".") || pkg_val.starts_with("/") {
+            out#.push_str(pkg_val.as_str())
             out#.push_str("/lib/")
-            out#.push_str(pkg_name.c_str())
+            out#.push_str(pkg_name.as_str())
             out#.push_str("/mod.tk ")
-        } else if pkg_val.contains(s"/") && pkg_val.contains(s":") {
-            auto colon_idx = pkg_val.find_str(s":")
+        } else if pkg_val.contains("/") && pkg_val.contains(":") {
+            auto colon_idx = pkg_val.find_str(":")
             auto tag = pkg_val.substring(colon_idx + 1, pkg_val.len() as i32)
             out#.push_str(".toka/packages/")
-            out#.push_str(pkg_name.c_str())
+            out#.push_str(pkg_name.as_str())
             out#.push_str("-")
-            out#.push_str(tag.c_str())
+            out#.push_str(tag.as_str())
             out#.push_str("/lib/")
-            out#.push_str(pkg_name.c_str())
+            out#.push_str(pkg_name.as_str())
             out#.push_str("/mod.tk ")
         } else {
             out#.push_str(".toka/packages/")
-            out#.push_str(pkg_name.c_str())
+            out#.push_str(pkg_name.as_str())
             out#.push_str("-")
-            out#.push_str(pkg_val.c_str())
+            out#.push_str(pkg_val.as_str())
             out#.push_str("/lib/")
-            out#.push_str(pkg_name.c_str())
+            out#.push_str(pkg_name.as_str())
             out#.push_str("/mod.tk ")
         }
         i = i + 1
@@ -242,20 +242,20 @@ pub fn cmd_publish() -> i32 {
     
     loop !lines.is_done() {
         auto line = lines#.next().trim()
-        if line.starts_with(s"name = ") {
-            auto start_idx = line.find_str(s"\"")
+        if line.starts_with("name = ") {
+            auto start_idx = line.find_str("\"")
             if start_idx != -1 {
                 auto rest = line.substring(start_idx + 1, line.len() as i32)
-                auto end_idx = rest.find_str(s"\"")
+                auto end_idx = rest.find_str("\"")
                 if end_idx != -1 {
                     name = rest.substring(0, end_idx)
                 }
             }
-        } else if line.starts_with(s"version = ") {
-            auto start_idx = line.find_str(s"\"")
+        } else if line.starts_with("version = ") {
+            auto start_idx = line.find_str("\"")
             if start_idx != -1 {
                 auto rest = line.substring(start_idx + 1, line.len() as i32)
-                auto end_idx = rest.find_str(s"\"")
+                auto end_idx = rest.find_str("\"")
                 if end_idx != -1 {
                     version = rest.substring(0, end_idx)
                 }
@@ -274,29 +274,29 @@ pub fn cmd_publish() -> i32 {
     
     // Check if the name has a namespace (e.g. zhyi-dp/utils). We want to replace '/' with '-' for the file name.
     auto safe_name# = name.clone()
-    auto slash_idx = safe_name.find_str(s"/")
+    auto slash_idx = safe_name.find_str("/")
     if slash_idx != -1 {
         // Since Toka String doesn't have a built in replace yet, let's just use the substring after the slash for the tarball name
         // Or we could extract just the package name for the tarball
         safe_name = safe_name.substring(slash_idx + 1, safe_name.len() as i32)
     }
 
-    tar_cmd#.push_str(safe_name.c_str())
+    tar_cmd#.push_str(safe_name.as_str())
     tar_cmd#.push_str("-")
-    tar_cmd#.push_str(version.c_str())
+    tar_cmd#.push_str(version.as_str())
     tar_cmd#.push_str(".tar.gz package.tk")
     
     unsafe {
-        if libc_system("test -d src" as *char) == 0 {
+        if libc_system(c"test -d src") == 0 {
             tar_cmd#.push_str(" src")
         }
-        if libc_system("test -d lib" as *char) == 0 {
+        if libc_system(c"test -d lib") == 0 {
             tar_cmd#.push_str(" lib")
         }
-        if libc_system("test -d tests" as *char) == 0 {
-            tar_cmd#.push_str(" tests")
+        if libc_system(c"test -d test") == 0 {
+            tar_cmd#.push_str(" test")
         }
-        if libc_system("test -f build.tk" as *char) == 0 {
+        if libc_system(c"test -f build.tk") == 0 {
             tar_cmd#.push_str(" build.tk")
         }
         
@@ -311,22 +311,22 @@ pub fn cmd_publish() -> i32 {
     
     // Build the upload command
     auto url# = String::from("http://localhost:3000")
-    auto env_url = (unsafe libc_getenv("TOKA_REGISTRY_URL" as *char)) as Addr
+    auto env_url = (unsafe libc_getenv(c"TOKA_REGISTRY_URL")) as Addr
     if env_url != 0:Addr {
-        url = String::from(env_url as *char)
+        url = String::from_cstr(env_url as *char)
     }
-    if !url.ends_with(s"/") {
+    if !url.ends_with("/") {
         url#.push_str("/")
     }
     url#.push_str("api/publish")
 
     println("Uploading to {}...", url)
     auto curl_cmd# = String::from("curl -sL -X POST -F \"file=@")
-    curl_cmd#.push_str(safe_name.c_str())
+    curl_cmd#.push_str(safe_name.as_str())
     curl_cmd#.push_str("-")
-    curl_cmd#.push_str(version.c_str())
+    curl_cmd#.push_str(version.as_str())
     curl_cmd#.push_str(".tar.gz\" \"")
-    curl_cmd#.push_str(url.c_str())
+    curl_cmd#.push_str(url.as_str())
     curl_cmd#.push_str("\"")
 
     auto upload_res = unsafe libc_system(curl_cmd.c_str())
@@ -372,9 +372,9 @@ pub fn resolve_package(query: String) -> Option<String> {
     auto catalog_path = String::from(".toka/catalog.json")
     
     unsafe {
-        if libc_system("test -f .toka/catalog.json") != 0 {
-            libc_system("mkdir -p .toka")
-            libc_system("curl -sL https://pkg.tokalang.dev/catalog.json -o .toka/catalog.json > /dev/null 2>&1")
+        if libc_system(c"test -f .toka/catalog.json") != 0 {
+            libc_system(c"mkdir -p .toka")
+            libc_system(c"curl -sL https://pkg.tokalang.dev/catalog.json -o .toka/catalog.json > /dev/null 2>&1")
         }
     }
     
@@ -398,7 +398,7 @@ pub fn resolve_package(query: String) -> Option<String> {
             if !repo.is_empty() {
                 auto result# = repo.clone()
                 result#.push_str(":v")
-                result#.push_str(pkg.version.c_str())
+                result#.push_str(pkg.version.as_str())
                 return Option<String>::Some(result)
             }
         }
@@ -414,10 +414,10 @@ pub fn cmd_search(query: String) -> i32 {
     auto catalog_path = String::from(".toka/catalog.json")
     
     unsafe {
-        libc_system("mkdir -p .toka")
-        libc_system("curl -sL https://pkg.tokalang.dev/catalog.json -o .toka/catalog.json > /dev/null 2>&1")
-        if libc_system("test -s .toka/catalog.json") != 0 {
-            libc_system("echo '{\"packages\":[{\"name\":\"toka_ink\",\"version\":\"0.2.1\",\"description\":\"Terminal UI components and animations\"}]}' > .toka/catalog.json")
+        libc_system(c"mkdir -p .toka")
+        libc_system(c"curl -sL https://pkg.tokalang.dev/catalog.json -o .toka/catalog.json > /dev/null 2>&1")
+        if libc_system(c"test -s .toka/catalog.json") != 0 {
+            libc_system(c"echo '{\"packages\":[{\"name\":\"toka_ink\",\"version\":\"0.2.1\",\"description\":\"Terminal UI components and animations\"}]}' > .toka/catalog.json")
         }
     }
     

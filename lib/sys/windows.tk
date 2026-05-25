@@ -124,11 +124,11 @@ pub fn opendir_impl(path: Addr) -> Addr {
         auto *wpath = to_utf16(path as *char)
         // FindFirstFile needs a wildcard like \*
         auto search_path# = String::from(path as *char)
-        if !search_path.ends_with(s"/") && !search_path.ends_with(s"\\") {
-            search_path#.push_str("/" as *char)
+        if !search_path.ends_with("/") && !search_path.ends_with("\\") {
+            search_path#.push_str(c"/")
         }
         auto star = String::from("*")
-        search_path#.push_str(star.c_str())
+        search_path#.push_str(star.as_str())
         auto *wsearch = to_utf16(search_path.c_str())
         
         auto *wd# = libc_malloc(sizeof(WinDir)) as *WinDir

@@ -579,3 +579,21 @@ impl cstr@encap {
     fn drop(self#) {}
 }
 
+impl cstr@delegate {
+    pub fn target(self) -> str {
+        return self.as_str()
+    }
+}
+
+impl cstr {
+    pub fn as_str(self) -> str {
+        unsafe {
+            if self.*buf == null {
+                return str(&buf = null as *[char] as &[char], len = 0)
+            }
+            auto len = libc_strlen(self.*buf)
+            return str(&buf = (self.*buf as *[char]) as &[char], len = len)
+        }
+    }
+}
+

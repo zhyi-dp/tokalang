@@ -99,12 +99,13 @@ std::unique_ptr<MatchArm::Pattern> Parser::parseSinglePattern() {
   }
 
   if (check(TokenType::Integer) || check(TokenType::String) ||
+      check(TokenType::ViewString) ||
       check(TokenType::CharLiteral) ||
       check(TokenType::KwTrue) || check(TokenType::KwFalse)) {
     auto p = std::make_unique<MatchArm::Pattern>(MatchArm::Pattern::Literal);
     p->Loc = peek().Loc;
     Token t = advance();
-    if (t.Kind == TokenType::String) {
+    if (t.Kind == TokenType::String || t.Kind == TokenType::ViewString) {
       p->Name = "\"" + t.Text + "\"";
     } else if (t.Kind == TokenType::CharLiteral) {
       p->Name = "'" + t.Text + "'";

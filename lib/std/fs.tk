@@ -53,7 +53,7 @@ impl ReadDir {
             }
             
             auto name = name_opt.unwrap()
-            if name != String::from(".") && name != String::from("..") {
+            if name.as_str() != "." && name.as_str() != ".." {
                 return Option<String>::Some(name)
             }
         }
@@ -148,7 +148,7 @@ pub fn metadata(path: String) -> Result<Metadata, String> {
  * Read the entire contents of a file into a string.
  */
 pub fn read_to_string(path: String) -> IoStringResult {
-    auto f# = File::open(path, s"r")
+    auto f# = File::open(path, "r")
     if !f.is_valid() {
         return IoStringResult::Err(String::from("Failed to open file for reading"))
     }
@@ -163,7 +163,7 @@ pub fn read_to_string(path: String) -> IoStringResult {
  * Write a slice as the entire contents of a file.
  */
 pub fn write_string(path: String, content: str) -> Result<bool, String> {
-    auto f# = File::open(path, s"w")
+    auto f# = File::open(path, "w")
     if !f.is_valid() {
         return Result<bool, String>::Err(String::from("Failed to open file for writing"))
     }

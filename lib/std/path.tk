@@ -66,7 +66,7 @@ impl Path {
             auto *p = sub.c_str()
             auto addr = *p as Addr
             auto *sub_p = (addr + sub_start as Addr) as *char
-            res#.push_str(*sub_p)
+            res#.push_cstr(*sub_p)
         }
         
         return Path(inner = res)
@@ -91,7 +91,7 @@ impl Path {
             auto *p = self.inner.c_str()
             auto addr = *p as Addr
             auto *sub_p = (addr + (last_dot + 1) as Addr) as *char
-            return String::from(*sub_p)
+            return String::from_cstr(*sub_p)
         }
     }
 
@@ -114,7 +114,7 @@ impl Path {
             auto *p = self.inner.c_str()
             auto addr = *p as Addr
             auto *sub_p = (addr + (last_slash + 1) as Addr) as *char
-            return String::from(*sub_p)
+            return String::from_cstr(*sub_p)
         }
     }
 
@@ -187,7 +187,7 @@ impl Path {
             auto *p = ext.c_str()
             auto addr = *p as Addr
             auto *sub_p = (addr + ext_start as Addr) as *char
-            res#.push_str(*sub_p)
+            res#.push_cstr(*sub_p)
         }
         
         return Path(inner = res)

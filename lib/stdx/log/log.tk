@@ -33,7 +33,7 @@ impl Logger {
         
         auto prefix# = String::from("\x1b[90m")
         prefix#.push_str("[")
-        prefix#.push_str(time_str.c_str())
+        prefix#.push_str(time_str.as_str())
         prefix#.push_str("] ")
         
         if level == LOG_DEBUG {
@@ -57,7 +57,7 @@ impl Logger {
     pub fn debug(self, msg: String) {
         if self.level <= LOG_DEBUG {
             auto out# = self.get_prefix(LOG_DEBUG)
-            out#.push_str(msg.c_str())
+            out#.push_str(msg.as_str())
             print_line(cede out)
         }
     }
@@ -65,7 +65,7 @@ impl Logger {
     pub fn info(self, msg: String) {
         if self.level <= LOG_INFO {
             auto out# = self.get_prefix(LOG_INFO)
-            out#.push_str(msg.c_str())
+            out#.push_str(msg.as_str())
             print_line(cede out)
         }
     }
@@ -73,7 +73,7 @@ impl Logger {
     pub fn warn(self, msg: String) {
         if self.level <= LOG_WARN {
             auto out# = self.get_prefix(LOG_WARN)
-            out#.push_str(msg.c_str())
+            out#.push_str(msg.as_str())
             print_line(cede out)
         }
     }
@@ -81,7 +81,7 @@ impl Logger {
     pub fn error(self, msg: String) {
         if self.level <= LOG_ERROR {
             auto out# = self.get_prefix(LOG_ERROR)
-            out#.push_str(msg.c_str())
+            out#.push_str(msg.as_str())
             print_line(cede out)
         }
     }

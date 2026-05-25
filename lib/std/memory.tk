@@ -68,10 +68,10 @@ pub fn __toka_panic(*message: char, *file_name: char) {
 */
 
 pub fn __toka_panic(message: str, file_name: str, line: i32) {
-    libc_printf("\n*** ")
-    libc_printf("%.*s:%d", file_name.len() as i32, file_name.buf(), line)
-    libc_printf(" runtime error: Panic with \"%.*s\"", message.len() as i32, message.buf())    
-    libc_printf(" ***\n\n")
+    libc_printf(c"\n*** ")
+    libc_printf(c"%.*s:%d", file_name.len() as i32, file_name.buf(), line)
+    libc_printf(c" runtime error: Panic with \"%.*s\"", message.len() as i32, message.buf())    
+    libc_printf(c" ***\n\n")
     unsafe {
         libc_fflush(null)
         libc_abort()

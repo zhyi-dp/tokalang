@@ -34,19 +34,19 @@ fn main() -> i32 {
     
     // 4. Find
     auto s_find = String::from("hello world")
-    assert(s_find.find_str(s"world") == 6, "find_str 'world' failed")
-    assert(s_find.find_str(s"xyz") == -1, "find_str 'xyz' failed")
+    assert(s_find.find_str("world") == 6, "find_str 'world' failed")
+    assert(s_find.find_str("xyz") == -1, "find_str 'xyz' failed")
     
     // 5. Replace
     auto s_rep = String::from("banana")
-    auto s_rep_res = s_rep.replace_str(s"ana", s"123")
+    auto s_rep_res = s_rep.replace_str("ana", "123")
     // Expected: "b" + "123" + "na" -> "b123na"
     print("{}", s_rep_res)
     println("")
     assert(s_rep_res.eq(String::from("b123na")), "replace_str failed")
     
     auto s_rep2 = String::from("aaaa")
-    auto s_rep2_res = s_rep2.replace_str(s"aa", s"b")
+    auto s_rep2_res = s_rep2.replace_str("aa", "b")
     // Expected: "bb"
     assert(s_rep2_res.eq(String::from("bb")), "replace_str greedy failed")
 

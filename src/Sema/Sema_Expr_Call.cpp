@@ -83,8 +83,17 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
   if (CallName == "core/comptime::compile_error" || CallName == "compile_error") {
       if (Call->Args.size() == 1) {
           Call->Args[0] = foldGenericConstant(std::move(Call->Args[0]));
+          std::string errStr;
+          bool hasStr = false;
           if (auto constStr = dynamic_cast<StringExpr*>(Call->Args[0].get())) {
-              error(Call, "Compile-time error: " + constStr->Value);
+              errStr = constStr->Value;
+              hasStr = true;
+          } else if (auto constVStr = dynamic_cast<ViewStringExpr*>(Call->Args[0].get())) {
+              errStr = constVStr->Value;
+              hasStr = true;
+          }
+          if (hasStr) {
+              error(Call, "Compile-time error: " + errStr);
               return toka::Type::fromString("void");
           }
       }
@@ -238,7 +247,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
 
   bool treatAsIntrinsic = false;
   if ((isPrintlnLegacy || isStringFmt) && !Call->Args.empty()) {
-      if (dynamic_cast<StringExpr*>(Call->Args[0].get())) {
+      if (dynamic_cast<StringExpr*>(Call->Args[0].get()) || dynamic_cast<ViewStringExpr*>(Call->Args[0].get())) {
           treatAsIntrinsic = true;
       }
   }
@@ -1261,14 +1270,14 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
         if (auto *magic = dynamic_cast<const MagicExpr *>(defVal)) {
           auto fullloc = DiagnosticEngine::SrcMgr->getFullSourceLoc(Call->Loc);
           if (magic->Kind == TokenType::KwFile) {
-            injected = std::make_unique<StringExpr>(fullloc.FileName);
+            injected = std::make_unique<ViewStringExpr>(fullloc.FileName);
           } else if (magic->Kind == TokenType::KwLine) {
             injected = std::make_unique<NumberExpr>(fullloc.Line);
           } else if (magic->Kind == TokenType::KwLoc) {
             // shape SourceLoc(file: str, line: i32)
             std::vector<std::pair<std::string, std::unique_ptr<Expr>>> fields;
             fields.push_back(
-                {"file", std::make_unique<StringExpr>(fullloc.FileName)});
+                {"file", std::make_unique<ViewStringExpr>(fullloc.FileName)});
             fields.push_back(
                 {"line", std::make_unique<NumberExpr>(fullloc.Line)});
             injected = std::make_unique<InitStructExpr>("SourceLoc",

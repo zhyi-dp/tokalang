@@ -6,11 +6,11 @@ import core/str::cstr
 fn test_cstr(s: cstr) -> i32 {
     unsafe {
         match s.raw_ptr() {
-            "hello" => {
+            c"hello" => {
                 println("cstr: hello matched")
                 return 1
             }
-            "world" => {
+            c"world" => {
                 println("cstr: world matched")
                 return 2
             }
@@ -62,18 +62,18 @@ fn test_string(s: String) -> i32 {
 
 fn main() -> i32 {
     // 1. Test cstr matching
-    auto r1 = test_cstr("hello")
-    auto r2 = test_cstr("world")
-    auto r3 = test_cstr("other")
+    auto r1 = test_cstr(c"hello")
+    auto r2 = test_cstr(c"world")
+    auto r3 = test_cstr(c"other")
     assert(r1 == 1, "cstr hello")
     assert(r2 == 2, "cstr world")
     assert(r3 == 3, "cstr default")
 
     // 2. Test str matching
-    auto r4 = test_str(s"hello")
-    auto r5 = test_str(s"world")
-    auto r6 = test_str(s"")
-    auto r7 = test_str(s"other")
+    auto r4 = test_str("hello")
+    auto r5 = test_str("world")
+    auto r6 = test_str("")
+    auto r7 = test_str("other")
     assert(r4 == 4, "str hello")
     assert(r5 == 5, "str world")
     assert(r6 == 6, "str empty")

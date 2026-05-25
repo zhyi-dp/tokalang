@@ -8,19 +8,19 @@ import core/types::{Addr, usize}
 fn main() -> i32 {
     // 1. Test Option::expect
     auto opt1 = Option<i32>::Some(42)
-    if opt1.expect("This should not panic" as *char) != 42 {
+    if opt1.expect(c"This should not panic") != 42 {
         return 1
     }
 
     // 2. Test Result::expect
     auto res1 = Result<i32, u32>::Ok(100)
-    if res1.expect("This should not panic either" as *char) != 100 {
+    if res1.expect(c"This should not panic either") != 100 {
         return 2
     }
 
     // 3. Test Result::expect_err
     auto res2 = Result<i32, u32>::Err(500)
-    if res2.expect_err("This err should not panic" as *char) != 500 {
+    if res2.expect_err(c"This err should not panic") != 500 {
         return 3
     }
     

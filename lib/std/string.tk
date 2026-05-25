@@ -144,7 +144,36 @@ impl String {
 
     // === Constructors ===
 
-    pub fn from(*s: char) -> String {
+    pub fn from(s: str) -> String {
+        if s.len() == 0 {
+            unsafe {
+                auto *p# = unsafe alloc [1] char as *[char]
+                p[0] = 0 as char
+                return String(*buf = *p, len = 0, cap = 1)
+            }
+        }
+        unsafe {
+            auto l = s.len()
+            auto *p# = unsafe alloc [l + 1] char as *[char]
+            libc_memcpy(*p as *void, s.raw_ptr() as *void, l)
+            p[l] = 0 as char
+            
+            return String(
+                *buf = *p,
+                len = l,
+                cap = l + 1
+            )
+        }
+    }
+
+    pub fn from_cstr(*s: char) -> String {
+        if *s == null {
+            unsafe {
+                auto *p# = unsafe alloc [1] char as *[char]
+                p[0] = 0 as char
+                return String(*buf = *p, len = 0, cap = 1)
+            }
+        }
         unsafe {
             auto l = libc_strlen(*s)
             auto *p# = unsafe alloc [l + 1] char as *[char]
@@ -187,10 +216,7 @@ impl String {
     }
 
     pub fn from_str(s: str) -> String {
-        if s.len() == 0 { return String::from("") }
-        unsafe {
-            return String::from_with_len(&(s.buf()[0]), s.len())
-        }
+        return String::from(s)
     }
 
     // === Converters ===
@@ -220,7 +246,7 @@ impl String {
     pub fn from_int(val: i32) -> String {
         unsafe {
             auto *buf# = unsafe alloc [16] char as *[char]
-            libc_sprintf(*buf as *char, "%d", val)
+            libc_sprintf(*buf as *char, c"%d", val)
             auto len = libc_strlen(*buf as *char)
             
             return String(
@@ -234,7 +260,7 @@ impl String {
     pub fn from_i64(val: i64) -> String {
         unsafe {
             auto *buf# = unsafe alloc [32] char as *[char]
-            libc_sprintf(*buf as *char, "%lld", val)
+            libc_sprintf(*buf as *char, c"%lld", val)
             auto len = libc_strlen(*buf as *char)
             return String(*buf = *buf, len = len, cap = 32)
         }
@@ -243,7 +269,7 @@ impl String {
     pub fn from_f64(val: f64) -> String {
          unsafe {
             auto *buf# = unsafe alloc [32] char as *[char]
-            libc_sprintf(*buf as *char, "%g", val)
+            libc_sprintf(*buf as *char, c"%g", val)
             auto len = libc_strlen(*buf as *char)
             return String(*buf = *buf, len = len, cap = 32)
         }
@@ -276,7 +302,11 @@ impl String {
     
     // === Mutation ===
 
-    pub fn push_str(self#, *s: char) -> i32 {
+    pub fn push_str(self#, s: str) -> i32 {
+        return self#.push_view(s)
+    }
+
+    pub fn push_cstr(self#, *s: char) -> i32 {
         unsafe {
             auto slen = libc_strlen(*s)
             auto needed = self.len + slen
@@ -430,7 +460,7 @@ impl String {
     pub fn parse_f64(self) -> Result<f64, String> {
         if self.len == 0 { return Result<f64, String>::Err(String::from("empty string")) }
         auto val# = 0.0:f64
-        auto count = libc_sscanf(self.c_str() as *char, "%lf" as *char, &val as *void)
+        auto count = libc_sscanf(self.c_str(), c"%lf", &val as *void)
         if count != 1 {
             return Result<f64, String>::Err(String::from("invalid float format"))
         }
@@ -628,7 +658,7 @@ impl String {
         // Pre-reserve could be optimization todo
         auto i# = 0
         loop i < n {
-            res#.push_str(self.c_str())
+            res#.push_str(self.as_str())
             i = i + 1
         }
         return res
@@ -741,8 +771,8 @@ impl u64 {
     pub fn to_string(self) -> String {
         unsafe {
              auto *buf# = libc_malloc(32) as *char
-             libc_snprintf(*buf, 32, "%llu", self)
-             auto s = String::from(*buf)
+             libc_snprintf(*buf, 32, c"%llu", self)
+             auto s = String::from_cstr(*buf)
              libc_free(*buf as *void)
              return s
         }
@@ -805,7 +835,7 @@ impl OAddr {
     pub fn to_string(self) -> String {
         unsafe {
             auto *buf# = unsafe alloc [32] char as *[char]
-            libc_sprintf(*buf as *char, "0x%016llX", self)
+            libc_sprintf(*buf as *char, c"0x%016llX", self)
             auto len = libc_strlen(*buf as *char)
             return String(*buf = *buf, len = len, cap = 32)
         }
@@ -828,7 +858,7 @@ impl usize {
 
 impl cstr {
     pub fn to_string(self) -> String {
-        return String::from(self.raw_ptr())
+        return String::from_cstr(self.raw_ptr())
     }
 }
 
@@ -856,7 +886,7 @@ impl Addr {
     pub fn to_string(self) -> String {
         unsafe {
             auto *buf# = unsafe alloc [32] char as *[char]
-            libc_sprintf(*buf as *char, "0x%016llX", self as i64)
+            libc_sprintf(*buf as *char, c"0x%016llX", self as i64)
             auto len = libc_strlen(*buf as *char)
             return String(*buf = *buf, len = len, cap = 32)
         }

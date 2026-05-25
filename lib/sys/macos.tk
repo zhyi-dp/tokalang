@@ -31,7 +31,7 @@ pub fn get_arg_impl(i: i32) -> String {
         auto str_addr = argv[idx] as Addr
         auto *final_ptr = str_addr as *[char]
         
-        return String::from(*final_ptr as *char)
+        return String::from_cstr(*final_ptr as *char)
     }
 }
 
@@ -56,7 +56,7 @@ pub fn readdir_impl(dir_handle: Addr) -> Option<String> {
         }
         
         auto *name_ptr = toka_readdir_name(entry) as *char
-        return Option<String>::Some(String::from(*name_ptr))
+        return Option<String>::Some(String::from_cstr(*name_ptr))
     }
 }
 
@@ -154,7 +154,7 @@ pub fn getenv_impl(name: String) -> Option<String> {
         }
         
         // Copy from borrowed pointer
-        return Option<String>::Some(String::from(*val))
+        return Option<String>::Some(String::from_cstr(*val))
     }
 }
 

@@ -36,11 +36,11 @@ impl StringBuilder {
     }
 
     pub fn append(self#, s: String) {
-        self.buffer#.push_str(s.c_str())
+        self.buffer#.push_str(s.as_str())
     }
 
-    pub fn append_str(self#, *s: char) {
-        self.buffer#.push_str(*s)
+    pub fn append_str(self#, s: str) {
+        self.buffer#.push_str(s)
     }
     
     pub fn append_char(self#, c: char) {
@@ -49,21 +49,21 @@ impl StringBuilder {
 
     pub fn append_i32(self#, v: i32) {
         auto s = String::from_int(v)
-        self.buffer#.push_str(s.c_str())
+        self.buffer#.push_str(s.as_str())
     }
 
     pub fn append_u64(self#, v: u64) {
         unsafe {
              auto *buf# = libc_malloc(32) as *char
-             libc_snprintf(*buf, 32, "%llu", v)
-             self.buffer#.push_str(*buf)
+             libc_snprintf(*buf, 32, c"%llu", v)
+             self.buffer#.push_cstr(*buf)
              libc_free(*buf as *void)
         }
     }
 
     pub fn append_f64(self#, v: f64) {
         auto s = String::from_f64(v)
-        self.buffer#.push_str(s.c_str())
+        self.buffer#.push_str(s.as_str())
     }
     
     pub fn append_bool(self#, v: bool) {
@@ -155,7 +155,7 @@ impl AnsiStyle {
         }
         auto inner = self.code.substring(2, (self.code.len() - 1) as i32)
         auto res# = String::from("\x1b[1;")
-        res#.push_str(inner.c_str())
+        res#.push_str(inner.as_str())
         res#.push_str("m")
         return AnsiStyle(code = res)
     }
@@ -335,33 +335,33 @@ impl Diagnostic {
         auto sb# = StringBuilder::new()
         
         auto sev_style# = AnsiStyle::empty()
-        auto sev_name# = String::from("")
+        auto sev_name# = ""
         
         match self.severity {
             auto DiagnosticSeverity::Error() => {
-                sev_name = String::from("error")
+                sev_name = "error"
                 sev_style = AnsiStyle::red().bold()
             }
             auto DiagnosticSeverity::Warning() => {
-                sev_name = String::from("warning")
+                sev_name = "warning"
                 sev_style = AnsiStyle::yellow().bold()
             }
             auto DiagnosticSeverity::Note() => {
-                sev_name = String::from("note")
+                sev_name = "note"
                 sev_style = AnsiStyle::cyan().bold()
             }
         }
         
         if color { sb#.append(sev_style.code.clone()) }
-        sb#.append(sev_name)
+        sb#.append_str(sev_name)
         if self.code.len() > 0 {
-            sb#.append(String::from("["))
+            sb#.append_str("[")
             sb#.append(self.code.clone())
-            sb#.append(String::from("]"))
+            sb#.append_str("]")
         }
         if color { sb#.append(AnsiStyle::reset().code.clone()) }
         
-        sb#.append(String::from(": "))
+        sb#.append_str(": ")
         if color { sb#.append(AnsiStyle::white().bold().code.clone()) }
         sb#.append(self.message.clone())
         if color { sb#.append(AnsiStyle::reset().code.clone()) }
@@ -396,33 +396,33 @@ impl Diagnostic {
                 
                 sb#.append_spaces(max_line_width)
                 if color { sb#.append(cyan_bold.code.clone()) }
-                sb#.append(String::from("--> "))
+                sb#.append_str("--> ")
                 if color { sb#.append(AnsiStyle::reset().code.clone()) }
                 sb#.append(file.name.clone())
-                sb#.append(String::from(":"))
-                sb#.append(String::from_int(loc.line as i32))
-                sb#.append(String::from(":"))
-                sb#.append(String::from_int(loc.column as i32))
+                sb#.append_str(":")
+                sb#.append_i32(loc.line as i32)
+                sb#.append_str(":")
+                sb#.append_i32(loc.column as i32)
                 sb#.append_char(10:char)
                 
                 sb#.append_spaces(max_line_width + 1)
                 if color { sb#.append(cyan_bold.code.clone()) }
-                sb#.append(String::from("|"))
+                sb#.append_str("|")
                 if color { sb#.append(AnsiStyle::reset().code.clone()) }
                 sb#.append_char(10:char)
                 
                 auto current_line_width = get_digits(loc.line)
                 sb#.append_spaces(max_line_width - current_line_width)
                 if color { sb#.append(cyan_bold.code.clone()) }
-                sb#.append(String::from_int(loc.line as i32))
-                sb#.append(String::from(" | "))
+                sb#.append_i32(loc.line as i32)
+                sb#.append_str(" | ")
                 if color { sb#.append(AnsiStyle::reset().code.clone()) }
                 sb#.append(line_content)
                 sb#.append_char(10:char)
                 
                 sb#.append_spaces(max_line_width + 1)
                 if color { sb#.append(cyan_bold.code.clone()) }
-                sb#.append(String::from("| "))
+                sb#.append_str("| ")
                 if color { sb#.append(AnsiStyle::reset().code.clone()) }
                 
                 sb#.append_spaces((loc.column - 1) as i32)
@@ -444,7 +444,7 @@ impl Diagnostic {
                 
                 sb#.append_spaces(max_line_width + 1)
                 if color { sb#.append(cyan_bold.code.clone()) }
-                sb#.append(String::from("|"))
+                sb#.append_str("|")
                 if color { sb#.append(AnsiStyle::reset().code.clone()) }
                 sb#.append_char(10:char)
                 

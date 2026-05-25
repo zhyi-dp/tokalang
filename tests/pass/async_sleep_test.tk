@@ -11,7 +11,7 @@ fn log_ms(*msg: char) {
     auto t = SystemTime(duration_since_epoch=Duration::from_secs(sec))
     auto dt = t.to_datetime()
     
-    libc_printf("[%04d-%02d-%02d %02d:%02d:%02d.%03lld] %s\n" as *char, 
+    libc_printf(c"[%04d-%02d-%02d %02d:%02d:%02d.%03lld] %s\n", 
         dt.year, dt.month, dt.day, 
         dt.hour, dt.minute, dt.second, 
         msec, *msg)
@@ -19,42 +19,42 @@ fn log_ms(*msg: char) {
 }
 
 fn worker_a() -> async i32 {
-    log_ms("[Worker A] OK!" as *char)
+    log_ms(c"[Worker A] OK!")
     sleep_async(50).await
-    log_ms("[Worker A] FINISHED!" as *char)
+    log_ms(c"[Worker A] FINISHED!")
     return 0
 }
 
 fn worker_b() -> async i32 {
-    log_ms("[Worker B] OK!" as *char)
+    log_ms(c"[Worker B] OK!")
     sleep_async(10).await
-    log_ms("[Worker B] FINISHED!" as *char)
+    log_ms(c"[Worker B] FINISHED!")
     return 0
 }
 
 fn entry_point() -> async i32 {
-    log_ms("[ENTRY] init" as *char)
+    log_ms(c"[ENTRY] init")
     auto ta = worker_a().start
     auto tb = worker_b().start
     
     ta.await
-    log_ms("[ENTRY] a.await done" as *char)
+    log_ms(c"[ENTRY] a.await done")
     
     tb.await
-    log_ms("[ENTRY] b.await done" as *char)
+    log_ms(c"[ENTRY] b.await done")
     
     auto sl = sleep_async(300).start
     sl.await
-    log_ms("[ENTRY] sleep done" as *char)
+    log_ms(c"[ENTRY] sleep done")
     return 0
 }
 
 pub fn main() -> i32 {
-    log_ms("[MAIN] 1. call block_on" as *char)
+    log_ms(c"[MAIN] 1. call block_on")
     // block on completion
     auto handle = entry_point().start
     
     block_on<i32>(handle)
-    log_ms("[MAIN] 2. block_on returned!" as *char)
+    log_ms(c"[MAIN] 2. block_on returned!")
     return 0
 }

@@ -11,26 +11,26 @@ fn main() -> i32 {
     println("Starting Build Hybrid integration test...")
 
     // 1. Write the dynamic C FFI file
-    auto c_file# = File::open(String::from("tests/pass/temp_shim.c"), s"w")
+    auto c_file# = File::open(String::from("tests/pass/temp_shim.c"), "w")
     if !c_file.is_valid() {
         println("Failed to create temp_shim.c")
         return 1
     }
-    c_file.write(s"extern \"C\" int get_magic_number() {\n    return 42;\n}\n")
+    c_file.write("extern \"C\" int get_magic_number() {\n    return 42;\n}\n")
     c_file#.close()
 
     // 2. Write the dynamic Toka main file
-    auto tk_file# = File::open(String::from("tests/pass/temp_main.tk"), s"w")
+    auto tk_file# = File::open(String::from("tests/pass/temp_main.tk"), "w")
     if !tk_file.is_valid() {
         println("Failed to create temp_main.tk")
         remove_file(String::from("tests/pass/temp_shim.c"))
         return 1
     }
-    tk_file.write(s"import std/io::println\nextern fn get_magic_number() -> i32\nfn main() -> i32 {\n    auto val = get_magic_number()\n    println(\"Got value: {}\", val)\n    if val == 42 {\n        return 0\n    }\n    return 1\n}\n")
+    tk_file.write("import std/io::println\nextern fn get_magic_number() -> i32\nfn main() -> i32 {\n    auto val = get_magic_number()\n    println(\"Got value: {}\", val)\n    if val == 42 {\n        return 0\n    }\n    return 1\n}\n")
     tk_file#.close()
 
     // 3. Configure build project using our Executable FFI extensions
-    auto proj# = Executable::make("temp_main" as *char, "tests/pass/temp_main.tk" as *char)
+    auto proj# = Executable::make(c"temp_main", c"tests/pass/temp_main.tk")
     proj#.add_c_src(String::from("tests/pass/temp_shim.c"))
     
     // 4. Run the build pipeline
@@ -44,9 +44,9 @@ fn main() -> i32 {
 
     // 5. Execute the compiled hybrid program and check its exit code
     auto is_windows# = false
-    auto os_env = libc_getenv("OS" as *char) as Addr
+    auto os_env = libc_getenv(c"OS") as Addr
     if os_env != 0:Addr {
-        auto os_str = String::from(os_env as *char)
+        auto os_str = String::from_cstr(os_env as *char)
         if os_str == String::from("Windows_NT") {
             is_windows = true
         }
@@ -56,11 +56,11 @@ fn main() -> i32 {
     if is_windows {
         run_cmd = String::from("target\\debug\\temp_main ")
         run_cmd#.push_char(62:char)
-        run_cmd#.push_str(" nul" as *char)
+        run_cmd#.push_str(" nul")
     } else {
         run_cmd = String::from("target/debug/temp_main ")
         run_cmd#.push_char(62:char)
-        run_cmd#.push_str(" /dev/null" as *char)
+        run_cmd#.push_str(" /dev/null")
     }
 
     auto run_res = libc_system(run_cmd.c_str())

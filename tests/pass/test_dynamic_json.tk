@@ -6,12 +6,12 @@ import core/str::{str, str}
 import stdx/serde/json::{JsonNode}
 
 fn put(s: String) {
-    auto fmt = String::from("%s")
+    auto fmt = String::from("%")
     libc_printf(fmt.c_str(), s.c_str())
 }
 
 fn put_ptr(*s: String) {
-    auto fmt = String::from("%s")
+    auto fmt = String::from("%")
     libc_printf(fmt.c_str(), s.c_str())
 }
 

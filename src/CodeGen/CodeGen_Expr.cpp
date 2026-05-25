@@ -4165,8 +4165,8 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
 
     std::function<void(llvm::Type*, llvm::Value*, std::string)> appendFmt; // Keep it declared but unused to avoid diff errors, or just remove it
 
-    llvm::Function *fromFn = m_Module->getFunction("String_from");
-    llvm::Function *pushStrFn = m_Module->getFunction("String_push_str");
+    llvm::Function *fromFn = m_Module->getFunction("String_from_cstr");
+    llvm::Function *pushStrFn = m_Module->getFunction("String_push_cstr");
     llvm::Function *cStrFn = m_Module->getFunction("String_c_str");
     llvm::Function *dropFn = m_Module->getFunction("encap_String_drop");
 

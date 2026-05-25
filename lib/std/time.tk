@@ -104,20 +104,20 @@ impl Duration {
             if self.secs > 0 {
                 auto ms = self.nanos / 1000000:u32
                 if ms > 0 {
-                    libc_snprintf(*p, 32:usize, "%llu.%03us" as *char, self.secs, ms)
+                    libc_snprintf(*p, 32:usize, c"%llu.%03us", self.secs, ms)
                 } else {
-                    libc_snprintf(*p, 32:usize, "%llus" as *char, self.secs)
+                    libc_snprintf(*p, 32:usize, c"%llus", self.secs)
                 }
             } else if self.nanos >= 1000000:u32 {
                 auto ms = self.nanos / 1000000:u32
-                libc_snprintf(*p, 32:usize, "%ums" as *char, ms)
+                libc_snprintf(*p, 32:usize, c"%ums", ms)
             } else if self.nanos >= 1000:u32 {
                 auto us = self.nanos / 1000:u32
-                libc_snprintf(*p, 32:usize, "%uus" as *char, us)
+                libc_snprintf(*p, 32:usize, c"%uus", us)
             } else {
-                libc_snprintf(*p, 32:usize, "%uns" as *char, self.nanos)
+                libc_snprintf(*p, 32:usize, c"%uns", self.nanos)
             }
-            return String::from(*p)
+            return String::from_cstr(*p)
         }
     }
 }
@@ -342,10 +342,10 @@ impl DateTime {
             auto *p = (&buf[0] as Addr) as *char
             libc_snprintf(
                 *p, 32:usize,
-                "%04d-%02d-%02d %02d:%02d:%02d" as *char,
+                c"%04d-%02d-%02d %02d:%02d:%02d",
                 self.year, self.month, self.day, self.hour, self.minute, self.second
             )
-            return String::from(*p)
+            return String::from_cstr(*p)
         }
     }
 }

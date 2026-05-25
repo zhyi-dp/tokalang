@@ -78,13 +78,13 @@ impl HttpResponse {
         }
 
         res#.push_str("Content-Type: ")
-        res#.push_str(self.content_type.c_str())
+        res#.push_str(self.content_type.as_str())
         res#.push_str("\r\nContent-Length: ")
         auto len_str = String::from_int(self.body.len())
-        res#.push_str(len_str.c_str())
+        res#.push_str(len_str.as_str())
         res#.push_str("\r\nConnection: close\r\n\r\n")
         
-        res#.push_str(self.body.c_str())
+        res#.push_str(self.body.as_str())
         return res
     }
 }

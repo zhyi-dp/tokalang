@@ -10,7 +10,7 @@ impl<'T> Option<'T> {
             auto Option<'T>::Some('val) => return 'val
             _ => {
                 unsafe {
-                    libc_printf("[Option] panic: %s\n" as *char, msg)
+                    libc_printf(c"[Option] panic: %s\n", msg)
                     libc_abort()
                 }
                 return self.unwrap()
@@ -26,7 +26,7 @@ impl<'T, 'E> Result<'T, 'E> {
             auto Result<'T, 'E>::Ok('val) => return 'val
             _ => {
                 unsafe {
-                    libc_printf("[Result] panic: %s\n" as *char, msg)
+                    libc_printf(c"[Result] panic: %s\n", msg)
                     libc_abort()
                 }
                 return self.unwrap()
@@ -40,7 +40,7 @@ impl<'T, 'E> Result<'T, 'E> {
             auto Result<'T, 'E>::Err('val) => return 'val
             _ => {
                 unsafe {
-                    libc_printf("[Result] panic: %s\n" as *char, msg)
+                    libc_printf(c"[Result] panic: %s\n", msg)
                     libc_abort()
                 }
                 return self.unwrap_err()

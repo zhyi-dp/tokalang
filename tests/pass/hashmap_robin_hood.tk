@@ -16,7 +16,7 @@ fn test_robin_hood() {
     
     // Validate length
     if map.len() != 1000 {
-        unsafe { libc_printf("FAIL: len should be 1000, got %d\n" as *char, map.len() as i32) }
+        unsafe { libc_printf(c"FAIL: len should be 1000, got %d\n", map.len() as i32) }
         return
     }
     
@@ -25,7 +25,7 @@ fn test_robin_hood() {
     loop j < 1000 {
         auto opt = map.get(j)
         if opt.is_none() {
-            unsafe { libc_printf("FAIL: could not get %d\n" as *char, j) }
+            unsafe { libc_printf(c"FAIL: could not get %d\n", j) }
             return
         }
         j += 1
@@ -36,14 +36,14 @@ fn test_robin_hood() {
     loop k < 1000 {
         auto rm_opt = map#.remove(k)
         if rm_opt.is_none() {
-            unsafe { libc_printf("FAIL: could not remove %d\n" as *char, k) }
+            unsafe { libc_printf(c"FAIL: could not remove %d\n", k) }
             return
         }
         k += 2
     }
     
     if map.len() != 500 {
-        unsafe { libc_printf("FAIL: len should be 500, got %d\n" as *char, map.len() as i32) }
+        unsafe { libc_printf(c"FAIL: len should be 500, got %d\n", map.len() as i32) }
         return
     }
     
@@ -51,7 +51,7 @@ fn test_robin_hood() {
     map#.insert(1, String::from("val_1_new"))
     auto opt3 = map.get(1)
     if opt3.is_none() {
-        unsafe { libc_printf("FAIL: replace failed\n" as *char) }
+        unsafe { libc_printf(c"FAIL: replace failed\n") }
         return
     }
     

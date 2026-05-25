@@ -8,8 +8,8 @@ pub fn print_user_info(u: User) {
     println("User Fields:")
     // Test Compile-time Macro Unrolling
     for auto field in reflect<User>().fields {
-        auto name_s = String::from_str(field.name)
-        auto type_s = String::from_str(field.type_name)
+        auto name_s = String::from(field.name)
+        auto type_s = String::from(field.type_name)
         println("- {} ({})", name_s.c_str(), type_s.c_str())
     }
 }
@@ -21,7 +21,7 @@ pub fn main() -> i32 {
 
     // Test CodeGen materialization
     auto info = reflect<User>()
-    auto nm_str = String::from_str(info.name)
+    auto nm_str = String::from(info.name)
     if nm_str.len() != 4 {
         return 1
     }

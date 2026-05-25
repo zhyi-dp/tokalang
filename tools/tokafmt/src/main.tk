@@ -546,7 +546,7 @@ fn main() -> i32 {
     auto target_file = env::get_arg(1)
     
     // Open file to read formatting
-    auto file# = File::open(target_file.clone(), s"r")
+    auto file# = File::open(target_file.clone(), "r")
     if !file.is_valid() {
         print("Error: Could not read file {}\n", target_file.c_str())
         return 1

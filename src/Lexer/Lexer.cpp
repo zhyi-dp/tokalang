@@ -163,10 +163,11 @@ Token Lexer::nextToken() {
     t = Token{TokenType::EndOfFile, "", m_Line, m_Column};
   } else if (isDigit(peek())) {
     t = number();
-  } else if (peek() == 's' && peekNext() == '"') {
+  } else if (peek() == 'c' && peekNext() == '"') {
     uint32_t startCol = m_Column;
-    advance(); // s
-    t = viewString();
+    advance(); // c
+    advance(); // " (consume opening quote)
+    t = string();
     t.Column = startCol;
   } else if (isAlpha(peek())) {
     t = identifier();
@@ -496,7 +497,7 @@ Token Lexer::punctuation() {
     return Token{TokenType::TokenNone, "$", line, col};
 
   case '"':
-    return string(); // Call string handler
+    return viewString(); // Call viewString handler
   case '\'': {
     if (isAlpha(peek())) {
       const char *lookahead = m_Current;
@@ -656,10 +657,6 @@ Token Lexer::string() {
 }
 
 Token Lexer::viewString() {
-  // Opening 'v' already consumed.
-  // Next should be '"'
-  if (peek() == '"') advance();
-  
   std::string text = "";
   while (peek() != '"' && peek() != '\0') {
     char c = advance();

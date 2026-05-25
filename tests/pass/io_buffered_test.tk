@@ -7,10 +7,10 @@ fn main() -> i32 {
     
     // 1. Prepare test file
     {
-        auto f# = File::open(path, s"w")
+        auto f# = File::open(path, "w")
         if f.is_valid() {
-            f#.write(s"Line 1: High Performance\n")
-            f#.write(s"Line 2: Native Buffering\n")
+            f#.write("Line 1: High Performance\n")
+            f#.write("Line 2: Native Buffering\n")
             f#.close()
         } else {
             return 1
@@ -19,7 +19,7 @@ fn main() -> i32 {
     
     // 2. Reading Test
     {
-        auto f# = File::open(path, s"r")
+        auto f# = File::open(path, "r")
         if f.is_valid() {
             auto l1_res# = f#.read_line()
             match l1_res {

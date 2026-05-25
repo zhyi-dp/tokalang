@@ -245,7 +245,7 @@ import core/types::{Addr}
 auto g_stdin_handle#: Addr = 0:Addr
 pub fn get_stdin() -> File {
     unsafe {
-        if g_stdin_handle == 0:Addr { g_stdin_handle = libc_fdopen(0, "r" as *char) as Addr }
+        if g_stdin_handle == 0:Addr { g_stdin_handle = libc_fdopen(0, c"r") as Addr }
         return File(*handle = g_stdin_handle as *void, opened = (g_stdin_handle != 0:Addr), owned = false)
     }
 }
@@ -253,7 +253,7 @@ pub fn get_stdin() -> File {
 auto g_stdout_handle#: Addr = 0:Addr
 pub fn get_stdout() -> File {
     unsafe {
-        if g_stdout_handle == 0:Addr { g_stdout_handle = libc_fdopen(1, "w" as *char) as Addr }
+        if g_stdout_handle == 0:Addr { g_stdout_handle = libc_fdopen(1, c"w") as Addr }
         return File(*handle = g_stdout_handle as *void, opened = (g_stdout_handle != 0:Addr), owned = false)
     }
 }
@@ -261,7 +261,7 @@ pub fn get_stdout() -> File {
 auto g_stderr_handle#: Addr = 0:Addr
 pub fn get_stderr() -> File {
     unsafe {
-        if g_stderr_handle == 0:Addr { g_stderr_handle = libc_fdopen(2, "w" as *char) as Addr }
+        if g_stderr_handle == 0:Addr { g_stderr_handle = libc_fdopen(2, c"w") as Addr }
         return File(*handle = g_stderr_handle as *void, opened = (g_stderr_handle != 0:Addr), owned = false)
     }
 }
@@ -281,14 +281,14 @@ pub fn stderr() -> File {
 pub fn print_line(s: String) {
     auto out = get_stdout()
     out.write(s.as_view())
-    out.write(s"\n")
+    out.write("\n")
 }
 
 // === File Utilities ===
 
 pub fn exists(path: String) -> bool {
     unsafe {
-        auto *p = libc_fopen(path.c_str(), "r" as *char)
+        auto *p = libc_fopen(path.c_str(), c"r")
         if *p != null {
             libc_fclose(*p)
             return true

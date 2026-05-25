@@ -14,7 +14,7 @@ fn main() -> i32 {
         auto dirname = String::from("test_meta_dir")
         
         // Debug path
-        libc_printf("Debug dirname: %s\n", dirname.c_str())
+        libc_printf(c"Debug dirname: %s\n", dirname.c_str())
 
         // Cleanup first
         if fs::exists(filename.clone()) { 
@@ -22,7 +22,7 @@ fn main() -> i32 {
             remove_file(filename.clone()) 
         }
         if fs::exists(dirname.clone()) { 
-            libc_printf("Exists: %s\n", dirname.c_str())
+            libc_printf(c"Exists: %s\n", dirname.c_str())
             
             // Check if directory
             auto m_res = fs::metadata(dirname.clone())
@@ -35,7 +35,7 @@ fn main() -> i32 {
                             
                             if !res_rm {
                                 auto e = 66 // Fake ENOTEMPTY
-                                libc_printf("Cleanup Rmdir failed, errno: %d\n", e)
+                                libc_printf(c"Cleanup Rmdir failed, errno: %d\n", e)
                                 
                                 if e == 66 { // ENOTEMPTY
                                     auto iter# = fs::read_dir(dirname.clone())
@@ -48,19 +48,19 @@ fn main() -> i32 {
                                         if entry_opt.is_none() { break }
                                         auto entry = entry_opt.unwrap()
                                         
-                                        auto is_dot = libc_strcmp(entry.c_str(), ".") == 0
-                                        auto is_dotdot = libc_strcmp(entry.c_str(), "..") == 0
+                                        auto is_dot = libc_strcmp(entry.c_str(), c".") == 0
+                                        auto is_dotdot = libc_strcmp(entry.c_str(), c"..") == 0
                                         
                                         if !is_dot && !is_dotdot {
-                                            libc_printf("Found: %s\n", entry.c_str())
+                                            libc_printf(c"Found: %s\n", entry.c_str())
                                             auto full_p# = dirname.clone()
                                             full_p#.push_str("/")
-                                            full_p#.push_str(entry.c_str())
+                                            full_p#.push_str(entry.as_str())
                                             
                                             // Try remove items
                                             if !remove_file(full_p.clone()) {
                                                  if !fs::remove_dir(full_p.clone()) {
-                                                     libc_printf("Failed to remove child %s\n", full_p.c_str())
+                                                     libc_printf(c"Failed to remove child %s\n", full_p.c_str())
                                                  }
                                             }
                                         }
@@ -88,9 +88,9 @@ fn main() -> i32 {
         
         // 1. Create File and Write
         {
-            auto f# = File::open(filename.clone(), s"w")
+            auto f# = File::open(filename.clone(), "w")
             if f.is_valid() {
-                f.write(s"Hello Metadata")
+                f.write("Hello Metadata")
                 f#.close()
             } else {
                 println("Failed to write file")

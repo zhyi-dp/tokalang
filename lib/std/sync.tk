@@ -46,7 +46,7 @@ impl<'T: @Send> Mutex<'T> {
             if rc != 0 {
                 auto msg# = String::from("mutex lock failed with error code: ")
                 auto rc_str = String::from_int(rc)
-                msg#.push_str(rc_str.c_str())
+                msg#.push_str(rc_str.as_str())
                 
                 return Result<MutexLock<'T>, Error>::Err(Error::new(rc, msg))
             }
@@ -68,7 +68,7 @@ impl<'T: @Send> Mutex<'T> {
             if rc != 0 {
                 auto msg# = String::from("mutex unlock failed with error code: ")
                 auto rc_str = String::from_int(rc)
-                msg#.push_str(rc_str.c_str())
+                msg#.push_str(rc_str.as_str())
                 
                 return Result<i32, Error>::Err(Error::new(rc, msg))
             }
@@ -142,7 +142,7 @@ impl<'T: {@Send, @Sync}> RwMutex<'T> {
             if rc != 0 {
                 auto msg# = String::from("rwlock read_lock failed with error code: ")
                 auto rc_str = String::from_int(rc)
-                msg#.push_str(rc_str.c_str())
+                msg#.push_str(rc_str.as_str())
                 
                 return Result<RwReadLock<'T>, Error>::Err(Error::new(rc, msg))
             }
@@ -163,7 +163,7 @@ impl<'T: {@Send, @Sync}> RwMutex<'T> {
             if rc != 0 {
                 auto msg# = String::from("rwlock write_lock failed with error code: ")
                 auto rc_str = String::from_int(rc)
-                msg#.push_str(rc_str.c_str())
+                msg#.push_str(rc_str.as_str())
                 
                 return Result<RwWriteLock<'T>, Error>::Err(Error::new(rc, msg))
             }
@@ -184,7 +184,7 @@ impl<'T: {@Send, @Sync}> RwMutex<'T> {
             if rc != 0 {
                 auto msg# = String::from("rwlock unlock failed with error code: ")
                 auto rc_str = String::from_int(rc)
-                msg#.push_str(rc_str.c_str())
+                msg#.push_str(rc_str.as_str())
                 
                 return Result<i32, Error>::Err(Error::new(rc, msg))
             }
