@@ -1,0 +1,12 @@
+import std/fs
+import std/string::{String}
+
+fn expect_view(path: view_str) {
+}
+
+fn main() -> i32 {
+    auto path = String::from("test.txt")
+    // String directly passed to view_str, should fail in type check (No implicit Auto-Deref!)
+    expect_view(path)
+    return 0
+}

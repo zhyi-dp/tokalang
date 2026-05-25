@@ -1,0 +1,5 @@
+error[E0406]: Type mismatch for argument 1: expected view_str, got String
+ --> tests/fail/implicit_deref_err.tk:10:17
+    |
+ 10 |     expect_view(path)
+    |                 ^

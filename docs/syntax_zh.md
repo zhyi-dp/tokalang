@@ -96,9 +96,10 @@
 | `*p = *q` | 指针重绑定 | 修改指针变量本身的指向(限指针本身可重绑定，如 `&#p`) |
 | **控制流** | | |
 | `if cond { ... } else { ... }` | 条件分支 | 条件无需括号 |
-| `while cond { ... }` | 循环 | 最好不要用 c 风格 for，不支持 for(;;)
-| `loop { ... break }` | 无限循环 | 必须显式 `break` |
-| `for x in iter { ... }` | 迭代 | 支持实现了迭代器协议的对象 |
+| `loop { ... }` | 无条件无限循环 | **大一统三态 Repetition**：最纯净的循环形态，退出循环**必须且只能**显式使用 `break` 语句。不支持传统 `for(;;)` 或者是 C 风格的 for。 |
+| `loop cond { ... }` | 条件循环 | **彻底超度 While**：Toka 1.0 的条件循环语法，当 `cond` 为真时执行循环体，条件无需括号。使用它来完全平替传统的 `while` 循环。如果误用 `while` 会触发 `E0107` 拦截指导。 |
+| `for auto x in iter { ... }` | 协议迭代循环 | **迭代绑定铁律**：支持实现了迭代器协议的对象。迭代绑定**必须且只能**携带 `auto` 关键字声明修饰符（可变迭代为 `for auto x#`，借用为 `for auto &x`），绝对不支持 `let` 关键字（E0107），防止隐式名称重名或变量隐藏。 |
+| `auto label: void = loop { ... }` | Labeled Loop 声明与长跳转 | **绝对 Void 坍缩与特化放行**：Toka 1.0 的 loop **绝对隐式坍缩为 void**。如果在中端检测到它被用作表达式带值返回（即 `ExpectedType != "void"` 且 `isReceiver` 为真），会触发类型收紧拦截（E0406）。但为了支持多层嵌套循环的 **Labeled Loop** 与长跳转，特设 `auto label: void = loop { ... }` 这一合法写法：将变量名作为 loop 的 label，内部通过 `break to label` 穿透长跳。中端对此 `isReceiver` 且期待类型为 `void` 的情况进行了**特化放行**，后端 LLVM 实现零 cost 内存分配消除（消除 alloca），捍卫绝对零成本抽象。 |
 | `match val { ... }` | 模式匹配 | 强制穷尽检查 (Exhaustive)，如果有遗漏需用 `_ =>` 通配符 |
 | `auto val = res!` | 错误传递 (解包) | 后缀感叹号 `!` 仅用于 `Result` 或 `Option` 结构。遇到 `Err`/`None` 时会自动提取错误并提早 return 向上抛出；成功则提取有效负载 (Payload)。**注意：此操作会触发 Move 语义，消耗掉原来的受托管容器本身。** |
 | `auto Variant(x) =  或者 match 分支` | 解构的复制语义(纯数据) | **铁律**：解构和 `match` 匹配分支的绑定默认具备**复制 (Copy)** 语义。这仅对纯数据（如 `i32`）合法且安全。 |
@@ -127,7 +128,10 @@
 
 | 错误写法 (Wrong) | 正确写法 (Right) | 原因/铁律 |
 | :--- | :--- | :--- |
-| `let x = 1` / `var x = 1` | `auto x = 1` | **铁律**：Toka 只有 `auto` 关键字声明变量。 |
+| `let x = 1` / `var x = 1` / `for let x in iter` | `auto x = 1` / `for auto x in iter` | **坚决无 let 钢印**：Toka 全局**绝对没有任何 let** (或 `var`) 关键字（包括 `for` 循环和变量声明），一律强制使用 `auto`！ |
+| `while cond { ... }` | `loop cond { ... }` | **超度 While**：Toka 1.0 已将 `while` 语法连根拔起并彻底超度，大一统为 `loop`。如果误用 `while` 编译器会温情拦截并报错指导（E0107）。 |
+| `for x in iter { ... }` | `for auto x in iter { ... }` | **迭代绑定铁律**：for 循环的迭代项绑定**必须且仅能**佩戴 `auto` 关键字（可变迭代则为 `for auto x#`，引用为 `for auto &x`），绝对不支持裸标识符迭代声明，防止变量隐式覆盖的混乱。 |
+| `auto val = loop { ... break 42 }` | `loop { ... }` (通过外部可变变量传递状态) | **控制流绝对 Void 坍缩**：为严防控制流类型断裂，Toka 1.0 的 `loop` 纯净化为绝对 Void 坍缩，`break` 不允许带值（取消 `or` 从句），不作为带值表达式。若需返回状态，请在外部声明 `auto res# = init_val` 并在循环中重写。 |
 | `func name()` | `fn name()` | **铁律**：函数关键字是 `fn`。 |
 | `fn() { ... }`<br>`[cede a] { ... }` | `{ => ... }` <br> `{ [cede a] => ... }` | **铁律**：Toka 闭包只使用内联花括号 `{}`，已废弃 `fn` 匿名前缀和外置捕获；且遇见零参数闭包必须使用 `{ => ... }` 防歧义。<br>**便利性**：闭包边界和泛型边界后现在**支持隐式分号结尾**，允许流式换行，不会再报 E0101 缺失分号。 |
 | `shape Point { x: i32 }` | `shape Point(x: i32)` | **铁律**：Shape 定义必须使用**圆括号** `()`。 |

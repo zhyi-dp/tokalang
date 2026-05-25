@@ -1373,17 +1373,6 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
       if (shp->Name == "view_str" || shp->Name == "str") {
         Call->Args[i]->ResolvedType = paramType;
       }
-    } else if (paramType && argType && paramType->isShape() && argType->isShape()) {
-      auto shp = std::static_pointer_cast<toka::ShapeType>(paramType);
-      auto srcShp = std::static_pointer_cast<toka::ShapeType>(argType);
-      if (shp->Name == "view_str" && srcShp->Name == "String") {
-        auto methodCall = std::make_unique<MethodCallExpr>(
-            std::move(Call->Args[i]), "as_str", std::vector<std::unique_ptr<Expr>>());
-        methodCall->Loc = methodCall->Object->Loc;
-        methodCall->IsCompilerInternal = true;
-        Call->Args[i] = std::move(methodCall);
-        checkExpr(Call->Args[i].get());
-      }
     }
   }
   
