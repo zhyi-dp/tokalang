@@ -1,6 +1,6 @@
 import std/io::{File, println}
 import std/string::{String}
-import core/str::{view_str, str}
+import core/str::{str, str}
 import stdx/serde/json::{deserialize_shape}
 
 pub shape SentryScope (

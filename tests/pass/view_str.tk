@@ -1,6 +1,6 @@
 import std/io::println
 
-fn test_view_str(vstr: view_str) -> i32 {
+fn test_str(vstr: str) -> i32 {
     // Test 1: Full slice clone
     auto full = vstr.clone()
     println("full: {}", full.raw_ptr())
@@ -145,11 +145,10 @@ fn test_to_i32() {
     assert(get_str("").to_i32().is_none(), "to_i32 empty")
     assert(get_str("-").to_i32().is_none(), "to_i32 lone minus")
 }
-
 fn main() -> i32 {
-    test_view_str("hello, toka!")    
+    test_str("hello, toka!")
     test_substring()
     test_to_i32()
-    assert(true, "view_str tests passed successfully!")
+    assert(true, "str tests passed successfully!")
     return 0
 }

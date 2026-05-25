@@ -212,9 +212,9 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
               spec = spec.substr(1);
           }
 
-          if (soulTy == "String" || soulTy == "view_str" || soulTy == "str") {
+          if (soulTy == "String" || soulTy == "str") {
               if (isFmt) {
-                  error(Call->Args[i].get(), "Formatted printing is not yet supported for String/view_str. Use plain {}.");
+                  error(Call->Args[i].get(), "Formatted printing is not yet supported for String/str. Use plain {}.");
               }
               continue;
           }
@@ -295,9 +295,9 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
         }
 
         // [P3] Zero-copy println: Bypass to_string check for string types
-        if (soulTy == "String" || soulTy == "view_str" || soulTy == "str") {
+        if (soulTy == "String" || soulTy == "str") {
             if (isFmt) {
-                error(Call->Args[i].get(), "Formatted printing is not yet supported for String/view_str. Use plain {}.");
+                error(Call->Args[i].get(), "Formatted printing is not yet supported for String/str. Use plain {}.");
             }
             continue;
         }
@@ -1370,7 +1370,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
                                      argType->toString());
     } else if (paramType && argType && paramType->isShape() && argType->isRawPointer()) {
       auto shp = std::static_pointer_cast<toka::ShapeType>(paramType);
-      if (shp->Name == "view_str" || shp->Name == "str") {
+      if (shp->Name == "str") {
         Call->Args[i]->ResolvedType = paramType;
       }
     }

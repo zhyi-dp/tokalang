@@ -2,7 +2,7 @@
 // Standard Serialization for JSON using Toka Comptime Reflection
 
 import std/string::{String}
-import core/str::{str, view_str}
+import core/str::{str, str}
 import std/hash_map::{HashMap}
 import std/vec::{Vec}
 import std/math
@@ -10,7 +10,7 @@ import core/libc::{libc_memset}
 import core/comptime::{reflect}
 
 // Result type for parsing: Ok(remaining_json) or Err(error_message)
-pub alias JsonRes = Result<view_str, str>
+pub alias JsonRes = Result<str, str>
 
 pub shape JsonNode (
     NullNode(i32) = 0 |
@@ -66,7 +66,7 @@ impl bool@ToJson {
     }
 }
 
-fn json_write_escaped_string(s: view_str, buf#: String) {
+fn json_write_escaped_string(s: str, buf#: String) {
     buf#.push_str("\"")
     auto i#: usize = 0
     loop i < s.len() {
@@ -84,7 +84,7 @@ fn json_write_escaped_string(s: view_str, buf#: String) {
     buf#.push_str("\"")
 }
 
-impl view_str@ToJson {
+impl str@ToJson {
     pub fn write_json(self, buf#: String) -> String {
         json_write_escaped_string(self, buf)
         return buf
@@ -194,10 +194,10 @@ pub fn to_json<'T: @ToJson>(obj: 'T) -> String {
 // --- FromJson Trait ---
 
 pub trait @FromJson {
-    pub fn parse_json(self#, json: view_str) -> JsonRes
+    pub fn parse_json(self#, json: str) -> JsonRes
 }
 
-fn json_skip_whitespace(json: view_str) -> view_str {
+fn json_skip_whitespace(json: str) -> str {
     auto res# = json
     loop res.len() > 0 {
         auto c = res.byte_at(0)
@@ -213,7 +213,7 @@ fn _str_cast(s: str) -> str {
 }
 
 impl i32@FromJson {
-    pub fn parse_json(self#, json: view_str) -> JsonRes {
+    pub fn parse_json(self#, json: str) -> JsonRes {
         auto rem# = json_skip_whitespace(json)
         if rem.len() == 0 { return JsonRes::Err("EOF") }
         auto i#: usize = 0
@@ -237,7 +237,7 @@ impl i32@FromJson {
 }
 
 impl bool@FromJson {
-    pub fn parse_json(self#, json: view_str) -> JsonRes {
+    pub fn parse_json(self#, json: str) -> JsonRes {
         auto rem = json_skip_whitespace(json)
         if rem.starts_with(s"true") {
             self = true
@@ -250,11 +250,11 @@ impl bool@FromJson {
     }
 }
 
-pub fn json_skip_value(json_in: view_str) -> JsonRes {
+pub fn json_skip_value(json_in: str) -> JsonRes {
     return _json_skip_value(json_in, 0)
 }
 
-fn _json_skip_value(json_in: view_str, depth: usize) -> JsonRes {
+fn _json_skip_value(json_in: str, depth: usize) -> JsonRes {
     if depth > 128 { return JsonRes::Err("Depth limit exceeded") }
     auto json# = json_skip_whitespace(json_in)
     if json.len() == 0 { return JsonRes::Err("Unexpected EOF") }
@@ -306,7 +306,7 @@ fn _json_skip_value(json_in: view_str, depth: usize) -> JsonRes {
 }
 
 impl f64@FromJson {
-    pub fn parse_json(self#, json: view_str) -> JsonRes {
+    pub fn parse_json(self#, json: str) -> JsonRes {
         auto rem = json_skip_whitespace(json)
         auto skip_res = json_skip_value(rem)!
         auto val_str = rem.substr(0, rem.len() - skip_res.len())
@@ -349,7 +349,7 @@ impl f64@FromJson {
     }
 }
 
-fn json_parse_hex4(rem: view_str, start: usize) -> u32 {
+fn json_parse_hex4(rem: str, start: usize) -> u32 {
     auto cp#: u32 = 0:u32
     auto j#: usize = 0
     loop j < 4 {
@@ -382,7 +382,7 @@ fn json_push_utf8(str#: String, cp: u32) {
 }
 
 impl String@FromJson {
-    pub fn parse_json(self#, json: view_str) -> JsonRes {
+    pub fn parse_json(self#, json: str) -> JsonRes {
         auto rem = json_skip_whitespace(json)
         if rem.len() == 0 || rem.byte_at(0) != 34 { return JsonRes::Err("Expected string") }
         auto i#: usize = 1
@@ -429,8 +429,8 @@ impl String@FromJson {
     }
 }
 
-impl view_str@FromJson {
-    pub fn parse_json(self#, json: view_str) -> JsonRes {
+impl str@FromJson {
+    pub fn parse_json(self#, json: str) -> JsonRes {
         auto rem = json_skip_whitespace(json)
         if rem.len() == 0 || rem.byte_at(0) != 34 { return JsonRes::Err("Expected string") }
         auto i#: usize = 1
@@ -448,7 +448,7 @@ impl view_str@FromJson {
 }
 
 impl<'T: @FromJson> Option<'T>@FromJson {
-    pub fn parse_json(self#, json: view_str) -> JsonRes {
+    pub fn parse_json(self#, json: str) -> JsonRes {
         auto rem# = json_skip_whitespace(json)
         if rem.starts_with(s"null") {
             self = Option<'T>::None
@@ -467,7 +467,7 @@ impl<'T: @FromJson> Option<'T>@FromJson {
 }
 
 impl<'T: @FromJson, 'E: @FromJson> Result<'T, 'E>@FromJson {
-    pub fn parse_json(self#, json: view_str) -> JsonRes {
+    pub fn parse_json(self#, json: str) -> JsonRes {
         auto rem# = json_skip_whitespace(json)
         if rem.len() == 0 || rem.byte_at(0) != 123 { return JsonRes::Err("Expected { for Result") }
         rem = rem.substr(1, rem.len() - 1)
@@ -504,7 +504,7 @@ impl<'T: @FromJson, 'E: @FromJson> Result<'T, 'E>@FromJson {
 }
 
 impl<'K: @FromJson, 'V: @FromJson> HashMap<'K, 'V>@FromJson {
-    pub fn parse_json(self#, json: view_str) -> JsonRes {
+    pub fn parse_json(self#, json: str) -> JsonRes {
         auto res# = json_skip_whitespace(json)
         if res.len() == 0 || res.byte_at(0) != 123 { return JsonRes::Err("Expected { for HashMap") }
         res = res.substr(1, res.len() - 1)
@@ -542,7 +542,7 @@ impl<'K: @FromJson, 'V: @FromJson> HashMap<'K, 'V>@FromJson {
     }
 }
 impl<'T: @FromJson> Vec<'T>@FromJson {
-    pub fn parse_json(self#, json: view_str) -> JsonRes {
+    pub fn parse_json(self#, json: str) -> JsonRes {
         auto res# = json_skip_whitespace(json)
         if res.len() == 0 || res.byte_at(0) != 91 { return JsonRes::Err("Expected [") }
         res = res.substr(1, res.len() - 1)
@@ -569,9 +569,9 @@ impl<'T: @FromJson> Vec<'T>@FromJson {
     }
 }
 
-pub fn deserialize_shape<'T>(json_str: view_str) -> Result<'T, view_str> {
+pub fn deserialize_shape<'T>(json_str: str) -> Result<'T, str> {
     auto res# = json_skip_whitespace(json_str)
-    if res.len() == 0 || res.byte_at(0) != 123 { return Result<'T, view_str>::Err("Expected {") }
+    if res.len() == 0 || res.byte_at(0) != 123 { return Result<'T, str>::Err("Expected {") }
     res = res.substr(1, res.len() - 1)
     
     auto obj# = 'T(..)
@@ -580,7 +580,7 @@ pub fn deserialize_shape<'T>(json_str: view_str) -> Result<'T, view_str> {
         res = json_skip_whitespace(res)
         if res.len() > 0 && res.byte_at(0) == 125 { res = res.substr(1, res.len() - 1); break }
         if !first {
-            if res.len() == 0 || res.byte_at(0) != 44 { return Result<'T, view_str>::Err("Expected ,") }
+            if res.len() == 0 || res.byte_at(0) != 44 { return Result<'T, str>::Err("Expected ,") }
             res = res.substr(1, res.len() - 1)
         }
         first = false
@@ -588,7 +588,7 @@ pub fn deserialize_shape<'T>(json_str: view_str) -> Result<'T, view_str> {
         auto key_view# = s""
         res = key_view#.parse_json(res)!
         res = json_skip_whitespace(res)
-        if res.len() == 0 || res.byte_at(0) != 58 { return Result<'T, view_str>::Err("Expected :") }
+        if res.len() == 0 || res.byte_at(0) != 58 { return Result<'T, str>::Err("Expected :") }
         res = res.substr(1, res.len() - 1)
         auto found# = false
         for auto f in reflect<'T>().fields {
@@ -602,17 +602,17 @@ pub fn deserialize_shape<'T>(json_str: view_str) -> Result<'T, view_str> {
         }
         if !found { res = json_skip_value(res)! }
     }
-    return Result<'T, view_str>::Ok(cede obj)
+    return Result<'T, str>::Ok(cede obj)
 }
 
 impl JsonNode@FromJson {
-    pub fn parse_json(self#, json: view_str) -> JsonRes {
+    pub fn parse_json(self#, json: str) -> JsonRes {
         return self#.parse_json_internal(json, 0)
     }
 }
 
 impl JsonNode {
-    pub fn parse_json_internal(self#, json_in: view_str, depth: usize) -> JsonRes {
+    pub fn parse_json_internal(self#, json_in: str, depth: usize) -> JsonRes {
         if depth > 128 { return JsonRes::Err("Depth limit exceeded") }
         auto rem# = json_skip_whitespace(json_in)
         if rem.len() == 0 { return JsonRes::Err("Unexpected EOF") }

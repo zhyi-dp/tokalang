@@ -3,7 +3,7 @@
 // A high-performance, elegant source mapping and span system for Toka compiler self-hosting.
 
 import core/types::{usize, Addr, ADDR0}
-import core/str::{view_str}
+import core/str::{str}
 import core/libc::{libc_memcpy}
 
 pub shape Span (
@@ -46,8 +46,8 @@ impl Span {
         return Span(start_addr = begin_addr as Addr, length = end_addr - begin_addr)
     }
 
-    // Convert Span to a view_str given the original source buffer
-    pub fn to_str(self, source: view_str) -> view_str {
+    // Convert Span to a str given the original source buffer
+    pub fn to_str(self, source: str) -> str {
         if !self.is_valid() {
             return source.substr(0:usize, 0:usize)
         }
@@ -74,12 +74,12 @@ pub shape Location (
 )
 
 pub shape SourceMap (
-    file_name: view_str,
-    source: view_str
+    file_name: str,
+    source: str
 )
 
 impl SourceMap {
-    pub fn new(file_name: view_str, source: view_str) -> SourceMap {
+    pub fn new(file_name: str, source: str) -> SourceMap {
         return SourceMap(file_name = file_name, source = source)
     }
 

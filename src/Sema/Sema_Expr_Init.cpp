@@ -97,7 +97,7 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
     if (Pat->Name == "true" || Pat->Name == "false") {
       litType = toka::Type::fromString("bool");
     } else if (!Pat->Name.empty() && Pat->Name[0] == '"') {
-      if (T == "cstring" || T == "view_str" || T == "str") {
+      if (T == "cstring" || T == "str" || T == "cstr") {
         litType = toka::Type::fromString(T);
       } else {
         litType = toka::Type::fromString("String");

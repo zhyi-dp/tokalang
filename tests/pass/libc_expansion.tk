@@ -6,7 +6,7 @@ fn main() -> i32 {
     unsafe {
         // Test strlen
         auto s = "Hello Libc!"
-        auto len = libc_strlen(s as *char)
+        auto len = libc_strlen(s.as_cstr())
         println("strlen: {}", len)
         if len != 11:u64 { return 1 }
 

@@ -88,7 +88,7 @@ impl Sha1 {
         )
     }
 
-    pub fn update(self#, data: view_str) {
+    pub fn update(self#, data: str) {
         auto len = usize(data.len())
         auto *ptr# = data.buf() as *[u8]
         self#.update_bytes(*ptr, len)

@@ -5,7 +5,7 @@
 import core/types::{usize, Addr, ADDR0}
 import core/traits::{@encap}
 import core/libc::{libc_malloc, libc_free, libc_memcpy}
-import core/str::{view_str}
+import core/str::{str}
 
 pub shape ArenaChunk (
     data: Addr,
@@ -151,9 +151,9 @@ pub fn alloc_array<'T>(arena#: Arena, count: usize) -> *'T {
 }
 
 /**
- * Copy a string view into the arena chunk pool, returning a new view_str that persists.
+ * Copy a string view into the arena chunk pool, returning a new str that persists.
  */
-pub fn alloc_str(arena#: Arena, s: view_str) -> view_str {
+pub fn alloc_str(arena#: Arena, s: str) -> str {
     if s.len() == 0:usize {
         return s.clone()
     }

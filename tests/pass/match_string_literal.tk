@@ -1,6 +1,6 @@
 import std/io::println
 import std/string::String
-import core/str::view_str
+import core/str::str
 
 fn test_cstring(s: cstring) -> i32 {
     match s {
@@ -19,22 +19,22 @@ fn test_cstring(s: cstring) -> i32 {
     }
 }
 
-fn test_view_str(s: view_str) -> i32 {
+fn test_str(s: str) -> i32 {
     match s {
         "hello" => {
-            println("view_str: hello matched")
+            println("str: hello matched")
             return 4
         }
         "world" => {
-            println("view_str: world matched")
+            println("str: world matched")
             return 5
         }
         "" => {
-            println("view_str: empty matched")
+            println("str: empty matched")
             return 6
         }
         _ => {
-            println("view_str: default matched")
+            println("str: default matched")
             return 7
         }
     }
@@ -66,15 +66,15 @@ fn main() -> i32 {
     assert(r2 == 2, "cstring world")
     assert(r3 == 3, "cstring default")
 
-    // 2. Test view_str matching
-    auto r4 = test_view_str(s"hello")
-    auto r5 = test_view_str(s"world")
-    auto r6 = test_view_str(s"")
-    auto r7 = test_view_str(s"other")
-    assert(r4 == 4, "view_str hello")
-    assert(r5 == 5, "view_str world")
-    assert(r6 == 6, "view_str empty")
-    assert(r7 == 7, "view_str default")
+    // 2. Test str matching
+    auto r4 = test_str(s"hello")
+    auto r5 = test_str(s"world")
+    auto r6 = test_str(s"")
+    auto r7 = test_str(s"other")
+    assert(r4 == 4, "str hello")
+    assert(r5 == 5, "str world")
+    assert(r6 == 6, "str empty")
+    assert(r7 == 7, "str default")
 
     // 3. Test String matching
     auto s1 = String::from("hello")

@@ -59,7 +59,7 @@ impl File@encap {
 }
 
 impl File {
-    pub fn open(path: String, mode: view_str) -> File {
+    pub fn open(path: String, mode: str) -> File {
         unsafe {
             auto temp_buf# = [0:char; 8]
             auto mode_len = mode.len()
@@ -148,7 +148,7 @@ impl File {
         }
     }
     
-    pub fn write(self, s: view_str) -> usize {
+    pub fn write(self, s: str) -> usize {
         unsafe {
             if !self.opened { return 0 as usize }
             if s.len() == 0 { return 0 as usize }

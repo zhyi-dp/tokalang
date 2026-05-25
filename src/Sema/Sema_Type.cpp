@@ -943,6 +943,17 @@ bool Sema::isTypeCompatible(std::shared_ptr<toka::Type> Target,
     }
   }
 
+  // cstr shape to pointer decay (FFI zero-friction)
+  if (Source->isShape() && Source->getSoulName() == "cstr") {
+    if (auto ptr = std::dynamic_pointer_cast<toka::PointerType>(T)) {
+      if (auto pte = std::dynamic_pointer_cast<toka::PrimitiveType>(
+              ptr->getPointeeType())) {
+        if (pte->Name == "i8" || pte->Name == "u8" || pte->Name == "char")
+          return true;
+      }
+    }
+  }
+
   // 0. [Toka 1.3] Morphology-Based Permission Decay & Nullability Covariance
   // "ReadOnly Target is compatible with Writable Source of same morphology."
   // "Nullable Target is compatible with Non-Nullable Source of same

@@ -1,6 +1,6 @@
 import std/string::{String}
 
-pub fn encode_str(data: view_str) -> String {
+pub fn encode_str(data: str) -> String {
     auto len = data.len()
     auto *ptr# = data.buf() as *[u8]
     return encode_bytes(*ptr, len)

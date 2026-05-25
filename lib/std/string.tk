@@ -19,7 +19,7 @@
 import core/types::{char, usize, Addr, ADDR0, OAddr}
 import core/traits::{@encap, @Hash, @PartialEq, @PartialOrd}
 import core/libc::*
-import core/str::{view_str, str}
+import core/str::{str, cstr}
 
 // ------------------------------------------------------
 // 1.5 Pointer Extensions
@@ -132,8 +132,8 @@ impl SplitIterator {
 // ------------------------------------------------------
 
 impl String@delegate {
-    pub fn target(self) -> view_str {
-        return view_str(&buf = self.*buf as &[char], len = self.len)
+    pub fn target(self) -> str {
+        return str(&buf = self.*buf as &[char], len = self.len)
     }
 }
 
@@ -260,13 +260,17 @@ impl String {
         return self.*buf as *char
     }
 
-    pub fn as_str(self) -> view_str {
+    pub fn as_cstr(self) -> cstr {
+        return cstr(*buf = self.c_str())
+    }
+
+    pub fn as_str(self) -> str {
         unsafe {
-            return view_str(&buf = self.*buf as &[char], len = self.len)
+            return str(&buf = self.*buf as &[char], len = self.len)
         }
     }
 
-    pub fn as_view(self) -> view_str {
+    pub fn as_view(self) -> str {
         return self.as_str()
     }
     
@@ -322,7 +326,7 @@ impl String {
         return 1
     }
 
-    pub fn push_view(self#, v: view_str) -> i32 {
+    pub fn push_view(self#, v: str) -> i32 {
         if v.len() == 0 { return 1 }
         unsafe {
             auto slen = v.len()
@@ -476,15 +480,15 @@ impl String {
         return opt.unwrap() as i32
     }
 
-    pub fn starts_with(self, other: view_str) -> bool {
+    pub fn starts_with(self, other: str) -> bool {
         return self.as_str().starts_with(other)
     }
 
-    pub fn ends_with(self, other: view_str) -> bool {
+    pub fn ends_with(self, other: str) -> bool {
         return self.as_str().ends_with(other)
     }
 
-    pub fn contains(self, other: view_str) -> bool {
+    pub fn contains(self, other: str) -> bool {
         return self.as_str().index_of_str(other).is_some()
     }
 
@@ -573,13 +577,13 @@ impl String {
         }
     }
 
-    pub fn find_str(self, needle: view_str) -> i32 {
+    pub fn find_str(self, needle: str) -> i32 {
         auto opt = self.as_str().index_of_str(needle)
         if opt.is_none() { return -1 }
         return opt.unwrap() as i32
     }
 
-    pub fn replace_str(self, old_s: view_str, new_s: view_str) -> String {
+    pub fn replace_str(self, old_s: str, new_s: str) -> String {
         if old_s.len() == 0 { return self.clone() }
         
         auto res# = String::from("")
@@ -691,7 +695,7 @@ impl String@PartialOrd {
 // 5. Extensions
 // ------------------------------------------------------
 
-impl view_str {
+impl str {
     pub fn to_string(self) -> String {
         return String::from_str(self)
     }
@@ -719,21 +723,21 @@ impl view_str {
     }
 }
 impl i32 {
-    pub fn to_string_fmt(self, fmt: view_str) -> String { return _format_i64(self as i64, fmt) }
+    pub fn to_string_fmt(self, fmt: str) -> String { return _format_i64(self as i64, fmt) }
     pub fn to_string(self) -> String {
         return String::from_int(self)
     }
 }
 
 impl i64 {
-    pub fn to_string_fmt(self, fmt: view_str) -> String { return _format_i64(self as i64, fmt) }
+    pub fn to_string_fmt(self, fmt: str) -> String { return _format_i64(self as i64, fmt) }
     pub fn to_string(self) -> String {
         return String::from_i64(self)
     }
 }
 
 impl u64 {
-    pub fn to_string_fmt(self, fmt: view_str) -> String { return _format_i64(self as i64, fmt) }
+    pub fn to_string_fmt(self, fmt: str) -> String { return _format_i64(self as i64, fmt) }
     pub fn to_string(self) -> String {
         unsafe {
              auto *buf# = libc_malloc(32) as *char
@@ -746,14 +750,14 @@ impl u64 {
 }
 
 impl f32 {
-    pub fn to_string_fmt(self, fmt: view_str) -> String { return _format_f64(self as f64, fmt) }
+    pub fn to_string_fmt(self, fmt: str) -> String { return _format_f64(self as f64, fmt) }
     pub fn to_string(self) -> String {
         return String::from_f64(self as f64)
     }
 }
 
 impl f64 {
-    pub fn to_string_fmt(self, fmt: view_str) -> String { return _format_f64(self, fmt) }
+    pub fn to_string_fmt(self, fmt: str) -> String { return _format_f64(self, fmt) }
     pub fn to_string(self) -> String {
         return String::from_f64(self)
     }
@@ -772,7 +776,7 @@ pub trait @ToString {
 }
 
 pub trait @ToFormat {
-    pub fn to_string_fmt(self, fmt: view_str) -> String
+    pub fn to_string_fmt(self, fmt: str) -> String
 }
 
 impl char {
@@ -809,14 +813,14 @@ impl OAddr {
 }
 
 impl u64 {
-    pub fn to_string_fmt(self, fmt: view_str) -> String { return _format_i64(self as i64, fmt) }
+    pub fn to_string_fmt(self, fmt: str) -> String { return _format_i64(self as i64, fmt) }
     pub fn to_string(self) -> String {
         return String::from_i64(self as i64)
     }
 }
 
 impl usize {
-    pub fn to_string_fmt(self, fmt: view_str) -> String { return _format_i64(self as i64, fmt) }
+    pub fn to_string_fmt(self, fmt: str) -> String { return _format_i64(self as i64, fmt) }
     pub fn to_string(self) -> String {
         return String::from_i64(self as i64)
     }
@@ -829,23 +833,23 @@ impl cstring {
 }
 
 impl u32 {
-    pub fn to_string_fmt(self, fmt: view_str) -> String { return _format_i64(self as i64, fmt) }
+    pub fn to_string_fmt(self, fmt: str) -> String { return _format_i64(self as i64, fmt) }
     pub fn to_string(self) -> String { return String::from_i64(self as i64) }
 }
 impl u16 {
-    pub fn to_string_fmt(self, fmt: view_str) -> String { return _format_i64(self as i64, fmt) }
+    pub fn to_string_fmt(self, fmt: str) -> String { return _format_i64(self as i64, fmt) }
     pub fn to_string(self) -> String { return String::from_i64(self as i64) }
 }
 impl u8 {
-    pub fn to_string_fmt(self, fmt: view_str) -> String { return _format_i64(self as i64, fmt) }
+    pub fn to_string_fmt(self, fmt: str) -> String { return _format_i64(self as i64, fmt) }
     pub fn to_string(self) -> String { return String::from_i64(self as i64) }
 }
 impl i16 {
-    pub fn to_string_fmt(self, fmt: view_str) -> String { return _format_i64(self as i64, fmt) }
+    pub fn to_string_fmt(self, fmt: str) -> String { return _format_i64(self as i64, fmt) }
     pub fn to_string(self) -> String { return String::from_i64(self as i64) }
 }
 impl i8 {
-    pub fn to_string_fmt(self, fmt: view_str) -> String { return _format_i64(self as i64, fmt) }
+    pub fn to_string_fmt(self, fmt: str) -> String { return _format_i64(self as i64, fmt) }
     pub fn to_string(self) -> String { return String::from_i64(self as i64) }
 }
 impl Addr {
@@ -859,7 +863,7 @@ impl Addr {
     }
 }
 
-pub fn _format_i64(val: i64, fmt: view_str) -> String {
+pub fn _format_i64(val: i64, fmt: str) -> String {
     unsafe {
         if fmt.len() == 0 {
             return String::from_i64(val)
@@ -902,7 +906,7 @@ pub fn _format_i64(val: i64, fmt: view_str) -> String {
     }
 }
 
-pub fn _format_f64(val: f64, fmt: view_str) -> String {
+pub fn _format_f64(val: f64, fmt: str) -> String {
     unsafe {
         if fmt.len() == 0 {
             return String::from_f64(val)

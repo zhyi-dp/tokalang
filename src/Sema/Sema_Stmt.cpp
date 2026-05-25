@@ -170,7 +170,7 @@ void Sema::checkStmt(Stmt *S) {
       Ret->ReturnValue = foldGenericConstant(std::move(Ret->ReturnValue));
       m_ControlFlowStack.push_back(
           {"", CurrentFunctionReturnType, nullptr, false, true});
-      auto RetTypeObj = checkExpr(Ret->ReturnValue.get());
+      auto RetTypeObj = checkExpr(Ret->ReturnValue.get(), toka::Type::fromString(CurrentFunctionReturnType));
       ExprTypeObj = RetTypeObj;
       ExprType = RetTypeObj->toString();
       m_ControlFlowStack.pop_back();

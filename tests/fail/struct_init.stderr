@@ -8,7 +8,7 @@ error[E0406]: Missing field 'x' in constructor for 'Point' (no default value)
     |
  18 |     auto p1 = Point(z = 10, y = 20)
     |               ^
-error[E0422]: Type mismatch for member 'x': expected 'i32', but got 'cstring'
+error[E0422]: Type mismatch for member 'x': expected 'i32', but got 'str'
  --> tests/fail/struct_init.tk:22:15
     |
  22 |     auto p2 = Point(x = "hello", y = 20)

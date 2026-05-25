@@ -1,7 +1,7 @@
 import std/io::{println}
 import stdx/serde/json::{JsonNode}
 import std/string::{String}
-import core/str::{view_str}
+import core/str::{str}
 
 fn main() -> i32 {
     auto string_buf# = String::from_str("")

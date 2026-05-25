@@ -162,7 +162,7 @@ pub fn read_to_string(path: String) -> IoStringResult {
 /**
  * Write a slice as the entire contents of a file.
  */
-pub fn write_string(path: String, content: view_str) -> Result<bool, String> {
+pub fn write_string(path: String, content: str) -> Result<bool, String> {
     auto f# = File::open(path, s"w")
     if !f.is_valid() {
         return Result<bool, String>::Err(String::from("Failed to open file for writing"))

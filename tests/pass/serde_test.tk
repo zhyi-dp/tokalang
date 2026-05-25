@@ -3,7 +3,7 @@ import std/string::{String}
 import std/io::{println}
 import std/vec::{Vec}
 import core/result::{Result}
-import core/str::{view_str}
+import core/str::{str}
 
 shape User(
     id: i32 = 0,
@@ -39,7 +39,7 @@ fn main() -> i32 {
     // Test deserialization
     auto u_res = deserialize_shape<User>(json.as_view())
     match u_res {
-        auto Result<User, view_str>::Ok(u2) => {
+        auto Result<User, str>::Ok(u2) => {
             println("Deserialized ID: {}", u2.id)
             println("Deserialized Name: {}", u2.name)
             println("Deserialized Tags len: {}", u2.tags.len() as i32)
@@ -52,7 +52,7 @@ fn main() -> i32 {
                 _ => println("Deserialized Status: Ok")
             }
         }
-        auto Result<User, view_str>::Err(&e) => {
+        auto Result<User, str>::Err(&e) => {
             println("Deserialization failed: {}", e)
             return 1
         }

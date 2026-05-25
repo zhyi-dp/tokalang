@@ -1769,7 +1769,7 @@ PhysEntity CodeGen::genLiteralExpr(const Expr *expr) {
         llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context),
                                vstr->Value.size()),
         {1});
-    return PhysEntity(fatVal, "view_str", fatVal->getType(), false);
+    return PhysEntity(fatVal, "str", fatVal->getType(), false);
   }
   if (auto *chr = dynamic_cast<const CharLiteralExpr *>(expr)) {
     return llvm::ConstantInt::get(llvm::Type::getInt8Ty(m_Context), chr->Value);
@@ -2226,7 +2226,7 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
               );
               llvm::Value *cmpRes = m_Builder.CreateCall(strcmpFn, {currVal, rawPtr});
               return m_Builder.CreateICmpEQ(cmpRes, m_Builder.getInt32(0));
-            } else if (shapeName == "view_str" || shapeName == "str" || shapeName == "String") {
+            } else if (shapeName == "str" || shapeName == "String") {
               llvm::Value *currBuf = m_Builder.CreateExtractValue(currVal, 0, "str_buf");
               llvm::Value *currLen = m_Builder.CreateExtractValue(currVal, 1, "str_len");
 
@@ -3950,7 +3950,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
               } else {
                   std::string soulTy = Type::stripMorphology(argExpr->ResolvedType ? argExpr->ResolvedType->getSoulName() : "");
 
-              if (soulTy == "String" || soulTy == "view_str" || soulTy == "str") {
+              if (soulTy == "String" || soulTy == "str") {
                   llvm::Value *finalArg = argVal;
                   if (!argVal->getType()->isPointerTy()) {
                       finalArg = argEnt.isAddress ? argEnt.value : nullptr;
@@ -3978,7 +3978,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
                           llvm::Value *lenVal = nullptr;
                           
                           if (argVal->getType()->isPointerTy()) {
-                              llvm::Type *viewStrTy = getLLVMType(toka::Type::fromString("view_str"));
+                              llvm::Type *viewStrTy = getLLVMType(toka::Type::fromString("str"));
                               llvm::Value *ptrGEP = m_Builder.CreateStructGEP(viewStrTy, argVal, 0);
                               ptrVal = m_Builder.CreateLoad(m_Builder.getPtrTy(), ptrGEP);
                               llvm::Value *lenGEP = m_Builder.CreateStructGEP(viewStrTy, argVal, 1);
@@ -4223,7 +4223,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
                 }
             }
 
-            if (soulTy == "String" || soulTy == "view_str" || soulTy == "str") {
+            if (soulTy == "String" || soulTy == "str") {
                 if (isFmt) {
                     // String natively ignores format specifier for now, or we could pass it if we implement to_string_fmt on String
                     // For now, treat like regular {}
@@ -4749,7 +4749,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
        auto targetTyObj = funcDecl->Args[i].ResolvedType;
        if (targetTyObj && targetTyObj->isShape()) {
            auto shpTarget = std::static_pointer_cast<toka::ShapeType>(targetTyObj);
-           if (shpTarget->Name == "view_str" || shpTarget->Name == "str") {
+           if (shpTarget->Name == "str") {
                auto argTyObj = call->Args[i]->ResolvedType;
                bool isNakedCString = false;
                if (argTyObj) {
@@ -4762,7 +4762,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
                             
                if (isNakedCString && !strExpr) {
                    // User requested Safety Mode B: Do not allow dynamic *char implicitly!
-                   error(call->Args[i].get(), "Unsafe implicit cast: cannot automatically elevate a dynamic 'cstring' (*char) to a boundary-checked 'str' (view_str). Only string literals are permitted.");
+                   error(call->Args[i].get(), "Unsafe implicit cast: cannot automatically elevate a dynamic 'cstring' (*char) to a boundary-checked 'str'. Only string literals are permitted.");
                    return nullptr;
                }
            }
@@ -4970,6 +4970,23 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
             // types match.
           }
         }
+      }
+
+      // FFI boundary automatic decay for cstr -> *char
+      if (val && call->Args[i]->ResolvedType && call->Args[i]->ResolvedType->isShape()) {
+          auto shp = std::static_pointer_cast<toka::ShapeType>(call->Args[i]->ResolvedType);
+          if (shp->Name == "cstr") {
+              if (paramType->isPointerTy()) {
+                  if (val->getType()->isPointerTy()) {
+                      // If val is a pointer to the cstr struct, load the pointer field
+                      llvm::Value *ptrGEP = m_Builder.CreateStructGEP(getLLVMType(call->Args[i]->ResolvedType), val, 0);
+                      val = m_Builder.CreateLoad(m_Builder.getPtrTy(), ptrGEP);
+                  } else {
+                      // If val is the struct value itself, extract the first field
+                      val = m_Builder.CreateExtractValue(val, 0);
+                  }
+              }
+          }
       }
 
       if (val->getType() != paramType) {
@@ -6211,7 +6228,7 @@ PhysEntity CodeGen::genComptimeReflectExpr(const ComptimeReflectExpr *expr) {
       
       // name: str (RowFat)
       llvm::Value *namePtr = m_Builder.CreateGlobalString(member.Name);
-      llvm::Type *fatTy = getLLVMType(toka::Type::fromString("view_str"));
+      llvm::Type *fatTy = getLLVMType(toka::Type::fromString("str"));
       llvm::Value *nameFat = llvm::UndefValue::get(fatTy);
       nameFat = m_Builder.CreateInsertValue(nameFat, namePtr, {0});
       nameFat = m_Builder.CreateInsertValue(nameFat, llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), member.Name.size()), {1});
@@ -6236,7 +6253,7 @@ PhysEntity CodeGen::genComptimeReflectExpr(const ComptimeReflectExpr *expr) {
 
   // set name
   llvm::Value *namePtr = m_Builder.CreateGlobalString(targetSoul);
-  llvm::Type *fatTy = getLLVMType(toka::Type::fromString("view_str"));
+  llvm::Type *fatTy = getLLVMType(toka::Type::fromString("str"));
   llvm::Value *nameFat = llvm::UndefValue::get(fatTy);
   nameFat = m_Builder.CreateInsertValue(nameFat, namePtr, {0});
   nameFat = m_Builder.CreateInsertValue(nameFat, llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), targetSoul.size()), {1});
@@ -6248,7 +6265,7 @@ PhysEntity CodeGen::genComptimeReflectExpr(const ComptimeReflectExpr *expr) {
   // set fields (RowFat<FieldInfo>)
   llvm::Type *fatFieldInfoTy = getLLVMType(toka::Type::fromString("RowFat_M_FieldInfo"));
   if (!fatFieldInfoTy) {
-      fatFieldInfoTy = getLLVMType(toka::Type::fromString("view_str")); // fallback if aliased
+      fatFieldInfoTy = getLLVMType(toka::Type::fromString("str")); // fallback if aliased
   }
   llvm::Value *fieldsFat = llvm::UndefValue::get(fatFieldInfoTy);
   fieldsFat = m_Builder.CreateInsertValue(fieldsFat, m_Builder.CreateBitCast(fieldArrayAlloc, llvm::PointerType::getUnqual(m_Context)), {0});

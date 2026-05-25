@@ -531,15 +531,25 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
   } else if (auto *Unary = dynamic_cast<UnaryExpr *>(E)) {
     return checkUnaryExpr(Unary);
   } else if (auto *Str = dynamic_cast<StringExpr *>(E)) {
-    if (m_ExpectedType && m_ExpectedType->isShape()) {
+    if (m_ExpectedType) {
+        if (m_ExpectedType->isPointer()) {
+            auto pte = m_ExpectedType->getPointeeType();
+            if (pte && pte->typeKind == Type::Primitive) {
+                std::string pName = pte->getSoulName();
+                if (pName == "char" || pName == "i8" || pName == "u8") {
+                    return m_ExpectedType;
+                }
+            }
+        }
         std::string soul = m_ExpectedType->getSoulName();
-        if (soul == "view_str" || soul == "str") {
+        if (soul == "cstring" || soul == "cstr" || soul == "Addr" || soul == "OAddr") {
             return m_ExpectedType;
         }
     }
-    return toka::Type::fromString("cstring");
+    auto t = toka::Type::fromString("str");
+    return resolveType(t);
   } else if (auto *VStr = dynamic_cast<ViewStringExpr *>(E)) {
-      auto t = toka::Type::fromString("view_str");
+      auto t = toka::Type::fromString("str");
       return resolveType(t);
   } else if (auto *ve = dynamic_cast<VariableExpr *>(E)) {
     m_AccessedVariables.insert(ve->Name); // [CLOSURE] Tracker
@@ -2051,7 +2061,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
                         error(Met->Args[i].get(), "Type mismatch in method argument " + std::to_string(i + 1) + ": expected " + expectedParamTy->toString() + ", got " + argTy->toString());
                     } else if (expectedParamTy->isShape() && argTy->isRawPointer()) {
                         auto shp = std::static_pointer_cast<toka::ShapeType>(expectedParamTy);
-                        if (shp->Name == "view_str" || shp->Name == "str") {
+                        if (shp->Name == "str") {
                             Met->Args[i]->ResolvedType = expectedParamTy;
                         }
                     }

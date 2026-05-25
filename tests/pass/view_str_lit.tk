@@ -1,5 +1,5 @@
 import std/io::println
-import core/str::view_str
+import core/str::str
 
 fn main() -> i32 {
     auto s = s"Hello Toka"
@@ -9,14 +9,14 @@ fn main() -> i32 {
         return 1
     }
     
-    // Check if it's really a view_str by passing to a function expecting it
+    // Check if it's really a str by passing to a function expecting it
     check_view(s)
     
     return 0
 }
 
-fn check_view(v: view_str) {
+fn check_view(v: str) {
     if v.len() > 0:usize {
-        println("Checked view_str successfully")
+        println("Checked str successfully")
     }
 }
