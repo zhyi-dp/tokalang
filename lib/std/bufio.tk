@@ -73,7 +73,7 @@ impl<'R: @Reader> BufferedReader<'R> {
         auto s# = String::from("")
         auto done# = false
         
-        while !done {
+        loop !done {
             if self.pos >= self.cap {
                 auto fill_res = self#.fill_buf()
                 match fill_res {
@@ -93,7 +93,7 @@ impl<'R: @Reader> BufferedReader<'R> {
             auto found_nl# = false
             auto nl_idx# = self.pos
             
-            while nl_idx < self.cap {
+            loop nl_idx < self.cap {
                 auto val = self.buf[nl_idx]
                 if val == 10:u8 {
                     found_nl = true

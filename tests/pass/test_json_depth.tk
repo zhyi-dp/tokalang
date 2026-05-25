@@ -8,13 +8,13 @@ fn main() -> i32 {
     auto i# = 0:usize
     
     // Generate 200 depth array
-    while i < 200:usize {
+    loop i < 200:usize {
         string_buf#.push_str("[")
         i += 1:usize
     }
     string_buf#.push_str("1")
     i = 0:usize
-    while i < 200:usize {
+    loop i < 200:usize {
         string_buf#.push_str("]")
         i += 1:usize
     }

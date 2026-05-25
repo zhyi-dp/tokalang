@@ -34,7 +34,7 @@ fn print_json_node(val: JsonNode) {
             put(String::from("["))
             auto arr_iter# = arr_ptr.iter()
             auto first# = true
-            while true {
+            loop true {
                 auto item_opt = arr_iter#.next()
                 if item_opt.is_none() { break }
                 auto item = item_opt.unwrap()
@@ -47,7 +47,7 @@ fn print_json_node(val: JsonNode) {
             put(String::from("{"))
             auto iter# = map_ptr#.iter()
             auto first# = true
-            while true {
+            loop true {
                 auto entry_opt = iter#.next()
                 if entry_opt.is_none() { break }
                 auto entry = entry_opt.unwrap()
@@ -84,7 +84,7 @@ fn print_json_node_ptr(*val_ptr: JsonNode) {
             put(String::from("["))
             auto arr_iter# = arr_ptr.iter()
             auto first# = true
-            while true {
+            loop true {
                 auto item_opt = arr_iter#.next()
                 if item_opt.is_none() { break }
                 auto item = item_opt.unwrap()
@@ -98,7 +98,7 @@ fn print_json_node_ptr(*val_ptr: JsonNode) {
             put(String::from("{"))
             auto iter# = map_ptr#.iter()
             auto first# = true
-            while true {
+            loop true {
                 auto entry_opt = iter#.next()
                 if entry_opt.is_none() { break }
                 auto entry = entry_opt.unwrap()
@@ -135,7 +135,7 @@ pub fn main() -> i32 {
             
             println("--- Keys inside Object ---")
             auto iter# = map_ptr#.iter()
-            while true {
+            loop true {
                 auto entry_opt = iter#.next()
                 if entry_opt.is_none() { break }
                 auto entry = entry_opt.unwrap()

@@ -45,7 +45,7 @@ fn main() -> i32 {
     auto p# = Point(x = 1, y = 2, z = 111 )
     auto i# = 0
     auto logi# = 0
-    while (i < 3) {
+    loop (i < 3) {
         println("[{}]p.x is {}, loop {}", logi++, p.x, i)
         p.x = p.x + 10
         i = i + 1

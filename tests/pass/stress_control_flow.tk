@@ -15,15 +15,15 @@ import std/io::println
 
 fn main() -> i32 {
     println("--- Stress Test: Nested Jump ---\n")
-    // 1. Pressure Test: 5-level nested loop with long-jump yield
-    auto res = loop { // Level 1 (Label: res)
+    // 1. Pressure Test: 5-level nested loop with long-jump
+    auto res: void = loop { // Level 1 (Label: res)
         println("Entering Level 1\n")
         loop { // Level 2
             loop { // Level 3
                 loop { // Level 4
                     for auto i in [1] { // Level 5
-                        println("Deep in Level 5, initiating jump to res with 999\n")
-                        break to res 999
+                        println("Deep in Level 5, initiating jump to res\n")
+                        break to res
                     }
                     println("Error: Level 4 not skipped\n")
                 }
@@ -33,26 +33,12 @@ fn main() -> i32 {
         }
         println("Error: Level 1 body reaching end\n")
     }
-    println("Result of 5-level break: {} (expected 999)", res)
-    assert(res == 999, "nested loop break value mismatch")
-
-    println("\n--- Empty Set Test: for + or block ---\n")
-    // 2. Empty Set Test: empty array should hit or block
-    auto empty_res = while false {
-        println("Error: Entered loop body for empty array\n")
-        break 0
-    } or {
-        println("Success: Entered or block for empty array\n")
-        pass 777
-    }
-    println("Result of empty for: {} (expected 777)", empty_res)
-    assert(empty_res == 777, "empty loop fallback mismatch")
 
     println("\n--- Sovereignty Test: Mutation + continue ---\n")
     // 3. Sovereignty Test: state modification across continue
     auto counter# = 0
     auto audit# = 0
-    while counter < 5 {
+    loop counter < 5 {
         counter += 1
         if counter == 3 {
             println("Counter is 3, continuing...\n")

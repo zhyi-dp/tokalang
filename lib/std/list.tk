@@ -35,7 +35,7 @@ impl<'T> LinkedList<'T> {
     pub fn clear(self#) {
         unsafe {
             auto *curr# = self.*head
-            while true {
+            loop true {
                 auto curr_addr = curr as Addr
                 if curr_addr == ADDR0 { break }
                 

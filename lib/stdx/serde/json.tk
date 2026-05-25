@@ -69,7 +69,7 @@ impl bool@ToJson {
 fn json_write_escaped_string(s: view_str, buf#: String) {
     buf#.push_str("\"")
     auto i#: usize = 0
-    while i < s.len() {
+    loop i < s.len() {
         auto c = s.byte_at(i)
         if c == 34 { buf#.push_str("\\\"") }      // '"'
         else if c == 92 { buf#.push_str("\\\\") } // '\'
@@ -102,7 +102,7 @@ impl String@ToJson {
 pub fn serialize_shape<'T>(obj: 'T, buf#: String) -> String {
     buf#.push_str("{")
     auto first# = true
-    for f in reflect<'T>().fields {
+    for auto f in reflect<'T>().fields {
         if !first { buf#.push_str(",") }
         first = false
         
@@ -122,7 +122,7 @@ impl<'T: @ToJson> Vec<'T>@ToJson {
         buf#.push_str("[")
         auto first# = true
         auto i#: usize = 0
-        while i < self.len() {
+        loop i < self.len() {
             if !first { buf#.push_str(",") }
             first = false
             buf = self.at(i).write_json(buf)
@@ -138,7 +138,7 @@ impl<'K: @ToJson, 'V: @ToJson> HashMap<'K, 'V>@ToJson {
         buf#.push_str("{")
         auto first# = true
         auto iter# = self.iter()
-        while true {
+        loop true {
             auto opt = iter#.next_ref()
             if opt.is_none() { break }
             auto entry = opt.unwrap()
@@ -199,7 +199,7 @@ pub trait @FromJson {
 
 fn json_skip_whitespace(json: view_str) -> view_str {
     auto res# = json
-    while res.len() > 0 {
+    loop res.len() > 0 {
         auto c = res.byte_at(0)
         if c == 32 || c == 9 || c == 10 || c == 13 {
             res = res.substr(1, res.len() - 1)
@@ -221,7 +221,7 @@ impl i32@FromJson {
         if rem.byte_at(0) == 45 { neg = true; i = 1 }
         auto val#: i32 = 0
         auto found# = false
-        while i < rem.len() {
+        loop i < rem.len() {
             auto c = rem.byte_at(i)
             if c >= 48 && c <= 57 {
                 val = val * 10 + ((c - 48) as i32)
@@ -262,7 +262,7 @@ fn _json_skip_value(json_in: view_str, depth: usize) -> JsonRes {
     auto c = json.byte_at(0)
     if c == 123 { // '{'
         json = json.substr(1, json.len() - 1)
-        while json.len() > 0 && json.byte_at(0) != 125 {
+        loop json.len() > 0 && json.byte_at(0) != 125 {
             json = json_skip_whitespace(json)
             if json.len() > 0 && json.byte_at(0) == 125 { break }
             json = _json_skip_value(json, depth + 1)!
@@ -276,7 +276,7 @@ fn _json_skip_value(json_in: view_str, depth: usize) -> JsonRes {
         return JsonRes::Ok(json)
     } else if c == 91 { // '['
         json = json.substr(1, json.len() - 1)
-        while json.len() > 0 && json.byte_at(0) != 93 {
+        loop json.len() > 0 && json.byte_at(0) != 93 {
             json = json_skip_whitespace(json)
             if json.len() > 0 && json.byte_at(0) == 93 { break }
             json = _json_skip_value(json, depth + 1)!
@@ -287,7 +287,7 @@ fn _json_skip_value(json_in: view_str, depth: usize) -> JsonRes {
         return JsonRes::Ok(json)
     } else if c == 34 { // '"'
         auto i#: usize = 1
-        while i < json.len() {
+        loop i < json.len() {
             auto ch = json.byte_at(i)
             if ch == 34 { return JsonRes::Ok(json.substr(i + 1, json.len() - i - 1)) }
             if ch == 92 { i += 1 }
@@ -296,7 +296,7 @@ fn _json_skip_value(json_in: view_str, depth: usize) -> JsonRes {
         return JsonRes::Err("Unterminated string")
     } else {
         auto i#: usize = 0
-        while i < json.len() {
+        loop i < json.len() {
             auto b = json.byte_at(i)
             if b == 32 || b == 10 || b == 13 || b == 9 || b == 44 || b == 125 || b == 93 { break }
             i += 1
@@ -319,14 +319,14 @@ impl f64@FromJson {
         if i < n && val_str.byte_at(i) == 45 { sign = -1.0; i += 1 }
         else if i < n && val_str.byte_at(i) == 43 { i += 1 }
         
-        while i < n && val_str.byte_at(i) >= 48 && val_str.byte_at(i) <= 57 {
+        loop i < n && val_str.byte_at(i) >= 48 && val_str.byte_at(i) <= 57 {
             result = result * 10.0 + ((val_str.byte_at(i) - 48) as f64)
             i += 1
         }
         if i < n && val_str.byte_at(i) == 46 { // '.'
             i += 1
             auto frac#: f64 = 0.1
-            while i < n && val_str.byte_at(i) >= 48 && val_str.byte_at(i) <= 57 {
+            loop i < n && val_str.byte_at(i) >= 48 && val_str.byte_at(i) <= 57 {
                 result = result + ((val_str.byte_at(i) - 48) as f64) * frac
                 frac = frac * 0.1
                 i += 1
@@ -338,7 +338,7 @@ impl f64@FromJson {
             if i < n && val_str.byte_at(i) == 45 { exp_sign = -1.0; i += 1 }
             else if i < n && val_str.byte_at(i) == 43 { i += 1 }
             auto exp#: f64 = 0.0
-            while i < n && val_str.byte_at(i) >= 48 && val_str.byte_at(i) <= 57 {
+            loop i < n && val_str.byte_at(i) >= 48 && val_str.byte_at(i) <= 57 {
                 exp = exp * 10.0 + ((val_str.byte_at(i) - 48) as f64)
                 i += 1
             }
@@ -352,7 +352,7 @@ impl f64@FromJson {
 fn json_parse_hex4(rem: view_str, start: usize) -> u32 {
     auto cp#: u32 = 0:u32
     auto j#: usize = 0
-    while j < 4 {
+    loop j < 4 {
         auto c = rem.byte_at(start + j)
         auto val#: u32 = 0:u32
         if c >= 48 && c <= 57 { val = (c - 48) as u32 }
@@ -387,7 +387,7 @@ impl String@FromJson {
         if rem.len() == 0 || rem.byte_at(0) != 34 { return JsonRes::Err("Expected string") }
         auto i#: usize = 1
         auto closed# = false
-        while i < rem.len() {
+        loop i < rem.len() {
             auto c = rem.byte_at(i)
             if c == 34 { closed = true; break }
             if c == 92 { i += 1 }
@@ -396,7 +396,7 @@ impl String@FromJson {
         if !closed { return JsonRes::Err("Unterminated string") }
         auto new_str# = String::from("")
         auto j#: usize = 1
-        while j < i {
+        loop j < i {
             auto c = rem.byte_at(j)
             if c == 92 {
                 j += 1
@@ -434,7 +434,7 @@ impl view_str@FromJson {
         auto rem = json_skip_whitespace(json)
         if rem.len() == 0 || rem.byte_at(0) != 34 { return JsonRes::Err("Expected string") }
         auto i#: usize = 1
-        while i < rem.len() {
+        loop i < rem.len() {
             auto c = rem.byte_at(i)
             if c == 34 {
                 self = rem.substr(1, i - 1)
@@ -510,7 +510,7 @@ impl<'K: @FromJson, 'V: @FromJson> HashMap<'K, 'V>@FromJson {
         res = res.substr(1, res.len() - 1)
         self = HashMap<'K, 'V>::new()
         auto first# = true
-        while true {
+        loop true {
             res = json_skip_whitespace(res)
             if res.len() > 0 && res.byte_at(0) == 125 { res = res.substr(1, res.len() - 1); break }
             if !first {
@@ -548,7 +548,7 @@ impl<'T: @FromJson> Vec<'T>@FromJson {
         res = res.substr(1, res.len() - 1)
         self = Vec<'T>::new()
         auto first# = true
-        while true {
+        loop true {
             res = json_skip_whitespace(res)
             if res.len() > 0 && res.byte_at(0) == 93 { res = res.substr(1, res.len() - 1); break }
             if !first {
@@ -576,7 +576,7 @@ pub fn deserialize_shape<'T>(json_str: view_str) -> Result<'T, view_str> {
     
     auto obj# = 'T(..)
     auto first# = true
-    while true {
+    loop true {
         res = json_skip_whitespace(res)
         if res.len() > 0 && res.byte_at(0) == 125 { res = res.substr(1, res.len() - 1); break }
         if !first {
@@ -591,7 +591,7 @@ pub fn deserialize_shape<'T>(json_str: view_str) -> Result<'T, view_str> {
         if res.len() == 0 || res.byte_at(0) != 58 { return Result<'T, view_str>::Err("Expected :") }
         res = res.substr(1, res.len() - 1)
         auto found# = false
-        for f in reflect<'T>().fields {
+        for auto f in reflect<'T>().fields {
             if key_view.equals(f.name) {
                 found = true
                 auto val# = f.get(obj)
@@ -622,7 +622,7 @@ impl JsonNode {
             auto map# = HashMap<String, JsonNode>::new()
             rem = rem.substr(1, rem.len() - 1)
             auto first# = true
-            while true {
+            loop true {
                 rem = json_skip_whitespace(rem)
                 if rem.len() > 0 && rem.byte_at(0) == 125 { rem = rem.substr(1, rem.len() - 1); break }
                 if !first {
@@ -646,7 +646,7 @@ impl JsonNode {
             auto arr# = Vec<JsonNode>::new()
             rem = rem.substr(1, rem.len() - 1)
             auto first# = true
-            while true {
+            loop true {
                 rem = json_skip_whitespace(rem)
                 if rem.len() > 0 && rem.byte_at(0) == 93 { rem = rem.substr(1, rem.len() - 1); break }
                 if !first {

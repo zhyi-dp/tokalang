@@ -44,7 +44,7 @@ fn client_task() -> async i32 {
     
     auto stream# = TcpStream::connect(addr)
     auto retries# = 0
-    while !stream.is_valid() {
+    loop !stream.is_valid() {
         if retries > 100 {
             assert(false, "Client connect timeout after 10s")
         }
@@ -98,7 +98,7 @@ fn client_task() -> async i32 {
     libc_memcpy((*#temp_buf as *void), (p_str.raw_ptr() as *void), p_len)
     
     unsafe {
-        while i < p_len {
+        loop i < p_len {
             unsafe {
                 auto original = temp_buf[i] as i32
                 auto idx2 = i % 4:usize

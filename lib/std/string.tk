@@ -99,7 +99,7 @@ impl SplitIterator {
              auto found# = false
              auto i#: usize = start
              
-             while i < self.source_len {
+             loop i < self.source_len {
                  if self.source[i] == self.delimiter {
                      found = true
                      break
@@ -513,7 +513,7 @@ impl String {
         unsafe {
             auto i#: usize = 0
             auto *b# = (res.c_str() as usize) as *[char]#
-            while i < res.len {
+            loop i < res.len {
                 auto c = b[i]
                 if c >= 97:char && c <= 122:char { // 'a'-'z'
                     b[i] = (c as i32 - 32) as char
@@ -529,7 +529,7 @@ impl String {
         unsafe {
             auto i#: usize = 0
             auto *b# = (res.c_str() as usize) as *[char]#
-            while i < res.len {
+            loop i < res.len {
                 auto c = b[i]
                 if c >= 65:char && c <= 90:char { // 'A'-'Z'
                     b[i] = (c as i32 + 32) as char
@@ -545,7 +545,7 @@ impl String {
         unsafe {
             auto i#: usize = 0
             auto *b# = (res.c_str() as usize) as *[char]#
-            while i < res.len {
+            loop i < res.len {
                 if b[i] == old_c {
                     b[i] = new_c
                 }
@@ -589,13 +589,13 @@ impl String {
              auto *s_buf = self.*buf
              auto *old_buf = old_s.c_str() as *[char]
              
-             while i < self.len {
+             loop i < self.len {
                   auto is_match# = true
                   if i + old_s.len() > self.len {
                       is_match = false
                   } else {
                       auto j#: usize = 0
-                      while j < old_s.len() {
+                      loop j < old_s.len() {
                           // Direct buffer access for speed inside unsafe
                           auto idx = i + j
                           if s_buf[idx] != old_buf[j] {
@@ -623,7 +623,7 @@ impl String {
         auto res# = String::from("")
         // Pre-reserve could be optimization todo
         auto i# = 0
-        while i < n {
+        loop i < n {
             res#.push_str(self.c_str())
             i = i + 1
         }
@@ -637,7 +637,7 @@ impl String {
             auto i#: usize = 0
             auto *dest# = (res.c_str() as usize) as *[char]#
             auto *src = self.*buf
-            while i < self.len {
+            loop i < self.len {
                 dest[i] = src[self.len - 1 - i]
                 i = i + 1
             }
@@ -651,7 +651,7 @@ impl String@Hash {
             auto hash#: u64 = 5381
             auto i#: usize = 0
             auto *b = self.*buf
-            while i < self.len {
+            loop i < self.len {
                 auto c = b[i] as u64
                 hash = ((hash bshl 5) + hash) + c
                 i = i + 1
@@ -673,7 +673,7 @@ impl String@PartialOrd {
             auto i#: usize = 0
             auto *b1 = self.c_str()
             auto *b2 = other.c_str()
-            while i < self.len && i < other.len() {
+            loop i < self.len && i < other.len() {
                 auto *p1 = (b1 as usize + i) as *char
                 auto *p2 = (b2 as usize + i) as *char
                 if *p1 < *p2 { return -1 }
@@ -703,7 +703,7 @@ impl view_str {
             auto *src = &(self.buf()[0]) as *void
             
             auto i# = 0
-            while i < n {
+            loop i < n {
                 auto offset = i * self.len()
                 libc_memcpy((*p as usize + offset) as *void, *src, self.len())
                 i = i + 1
@@ -881,7 +881,7 @@ pub fn _format_i64(val: i64, fmt: view_str) -> String {
         if has_type { fmt_len = fmt_len - 1 }
         
         auto j# = 0:usize
-        while j < fmt_len {
+        loop j < fmt_len {
             c_fmt[i] = fmt.buf()[j]
             i = i + 1
             j = j + 1
@@ -911,7 +911,7 @@ pub fn _format_f64(val: f64, fmt: view_str) -> String {
         c_fmt[0] = 37:char // '%'
         auto i# = 1:usize
         auto j# = 0:usize
-        while j < fmt.len() {
+        loop j < fmt.len() {
             c_fmt[i] = fmt.buf()[j]
             i = i + 1
             j = j + 1

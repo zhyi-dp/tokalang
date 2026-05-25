@@ -77,7 +77,7 @@ fn fill_sockaddr_in(*addr_buf: char, ip: usize, port: i32) -> bool {
         
         // Offset 8..16: Zero
         auto i#: usize = 8
-        while i < 16 {
+        loop i < 16 {
             auto *p_z# = (*base_ptr as usize + i) as *char
             p_z = 0 as char
             i += 1
@@ -271,7 +271,7 @@ fn win_reactor_add(fd: i32, coro: Addr, is_write: bool) -> bool {
         auto *r# = g_win_reactor as *WinReactor
         // Check if already exists
         auto i# = 0
-        while i < r.count {
+        loop i < r.count {
             auto *p_fd = (r.fds as usize + (i as usize) * 4:usize) as *i32
             auto *p_is_write = (r.is_write as usize + (i as usize) * 4:usize) as *i32
             
@@ -365,7 +365,7 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
         
         // Populate fd_sets
         auto idx# = 0
-        while idx < r.count {
+        loop idx < r.count {
             auto *p_fd = (r.fds as usize + (idx as usize) * 4:usize) as *i32
             auto *p_is_write = (r.is_write as usize + (idx as usize) * 4:usize) as *i32
             
@@ -401,12 +401,12 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
             // Process ready read events
             auto rc = read_count
             auto i# = 0:u32
-            while i < rc {
+            loop i < rc {
                 auto *p_sock = (*readfds as usize + 8:usize + (i as usize) * 8:usize) as *Addr
                 auto sock_fd = p_sock as i32
                 
                 auto k# = 0
-                while k < r.count {
+                loop k < r.count {
                     auto *p_fd = (r.fds as usize + (k as usize) * 4:usize) as *i32
                     auto *p_is_write = (r.is_write as usize + (k as usize) * 4:usize) as *i32
                     if p_fd == sock_fd && p_is_write == 0 {
@@ -442,12 +442,12 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
             // Process ready write events
             auto wc = write_count
             auto j# = 0:u32
-            while j < wc {
+            loop j < wc {
                 auto *p_sock = (*writefds as usize + 8:usize + (j as usize) * 8:usize) as *Addr
                 auto sock_fd = p_sock as i32
                 
                 auto k# = 0
-                while k < r.count {
+                loop k < r.count {
                     auto *p_fd = (r.fds as usize + (k as usize) * 4:usize) as *i32
                     auto *p_is_write = (r.is_write as usize + (k as usize) * 4:usize) as *i32
                     if p_fd == sock_fd && p_is_write == 1 {
@@ -483,12 +483,12 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
             // Process ready exception events (connection failures)
             auto ec = except_count
             auto j_ex# = 0:u32
-            while j_ex < ec {
+            loop j_ex < ec {
                 auto *p_sock = (*exceptfds as usize + 8:usize + (j_ex as usize) * 8:usize) as *Addr
                 auto sock_fd = p_sock as i32
                 
                 auto k# = 0
-                while k < r.count {
+                loop k < r.count {
                     auto *p_fd = (r.fds as usize + (k as usize) * 4:usize) as *i32
                     auto *p_is_write = (r.is_write as usize + (k as usize) * 4:usize) as *i32
                     if p_fd == sock_fd && p_is_write == 1 {

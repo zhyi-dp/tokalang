@@ -43,7 +43,7 @@ fn main() -> i32 {
                                         println("Error reading dir")
                                         return 1
                                     }
-                                    while true {
+                                    loop true {
                                         auto entry_opt = iter#.next()
                                         if entry_opt.is_none() { break }
                                         auto entry = entry_opt.unwrap()

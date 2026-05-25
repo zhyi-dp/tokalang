@@ -8,7 +8,7 @@ fn test_robin_hood() {
     
     // 1. Heavy insertion to trigger resizes and Robin Hood stealing
     auto i# = 0
-    while i < 1000 {
+    loop i < 1000 {
         auto val_str# = String::from("val_")
         map#.insert(i, cede val_str)
         i += 1
@@ -22,7 +22,7 @@ fn test_robin_hood() {
     
     // 2. Validate gets
     auto j# = 0
-    while j < 1000 {
+    loop j < 1000 {
         auto opt = map.get(j)
         if opt.is_none() {
             unsafe { libc_printf("FAIL: could not get %d\n" as *char, j) }
@@ -33,7 +33,7 @@ fn test_robin_hood() {
     
     // 3. Heavy backward shift deletion
     auto k# = 0
-    while k < 1000 {
+    loop k < 1000 {
         auto rm_opt = map#.remove(k)
         if rm_opt.is_none() {
             unsafe { libc_printf("FAIL: could not remove %d\n" as *char, k) }

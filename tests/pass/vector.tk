@@ -34,7 +34,7 @@ fn main() -> i32 {
         
         // Use loop to print
         auto i# = 0:u64
-        while i < v1.len() {
+        loop i < v1.len() {
             println("v1[{}] = {}", i, v1.get(i))
             i = i + 1
         }

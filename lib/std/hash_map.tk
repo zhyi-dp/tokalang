@@ -21,7 +21,7 @@ impl<'K, 'V> HashMap<'K, 'V>@encap {
         unsafe {
             // 1. Drop elements
             auto i#: usize = 0
-            while i < self.cap {
+            loop i < self.cap {
                  auto *m = self.meta.unsafe_get(i)
                  if m == 1 {
                      // Drop key
@@ -52,14 +52,14 @@ impl<'K, 'V> HashMap<'K, 'V>@encap {
             auto m# = Vec<u8>::with_capacity(self.cap)
             
             auto i#: usize = 0
-            while i < self.len {
+            loop i < self.len {
                 k#.push(self.keys.get(i))
                 v#.push(self.vals.get(i))
                 i += 1
             }
             
             i = 0
-            while i < self.cap {
+            loop i < self.cap {
                 m#.push(self.meta.get(i))
                 i += 1
             }
@@ -102,7 +102,7 @@ impl<'K, 'V> HashMap<'K, 'V> {
             
             // Manually fill meta with 0
             auto i# = 0
-            while i < init_cap {
+            loop i < init_cap {
                  m#.push(0) // This ensures meta has valid 0s up to init_cap
                  i += 1
             }
@@ -141,7 +141,7 @@ impl<'K, 'V> HashMap<'K, 'V> {
         auto found_slot#: usize = capacity
         auto is_new# = false
         
-        while true {
+        loop true {
             unsafe {
                 auto *m_ptr#: u8 = self.meta.unsafe_get(idx)
                 if m_ptr == 0 {
@@ -189,7 +189,7 @@ impl<'K, 'V> HashMap<'K, 'V> {
             
             // Populate meta with 0 up to new_cap
             auto j#: usize = 0
-            while j < new_cap {
+            loop j < new_cap {
                 new_m#.push(0)
                 j += 1
             }
@@ -197,7 +197,7 @@ impl<'K, 'V> HashMap<'K, 'V> {
             // Re-hash and move elements
             auto i#: usize = 0
             auto moved_count# = 0
-            while i < self.cap {
+            loop i < self.cap {
                 auto *m_ptr#: u8 = self.meta.unsafe_get(i)
                 if m_ptr == 1 {
                      moved_count += 1
@@ -207,7 +207,7 @@ impl<'K, 'V> HashMap<'K, 'V> {
                      auto idx# = (key.hash() as usize) band (new_cap - 1)
                      auto start_idx = idx
                      
-                     while true {
+                     loop true {
                          auto *nm_ptr#: u8 = new_m.unsafe_get(idx)
                          if nm_ptr == 0 {
                              nm_ptr = 1
@@ -246,7 +246,7 @@ impl<'K, 'V> HashMap<'K, 'V> {
          auto idx# = (key.hash() as usize) band (capacity - 1)
          auto start_idx = idx
          
-         while true {
+         loop true {
              unsafe {
                  auto *m_ptr#: u8 = self.meta.unsafe_get(idx)
                  
@@ -283,7 +283,7 @@ impl<'K, 'V> HashMap<'K, 'V> {
          auto idx# = (key.hash() as usize) band (capacity - 1)
          auto start_idx = idx
          
-         while true {
+         loop true {
              unsafe {
                  auto *m_ptr#: u8 = self.meta.unsafe_get(idx)
                  if m_ptr == 0 {
@@ -310,7 +310,7 @@ impl<'K, 'V> HashMap<'K, 'V> {
     pub fn clear(self#) {
         unsafe {
             auto i# = 0:usize
-            while i < self.cap {
+            loop i < self.cap {
                 auto *m_ptr#: u8 = self.meta.unsafe_get(i)
                 if m_ptr == 1 {
                     m_ptr = 0
@@ -398,7 +398,7 @@ impl<'K, 'V> HashMapIterator<'K, 'V> {
             auto *k_buf = self.*keys_ptr as *['K]
             auto *v_buf = self.*vals_ptr as *['V]
             
-            while self.pos < self.cap {
+            loop self.pos < self.cap {
                 if m_buf[self.pos] == 1 {
                     auto p = self.pos
                     self.pos += 1
@@ -419,7 +419,7 @@ impl<'K, 'V> HashMapIterator<'K, 'V> {
             auto *k_buf = self.*keys_ptr as *['K]
             auto *v_buf = self.*vals_ptr as *['V]
             
-            while self.pos < self.cap {
+            loop self.pos < self.cap {
                 if m_buf[self.pos] == 1 {
                     auto p = self.pos
                     self.pos += 1

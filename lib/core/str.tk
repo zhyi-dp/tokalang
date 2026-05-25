@@ -41,7 +41,7 @@ impl view_str@PartialOrd {
     pub fn cmp(self, other: view_str) -> i32 {
         unsafe {
             auto i#: usize = 0
-            while i < self.len && i < other.len {
+            loop i < self.len && i < other.len {
                 auto *p1 = &(self.buf[i]) as *char
                 auto *p2 = &(other.buf[i]) as *char
                 if *p1 < *p2 { return -1 }
@@ -116,7 +116,7 @@ impl ViewStrSplitIterator {
             auto found# = false
             // Only loop if we have enough characters left
             if self.len >= self.sep.len + self.pos {
-                while i <= max_i {
+                loop i <= max_i {
                     if libc_memcmp(&(self.buf[i]) as *void, &(self.sep.buf[0]) as *void, self.sep.len) == 0 {
                         found = true
                         break
@@ -270,7 +270,7 @@ impl view_str@StrCommon {
         unsafe {
             auto i#: usize = 0
             auto max_i = self.len - needle.len
-            while i <= max_i {
+            loop i <= max_i {
                 if libc_memcmp(&(self.buf[i]) as *void, &(needle.buf[0]) as *void, needle.len) == 0 {
                     return Option<usize>::Some(i)
                 }
@@ -284,7 +284,7 @@ impl view_str@StrCommon {
         auto cnt#: usize = 0
         unsafe {
             auto i#: usize = 0
-            while i < self.len {
+            loop i < self.len {
                 if self.buf[i] == c {
                     cnt = cnt + 1
                 }
@@ -308,7 +308,7 @@ impl view_str@StringOps {
         if self.len == 0 { return Option<usize>::None }
         unsafe {
             auto i#: usize = 0
-            while i < self.len {
+            loop i < self.len {
                 if self.buf[i] == c {
                     return Option<usize>::Some(i)
                 }
@@ -322,7 +322,7 @@ impl view_str@StringOps {
         if self.len == 0 { return Option<usize>::None }
         unsafe {
             auto i# = self.len
-            while i > 0 {
+            loop i > 0 {
                 i = i - 1
                 if self.buf[i] == c { return Option<usize>::Some(i) }
             }
@@ -397,7 +397,7 @@ impl view_str@StringOps {
         if self.len == 0 { return self.clone() }
         auto start#: usize = 0
         unsafe {
-            while start < self.len {
+            loop start < self.len {
                 auto c = self.buf[start]
                 if c != 32:char && c != 9:char && c != 10:char && c != 13:char {
                     break
@@ -422,7 +422,7 @@ impl view_str@StringOps {
         if self.len == 0 { return self.clone() }
         auto end# = self.len
         unsafe {
-            while end > 0 {
+            loop end > 0 {
                 auto c = self.buf[end - 1]
                 if c != 32:char && c != 9:char && c != 10:char && c != 13:char {
                     break
@@ -458,7 +458,7 @@ impl view_str@StringOps {
                 i = 1
                 if self.len == 1 { return Option<i32>::None }
             }
-            while i < self.len {
+            loop i < self.len {
                 auto c = self.buf[i]
                 if c < '0' || c > '9' {
                     return Option<i32>::None
@@ -484,7 +484,7 @@ impl view_str@Utf8Ops {
     pub fn char_len(self) -> usize {
         auto iter# = self.chars()
         auto count#: usize = 0
-        while iter#.next().is_some() {
+        loop iter#.next().is_some() {
             count += 1
         }
         return count
@@ -493,7 +493,7 @@ impl view_str@Utf8Ops {
     pub fn char_at(self, char_idx: usize) -> Option<Char32> {
         auto iter# = self.chars()
         auto count#: usize = 0
-        while true {
+        loop true {
             auto opt = iter#.next()!
             if count == char_idx {
                 return Option<Char32>::Some(opt)
@@ -511,7 +511,7 @@ impl view_str@Utf8Ops {
         auto count#: usize = 0
         
         // Skip until start_char
-        while count < start_char {
+        loop count < start_char {
             if iter#.next().is_none() {
                 return view_str(&buf=self.&buf, len=0)
             }
@@ -522,7 +522,7 @@ impl view_str@Utf8Ops {
         count = 0
         
         // Take char_length
-        while count < char_length {
+        loop count < char_length {
             if iter#.next().is_none() {
                 break
             }
@@ -535,7 +535,7 @@ impl view_str@Utf8Ops {
     
     pub fn is_valid_utf8(self) -> bool {
         auto iter# = self.chars()
-        while true {
+        loop true {
             auto opt = iter#.next()
             if opt.is_none() { break }
             if opt.unwrap() == REPLACEMENT_CHAR { return false }

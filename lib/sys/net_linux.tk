@@ -78,7 +78,7 @@ fn fill_sockaddr_in(*addr_buf: char, ip: usize, port: i32) -> bool {
         
         // Offset 8..16: Zero
         auto i#: usize = 8
-        while i < 16 {
+        loop i < 16 {
             auto *p_z# = (*base_ptr as usize + i) as *char
             p_z = 0 as char
             i += 1
@@ -344,7 +344,7 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
         
         // copy data.ptr to out_events
         auto i# = 0
-        while i < n {
+        loop i < n {
             auto ev_base = *events as usize + ((12 * i) as usize)
             auto *p_data = (ev_base + 4) as *Addr
             auto h = p_data // value

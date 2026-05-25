@@ -21,7 +21,7 @@ impl Md5 {
     fn process_block(self#) {
         auto m#: [u32; 16] = [0; 16]
         auto j#: usize = 0
-        while j < 16 {
+        loop j < 16 {
             auto b0 = u32(self.data[j * 4])
             auto b1 = u32(self.data[j * 4 + 1])
             auto b2 = u32(self.data[j * 4 + 2])
@@ -131,7 +131,7 @@ impl Md5 {
 
     pub fn update_bytes(self#, *buf: [u8], len: usize) {
         auto i# = 0:usize
-        while i < len {
+        loop i < len {
             auto b# = 0:u8
             unsafe {
                 b = buf[i]
@@ -153,7 +153,7 @@ impl Md5 {
         i = i + 1
         
         if i > 56 {
-            while i < 64 {
+            loop i < 64 {
                 self.data[i] = 0x00
                 i = i + 1
             }
@@ -161,7 +161,7 @@ impl Md5 {
             i = 0
         }
         
-        while i < 56 {
+        loop i < 56 {
             self.data[i] = 0x00
             i = i + 1
         }
@@ -182,7 +182,7 @@ impl Md5 {
         
         auto hash#: [u8; 16] = [0; 16]
         auto j# = 0
-        while j < 4 {
+        loop j < 4 {
             // State is also little-endian in MD5
             hash[j * 4]     = u8(self.state[j])
             hash[j * 4 + 1] = u8(self.state[j] >> 8)

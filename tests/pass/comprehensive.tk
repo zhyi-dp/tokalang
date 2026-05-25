@@ -152,13 +152,16 @@ fn main() -> i32 {
     auto max_steps = 3
     
     // Loop expression with result
-    auto result_code = loop {
+    auto result_code# = 0
+    loop {
         if step >= max_steps {
-            break 200 // OK
+            result_code = 200 // OK
+            break
         }
         
         if !simulate(e1) {
-            break 500 // Error
+            result_code = 500 // Error
+            break
         }
         
         // Assert intermediate state by calling render

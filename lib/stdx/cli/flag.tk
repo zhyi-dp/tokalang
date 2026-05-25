@@ -107,7 +107,7 @@ impl Parser {
         }
         io::println("\nOptions:")
         auto i# = 0:usize
-        while i < self.defs.len() {
+        loop i < self.defs.len() {
             auto def = self.defs.get(i)
             auto line# = String::from("  ")
             if def.short_name != 0:char {
@@ -121,7 +121,7 @@ impl Parser {
             line#.push_str(def.name.c_str())
             
             // padding
-            while line.len() < 28 {
+            loop line.len() < 28 {
                 line#.push_char(32:char)
             }
             line#.push_str(def.desc.c_str())
@@ -153,7 +153,7 @@ impl Parser {
 
     fn find_def(self, name: String) -> Option<FlagDef> {
         auto i# = 0:usize
-        while i < self.defs.len() {
+        loop i < self.defs.len() {
             auto d = self.defs.get(i)
             if d.name == name { return Option<FlagDef>::Some(d) }
             i = i + 1
@@ -164,7 +164,7 @@ impl Parser {
     fn find_def_short(self, short_name: char) -> Option<FlagDef> {
         if short_name == 0:char { return Option<FlagDef>::None() }
         auto i# = 0:usize
-        while i < self.defs.len() {
+        loop i < self.defs.len() {
             auto d = self.defs.get(i)
             if d.short_name == short_name { return Option<FlagDef>::Some(d) }
             i = i + 1
@@ -189,7 +189,7 @@ impl Parser {
         
         auto val# = 0:i64
         auto has_digits# = false
-        while i < view.len() {
+        loop i < view.len() {
             auto c# = 0:char
             unsafe { c = buf[i] }
             if c < 48:char || c > 57:char {
@@ -208,7 +208,7 @@ impl Parser {
         
         // 1. Setup defaults
         auto i# = 0:usize
-        while i < self.defs.len() {
+        loop i < self.defs.len() {
             auto d = self.defs.get(i)
             parsed.values#.insert(d.name, d.default_val)
             i = i + 1
@@ -218,7 +218,7 @@ impl Parser {
         auto arg_idx# = 1:usize // Skip executable name
         auto only_positional# = false
 
-        while arg_idx < args.len() {
+        loop arg_idx < args.len() {
             auto arg = args.get(arg_idx)
             
             if only_positional {
@@ -350,7 +350,7 @@ impl Parser {
 
                 auto &chars = short_block.as_view().buf()
                 auto c_idx# = 0:usize
-                while c_idx < short_block.len() {
+                loop c_idx < short_block.len() {
                     auto c# = 0:char
                     unsafe { c = chars[c_idx] }
                     auto opt_def = self.find_def_short(c)

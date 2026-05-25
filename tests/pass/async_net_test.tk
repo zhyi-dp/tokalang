@@ -43,7 +43,7 @@ pub fn async_client() -> async i32 {
     auto addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 48899)
     auto stream# = TcpStream::connect(addr)
     auto retries# = 0
-    while !stream.is_valid() {
+    loop !stream.is_valid() {
         if retries > 100 {
             assert(false, "Client connect timeout after 10s")
         }

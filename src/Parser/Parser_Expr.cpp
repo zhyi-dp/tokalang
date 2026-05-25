@@ -513,7 +513,16 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
   } else if (match(TokenType::KwGuard)) {
     expr = parseGuard();
   } else if (match(TokenType::KwWhile)) {
-    expr = parseWhile();
+    Token whileTok = previous();
+    DiagnosticEngine::report(whileTok.Loc, DiagID::ERR_WHILE_ABOLISHED);
+    bool hasParen = match(TokenType::LParen);
+    auto cond = parseExpr(0, false);
+    if (hasParen)
+      consume(TokenType::RParen, "Expected ')'");
+    auto body = parseStmt();
+    auto node = std::make_unique<LoopExpr>(std::move(cond), std::move(body));
+    node->setLocation(whileTok, m_CurrentFile);
+    expr = std::move(node);
   } else if (match(TokenType::KwLoop)) {
     expr = parseLoop();
   } else if (match(TokenType::KwFor)) {
@@ -1370,31 +1379,24 @@ std::unique_ptr<Expr> Parser::parseGuard() {
   return node;
 }
 
-std::unique_ptr<Expr> Parser::parseWhile() {
+std::unique_ptr<Expr> Parser::parseLoop() {
   Token tok = previous();
-  if (tok.Kind != TokenType::KwWhile)
-    tok = consume(TokenType::KwWhile, "Expected 'while'");
+  if (tok.Kind != TokenType::KwLoop)
+    tok = consume(TokenType::KwLoop, "Expected 'loop'");
+
+  if (check(TokenType::LBrace)) {
+    auto body = parseStmt();
+    auto node = std::make_unique<LoopExpr>(std::move(body));
+    node->setLocation(tok, m_CurrentFile);
+    return node;
+  }
+
   bool hasParen = match(TokenType::LParen);
   auto cond = parseExpr(0, false);
   if (hasParen)
     consume(TokenType::RParen, "Expected ')'");
   auto body = parseStmt();
-  std::unique_ptr<Stmt> elseBody;
-  if (match(TokenType::KwOr)) {
-    elseBody = parseBlock();
-  }
-  auto node = std::make_unique<WhileExpr>(std::move(cond), std::move(body),
-                                          std::move(elseBody));
-  node->setLocation(tok, m_CurrentFile);
-  return node;
-}
-
-std::unique_ptr<Expr> Parser::parseLoop() {
-  Token tok = previous();
-  if (tok.Kind != TokenType::KwLoop)
-    tok = consume(TokenType::KwLoop, "Expected 'loop'");
-  auto body = parseStmt();
-  auto node = std::make_unique<LoopExpr>(std::move(body));
+  auto node = std::make_unique<LoopExpr>(std::move(cond), std::move(body));
   node->setLocation(tok, m_CurrentFile);
   return node;
 }
@@ -1405,8 +1407,12 @@ std::unique_ptr<Expr> Parser::parseForExpr() {
     tok = consume(TokenType::KwFor, "Expected 'for'");
 
   bool isMut = match(TokenType::KwLet);
+  bool isAuto = false;
   if (!isMut)
-    match(TokenType::KwAuto); // Allow optional auto
+    isAuto = match(TokenType::KwAuto);
+  if (!isMut && !isAuto) {
+    consume(TokenType::KwAuto, "Expected 'auto' or 'let' declaration in for loop");
+  }
   std::string morphologyPrefix = "";
   bool isRef = false;
   while (true) {

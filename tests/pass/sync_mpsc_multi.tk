@@ -28,7 +28,7 @@ pub fn main() -> i32 {
     auto count# = 0
     auto sum# = 0
     
-    while count < 2 {
+    loop count < 2 {
         auto res_opt = pair.rx#.recv()
         auto opt = res_opt.unwrap()
         auto val = opt.unwrap()

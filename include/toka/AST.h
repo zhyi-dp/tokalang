@@ -1125,35 +1125,18 @@ public:
   }
 };
 
-class WhileExpr : public Expr {
+class LoopExpr : public Expr {
 public:
   std::unique_ptr<Expr> Condition;
   std::unique_ptr<Stmt> Body;
-  std::unique_ptr<Stmt> ElseBody;
 
-  WhileExpr(std::unique_ptr<Expr> cond, std::unique_ptr<Stmt> body,
-            std::unique_ptr<Stmt> elseBody = nullptr)
-      : Condition(std::move(cond)), Body(std::move(body)),
-        ElseBody(std::move(elseBody)) {}
-
-  std::string toString() const override { return "While(...)"; }
-  std::unique_ptr<ASTNode> clone() const override {
-    auto n = std::make_unique<WhileExpr>(cloneNode(Condition), cloneNode(Body),
-                                         cloneNode(ElseBody));
-    n->Loc = Loc;
-    n->ResolvedType = ResolvedType;
-    return n;
-  }
-};
-
-class LoopExpr : public Expr {
-public:
-  std::unique_ptr<Stmt> Body;
   LoopExpr(std::unique_ptr<Stmt> body) : Body(std::move(body)) {}
+  LoopExpr(std::unique_ptr<Expr> cond, std::unique_ptr<Stmt> body)
+      : Condition(std::move(cond)), Body(std::move(body)) {}
 
   std::string toString() const override { return "Loop"; }
   std::unique_ptr<ASTNode> clone() const override {
-    auto n = std::make_unique<LoopExpr>(cloneNode(Body));
+    auto n = std::make_unique<LoopExpr>(cloneNode(Condition), cloneNode(Body));
     n->Loc = Loc;
     n->ResolvedType = ResolvedType;
     return n;

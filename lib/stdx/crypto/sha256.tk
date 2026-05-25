@@ -56,7 +56,7 @@ impl Sha256 {
         
         // Initialize first 16 words from data block
         auto i1# = 0
-        while i1 < 16 {
+        loop i1 < 16 {
             auto b0 = u32(self.data[i1 * 4])
             auto b1 = u32(self.data[i1 * 4 + 1])
             auto b2 = u32(self.data[i1 * 4 + 2])
@@ -67,7 +67,7 @@ impl Sha256 {
         
         // Extend remaining 48 words
         auto i2# = 16
-        while i2 < 64 {
+        loop i2 < 64 {
             w[i2] = sig1(w[i2 - 2]) + w[i2 - 7] + sig0(w[i2 - 15]) + w[i2 - 16]
             i2 = i2 + 1
         }
@@ -82,7 +82,7 @@ impl Sha256 {
         auto h# = self.state[7]
         
         auto i3# = 0
-        while i3 < 64 {
+        loop i3 < 64 {
             auto k_val# = 0:u32
             unsafe {
                 k_val = k[i3]
@@ -130,7 +130,7 @@ impl Sha256 {
 
     pub fn update_bytes(self#, *buf: [u8], len: usize) {
         auto i# = 0:usize
-        while i < len {
+        loop i < len {
             auto b# = 0:u8
             unsafe {
                 b = buf[i]
@@ -156,7 +156,7 @@ impl Sha256 {
         
         // Pad with 0x00 until 56 bytes
         if i > 56 {
-            while i < 64 {
+            loop i < 64 {
                 self.data[i] = 0x00
                 i = i + 1
             }
@@ -164,7 +164,7 @@ impl Sha256 {
             i = 0
         }
         
-        while i < 56 {
+        loop i < 56 {
             self.data[i] = 0x00
             i = i + 1
         }
@@ -186,7 +186,7 @@ impl Sha256 {
         
         auto hash#: [u8; 32] = [0; 32]
         auto j# = 0
-        while j < 8 {
+        loop j < 8 {
             hash[j * 4] = u8(self.state[j] >> 24)
             hash[j * 4 + 1] = u8(self.state[j] >> 16)
             hash[j * 4 + 2] = u8(self.state[j] >> 8)

@@ -110,7 +110,7 @@ pub fn main() -> i32 {
         
         auto stream# = TcpStream::connect(addr)
         auto retries# = 0
-        while !stream.is_valid() {
+        loop !stream.is_valid() {
             if retries > 100 {
                 assert(false, "Client connect timeout after 10s")
             }

@@ -19,7 +19,7 @@ fn main() -> i32 {
     auto sum# = 0
     auto done# = false
     
-    while !done {
+    loop !done {
         auto opt = it#.next()
         
         // Match on Option

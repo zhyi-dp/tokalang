@@ -88,7 +88,7 @@ impl StringBuilder {
     
     pub fn append_spaces(self#, count: i32) {
         auto i# = 0
-        while i < count {
+        loop i < count {
             self#.append_char(32:char)
             i = i + 1
         }
@@ -197,7 +197,7 @@ impl SourceFile {
         unsafe {
             auto *b = source.c_str() as *[char]
             auto i#: usize = 0
-            while i < len {
+            loop i < len {
                 auto c = b[i]
                 if c == 10:char {
                     line_starts#.push(i + 1)
@@ -222,7 +222,7 @@ impl SourceFile {
         auto low#: usize = 0
         auto high#: usize = size - 1
         
-        while low < high {
+        loop low < high {
             auto mid = low + (high - low + 1) / 2
             auto start = self.line_starts.get(mid)
             if start <= offset {
@@ -256,7 +256,7 @@ impl SourceFile {
         auto content# = self.source.substring(start, end)
         
         unsafe {
-            while content.len() > 0 {
+            loop content.len() > 0 {
                 auto *b = content.c_str() as *[char]
                 auto last_char = b[content.len() - 1]
                 if last_char == 10:char || last_char == 13:char {
@@ -323,7 +323,7 @@ fn get_digits(v: usize) -> i32 {
     if v == 0 { return 1 }
     auto count# = 0
     auto temp# = v
-    while temp > 0 {
+    loop temp > 0 {
         count = count + 1
         temp = temp / 10
     }
@@ -374,7 +374,7 @@ impl Diagnostic {
         auto max_line#: usize = 1
         auto i#: usize = 0
         unsafe {
-            while i < self.labels_count {
+            loop i < self.labels_count {
                 auto label = self.labels[i]
                 auto loc = file.lookup_location(label.offset)
                 if loc.line > max_line {
@@ -389,7 +389,7 @@ impl Diagnostic {
         
         i = 0
         unsafe {
-            while i < self.labels_count {
+            loop i < self.labels_count {
                 auto label = self.labels[i]
                 auto loc = file.lookup_location(label.offset)
                 auto line_content = file.get_line_content(loc.line)
@@ -431,7 +431,7 @@ impl Diagnostic {
                 auto wave_len#: i32 = label.length as i32
                 if wave_len <= 0 { wave_len = 1 }
                 auto w# = 0
-                while w < wave_len {
+                loop w < wave_len {
                     sb#.append_char(94:char)
                     w = w + 1
                 }

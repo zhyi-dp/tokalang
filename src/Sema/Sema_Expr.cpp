@@ -1330,64 +1330,21 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     }
 
     return std::make_shared<VoidType>();
-  } else if (auto *we = dynamic_cast<WhileExpr *>(E)) {
-    checkExpr(we->Condition.get());
-    bool isReceiver = false;
-    if (!m_ControlFlowStack.empty()) {
-      isReceiver = m_ControlFlowStack.back().IsReceiver;
-    }
-
-    bool tookOver = false;
-    if (!m_ControlFlowStack.empty() && !m_ControlFlowStack.back().IsLoop &&
-        !m_ControlFlowStack.back().Label.empty()) {
-      m_ControlFlowStack.back().IsLoop = true;
-      m_ControlFlowStack.back().IsReceiver = isReceiver;
-      tookOver = true;
-    } else {
-      m_ControlFlowStack.push_back({"", "void", nullptr, true, isReceiver});
-    }
-    enterScope();
-    CurrentScope->IsLoop = true;
-    checkStmt(we->Body.get());
-    exitScope();
-    std::string bodyType = m_ControlFlowStack.back().ExpectedType;
-    auto bodyTypeObj = m_ControlFlowStack.back().ExpectedTypeObj;
-    if (!tookOver)
-      m_ControlFlowStack.pop_back();
-
-    std::string elseType = "void";
-    std::shared_ptr<toka::Type> elseTypeObj;
-    if (we->ElseBody) {
-      m_ControlFlowStack.push_back({"", "void", nullptr, false, isReceiver});
-      checkStmt(we->ElseBody.get());
-      elseType = m_ControlFlowStack.back().ExpectedType;
-      elseTypeObj = m_ControlFlowStack.back().ExpectedTypeObj;
-      m_ControlFlowStack.pop_back();
-    }
-
-    if (isReceiver) {
-      if (bodyType == "void" && !allPathsJump(we->Body.get()))
-        error(we->Body.get(), DiagID::ERR_YIELD_VALUE_REQUIRED, "while loop");
-      if (!we->ElseBody)
-        error(we, DiagID::ERR_YIELD_OR_REQUIRED, "while");
-      else if (elseType == "void" && !allPathsJump(we->ElseBody.get()))
-        error(we->ElseBody.get(), DiagID::ERR_YIELD_VALUE_REQUIRED,
-              "'or' block");
-    }
-
-    if (bodyType != "void" && !we->ElseBody) {
-      error(we, DiagID::ERR_YIELD_OR_REQUIRED, "while");
-    }
-    if (bodyType != "void" && elseType != "void" &&
-        !isTypeCompatible(bodyTypeObj, elseTypeObj)) {
-      error(we, DiagID::ERR_BRANCH_TYPE_MISMATCH, "While loop", bodyType,
-            elseType);
-    }
-    return toka::Type::fromString((bodyType != "void") ? bodyType : elseType);
   } else if (auto *le = dynamic_cast<LoopExpr *>(E)) {
+    if (le->Condition) {
+      auto condTy = checkExpr(le->Condition.get());
+      if (condTy && !condTy->isBoolean()) {
+        error(le->Condition.get(), DiagID::ERR_OPERAND_TYPE_MISMATCH, "loop condition", "bool", condTy->toString());
+      }
+    }
+
     bool isReceiver = false;
     if (!m_ControlFlowStack.empty()) {
       isReceiver = m_ControlFlowStack.back().IsReceiver;
+    }
+
+    if (isReceiver && (!m_ControlFlowStack.empty() && m_ControlFlowStack.back().ExpectedType != "void")) {
+      error(le, "Toka 1.0 does not support yielding values from loops. Loops cannot be used as expressions.");
     }
 
     bool tookOver = false;
@@ -1403,14 +1360,10 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     CurrentScope->IsLoop = true;
     checkStmt(le->Body.get());
     exitScope();
-    std::string res = m_ControlFlowStack.back().ExpectedType;
     if (!tookOver)
       m_ControlFlowStack.pop_back();
 
-    if (isReceiver && res == "void" && !allPathsJump(le->Body.get())) {
-      error(le, DiagID::ERR_YIELD_VALUE_REQUIRED, "loop");
-    }
-    return toka::Type::fromString(res);
+    return std::make_shared<VoidType>();
   } else if (auto *fe = dynamic_cast<ForExpr *>(E)) {
     // [Phase 2] Comptime Macro Unroll Detection
     bool isMacroUnroll = false;
@@ -1664,12 +1617,11 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     bool isPrefixMatch = dynamic_cast<MatchExpr *>(pe->Value.get());
     bool isPrefixIf = dynamic_cast<IfExpr *>(pe->Value.get());
     bool isPrefixFor = dynamic_cast<ForExpr *>(pe->Value.get());
-    bool isPrefixWhile = dynamic_cast<WhileExpr *>(pe->Value.get());
     bool isPrefixLoop = dynamic_cast<LoopExpr *>(pe->Value.get());
 
     std::string valType = "void";
     std::shared_ptr<toka::Type> valTypeObj;
-    if (isPrefixMatch || isPrefixIf || isPrefixFor || isPrefixWhile ||
+    if (isPrefixMatch || isPrefixIf || isPrefixFor ||
         isPrefixLoop) {
       m_ControlFlowStack.push_back({"", "void", nullptr, false, true});
       valTypeObj = checkExpr(pe->Value.get());
@@ -1720,13 +1672,14 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     }
 
     return toka::Type::fromString((isPrefixMatch || isPrefixIf || isPrefixFor ||
-                                   isPrefixWhile || isPrefixLoop)
+                                   isPrefixLoop)
                                       ? valType
                                       : "void");
   } else if (auto *be = dynamic_cast<BreakExpr *>(E)) {
     std::string valType = "void";
     std::shared_ptr<toka::Type> valTypeObj;
     if (be->Value) {
+      error(be, "Toka 1.0 does not support yielding values from loops via 'break'. 'break' must not carry a return value.");
       valTypeObj = checkExpr(be->Value.get());
       valType = valTypeObj->toString();
 

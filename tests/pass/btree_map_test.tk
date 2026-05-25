@@ -8,7 +8,7 @@ pub fn main() -> i32 {
     auto map# = BTreeMap<i32, i32>::new()
     
     auto i# = 0
-    while i < 5 {
+    loop i < 5 {
         map#.insert(i, i * 10)
         i += 1
     }

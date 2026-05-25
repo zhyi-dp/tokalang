@@ -48,7 +48,7 @@ pub fn ws_accept_async(stream#: TcpStream) -> async Result<WsConnection, String>
         auto buf_vec# = Vec<u8>::with_capacity(1024)
         auto *buf_raw# = buf_vec.unsafe_as_raw()
         
-        while !headers_done {
+        loop !headers_done {
             auto bytes_read = net_async_read(stream, *#buf_raw as *u8, 1024).await!
             
             if bytes_read == 0 {
@@ -162,7 +162,7 @@ impl WsConnection {
         // Fully read remainder buffer
         auto total_read#: usize = 0
         unsafe {
-            while total_read < payload_len {
+            loop total_read < payload_len {
                 auto to_rd = payload_len - total_read
                 auto rd_addr = ((*#payload as usize) + total_read) as Addr
                 auto *rd_ptr# = rd_addr as *[0]u8
@@ -176,7 +176,7 @@ impl WsConnection {
         
         if masked {
             auto j#: usize = 0
-            while j < payload_len {
+            loop j < payload_len {
                 unsafe { payload[j] = payload[j] ^ mask[j % 4] }
                 j += 1
             }

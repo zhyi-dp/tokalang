@@ -9,7 +9,7 @@ pub fn main() -> i32 {
     // The expected total sum should be 5000
     auto f: fn() -> cede i32 = { =>
         auto i# = 0
-        while i < 1000 {
+        loop i < 1000 {
             auto g = m#.lock().unwrap()
             auto *p# = g.get_ref()
             

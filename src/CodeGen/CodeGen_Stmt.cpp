@@ -158,12 +158,12 @@ llvm::Value *CodeGen::genReturnStmt(const ReturnStmt *ret) {
         m_Builder.CreateStore(retVal, m_CurrentSRetPtr);
       }
     }
-    cleanupScopes(0);
+    executeScopeUnwinding(0);
     return m_Builder.CreateRetVoid();
   }
 
   llvm::Function *f = m_Builder.GetInsertBlock()->getParent();
-  cleanupScopes(0);
+  executeScopeUnwinding(0);
 
   if (m_CurrentCoroHandle) {
     genCoroutineReturn(retVal);
@@ -223,7 +223,7 @@ llvm::Value *CodeGen::genBlockStmt(const BlockStmt *bs) {
   if (m_ScopeStack.empty())
     return lastVal;
 
-  cleanupScopes(m_ScopeStack.size() - 1);
+  executeScopeUnwinding(m_ScopeStack.size() - 1);
   m_ScopeStack.pop_back();
   return lastVal;
 }
@@ -241,7 +241,7 @@ llvm::Value *CodeGen::genDeleteStmt(const DeleteStmt *del) {
   return nullptr;
 }
 
-void CodeGen::cleanupScopes(size_t targetDepth) {
+void CodeGen::executeScopeUnwinding(size_t targetDepth) {
   llvm::BasicBlock *currBB = m_Builder.GetInsertBlock();
   if (!currBB || currBB->getTerminator())
     return;

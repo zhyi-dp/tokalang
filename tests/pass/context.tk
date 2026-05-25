@@ -44,7 +44,7 @@ fn test_cancel() -> async i32 {
 
 fn worker(rx#: Receiver<bool>) -> async i32 {
     println("  [worker] entering worker")
-    while true {
+    loop true {
         auto should_break# = false
         auto res = rx#.try_recv()
         match res {

@@ -19,7 +19,7 @@ impl Sha1 {
         auto w#: [u32; 80] = [0; 80]
         
         auto i1# = 0
-        while i1 < 16 {
+        loop i1 < 16 {
             auto b0 = u32(self.data[i1 * 4])
             auto b1 = u32(self.data[i1 * 4 + 1])
             auto b2 = u32(self.data[i1 * 4 + 2])
@@ -29,7 +29,7 @@ impl Sha1 {
         }
         
         auto i2# = 16
-        while i2 < 80 {
+        loop i2 < 80 {
             auto v = w[i2 - 3] ^ w[i2 - 8] ^ w[i2 - 14] ^ w[i2 - 16]
             w[i2] = rotl(v, 1)
             i2 = i2 + 1
@@ -42,7 +42,7 @@ impl Sha1 {
         auto e# = self.state[4]
         
         auto i3# = 0
-        while i3 < 80 {
+        loop i3 < 80 {
             auto f#: u32 = 0
             auto k#: u32 = 0
             
@@ -96,7 +96,7 @@ impl Sha1 {
 
     pub fn update_bytes(self#, *buf: [u8], len: usize) {
         auto i# = 0:usize
-        while i < len {
+        loop i < len {
             auto b# = 0:u8
             unsafe {
                 b = buf[i]
@@ -120,7 +120,7 @@ impl Sha1 {
         i = i + 1
         
         if i > 56 {
-            while i < 64 {
+            loop i < 64 {
                 self.data[i] = 0x00
                 i = i + 1
             }
@@ -128,7 +128,7 @@ impl Sha1 {
             i = 0
         }
         
-        while i < 56 {
+        loop i < 56 {
             self.data[i] = 0x00
             i = i + 1
         }
@@ -148,7 +148,7 @@ impl Sha1 {
         
         auto hash#: [u8; 20] = [0; 20]
         auto j# = 0
-        while j < 5 {
+        loop j < 5 {
             hash[j * 4] = u8(self.state[j] >> 24)
             hash[j * 4 + 1] = u8(self.state[j] >> 16)
             hash[j * 4 + 2] = u8(self.state[j] >> 8)

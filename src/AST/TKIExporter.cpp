@@ -755,17 +755,12 @@ void TKIExporter::exportExpr(const Expr *expr, bool stripHats) {
         exportExpr(gEx->Condition.get());
         m_OS << " else ";
         exportStmt(gEx->Else.get());
-    } else if (auto whEx = dynamic_cast<const WhileExpr *>(expr)) {
-        m_OS << "while ";
-        exportExpr(whEx->Condition.get());
-        m_OS << " ";
-        exportStmt(whEx->Body.get());
-        if (whEx->ElseBody) {
-            m_OS << " else ";
-            exportStmt(whEx->ElseBody.get());
-        }
     } else if (auto loopEx = dynamic_cast<const LoopExpr *>(expr)) {
         m_OS << "loop ";
+        if (loopEx->Condition) {
+            exportExpr(loopEx->Condition.get());
+            m_OS << " ";
+        }
         exportStmt(loopEx->Body.get());
     } else if (auto forEx = dynamic_cast<const ForExpr *>(expr)) {
         m_OS << "for ";

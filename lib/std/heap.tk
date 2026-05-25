@@ -64,7 +64,7 @@ impl<'T> BinaryHeap<'T> {
     fn sift_up(self#, idx: usize) {
         auto cmp_fn = self.cmp
         auto current# = idx
-        while current > 0 {
+        loop current > 0 {
             auto parent = (current - 1) / 2
             auto c_item = self.data.get(current)
             auto p_item = self.data.get(parent)
@@ -85,7 +85,7 @@ impl<'T> BinaryHeap<'T> {
         auto current# = idx
         auto len = self.data.len()
         
-        while true {
+        loop true {
             auto left = 2 * current + 1
             auto right = 2 * current + 2
             auto smallest# = current

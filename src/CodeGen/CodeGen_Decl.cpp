@@ -581,7 +581,7 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
 
   // Ensure Implicit Cleanup
   if (!m_Builder.GetInsertBlock()->getTerminator()) {
-    cleanupScopes(0);
+    executeScopeUnwinding(0);
 
     if (func->Effect == EffectKind::Async) {
       genCoroutineReturn(nullptr);
@@ -970,10 +970,17 @@ llvm::Value *CodeGen::genVariableDecl(const VariableDecl *var) {
     }
   }
 
-  llvm::AllocaInst *alloca = createEntryBlockAlloca(type, nullptr, varName);
+  if (type->isVoidTy()) {
+    initVal = nullptr;
+  }
+
+  llvm::AllocaInst *alloca = nullptr;
+  if (!type->isVoidTy()) {
+    alloca = createEntryBlockAlloca(type, nullptr, varName);
+  }
 
   // [Fix] Union Alignment
-  if (var->ResolvedType) {
+  if (alloca && var->ResolvedType) {
     auto soul = var->ResolvedType;
     while (soul && (soul->isPointer() || soul->isReference() ||
                     soul->isSmartPointer())) {
@@ -1131,7 +1138,7 @@ llvm::Value *CodeGen::genVariableDecl(const VariableDecl *var) {
     return nullptr;
   }
 
-  if (initVal) {
+  if (initVal && alloca) {
     m_Builder.CreateStore(initVal, alloca);
   }
 
@@ -1208,7 +1215,7 @@ llvm::Value *CodeGen::genVariableDecl(const VariableDecl *var) {
     VariableScopeInfo info;
     info.Name = varName;
     info.Alloca = alloca;
-    info.AllocType = llvm::cast<llvm::AllocaInst>(alloca)->getAllocatedType();
+    info.AllocType = alloca ? llvm::cast<llvm::AllocaInst>(alloca)->getAllocatedType() : type;
     info.IsUniquePointer = var->IsUnique;
     info.IsShared = var->IsShared;
     info.HasDrop = hasDrop;

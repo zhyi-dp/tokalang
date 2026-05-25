@@ -284,8 +284,6 @@ std::unique_ptr<Stmt> Parser::parseStmt() {
     return std::make_unique<ExprStmt>(parseIf());
   if (match(TokenType::KwMatch))
     return std::make_unique<ExprStmt>(parseMatchExpr());
-  if (check(TokenType::KwWhile))
-    return std::make_unique<ExprStmt>(parseWhile());
   if (check(TokenType::KwLoop))
     return std::make_unique<ExprStmt>(parseLoop());
   if (check(TokenType::KwFor))

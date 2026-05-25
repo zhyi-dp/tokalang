@@ -26,7 +26,7 @@ pub fn main() -> i32 {
 
     auto f1: fn() -> cede i32 = { [cede m1] =>
         auto i# = 0
-        while i < 50000 {
+        loop i < 50000 {
             auto ~local = ~m1
             // Use locked value to ensure no optimization removes this
             auto g = local.lock().unwrap()
@@ -39,7 +39,7 @@ pub fn main() -> i32 {
 
     auto f2: fn() -> cede i32 = { [cede m2] =>
         auto i# = 0
-        while i < 50000 {
+        loop i < 50000 {
             auto ~local = ~m2
             auto g = local.lock().unwrap()
             auto *p# = g.get_ref()
@@ -51,7 +51,7 @@ pub fn main() -> i32 {
 
     auto f3: fn() -> cede i32 = { [cede m3] =>
         auto i# = 0
-        while i < 50000 {
+        loop i < 50000 {
             auto ~local = ~m3
             auto g = local.lock().unwrap()
             auto *p# = g.get_ref()
@@ -63,7 +63,7 @@ pub fn main() -> i32 {
 
     auto f4: fn() -> cede i32 = { [cede m4] =>
         auto i# = 0
-        while i < 50000 {
+        loop i < 50000 {
             auto ~local = ~m4
             auto g = local.lock().unwrap()
             auto *p# = g.get_ref()
@@ -75,7 +75,7 @@ pub fn main() -> i32 {
 
     auto f5: fn() -> cede i32 = { [cede m5] =>
         auto i# = 0
-        while i < 50000 {
+        loop i < 50000 {
             auto ~local = ~m5
             auto g = local.lock().unwrap()
             auto *p# = g.get_ref()

@@ -64,7 +64,7 @@ impl<'T> Vec<'T>@encap {
             
             // Copy elements
             auto ctr# = Counter(val=0)
-            while ctr.val < self.len {
+            loop ctr.val < self.len {
                 new_buf[ctr.val] = self.buf[ctr.val]
                 ctr#.inc()
             }
@@ -90,7 +90,7 @@ impl<'T> Vec<'T> {
 
     pub fn clear(self#) {
         unsafe {
-            while self.len > 0 {
+            loop self.len > 0 {
                 self.len -= 1
                 Option<'T>::Some(cede self.buf[self.len])
             }
@@ -109,7 +109,7 @@ impl<'T> Vec<'T> {
         }
         unsafe {
             auto i# = self.len
-            while i > index {
+            loop i > index {
                 self.buf[i] = cede self.buf[i - 1]
                 i -= 1
             }
@@ -125,7 +125,7 @@ impl<'T> Vec<'T> {
         unsafe {
             auto ret = Option<'T>::Some(cede self.buf[index])
             auto i# = index
-            while i < self.len - 1 {
+            loop i < self.len - 1 {
                 self.buf[i] = cede self.buf[i + 1]
                 i += 1
             }
@@ -284,7 +284,7 @@ impl<'T> Vec<'T> {
                 
                 // Copy elements manually
                 auto ctr# = Counter(val=0)
-                while ctr.val < self.len {
+                loop ctr.val < self.len {
                     new_buf[ctr.val] = self.buf[ctr.val]
                     ctr#.inc()
                 }
@@ -305,13 +305,13 @@ impl<'T> Vec<'T> {
     pub fn resize(self#, new_len: usize, 'val: T) {
         unsafe {
             if new_len > self.cap {
-                 while self.cap < new_len {
+                 loop self.cap < new_len {
                      self#.grow()
                  }
             }
             // Fill from old_len to new_len
             auto i# = self.len
-            while i < new_len {
+            loop i < new_len {
                 self.buf[i] = cede 'val
                 i += 1
             }

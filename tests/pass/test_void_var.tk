@@ -1,0 +1,6 @@
+fn main() -> i32 {
+    auto res: void = loop {
+        break to res
+    }
+    return 0
+}

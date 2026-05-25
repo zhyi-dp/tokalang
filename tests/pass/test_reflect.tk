@@ -7,7 +7,7 @@ pub shape User(name: str, age: i32)
 pub fn print_user_info(u: User) {
     println("User Fields:")
     // Test Compile-time Macro Unrolling
-    for field in reflect<User>().fields {
+    for auto field in reflect<User>().fields {
         auto name_s = String::from_str(field.name)
         auto type_s = String::from_str(field.type_name)
         println("- {} ({})", name_s.c_str(), type_s.c_str())

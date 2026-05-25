@@ -25,7 +25,7 @@ pub fn args_impl() -> i32 {
         }
         auto count# = 0
         auto i#: usize = 0
-        while i < len as usize {
+        loop i < len as usize {
             auto *p = (*buf as usize + i) as *char
             if p == (0 as char) {
                 count += 1
@@ -55,7 +55,7 @@ pub fn get_arg_impl(index: i32) -> String {
         auto i#: usize = 0
         auto start#: usize = 0
         
-        while i < len as usize {
+        loop i < len as usize {
             auto *p = (*buf as usize + i) as *char
             if p == (0 as char) {
                 if count == index {

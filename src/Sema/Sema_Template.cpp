@@ -125,15 +125,13 @@ public:
       visitExpr(If->Condition.get());
       visitStmt(If->Then.get());
       visitStmt(If->Else.get());
-    } else if (auto *While = dynamic_cast<WhileExpr *>(E)) {
-      visitExpr(While->Condition.get());
-      visitStmt(While->Body.get());
-      visitStmt(While->ElseBody.get());
     } else if (auto *For = dynamic_cast<ForExpr *>(E)) {
       visitExpr(For->Collection.get());
       visitStmt(For->Body.get());
       visitStmt(For->ElseBody.get());
     } else if (auto *Loop = dynamic_cast<LoopExpr *>(E)) {
+      if (Loop->Condition)
+        visitExpr(Loop->Condition.get());
       visitStmt(Loop->Body.get());
     } else if (auto *Bin = dynamic_cast<BinaryExpr *>(E)) {
       visitExpr(Bin->LHS.get());

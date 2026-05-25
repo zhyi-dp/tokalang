@@ -25,7 +25,7 @@ impl<'K, 'V> BTreeNode<'K, 'V> {
             auto *n# = node_addr as *BTreeNode<'K, 'V>
             
             auto i#: usize = 0
-            while i < n.len {
+            loop i < n.len {
                 auto _k = cede n.keys[i]
                 auto _v = cede n.vals[i]
                 i += 1
@@ -33,7 +33,7 @@ impl<'K, 'V> BTreeNode<'K, 'V> {
             
             if !n.is_leaf {
                 auto j#: usize = 0
-                while j <= n.len {
+                loop j <= n.len {
                     auto c_addr = n.children[j]
                     if addr_is_not_null(c_addr) {
                         BTreeNode<'K, 'V>::destroy(c_addr)
@@ -53,7 +53,7 @@ impl<'K, 'V> BTreeNode<'K, 'V> {
             node.is_leaf = is_leaf
             
             auto i#: usize = 0
-            while i < 6 {
+            loop i < 6 {
                 node.children[i] = 0:Addr
                 i += 1
             }
@@ -70,14 +70,14 @@ impl<'K, 'V> BTreeNode<'K, 'V> {
             z.len = 2
             
             auto j#: usize = 0
-            while j < 2 {
+            loop j < 2 {
                 z.keys[j] = cede y.keys[j + 3]
                 z.vals[j] = cede y.vals[j + 3]
                 j += 1
             }
             if !y.is_leaf {
                 j = 0
-                while j < 3 {
+                loop j < 3 {
                     z.children[j] = y.children[j + 3]
                     y.children[j + 3] = 0:Addr
                     j += 1
@@ -86,14 +86,14 @@ impl<'K, 'V> BTreeNode<'K, 'V> {
             y.len = 2
             
             j = self.len
-            while j > i {
+            loop j > i {
                 self.children[j + 1] = self.children[j]
                 j -= 1
             }
             self.children[i + 1] = z_addr
             
             j = self.len
-            while j > i {
+            loop j > i {
                 self.keys[j] = cede self.keys[j - 1]
                 self.vals[j] = cede self.vals[j - 1]
                 j -= 1
@@ -113,11 +113,11 @@ pub fn btree_node_insert_non_full_iterative<'K: @PartialOrd, 'V>(root_addr: Addr
         auto val_buf# = [cede val]
         auto curr_addr# = root_addr
         
-        while true {
+        loop true {
             auto *node# = curr_addr as *BTreeNode<'K, 'V>
             auto idx#: usize = 0
             
-            while idx < node.len {
+            loop idx < node.len {
                 auto k_ptr_cur = node.keys[idx]
                 auto tmp_k = cede key_buf[0]
                 auto cmp_res = tmp_k.cmp(k_ptr_cur)
@@ -133,7 +133,7 @@ pub fn btree_node_insert_non_full_iterative<'K: @PartialOrd, 'V>(root_addr: Addr
             
             if node.is_leaf {
                 auto j#: usize = node.len
-                while j > 0 {
+                loop j > 0 {
                     auto k_ptr_loop = node.keys[j - 1]
                     auto tmp_k2 = cede key_buf[0]
                     auto cmp = tmp_k2.cmp(k_ptr_loop)
@@ -152,7 +152,7 @@ pub fn btree_node_insert_non_full_iterative<'K: @PartialOrd, 'V>(root_addr: Addr
                 return true
             } else {
                 auto j#: usize = node.len
-                while j > 0 {
+                loop j > 0 {
                     auto k_ptr_loop = node.keys[j - 1]
                     auto tmp_k3 = cede key_buf[0]
                     auto cmp = tmp_k3.cmp(k_ptr_loop)
@@ -190,11 +190,11 @@ pub shape BTreeMap<'K: @PartialOrd, 'V> (
 pub fn btree_node_get<'K: @PartialOrd, 'V>(node_addr: Addr, key: 'K) -> Option<'V> {
     unsafe {
         auto current_addr# = node_addr
-        while true {
+        loop true {
             if addr_is_null(current_addr) { return Option<'V>::None }
             auto *n# = current_addr as *BTreeNode<'K, 'V>
             auto i#: usize = 0
-            while i < n.len {
+            loop i < n.len {
                 auto k_ptr = n.keys[i]
                 auto cmp_res = key.cmp(k_ptr)
                 if cmp_res == 0 {

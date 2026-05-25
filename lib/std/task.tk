@@ -61,7 +61,7 @@ impl TimerHeap {
 
     fn sift_up(self#, idx: usize) {
         auto current# = idx
-        while current > 0 {
+        loop current > 0 {
             auto parent = (current - 1) / 2
             auto c_item = self.data.get(current)
             auto p_item = self.data.get(parent)
@@ -76,7 +76,7 @@ impl TimerHeap {
     fn sift_down(self#, idx: usize) {
         auto current# = idx
         auto len = self.data.len()
-        while true {
+        loop true {
             auto left = 2 * current + 1
             auto right = 2 * current + 2
             auto smallest# = current
@@ -162,7 +162,7 @@ pub fn __toka_spawn_blocking(*task: void) {
     __toka_spawn(*task)
     
     // Start blocking spin until task enters done state and suspended queues are completely emptied
-    while true {
+    loop true {
         lock_queue()
         auto task_q_len = g_task_queue.len()
         auto timer_q_len = g_timer_queue.len()
@@ -176,7 +176,7 @@ pub fn __toka_spawn_blocking(*task: void) {
         auto now = current_time_ms()
         
         // Timer Queue check and release expired suspended coroutines to Task Queue
-        while true {
+        loop true {
             auto top_opt = g_timer_queue.peek()
             if top_opt.is_none() { break }
             auto t = top_opt.unwrap()
@@ -194,7 +194,7 @@ pub fn __toka_spawn_blocking(*task: void) {
             auto tl = g_task_queue.len()
             auto popped = g_task_queue.get(0)
             auto k#: usize = 1
-            while k < tl {
+            loop k < tl {
                 g_task_queue#.set(k - 1, g_task_queue.get(k))
                 k += 1
             }
@@ -217,7 +217,7 @@ pub fn __toka_spawn_blocking(*task: void) {
         if d_len > 0 {
             println("  [scheduler] Garbage collection starting for {} detached tasks", d_len)
         }
-        while d_i < d_len {
+        loop d_i < d_len {
             auto detached_val = g_detached_tasks.get(d_i)
             println("  [scheduler] Checking detached task: {}", detached_val)
             if __toka_coro_done(detached_val as *void) {
@@ -231,7 +231,7 @@ pub fn __toka_spawn_blocking(*task: void) {
             }
             d_i += 1
         }
-        while g_detached_tasks.len() > keep_d {
+        loop g_detached_tasks.len() > keep_d {
             g_detached_tasks#.pop()
         }
         unlock_queue()
@@ -267,7 +267,7 @@ pub fn __toka_spawn_blocking(*task: void) {
             if n > 0 {
                 lock_queue()
                 auto i# = 0
-                while i < n {
+                loop i < n {
                     auto handle = events_buf[i]
                     g_task_queue#.push(TaskPtr(addr=handle))
                     i += 1

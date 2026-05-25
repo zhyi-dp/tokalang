@@ -49,7 +49,7 @@ impl Arena {
         unsafe {
             // 1. Attempt to find space in existing chunks
             auto *#curr# = self.*chunks
-            while true {
+            loop true {
                 auto curr_addr = *curr as Addr
                 if curr_addr == ADDR0 { break }
 
@@ -100,7 +100,7 @@ impl Arena {
     pub fn reset(self#) {
         unsafe {
             auto *#curr# = self.*chunks
-            while true {
+            loop true {
                 auto curr_addr = *curr as Addr
                 if curr_addr == ADDR0 { break }
 
@@ -116,7 +116,7 @@ impl Arena {
     pub fn release(self#) {
         unsafe {
             auto *#curr# = self.*chunks
-            while true {
+            loop true {
                 auto curr_addr = *curr as Addr
                 if curr_addr == ADDR0 { break }
 

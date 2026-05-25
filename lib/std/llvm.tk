@@ -129,7 +129,7 @@ impl LLVMType {
         unsafe {
             auto *handles# = unsafe alloc [count] Addr
             auto idx# = 0:usize
-            while idx < count {
+            loop idx < count {
                 handles[idx] = paramTys[idx].*handle as Addr
                 idx = idx + 1:usize
             }
@@ -207,7 +207,7 @@ impl LLVMValue {
             auto *val_handles# = unsafe alloc [count] Addr
             auto *block_handles# = unsafe alloc [count] Addr
             auto idx# = 0:usize
-            while idx < count {
+            loop idx < count {
                 val_handles[idx] = vals[idx].*handle as Addr
                 block_handles[idx] = blocks[idx].*handle as Addr
                 idx = idx + 1:usize
@@ -364,7 +364,7 @@ impl LLVMBuilder {
         unsafe {
             auto *handles# = unsafe alloc [count] Addr
             auto idx# = 0:usize
-            while idx < count {
+            loop idx < count {
                 handles[idx] = args[idx].*handle as Addr
                 idx = idx + 1:usize
             }
@@ -394,7 +394,7 @@ impl LLVMBuilder {
         unsafe {
             auto *handles# = unsafe alloc [count] Addr
             auto idx# = 0:usize
-            while idx < count {
+            loop idx < count {
                 handles[idx] = indices[idx].*handle as Addr
                 idx = idx + 1:usize
             }

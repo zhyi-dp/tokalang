@@ -103,7 +103,7 @@ impl SourceMap {
         unsafe {
             auto *buf = self.source.raw_ptr() as *[char]
             auto i#: usize = 0
-            while i < offset {
+            loop i < offset {
                 if buf[i] == '\n' {
                     line = line + 1:usize
                     col = 1:usize

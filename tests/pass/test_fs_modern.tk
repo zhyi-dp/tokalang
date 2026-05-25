@@ -21,7 +21,7 @@ pub fn main() -> i32 {
         return 1
     }
     auto found_fs# = false
-    while true {
+    loop true {
         auto entry_opt = dir_iter#.next()
         if entry_opt.is_none() { break }
         auto name = entry_opt.unwrap()

@@ -199,7 +199,7 @@ private:
   void fillSymbolMetadata(TokaSymbol &sym, std::shared_ptr<Type> typeObj,
                           llvm::Type *allocaElemTy);
 
-  void cleanupScopes(size_t targetDepth);
+  void executeScopeUnwinding(size_t targetDepth);
   PhysEntity genExpr(const Expr *expr);
   llvm::Constant *genConstant(const Expr *expr,
                               llvm::Type *targetType = nullptr);
@@ -238,7 +238,6 @@ private:
   PhysEntity genUnaryExpr(const UnaryExpr *expr);
   PhysEntity genIfExpr(const IfExpr *expr);
   PhysEntity genGuardExpr(const GuardExpr *expr);
-  PhysEntity genWhileExpr(const WhileExpr *expr);
   PhysEntity genLoopExpr(const LoopExpr *expr);
   PhysEntity genForExpr(const ForExpr *expr);
   void genPatternBinding(const MatchArm::Pattern *pat, llvm::Value *targetAddr,

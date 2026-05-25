@@ -266,7 +266,7 @@ impl TcpStream {
 
     pub fn read_exact(self#, *buf: u8, len: usize) -> Result<usize, String> {
         auto total# = 0:usize
-        while total < len {
+        loop total < len {
             auto *current_ptr = (*buf as Addr + total as u64) as *u8
             auto res = self#.read(*current_ptr, len - total)
             match res {
@@ -330,7 +330,7 @@ impl TcpStream {
 
     pub fn read_exact_async(self#, *buf: u8, len: usize) -> async Result<usize, String> {
         auto total# = 0:usize
-        while total < len {
+        loop total < len {
             auto *current_ptr = (*buf as Addr + total as u64) as *u8
             auto res = self#.read_async(*current_ptr, len - total).await
             match res {
@@ -441,7 +441,7 @@ pub fn net_async_read(stream#: TcpStream, *buf: u8, len: usize) -> async Result<
             sysnet::net_set_nonblocking_impl(stream.fd)
             
             auto done# = false
-            while !done {
+            loop !done {
                 auto n: i64 = sysnet::net_read_impl(stream.fd, *buf, len)
                 if n >= 0:i64 {
                     sleep_async(0:i64).await
@@ -476,7 +476,7 @@ pub fn net_async_accept(listener#: TcpListener) -> async TcpStream {
             sysnet::net_set_nonblocking_impl(listener.fd)
             
             auto done# = false
-            while !done {
+            loop !done {
                 auto client_fd = sysnet::net_accept_impl(listener.fd)
                 if client_fd >= 0 {
                     sysnet::net_set_nonblocking_impl(client_fd)
@@ -512,7 +512,7 @@ pub fn net_async_write(stream#: TcpStream, *buf: u8, len: usize) -> async Result
             sysnet::net_set_nonblocking_impl(stream.fd)
             
             auto done# = false
-            while !done {
+            loop !done {
                 auto n: i64 = sysnet::net_write_impl(stream.fd, *buf, len)
                 if n >= 0:i64 {
                     sleep_async(0:i64).await

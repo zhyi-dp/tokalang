@@ -56,7 +56,7 @@ impl Command {
     
     pub fn args(self#, args: Vec<String>) {
         auto iter = args.iter()
-        while iter.next() is val {
+        loop iter.next() is val {
             self.args.push(val.clone())
         }
     }

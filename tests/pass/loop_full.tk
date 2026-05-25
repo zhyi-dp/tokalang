@@ -15,7 +15,7 @@ import std/io::println
 
 fn main() -> i32 {
     auto i# = 0
-    while i < 5 {
+    loop i < 5 {
         println("while: {}", i)
         i += 1
         if i == 3 { 
@@ -44,31 +44,24 @@ fn main() -> i32 {
         i += 1
     }
 
-    // Loop as expression with yield
-    auto res = loop {
+    // Loop
+    i = 0
+    loop {
         if i > 10 { 
             println("i = {}, break", i)
-            break 42 
+            break 
         }
         i += 1
     }
-    println("loop result: {}", res)
-    assert(res == 42, "loop result mismatch")
 
-    // While as expression with yield
+    // Loop with condition
     auto j# = 0
-    auto res2 = while j < 10 {
+    loop j < 10 {
         if j == 5 {
             println("j = {}, break", j)
-            break j * 2 
+            break
         }
         j += 1
     }
-    or {
-        println("or, pass\n")
-        pass 0
-    }
-    println("while result: {}", res2)
-    assert(res2 == 10, "while result mismatch")
     return 0
 }

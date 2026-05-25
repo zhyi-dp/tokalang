@@ -175,7 +175,7 @@ impl File {
             auto s# = String::from("")
             auto done# = false
             
-            while !done {
+            loop !done {
                 auto *res = libc_fgets(*temp_ptr, buf_size, self.*handle)
                 if *res == null {
                     done = true

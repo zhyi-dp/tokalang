@@ -80,7 +80,7 @@ impl Path {
         
         auto last_dot# = idx as i64
         auto i#: i64 = (idx + 1) as i64
-        while i < self.inner.len() as i64 {
+        loop i < self.inner.len() as i64 {
             if self.inner.at(i as usize).unwrap() == 46:char {
                 last_dot = i
             }
@@ -98,7 +98,7 @@ impl Path {
     pub fn basename(self) -> String {
         auto last_slash#: i64 = -1
         auto i#: usize = 0
-        while i < self.inner.len() {
+        loop i < self.inner.len() {
             auto c = self.inner.at(i).unwrap()
             if c == 47:char || c == 92:char { // '/' or '\\'
                 last_slash = i as i64
@@ -121,7 +121,7 @@ impl Path {
     pub fn dirname(self) -> String {
         auto last_slash#: i64 = -1
         auto i#: usize = 0
-        while i < self.inner.len() {
+        loop i < self.inner.len() {
             auto c = self.inner.at(i).unwrap()
             if c == 47:char || c == 92:char { // '/' or '\\'
                 last_slash = i as i64

@@ -2145,7 +2145,7 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
         genStmt(arm->Body.get());
         m_CFStack.pop_back();
 
-        cleanupScopes(m_ScopeStack.size() - 1);
+        executeScopeUnwinding(m_ScopeStack.size() - 1);
         m_ScopeStack.pop_back();
         if (m_Builder.GetInsertBlock() &&
             !m_Builder.GetInsertBlock()->getTerminator())
@@ -2175,7 +2175,7 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
             {"", mergeBB, nullptr, resultAddr, m_ScopeStack.size()});
         genStmt(arm->Body.get());
         m_CFStack.pop_back();
-        cleanupScopes(m_ScopeStack.size() - 1);
+        executeScopeUnwinding(m_ScopeStack.size() - 1);
         m_ScopeStack.pop_back();
         break;
       }
@@ -2553,7 +2553,7 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
         PhysEntity guardVal_ent = genExpr(arm->Guard.get()).load(m_Builder);
         llvm::Value *guardVal = guardVal_ent.load(m_Builder);
 
-        cleanupScopes(m_ScopeStack.size() - 1);
+        executeScopeUnwinding(m_ScopeStack.size() - 1);
         m_ScopeStack.pop_back(); // Clean up guard scope
         m_Builder.CreateCondBr(guardVal, armBB, nextArmBB);
       } else {
@@ -2570,7 +2570,7 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
       genStmt(arm->Body.get());
       m_CFStack.pop_back();
 
-      cleanupScopes(m_ScopeStack.size() - 1);
+      executeScopeUnwinding(m_ScopeStack.size() - 1);
       m_ScopeStack.pop_back();
       if (m_Builder.GetInsertBlock() &&
           !m_Builder.GetInsertBlock()->getTerminator())
@@ -2597,7 +2597,7 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
   m_Builder.SetInsertPoint(mergeBB);
   
   // [New] Clean up match-level temporary scope
-  cleanupScopes(m_ScopeStack.size() - 1);
+  executeScopeUnwinding(m_ScopeStack.size() - 1);
   m_ScopeStack.pop_back();
 
   if (!resultAddr) {
@@ -2823,82 +2823,56 @@ PhysEntity CodeGen::genGuardExpr(const GuardExpr *guard) {
   return m_Builder.CreateLoad(m_Builder.getInt32Ty(), resultAddr, "guard_result");
 }
 
-PhysEntity CodeGen::genWhileExpr(const WhileExpr *we) {
-  llvm::Function *f = m_Builder.GetInsertBlock()->getParent();
-  llvm::BasicBlock *condBB =
-      llvm::BasicBlock::Create(m_Context, "while_cond", f);
-  llvm::BasicBlock *loopBB = llvm::BasicBlock::Create(m_Context, "while_loop");
-  llvm::BasicBlock *elseBB = llvm::BasicBlock::Create(m_Context, "while_else");
-  llvm::BasicBlock *afterBB =
-      llvm::BasicBlock::Create(m_Context, "while_after");
-
-  // Result via alloca
-  llvm::AllocaInst *resultAddr = createEntryBlockAlloca(
-      m_Builder.getInt32Ty(), nullptr, "while_result_addr");
-  m_Builder.CreateStore(m_Builder.getInt32(0), resultAddr);
-
-  m_Builder.CreateBr(condBB);
-  m_Builder.SetInsertPoint(condBB);
-
-  PhysEntity cond_ent = genExpr(we->Condition.get()).load(m_Builder);
-  llvm::Value *cond = cond_ent.load(m_Builder);
-  m_Builder.CreateCondBr(cond, loopBB, elseBB);
-
-  loopBB->insertInto(f);
-  m_Builder.SetInsertPoint(loopBB);
-  std::string myLabel = "";
-  if (!m_CFStack.empty() && m_CFStack.back().BreakTarget == nullptr)
-    myLabel = m_CFStack.back().Label;
-
-  m_CFStack.push_back(
-      {myLabel, afterBB, condBB, resultAddr, m_ScopeStack.size()});
-  genStmt(we->Body.get());
-  m_CFStack.pop_back();
-  if (m_Builder.GetInsertBlock() &&
-      !m_Builder.GetInsertBlock()->getTerminator())
-    m_Builder.CreateBr(condBB);
-  
-  elseBB->insertInto(f);
-  m_Builder.SetInsertPoint(elseBB);
-  if (we->ElseBody) {
-    m_CFStack.push_back(
-        {"", afterBB, nullptr, resultAddr, m_ScopeStack.size()});
-    genStmt(we->ElseBody.get());
-    m_CFStack.pop_back();
-  }
-  if (m_Builder.GetInsertBlock() &&
-      !m_Builder.GetInsertBlock()->getTerminator())
-    m_Builder.CreateBr(afterBB);
-
-  afterBB->insertInto(f);
-  m_Builder.SetInsertPoint(afterBB);
-  return m_Builder.CreateLoad(m_Builder.getInt32Ty(), resultAddr,
-                              "while_result");
-}
-
 PhysEntity CodeGen::genLoopExpr(const LoopExpr *le) {
   llvm::Function *f = m_Builder.GetInsertBlock()->getParent();
-  llvm::BasicBlock *loopBB = llvm::BasicBlock::Create(m_Context, "loop", f);
-  llvm::BasicBlock *afterBB = llvm::BasicBlock::Create(m_Context, "loop_after");
-
+  
   // Result via alloca
   llvm::AllocaInst *resultAddr = createEntryBlockAlloca(
       m_Builder.getInt32Ty(), nullptr, "loop_result_addr");
   m_Builder.CreateStore(m_Builder.getInt32(0), resultAddr);
 
-  m_Builder.CreateBr(loopBB);
-  m_Builder.SetInsertPoint(loopBB);
+  llvm::BasicBlock *afterBB = llvm::BasicBlock::Create(m_Context, "loop_after");
+
   std::string myLabel = "";
   if (!m_CFStack.empty() && m_CFStack.back().BreakTarget == nullptr)
     myLabel = m_CFStack.back().Label;
 
-  m_CFStack.push_back(
-      {myLabel, afterBB, loopBB, resultAddr, m_ScopeStack.size()});
-  genStmt(le->Body.get());
-  m_CFStack.pop_back();
-  if (m_Builder.GetInsertBlock() &&
-      !m_Builder.GetInsertBlock()->getTerminator())
+  if (le->Condition) {
+    llvm::BasicBlock *condBB =
+        llvm::BasicBlock::Create(m_Context, "loop_cond", f);
+    llvm::BasicBlock *loopBB = llvm::BasicBlock::Create(m_Context, "loop");
+
+    m_Builder.CreateBr(condBB);
+    m_Builder.SetInsertPoint(condBB);
+
+    PhysEntity cond_ent = genExpr(le->Condition.get()).load(m_Builder);
+    llvm::Value *cond = cond_ent.load(m_Builder);
+    m_Builder.CreateCondBr(cond, loopBB, afterBB);
+
+    loopBB->insertInto(f);
+    m_Builder.SetInsertPoint(loopBB);
+
+    m_CFStack.push_back(
+        {myLabel, afterBB, condBB, resultAddr, m_ScopeStack.size()});
+    genStmt(le->Body.get());
+    m_CFStack.pop_back();
+    if (m_Builder.GetInsertBlock() &&
+        !m_Builder.GetInsertBlock()->getTerminator())
+      m_Builder.CreateBr(condBB);
+  } else {
+    llvm::BasicBlock *loopBB = llvm::BasicBlock::Create(m_Context, "loop", f);
+
     m_Builder.CreateBr(loopBB);
+    m_Builder.SetInsertPoint(loopBB);
+
+    m_CFStack.push_back(
+        {myLabel, afterBB, loopBB, resultAddr, m_ScopeStack.size()});
+    genStmt(le->Body.get());
+    m_CFStack.pop_back();
+    if (m_Builder.GetInsertBlock() &&
+        !m_Builder.GetInsertBlock()->getTerminator())
+      m_Builder.CreateBr(loopBB);
+  }
 
   afterBB->insertInto(f);
   m_Builder.SetInsertPoint(afterBB);
@@ -3220,7 +3194,7 @@ PhysEntity CodeGen::genForExpr(const ForExpr *fe) {
       {myLabel, afterBB, incrBB, resultAddr, m_ScopeStack.size()});
   genStmt(fe->Body.get());
   m_CFStack.pop_back();
-  cleanupScopes(m_ScopeStack.size() - 1);
+  executeScopeUnwinding(m_ScopeStack.size() - 1);
   m_ScopeStack.pop_back();
 
   if (m_Builder.GetInsertBlock() &&
@@ -5222,7 +5196,7 @@ PhysEntity CodeGen::genUnwrapPropagationExpr(const UnwrapPropagationExpr *expr) 
       retVal = m_Builder.CreateInsertValue(retVal, llvm::ConstantInt::get(tagTy, 0), {0});
     }
     
-    cleanupScopes(0); 
+    executeScopeUnwinding(0); 
     
     if (m_CurrentCoroRetTy) {
        genCoroutineReturn(retVal);
@@ -5257,7 +5231,7 @@ PhysEntity CodeGen::genUnwrapPropagationExpr(const UnwrapPropagationExpr *expr) 
       retVal = m_Builder.CreateInsertValue(retVal, newUnionData, {1});
     }
 
-    cleanupScopes(0); 
+    executeScopeUnwinding(0); 
 
     if (m_CurrentCoroRetTy) {
        genCoroutineReturn(retVal);
@@ -5383,7 +5357,7 @@ PhysEntity CodeGen::genPassExpr(const PassExpr *pe) {
 
   if (!m_CFStack.empty()) {
     auto target = m_CFStack.back();
-    cleanupScopes(target.ScopeDepth);
+    executeScopeUnwinding(target.ScopeDepth);
     if (val && target.ResultAddr) {
       m_Builder.CreateStore(val, target.ResultAddr);
     } else if (!pe->Value && target.ResultAddr) {
@@ -5455,7 +5429,7 @@ PhysEntity CodeGen::genBreakExpr(const BreakExpr *be) {
   }
 
   if (target) {
-    cleanupScopes(target->ScopeDepth);
+    executeScopeUnwinding(target->ScopeDepth);
     if (val && target->ResultAddr)
       m_Builder.CreateStore(val, target->ResultAddr);
     if (target->BreakTarget)
@@ -5483,7 +5457,7 @@ PhysEntity CodeGen::genContinueExpr(const ContinueExpr *ce) {
     }
   }
   if (target && target->ContinueTarget) {
-    cleanupScopes(target->ScopeDepth);
+    executeScopeUnwinding(target->ScopeDepth);
     m_Builder.CreateBr(target->ContinueTarget);
     m_Builder.ClearInsertionPoint();
   }

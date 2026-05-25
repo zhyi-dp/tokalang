@@ -25,7 +25,7 @@ pub fn main() -> i32 {
     
     // Benchmarking loop (1000 parsing cycles)
     auto iter# = 0:i32
-    while iter < 1000 {
+    loop iter < 1000 {
         auto p_res = deserialize_shape<SentryScope>(v_str)
         if p_res.is_err() {
             println("Parse err")

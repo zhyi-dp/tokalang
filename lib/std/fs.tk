@@ -44,7 +44,7 @@ impl ReadDir {
      * Returns the next directory entry name.
      */
     pub fn next(self#) -> Option<String> {
-        while !self.finished {
+        loop !self.finished {
             auto name_opt = sys::readdir_impl(self.handle)
             if name_opt.is_none() {
                 self.finished = true

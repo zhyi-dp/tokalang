@@ -21,7 +21,7 @@ fn main() -> i32 {
     auto sum_k# = 0
     auto sum_v# = 0
     
-    while true {
+    loop true {
         auto res = iter#.next()
         match res {
             auto MapResult<i32,i32>::Some(entry) => {

@@ -5,7 +5,7 @@ pub fn encode_hex(*data: [u8], len: usize) -> String {
     auto lut = s"0123456789abcdef"
     auto i#: usize = 0
     unsafe {
-        while i < len {
+        loop i < len {
             auto b = data[i]
             res#.push_char(lut.byte_at((b >> 4) as usize) as char)
             res#.push_char(lut.byte_at((b & 0x0f) as usize) as char)

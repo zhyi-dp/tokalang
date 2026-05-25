@@ -33,7 +33,7 @@ impl<'T> VecDeque<'T> {
     pub fn clear(self#) {
         unsafe {
             auto i# = 0:usize
-            while i < self.len {
+            loop i < self.len {
                 auto idx = (self.head + i) % self.cap
                 auto _val = cede self.buf[idx]
                 i += 1
@@ -52,7 +52,7 @@ impl<'T> VecDeque<'T> {
             
             // Re-align to 0
             auto i# = 0:usize
-            while i < self.len {
+            loop i < self.len {
                 auto idx = (self.head + i) % self.cap
                 new_buf[i] = cede self.buf[idx]
                 i += 1

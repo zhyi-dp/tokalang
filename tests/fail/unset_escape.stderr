@@ -9,17 +9,17 @@ error[E0412]: Reference '&ref' to unset variable 'x' escapes scope without initi
  4 | fn test_return_unset() -> &i32 {
    |                                ^
 error[E0412]: Reference '&refY' to unset variable 'y' escapes scope without initialization
- --> tests/fail/unset_escape.tk:11:31
+ --> tests/fail/unset_escape.tk:13:10
     |
- 11 | fn test_break_unset() -> void {
-    |                               ^
+ 13 |     loop {
+    |          ^
 error[E0412]: Reference '&refZ' to unset variable 'z' escapes scope without initialization
- --> tests/fail/unset_escape.tk:22:30
+ --> tests/fail/unset_escape.tk:20:30
     |
- 22 | fn test_pass_unset() -> void {
+ 20 | fn test_pass_unset() -> void {
     |                              ^
 error[E0412]: Reference '&refA' to unset variable 'a' escapes scope without initialization
- --> tests/fail/unset_escape.tk:37:5
+ --> tests/fail/unset_escape.tk:35:5
     |
- 37 |     {
+ 35 |     {
     |     ^

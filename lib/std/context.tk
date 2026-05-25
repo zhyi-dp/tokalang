@@ -90,7 +90,7 @@ impl Canceler {
                 val.canceled = true
                 val.err = Option<String>::Some(String::from("context canceled"))
                 
-                while val.waiters.len() > 0 {
+                loop val.waiters.len() > 0 {
                     auto tx# = val.waiters#.pop().unwrap()
                     auto _ = tx#.send(true)
                 }
@@ -170,7 +170,7 @@ impl<'C: @Context> CancelContext<'C>@Context {
 fn propagate_cancel(raw_addr: Addr) -> async i32 {
     println("  [prop_cancel] propagate_cancel coroutine started")
     sleep_async(1).await
-    while true {
+    loop true {
         auto should_exit# = false
         auto parent_canceled# = false
         
@@ -203,7 +203,7 @@ fn propagate_cancel(raw_addr: Addr) -> async i32 {
                     if parent_canceled {
                         val.canceled = true
                         val.err = Option<String>::Some(String::from("context canceled"))
-                        while val.waiters.len() > 0 {
+                        loop val.waiters.len() > 0 {
                             auto tx# = val.waiters#.pop().unwrap()
                             auto _ = tx#.send(true)
                         }
@@ -331,7 +331,7 @@ fn timer_helper(ms: i32, raw_addr: Addr) -> async i32 {
                 val.canceled = true
                 val.err = Option<String>::Some(String::from("context canceled"))
                 
-                while val.waiters.len() > 0 {
+                loop val.waiters.len() > 0 {
                     auto tx# = val.waiters#.pop().unwrap()
                     auto _ = tx#.send(true)
                 }
