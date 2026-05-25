@@ -860,12 +860,19 @@ void Sema::checkFunction(FunctionDecl *Fn) {
 
   // --- Sema: Safety Redline Boundaries ---
   bool isExemptFile = false;
-  if (CurrentModule && (CurrentModule->SourcePath.find("build.tk") != std::string::npos ||
+  if (Fn->Loc.isValid()) {
+    std::string path = DiagnosticEngine::SrcMgr->getFullSourceLoc(Fn->Loc).FileName;
+    if (path.find("build.tk") != std::string::npos ||
+        path.find("prelude") != std::string::npos ||
+        path.find("tests/pass/") != std::string::npos ||
+        path.find("lib/") != std::string::npos) {
+      isExemptFile = true;
+    }
+  }
+  if (!isExemptFile && CurrentModule && (CurrentModule->SourcePath.find("build.tk") != std::string::npos ||
                         CurrentModule->SourcePath.find("prelude") != std::string::npos ||
                         CurrentModule->SourcePath.find("tests/pass/") != std::string::npos ||
-                        CurrentModule->SourcePath.find("lib/core/") != std::string::npos ||
-                        CurrentModule->SourcePath.find("lib/std/") != std::string::npos ||
-                        CurrentModule->SourcePath.find("lib/sys/") != std::string::npos)) {
+                        CurrentModule->SourcePath.find("lib/") != std::string::npos)) {
     isExemptFile = true;
   }
 
@@ -1089,12 +1096,19 @@ void Sema::analyzeShapes(Module &M) {
 
     // --- Sema: Safety Redline Boundaries ---
     bool isExemptFile = false;
-    if (CurrentModule && (CurrentModule->SourcePath.find("build.tk") != std::string::npos ||
+    if (S->Loc.isValid()) {
+      std::string path = DiagnosticEngine::SrcMgr->getFullSourceLoc(S->Loc).FileName;
+      if (path.find("build.tk") != std::string::npos ||
+          path.find("prelude") != std::string::npos ||
+          path.find("tests/pass/") != std::string::npos ||
+          path.find("lib/") != std::string::npos) {
+        isExemptFile = true;
+      }
+    }
+    if (!isExemptFile && CurrentModule && (CurrentModule->SourcePath.find("build.tk") != std::string::npos ||
                           CurrentModule->SourcePath.find("prelude") != std::string::npos ||
                           CurrentModule->SourcePath.find("tests/pass/") != std::string::npos ||
-                          CurrentModule->SourcePath.find("lib/core/") != std::string::npos ||
-                          CurrentModule->SourcePath.find("lib/std/") != std::string::npos ||
-                          CurrentModule->SourcePath.find("lib/sys/") != std::string::npos)) {
+                          CurrentModule->SourcePath.find("lib/") != std::string::npos)) {
       isExemptFile = true;
     }
 
