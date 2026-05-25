@@ -17,44 +17,44 @@ pub fn parse_package_tk() -> Vec<DepEntry> {
     if res.is_err() { return deps }
     
     auto content = res.unwrap()
-    auto deps_idx = content.find_str(String::from("dependencies = ("))
+    auto deps_idx = content.find_str(s"dependencies = (")
     if deps_idx == -1 { return deps }
     
     auto lines# = content.split('\n' as i32)
     auto in_deps# = false
     
-    while !lines.is_done() {
+    loop !lines.is_done() {
         auto line = lines#.next().trim()
-        if line.starts_with(String::from("dependencies = (")) {
+        if line.starts_with(s"dependencies = (") {
             in_deps = true
             continue
         }
         if in_deps {
-            if line.eq(String::from(")")) {
+            if line.equals(s")") {
                 break
             }
-            if line.starts_with(String::from("//")) || line.len() == 0 {
+            if line.starts_with(s"//") || line.len() == 0 {
                 continue
             }
             
-            auto eq_idx = line.find_str(String::from("="))
+            auto eq_idx = line.find_str(s"=")
             if eq_idx != -1 {
                 auto name_part = line.substring(0, eq_idx).trim()
                 auto val_part# = line.substring(eq_idx + 1, line.len() as i32).trim()
                 
-                if val_part.ends_with(String::from(",")) {
+                if val_part.ends_with(s",") {
                     val_part = val_part.substring(0, (val_part.len() as i32) - 1)
                 }
                 
-                if val_part.starts_with(String::from("\"")) && val_part.ends_with(String::from("\"")) {
+                if val_part.starts_with(s"\"") && val_part.ends_with(s"\"") {
                     val_part = val_part.substring(1, (val_part.len() as i32) - 1)
                 }
                 
-                if val_part.starts_with(String::from("Git(")) {
-                    auto first_quote = val_part.find_str(String::from("\""))
+                if val_part.starts_with(s"Git(") {
+                    auto first_quote = val_part.find_str(s"\"")
                     if first_quote != -1 {
                         auto rest = val_part.substring(first_quote + 1, val_part.len() as i32)
-                        auto second_quote = rest.find_str(String::from("\""))
+                        auto second_quote = rest.find_str(s"\"")
                         if second_quote != -1 {
                             val_part = rest.substring(0, second_quote)
                             val_part#.push_str(":latest" as *char) 
@@ -78,15 +78,15 @@ pub fn cmd_fetch() -> i32 {
     
     println("\x1b[1;36m   Resolving\x1b[0m dependency graph...")
     auto i# = 0:usize
-    while i < deps.len() {
+    loop i < deps.len() {
         auto entry = deps.get(i)
         auto pkg_name = entry.name
         auto pkg_val = entry.val
         
-        if pkg_val.starts_with(String::from(".")) || pkg_val.starts_with(String::from("/")) {
+        if pkg_val.starts_with(s".") || pkg_val.starts_with(s"/") {
             println("\x1b[1;36m   Resolving\x1b[0m {} @ {} (Local Path)", pkg_name, pkg_val)
-        } else if pkg_val.contains(String::from("/")) && pkg_val.contains(String::from(":")) {
-            auto colon_idx = pkg_val.find_str(String::from(":"))
+        } else if pkg_val.contains(s"/") && pkg_val.contains(s":") {
+            auto colon_idx = pkg_val.find_str(s":")
             auto repo_url = pkg_val.substring(0, colon_idx)
             auto tag = pkg_val.substring(colon_idx + 1, pkg_val.len() as i32)
             println("\x1b[1;36m   Resolving\x1b[0m {} @ {}", pkg_name, pkg_val)
@@ -110,7 +110,7 @@ pub fn cmd_fetch() -> i32 {
                 }
             }
         } else {
-            auto colon_idx = pkg_val.find_str(String::from(":"))
+            auto colon_idx = pkg_val.find_str(s":")
             auto real_name# = pkg_name.clone()
             auto version# = String::from("latest")
             if colon_idx != -1 {
@@ -131,7 +131,7 @@ pub fn cmd_fetch() -> i32 {
                 check_cmd#.push_str(target_dir.c_str())
                 if libc_system(check_cmd.c_str()) != 0 {
                     auto safe_name# = real_name.clone()
-                    auto slash_idx = safe_name.find_str(String::from("/"))
+                    auto slash_idx = safe_name.find_str(s"/")
                     if slash_idx != -1 {
                         safe_name = safe_name.substring(slash_idx + 1, safe_name.len() as i32)
                     }
@@ -140,7 +140,7 @@ pub fn cmd_fetch() -> i32 {
                     auto env_url = libc_getenv("TOKA_REGISTRY_URL" as *char) as Addr
                     if env_url != 0:Addr {
                         url = String::from(env_url as *char)
-                        if !url.ends_with(String::from("/")) {
+                        if !url.ends_with(s"/") {
                             url#.push_str("/")
                         }
                     }
@@ -189,7 +189,7 @@ pub fn build_pkg_args() -> String {
     auto out# = String::from("")
     
     auto i# = 0:usize
-    while i < deps.len() {
+    loop i < deps.len() {
         auto entry = deps.get(i)
         auto pkg_name = entry.name
         auto pkg_val = entry.val
@@ -198,13 +198,13 @@ pub fn build_pkg_args() -> String {
         out#.push_str(pkg_name.c_str())
         out#.push_str("=")
         
-        if pkg_val.starts_with(String::from(".")) || pkg_val.starts_with(String::from("/")) {
+        if pkg_val.starts_with(s".") || pkg_val.starts_with(s"/") {
             out#.push_str(pkg_val.c_str())
             out#.push_str("/lib/")
             out#.push_str(pkg_name.c_str())
             out#.push_str("/mod.tk ")
-        } else if pkg_val.contains(String::from("/")) && pkg_val.contains(String::from(":")) {
-            auto colon_idx = pkg_val.find_str(String::from(":"))
+        } else if pkg_val.contains(s"/") && pkg_val.contains(s":") {
+            auto colon_idx = pkg_val.find_str(s":")
             auto tag = pkg_val.substring(colon_idx + 1, pkg_val.len() as i32)
             out#.push_str(".toka/packages/")
             out#.push_str(pkg_name.c_str())
@@ -240,22 +240,22 @@ pub fn cmd_publish() -> i32 {
     auto name# = String::from("")
     auto version# = String::from("")
     
-    while !lines.is_done() {
+    loop !lines.is_done() {
         auto line = lines#.next().trim()
-        if line.starts_with(String::from("name = ")) {
-            auto start_idx = line.find_str(String::from("\""))
+        if line.starts_with(s"name = ") {
+            auto start_idx = line.find_str(s"\"")
             if start_idx != -1 {
                 auto rest = line.substring(start_idx + 1, line.len() as i32)
-                auto end_idx = rest.find_str(String::from("\""))
+                auto end_idx = rest.find_str(s"\"")
                 if end_idx != -1 {
                     name = rest.substring(0, end_idx)
                 }
             }
-        } else if line.starts_with(String::from("version = ")) {
-            auto start_idx = line.find_str(String::from("\""))
+        } else if line.starts_with(s"version = ") {
+            auto start_idx = line.find_str(s"\"")
             if start_idx != -1 {
                 auto rest = line.substring(start_idx + 1, line.len() as i32)
-                auto end_idx = rest.find_str(String::from("\""))
+                auto end_idx = rest.find_str(s"\"")
                 if end_idx != -1 {
                     version = rest.substring(0, end_idx)
                 }
@@ -274,7 +274,7 @@ pub fn cmd_publish() -> i32 {
     
     // Check if the name has a namespace (e.g. zhyi-dp/utils). We want to replace '/' with '-' for the file name.
     auto safe_name# = name.clone()
-    auto slash_idx = safe_name.find_str(String::from("/"))
+    auto slash_idx = safe_name.find_str(s"/")
     if slash_idx != -1 {
         // Since Toka String doesn't have a built in replace yet, let's just use the substring after the slash for the tarball name
         // Or we could extract just the package name for the tarball
@@ -315,7 +315,7 @@ pub fn cmd_publish() -> i32 {
     if env_url != 0:Addr {
         url = String::from(env_url as *char)
     }
-    if !url.ends_with(String::from("/")) {
+    if !url.ends_with(s"/") {
         url#.push_str("/")
     }
     url#.push_str("api/publish")
@@ -350,10 +350,10 @@ pub shape PkgMeta(
 )
 
 impl PkgMeta@FromJson {
-    pub fn parse_json(self#, json: view_str) -> JsonRes {
+    pub fn parse_json(self#, json: str) -> JsonRes {
         auto res = deserialize_shape<PkgMeta>(json)
         match res {
-            auto Result<PkgMeta, view_str>::Ok(&obj) => {
+            auto Result<PkgMeta, str>::Ok(&obj) => {
                 self = cede obj
                 return json_skip_value(json)
             }
@@ -391,7 +391,7 @@ pub fn resolve_package(query: String) -> Option<String> {
     
     auto catalog = parsed.unwrap()
     auto i# = 0:usize
-    while i < catalog.packages.len() {
+    loop i < catalog.packages.len() {
         auto pkg = catalog.packages.get(i)
         if pkg.name.eq(query) {
             auto repo = pkg.repository.clone()
@@ -441,9 +441,9 @@ pub fn cmd_search(query: String) -> i32 {
     println("\nSearch Results:")
     println("---------------")
     
-    while i < catalog.packages.len() {
+    loop i < catalog.packages.len() {
         auto pkg = catalog.packages.at(i)
-        if pkg.name.contains(query.clone()) || pkg.description.contains(query.clone()) {
+        if pkg.name.contains(query.as_view()) || pkg.description.contains(query.as_view()) {
             println("\x1b[1;32m{}\x1b[0m (\x1b[36m{}\x1b[0m)", pkg.name, pkg.version)
             println("    {}", pkg.description)
             println("")

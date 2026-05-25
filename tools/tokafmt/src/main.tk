@@ -136,7 +136,7 @@ impl Lexer {
         // Whitespace
         if Lexer::is_whitespace(c) {
             auto start_idx = self.pos
-            while Lexer::is_whitespace(self.peek()) {
+            loop Lexer::is_whitespace(self.peek()) {
                 self#.advance()
             }
             auto ws = self.source.substring(start_idx as usize, self.pos as usize)
@@ -148,7 +148,7 @@ impl Lexer {
             auto start_idx = self.pos
             self#.advance() // /
             self#.advance() // *
-            while !self.is_eof() {
+            loop !self.is_eof() {
                 if self.peek() == '*' && self.peek_next() == '/' {
                     self#.advance() // *
                     self#.advance() // /
@@ -163,7 +163,7 @@ impl Lexer {
         // Line Comments
         if c == '/' && self.peek_next() == '/' { // "//"
             auto start_idx = self.pos
-            while self.peek() != '\0' && self.peek() != '\n' {
+            loop self.peek() != '\0' && self.peek() != '\n' {
                 self#.advance()
             }
             auto comm = self.source.substring(start_idx as usize, self.pos as usize)
@@ -173,7 +173,7 @@ impl Lexer {
         // Identifier or Keyword
         if Lexer::is_alpha(c) {
             auto start_idx = self.pos
-            while Lexer::is_alpha(self.peek()) || Lexer::is_digit(self.peek()) || self.peek() == '@' { // '@' for macros
+            loop Lexer::is_alpha(self.peek()) || Lexer::is_digit(self.peek()) || self.peek() == '@' { // '@' for macros
                 self#.advance()
             }
             auto ident = self.source.substring(start_idx as usize, self.pos as usize)
@@ -189,7 +189,7 @@ impl Lexer {
         // Number
         if Lexer::is_digit(c) {
             auto start_idx = self.pos
-            while Lexer::is_digit(self.peek()) || self.peek() == '.' || self.peek() == 'e' || self.peek() == 'E' {
+            loop Lexer::is_digit(self.peek()) || self.peek() == '.' || self.peek() == 'e' || self.peek() == 'E' {
                 auto p = self.peek()
                 if p == 'e' || p == 'E' {
                     self#.advance()
@@ -208,7 +208,7 @@ impl Lexer {
         if c == '"' { // '"'
             auto start_idx = self.pos
             self#.advance() // Consume opening quote
-            while self.peek() != '\0' && self.peek() != '"' {
+            loop self.peek() != '\0' && self.peek() != '"' {
                 if self.peek() == '\\' { // '\\'
                     self#.advance()
                 }
@@ -310,7 +310,7 @@ impl Printer {
 
     fn push_indent(self#) {
         auto i# = 0
-        while i < self.indent_level {
+        loop i < self.indent_level {
             self.output#.push_str("    ") // 4 spaces
             i = i + 1
         }
@@ -326,7 +326,7 @@ impl Printer {
         auto just_forced_newline# = false
         auto pending_nl_count# = 0
         
-        while !lex.is_eof() {
+        loop !lex.is_eof() {
             auto t = lex#.next_token()
             
             if t.kind == TokenKind::EOF() {
@@ -344,7 +344,7 @@ impl Printer {
             if t.kind == TokenKind::Whitespace() {
                 auto nl_count# = 0
                 auto i# = 0 as usize
-                while i < rebuild_str(t.lexeme_addr, t.lexeme_len).len() {
+                loop i < rebuild_str(t.lexeme_addr, t.lexeme_len).len() {
                     if rebuild_str(t.lexeme_addr, t.lexeme_len).at(i).unwrap() == '\n' {
                         nl_count = nl_count + 1
                     }
@@ -405,7 +405,7 @@ impl Printer {
             if pending_nl_count > 0 {
                 if pending_nl_count > 2 { pending_nl_count = 2 } // Keep max 1 blank line
                 auto j# = 0
-                while j < pending_nl_count {
+                loop j < pending_nl_count {
                     self.output#.push_str("\n")
                     j = j + 1
                 }
@@ -546,7 +546,7 @@ fn main() -> i32 {
     auto target_file = env::get_arg(1)
     
     // Open file to read formatting
-    auto file# = File::open(target_file.clone(), String::from("r"))
+    auto file# = File::open(target_file.clone(), s"r")
     if !file.is_valid() {
         print("Error: Could not read file {}\n", target_file.c_str())
         return 1

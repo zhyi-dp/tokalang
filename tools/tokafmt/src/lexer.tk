@@ -75,7 +75,7 @@ impl Lexer {
         // Whitespace
         if Lexer::is_whitespace(c) {
             auto start_idx = self.pos
-            while Lexer::is_whitespace(self.peek()) {
+            loop Lexer::is_whitespace(self.peek()) {
                 self#.advance()
             }
             auto ws = self.source.substring(start_idx as usize, self.pos as usize)
@@ -87,7 +87,7 @@ impl Lexer {
             auto start_idx = self.pos
             self#.advance() // /
             self#.advance() // *
-            while !self.is_eof() {
+            loop !self.is_eof() {
                 if self.peek() == '*' && self.peek_next() == '/' {
                     self#.advance() // *
                     self#.advance() // /
@@ -102,7 +102,7 @@ impl Lexer {
         // Line Comments
         if c == '/' && self.peek_next() == '/' { // "//"
             auto start_idx = self.pos
-            while self.peek() != '\0' && self.peek() != '\n' {
+            loop self.peek() != '\0' && self.peek() != '\n' {
                 self#.advance()
             }
             auto comm = self.source.substring(start_idx as usize, self.pos as usize)
@@ -112,7 +112,7 @@ impl Lexer {
         // Identifier or Keyword
         if Lexer::is_alpha(c) {
             auto start_idx = self.pos
-            while Lexer::is_alpha(self.peek()) || Lexer::is_digit(self.peek()) || self.peek() == '@' { // '@' for macros
+            loop Lexer::is_alpha(self.peek()) || Lexer::is_digit(self.peek()) || self.peek() == '@' { // '@' for macros
                 self#.advance()
             }
             auto ident = self.source.substring(start_idx as usize, self.pos as usize)
@@ -128,7 +128,7 @@ impl Lexer {
         // Number
         if Lexer::is_digit(c) {
             auto start_idx = self.pos
-            while Lexer::is_digit(self.peek()) || self.peek() == '.' || self.peek() == 'e' || self.peek() == 'E' {
+            loop Lexer::is_digit(self.peek()) || self.peek() == '.' || self.peek() == 'e' || self.peek() == 'E' {
                 auto p = self.peek()
                 if p == 'e' || p == 'E' {
                     self#.advance()
@@ -147,7 +147,7 @@ impl Lexer {
         if c == '"' { // '"'
             auto start_idx = self.pos
             self#.advance() // Consume opening quote
-            while self.peek() != '\0' && self.peek() != '"' {
+            loop self.peek() != '\0' && self.peek() != '"' {
                 if self.peek() == '\\' { // '\\'
                     self#.advance()
                 }

@@ -144,7 +144,7 @@ fn cmd_add(pkg_url_or_name: String) -> i32 {
         auto pkg_alias# = String::from("")
         
         // If it doesn't contain '/', it's a registry lookup
-        if !pkg_url.contains(String::from("/")) {
+        if !pkg_url.contains(s"/") {
             auto resolved = resolve_package(pkg_url_or_name)
             if resolved.is_some() {
                 pkg_url = resolved.unwrap()
@@ -157,14 +157,14 @@ fn cmd_add(pkg_url_or_name: String) -> i32 {
         } else {
             // Direct URL parsing
             auto iter = pkg_url.split('/' as i32)
-            while !iter.is_done() {
+            loop !iter.is_done() {
                 auto part = iter#.next()
                 if !part.is_empty() {
                     pkg_alias = part.clone()
                 }
             }
             
-            auto colon_idx = pkg_alias.find_str(String::from(":"))
+            auto colon_idx = pkg_alias.find_str(s":")
             if colon_idx != -1 {
                 pkg_alias = pkg_alias.substring(0, colon_idx)
             }
@@ -189,7 +189,7 @@ fn cmd_add(pkg_url_or_name: String) -> i32 {
         }
         
         auto pkg_content = res.unwrap()
-        auto deps_idx = pkg_content.find_str(String::from("dependencies = ("))
+        auto deps_idx = pkg_content.find_str(s"dependencies = (")
         if deps_idx == -1 {
             println("Error: Invalid package.tk format (missing dependencies block)")
             return 1
@@ -207,18 +207,18 @@ fn cmd_add(pkg_url_or_name: String) -> i32 {
         auto rest = pkg_content.substring(insert_pos, pkg_content.len() as i32)
         new_content#.push_str(rest.c_str())
         
-        auto file# = File::open(String::from("package.tk"), String::from("w"))
+        auto file# = File::open(String::from("package.tk"), s"w")
         if !file.is_valid() {
             println("\x1b[1;31m       Error\x1b[0m failed to open package.tk for writing")
             return 1
         }
-        file.write(new_content)
+        file.write(new_content.as_view())
         file#.close()
         
         println("\x1b[1;32m       Added\x1b[0m {} to package.tk", pkg_alias)
         
         println("\x1b[1;32m    Updating\x1b[0m package.lock...")
-        auto lock_file# = File::open(String::from("package.lock"), String::from("a"))
+        auto lock_file# = File::open(String::from("package.lock"), s"a")
         if lock_file.is_valid() {
             auto lock_entry# = String::from("")
             lock_entry#.push_str(pkg_alias.c_str())
@@ -226,7 +226,7 @@ fn cmd_add(pkg_url_or_name: String) -> i32 {
             lock_entry#.push_str(pkg_url.c_str())
             lock_entry#.push_str(" sha256:mock_hash_for_now_00000000000000000000000000
 " as *char)
-            lock_file.write(lock_entry)
+            lock_file.write(lock_entry.as_view())
             lock_file#.close()
         }
         
@@ -434,7 +434,7 @@ fn main() -> i32 {
     auto cmd# = env::get_arg(1)
     auto shift# = 0
     // If run via lli, argv[1] might be the .ll file itself
-    if cmd.ends_with(String::from(".ll")) {
+    if cmd.ends_with(s".ll") {
         shift = 1
         if argc < 3 {
             print_help()

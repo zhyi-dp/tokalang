@@ -37,7 +37,7 @@ impl Printer {
 
     fn push_indent(self#) {
         auto i# = 0
-        while i < self.indent_level {
+        loop i < self.indent_level {
             self.output#.push_str("    ") // 4 spaces
             i = i + 1
         }
@@ -53,7 +53,7 @@ impl Printer {
         auto just_forced_newline# = false
         auto pending_nl_count# = 0
         
-        while !lex.is_eof() {
+        loop !lex.is_eof() {
             auto t = lex#.next_token()
             
             if t.kind == TokenKind::EOF() {
@@ -71,7 +71,7 @@ impl Printer {
             if t.kind == TokenKind::Whitespace() {
                 auto nl_count# = 0
                 auto i# = 0 as usize
-                while i < rebuild_str(t.lexeme_addr, t.lexeme_len).len() {
+                loop i < rebuild_str(t.lexeme_addr, t.lexeme_len).len() {
                     if rebuild_str(t.lexeme_addr, t.lexeme_len).at(i).unwrap() == '\n' {
                         nl_count = nl_count + 1
                     }
@@ -132,7 +132,7 @@ impl Printer {
             if pending_nl_count > 0 {
                 if pending_nl_count > 2 { pending_nl_count = 2 } // Keep max 1 blank line
                 auto j# = 0
-                while j < pending_nl_count {
+                loop j < pending_nl_count {
                     self.output#.push_str("\n")
                     j = j + 1
                 }

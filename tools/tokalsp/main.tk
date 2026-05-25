@@ -1,6 +1,6 @@
 import std/io::{get_stdin, get_stdout, File, print_line}
 import std/string::{String}
-import core/str::{view_str}
+import core/str::{str}
 import core/libc::{libc_malloc, libc_free}
 import core/types::{usize, char, ADDR0}
 import stdx/serde/json::{JsonNode, to_json, JsonRes, @FromJson}
@@ -44,17 +44,17 @@ pub shape JsonRpcError (
     message: String
 )
 
-fn parse_content_length(s: view_str) -> usize {
+fn parse_content_length(s: str) -> usize {
     auto len#: usize = 0
     auto i#: usize = 0
     // Skip to first digit
-    while i < s.len() {
+    loop i < s.len() {
         auto c = s.byte_at(i)
         if c >= 48 && c <= 57 { break }
         i += 1
     }
     // Parse digits
-    while i < s.len() {
+    loop i < s.len() {
         auto c = s.byte_at(i)
         if c >= 48 && c <= 57 {
             len = len * 10 + ((c - 48) as usize)
@@ -73,7 +73,7 @@ fn execute_command(cmd: String) -> String {
         
         auto res# = String::from("")
         auto buf# = [0:char; 1024]
-        while true {
+        loop true {
             auto bytes_read = libc_fread(&buf[0] as *void, 1, 1024, *p)
             if bytes_read == 0 { break }
             res#.push_buf(&buf[0] as *u8, bytes_read)
@@ -89,8 +89,8 @@ fn send_notification(method: String, params_json: String) {
     
     auto header = String::fmt("Content-Length: {}\r\n\r\n", payload.len() as i32)
     
-    out.write(header)
-    out.write(payload)
+    out.write(header.as_view())
+    out.write(payload.as_view())
     out.flush()
 }
 
@@ -122,8 +122,8 @@ fn process_message(body: String) {
                                 auto response = String::fmt("{\"jsonrpc\":\"2.0\",\"id\":{},\"result\":{\"capabilities\":{\"textDocumentSync\":1}}}", id_str.c_str().as_str())
                                 auto out = get_stdout()
                                 auto header = String::fmt("Content-Length: {}\r\n\r\n", response.len() as i32)
-                                out.write(header)
-                                out.write(response)
+                                out.write(header.as_view())
+                                out.write(response.as_view())
                                 out.flush()
                             }
                         } else if method_str.equals(s"textDocument/didOpen") || method_str.equals(s"textDocument/didChange") {
@@ -204,9 +204,9 @@ fn process_message(body: String) {
                                         if doc_text.len() > 0 {
                                             auto tmp_dir = get_tmp_dir()
                                             auto tmp_path = String::fmt("{}/tokalsp_current.tk", tmp_dir.c_str().as_str())
-                                            auto tmp_file# = File::open(tmp_path.clone(), String::from("w"))
+                                            auto tmp_file# = File::open(tmp_path.clone(), s"w")
                                             if tmp_file.is_valid() {
-                                                tmp_file.write(doc_text)
+                                                tmp_file.write(doc_text.as_view())
                                                 tmp_file#.close()
                                                 
                                                 auto cmd = String::fmt("timeout 2 tokac --check-json {} 2>&1", tmp_path.c_str().as_str())
@@ -293,14 +293,14 @@ pub fn main() {
     auto input = get_stdin()
     setup_io()
     auto tmp_dir = get_tmp_dir()
-    while true {
+    loop true {
         auto log_path = String::fmt("{}/tokalsp.log", tmp_dir.c_str().as_str())
-        auto log# = File::open(log_path, String::from("a"))
-        log.write(String::from("LOOP START\n"))
+        auto log# = File::open(log_path, s"a")
+        log.write(s"LOOP START\n")
         log#.close()
         
         auto clen#: usize = 0
-        while true {
+        loop true {
             auto line_res = input.read_line()
             if line_res.is_err() { return }
             auto line = line_res.unwrap()
@@ -328,10 +328,10 @@ pub fn main() {
             libc_free(*buf as *void)
             
             auto log_path = String::fmt("{}/tokalsp.log", tmp_dir.c_str().as_str())
-            auto err# = File::open(log_path, String::from("a"))
-            err.write(String::from("BODY: ["))
-            err.write(body.clone())
-            err.write(String::from("]\n"))
+            auto err# = File::open(log_path, s"a")
+            err.write(s"BODY: [")
+            err.write(body.as_view())
+            err.write(s"]\n")
             err#.close()
             
             process_message(cede body)
