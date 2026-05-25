@@ -14,6 +14,7 @@
 #include "toka/Sema.h"
 #include "toka/DiagnosticEngine.h"
 #include "toka/SourceManager.h"
+#include "toka/Type.h"
 #include <algorithm>
 #include <cctype>
 #include <functional> // [NEW] Added for std::function
@@ -24,6 +25,41 @@
 #include <vector>
 
 namespace toka {
+
+static bool isUnsafeType(const std::shared_ptr<toka::Type>& T) {
+  if (!T) return false;
+  if (T->typeKind == toka::Type::RawPtr) return true;
+  
+  if (T->isFunction()) {
+    auto FT = std::dynamic_pointer_cast<toka::FunctionType>(T);
+    if (FT) {
+      if (isUnsafeType(FT->ReturnType)) return true;
+      for (const auto& P : FT->ParamTypes) {
+        if (isUnsafeType(P)) return true;
+      }
+    }
+  }
+  if (T->isDynFn()) {
+    auto DFT = std::dynamic_pointer_cast<toka::DynFnType>(T);
+    if (DFT) {
+      if (isUnsafeType(DFT->ReturnType)) return true;
+      for (const auto& P : DFT->ParamTypes) {
+        if (isUnsafeType(P)) return true;
+      }
+    }
+  }
+  if (T->getPointeeType()) {
+    if (isUnsafeType(T->getPointeeType())) return true;
+  }
+  if (T->getArrayElementType()) {
+    if (isUnsafeType(T->getArrayElementType())) return true;
+  }
+  if (T->isUninit()) {
+    auto UT = std::dynamic_pointer_cast<toka::UninitType>(T);
+    if (UT && isUnsafeType(UT->InnerType)) return true;
+  }
+  return false;
+}
 
 bool Sema::checkModule(Module &M) {
 
@@ -822,6 +858,32 @@ void Sema::checkFunction(FunctionDecl *Fn) {
 
   }
 
+  // --- Sema: Safety Redline Boundaries ---
+  bool isExemptFile = false;
+  if (CurrentModule && (CurrentModule->SourcePath.find("build.tk") != std::string::npos ||
+                        CurrentModule->SourcePath.find("prelude") != std::string::npos ||
+                        CurrentModule->SourcePath.find("tests/pass/") != std::string::npos ||
+                        CurrentModule->SourcePath.find("lib/core/") != std::string::npos ||
+                        CurrentModule->SourcePath.find("lib/std/") != std::string::npos ||
+                        CurrentModule->SourcePath.find("lib/sys/") != std::string::npos)) {
+    isExemptFile = true;
+  }
+
+  if (!isExemptFile && Fn->IsPub && Fn->Name.rfind("unsafe_", 0) != 0 && Fn->Name.rfind("raw_", 0) != 0 && Fn->Name.rfind("__", 0) != 0) {
+    for (auto &Arg : Fn->Args) {
+      if (isUnsafeType(Arg.ResolvedType)) {
+        DiagnosticEngine::report(getLoc(Fn), DiagID::ERR_EXPOSED_UNSAFE_TYPE,
+                                 Fn->Name, Arg.ResolvedType->toString(), Arg.Name);
+        HasError = true;
+      }
+    }
+    if (Fn->ReturnType != "void" && isUnsafeType(Fn->ResolvedReturnType)) {
+      DiagnosticEngine::report(getLoc(Fn), DiagID::ERR_EXPOSED_UNSAFE_RET,
+                               Fn->Name, Fn->ResolvedReturnType->toString());
+      HasError = true;
+    }
+  }
+
   if (Fn->Body) {
     checkStmt(Fn->Body.get());
 
@@ -1021,6 +1083,34 @@ void Sema::analyzeShapes(Module &M) {
               getLoc(S.get()), DiagID::ERR_UNION_INVALID_MEMBER, member.Name,
               member.Type /* Original Name */, reason);
           HasError = true;
+        }
+      }
+    }
+
+    // --- Sema: Safety Redline Boundaries ---
+    bool isExemptFile = false;
+    if (CurrentModule && (CurrentModule->SourcePath.find("build.tk") != std::string::npos ||
+                          CurrentModule->SourcePath.find("prelude") != std::string::npos ||
+                          CurrentModule->SourcePath.find("tests/pass/") != std::string::npos ||
+                          CurrentModule->SourcePath.find("lib/core/") != std::string::npos ||
+                          CurrentModule->SourcePath.find("lib/std/") != std::string::npos ||
+                          CurrentModule->SourcePath.find("lib/sys/") != std::string::npos)) {
+      isExemptFile = true;
+    }
+
+    if (!isExemptFile && S->IsPub && S->Name != "cstr" && S->Name.rfind("Unsafe", 0) != 0 && S->Name.rfind("Raw", 0) != 0) {
+      for (auto &member : S->Members) {
+        if (isUnsafeType(member.ResolvedType)) {
+          DiagnosticEngine::report(getLoc(S.get()), DiagID::ERR_EXPOSED_UNSAFE_FIELD,
+                                   S->Name, member.Name, member.ResolvedType->toString());
+          HasError = true;
+        }
+        for (auto &subMemb : member.SubMembers) {
+          if (isUnsafeType(subMemb.ResolvedType)) {
+            DiagnosticEngine::report(getLoc(S.get()), DiagID::ERR_EXPOSED_UNSAFE_FIELD,
+                                     S->Name, subMemb.Name, subMemb.ResolvedType->toString());
+            HasError = true;
+          }
         }
       }
     }

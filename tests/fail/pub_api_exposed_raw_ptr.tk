@@ -1,0 +1,6 @@
+pub fn foo(ptr: *i32) -> void {
+}
+
+fn main() -> i32 {
+    return 0
+}

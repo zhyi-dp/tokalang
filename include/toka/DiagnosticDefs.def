@@ -108,6 +108,11 @@ DIAG(ERR_LIFETIME_UNION_VIOLATION, Error, "E0457", "Lifetime union violation: '{
 DIAG(ERR_REDUNDANT_BLOCK,        Error, "E0460", "Redundant inherent restriction '$' on '{}'; it is already immutable by default")
 DIAG(ERR_ILLEGAL_MODIFIER_SUFFIX, Error, "E0461", "Illegal use of permission suffixes (# or $) in everyday contexts. Modifiers are strictly limited to declarations or explicit mutable method calls.")
 
+// --- Sema: Safety Redline Boundaries ---
+DIAG(ERR_EXPOSED_UNSAFE_TYPE,   Error, "E0480", "Public API '{}' exposes unsafe type '{}' in parameter '{}'. Use 'str' or 'String', or prefix the function name with 'unsafe_'")
+DIAG(ERR_EXPOSED_UNSAFE_RET,    Error, "E0481", "Public API '{}' exposes unsafe return type '{}'. Use 'str' or 'String', or prefix the function name with 'unsafe_'")
+DIAG(ERR_EXPOSED_UNSAFE_FIELD,  Error, "E0482", "Public Shape '{}' exposes unsafe field '{}' of type '{}'. Use 'str' or 'String', or prefix the shape name with 'Unsafe' or 'Raw'")
+
 // --- Sema: Memory Safety ---
 DIAG(ERR_UNSAFE_ALLOC_CTX,   Error, "E0501", "Operation 'alloc' is only allowed in unsafe context")
 DIAG(ERR_FREE_SMART,         Error, "E0502", "Manual 'free' forbidden for smart pointer '{}'; memory is managed automatically")

@@ -1,0 +1,20 @@
+error[E0482]: Public Shape 'Point' exposes unsafe field 'ptr' of type '*f32'. Use 'str' or 'String', or prefix the shape name with 'Unsafe' or 'Raw'
+ --> tests/fail/pub_shape_exposed_ptr.tk:1:11
+   |
+ 1 | pub shape Point(
+   |           ^
+error[E0445]: Shape 'Point' manages raw pointers but does not implement 'drop'
+ --> tests/fail/pub_shape_exposed_ptr.tk:1:11
+   |
+ 1 | pub shape Point(
+   |           ^
+error[E0444]: Shape 'Point' manages resources but does not implement 'drop'
+ --> tests/fail/pub_shape_exposed_ptr.tk:1:11
+   |
+ 1 | pub shape Point(
+   |           ^
+error[E0458]: Shape 'Point' manages resources (raw pointers) but does not implement 'clone'
+ --> tests/fail/pub_shape_exposed_ptr.tk:1:11
+   |
+ 1 | pub shape Point(
+   |           ^
