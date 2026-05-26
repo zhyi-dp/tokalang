@@ -11,20 +11,21 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-// =============================================================================
-// TOKA COMPILER INTERFACE: Libc Integration
-//
-// NOTE: Adding support for additional libc functions in this file does NOT 
-// require any modifications to the Toka compiler itself. The compiler 
-// automatically resolves these 'extern' declarations by mapping them to 
-// the corresponding symbols in the linked C standard library.
-// =============================================================================
 
-import core/types::{Addr, usize}
-import core/libc::*
-import sys/libc::*
+// lib/std/memory.tk
+import core/types::{usize}
 
-// export Magic Hooks
+// 物理层 FFI 占位存根 (对上层隐藏，仅在 memory.tk 内部做透明代理)
+extern fn libc_malloc(size: usize) -> *void
+extern fn libc_free(*ptr: void) -> void
+extern fn libc_memset(*dest: void, val: i32, n: usize) -> *void
+extern fn libc_memcpy(*dest: void, *src: void, n: usize) -> *void
+extern fn libc_time(*tloc: i64) -> i64
+
+// =========================================================================
+// 编译器内置 Magic Hooks (与编译器 AST 预期 100% 吻合)
+// =========================================================================
+
 pub fn __toka_alloc(size: usize) -> *void {
     unsafe {
         return libc_malloc(size)
@@ -58,24 +59,6 @@ pub fn __toka_time() -> i64 {
     }
 }
 
-/*
-pub fn __toka_panic(*message: char, *file_name: char) {
-    println("Panic: {}, {}", message, file_name)
-    unsafe {
-        libc_abort()
-    }
-}
-*/
-
-pub fn __toka_panic(message: str, file_name: str, line: i32) {
-    libc_printf(c"\n*** ")
-    libc_printf(c"%.*s:%d", file_name.len() as i32, file_name.buf(), line)
-    libc_printf(c" runtime error: Panic with \"%.*s\"", message.len() as i32, message.buf())    
-    libc_printf(c" ***\n\n")
-    unsafe {
-        libc_fflush(null)
-        libc_abort()
-    }
-}
-
-
+// 声明为 pub extern fn，阻止包名 Mangle。
+// 接收 *void 指针以完全对齐编译器的 LLVM By-pointer struct 传参规则
+pub extern fn __toka_panic(message: *void, file_name: *void, line: i32) -> void

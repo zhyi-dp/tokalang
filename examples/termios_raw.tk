@@ -1,5 +1,4 @@
 import sys/termios::*
-import std/memory
 import std/io::*
 
 fn main() -> i32 {

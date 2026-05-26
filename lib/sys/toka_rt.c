@@ -172,3 +172,50 @@ void toka_print_f64(double val) {
     printf("%g", val);
 }
 
+// =========================================================================
+// Toka 1.0 Core Compiler Magic Hooks Real Implementations (L3 Execution)
+// =========================================================================
+#include <string.h>
+
+struct TokaString {
+    const char* buf;
+    size_t len;
+};
+
+static FILE* get_stderr_stream() {
+    static FILE* s_stderr = NULL;
+    if (!s_stderr) {
+#ifdef _WIN32
+        s_stderr = _fdopen(2, "w");
+#else
+        s_stderr = fdopen(2, "w");
+#endif
+    }
+    return s_stderr;
+}
+
+void __toka_panic(struct TokaString* message, struct TokaString* file_name, int line) {
+    FILE* stream = get_stderr_stream();
+    if (message && file_name) {
+        fprintf(stream, "\n*** %.*s:%d runtime error: Panic with \"%.*s\" ***\n\n",
+                (int)file_name->len, file_name->buf, (int)line,
+                (int)message->len, message->buf);
+    } else {
+        fprintf(stream, "\n*** runtime error: Panic at line %d ***\n\n", (int)line);
+    }
+    fflush(stream);
+    abort();
+}
+
+void toka_panic_impl(const char* msg_buf, size_t msg_len, const char* file_buf, size_t file_len, int line) {
+    FILE* stream = get_stderr_stream();
+    fprintf(stream, "\n*** %.*s:%d runtime error: Panic with \"%.*s\" ***\n\n",
+            (int)file_len, file_buf, (int)line,
+            (int)msg_len, msg_buf);
+    fflush(stream);
+    abort();
+}
+
+
+
+

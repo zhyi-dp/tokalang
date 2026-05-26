@@ -1,5 +1,4 @@
 import std/io::println
-import std/memory
 
 shape Point(
     x: i32,

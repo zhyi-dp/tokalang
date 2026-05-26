@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Toka Project. All rights reserved.
 import std/io::println
-import std/char
+import core/char
 fn main() -> i32 {
     // 1. is_ascii_digit
     assert('0'.is_ascii_digit(), "0 should be ascii digit")
