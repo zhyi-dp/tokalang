@@ -15,7 +15,7 @@
 // lib/std/memory.tk
 import core/types::{usize}
 
-// 物理层 FFI 占位存根 (对上层隐藏，仅在 memory.tk 内部做透明代理)
+// Physical layer FFI placeholder stub (hidden from upper layers, transparent proxy inside memory.tk)
 extern fn libc_malloc(size: usize) -> *void
 extern fn libc_free(*ptr: void) -> void
 extern fn libc_memset(*dest: void, val: i32, n: usize) -> *void
@@ -23,7 +23,7 @@ extern fn libc_memcpy(*dest: void, *src: void, n: usize) -> *void
 extern fn libc_time(*tloc: i64) -> i64
 
 // =========================================================================
-// 编译器内置 Magic Hooks (与编译器 AST 预期 100% 吻合)
+// Compiler-builtin Magic Hooks (100% matches compiler AST expectations)
 // =========================================================================
 
 pub fn __toka_alloc(size: usize) -> *void {
@@ -59,6 +59,6 @@ pub fn __toka_time() -> i64 {
     }
 }
 
-// 声明为 pub extern fn，阻止包名 Mangle。
-// 接收 *void 指针以完全对齐编译器的 LLVM By-pointer struct 传参规则
+// Declared as pub extern fn to prevent package name mangling.
+// Receives a *void pointer to fully align with the compiler's LLVM by-pointer struct argument rules.
 pub extern fn __toka_panic(message: *void, file_name: *void, line: i32) -> void

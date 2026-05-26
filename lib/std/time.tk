@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import core/types::{usize, char, Addr}
-import core/libc::*
+import sys/libc::*
 import sys/libc::*
 
 import sys/os as sys

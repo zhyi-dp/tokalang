@@ -4,7 +4,7 @@
 
 import core/types::{usize, Addr, ADDR0}
 import core/str::{str}
-import core/libc::{libc_memcpy}
+import sys/libc::{libc_memcpy}
 
 pub shape Span (
     start_addr: Addr,

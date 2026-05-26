@@ -25,7 +25,7 @@ fn main() -> i32 {
         // Borrow ends, x is destroyed.
         // Legal process: p's [FROZEN] attribute is removed.
         
-        // ✅ Legal Move
+        // Legal Move
         // Note: ^p in rvalue position explicitly denotes a Move, which is crystal clear!
         println("C"); auto ^q = ^p 
     }

@@ -1,4 +1,4 @@
-import core/libc::{libc_exit}
+import sys/libc::{libc_exit}
 
 shape Resource(val: i32)
 

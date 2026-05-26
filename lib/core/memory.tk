@@ -13,7 +13,10 @@
 // limitations under the License.
 
 import core/types::{usize, Addr}
-import core/libc::{libc_memcpy, libc_memset, libc_memcmp}
+
+extern fn libc_memcpy(*dest: void, *src: void, n: usize) -> *void
+extern fn libc_memset(*dest: void, val: i32, n: usize) -> *void
+extern fn libc_memcmp(*s1: void, *s2: void, n: usize) -> i32
 
 /// Safely copy `count` bytes from `src` to `dst`.
 /// Both `dst` and `src` must be valid and appropriately sized.

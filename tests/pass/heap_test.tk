@@ -1,7 +1,7 @@
 import std/heap::{BinaryHeap}
 import std/io::{print_line}
 
-import core/libc::{libc_abort}
+import sys/libc::{libc_abort}
 
 pub fn main() -> i32 {
     print_line(string::from("Start Min-Heap"))

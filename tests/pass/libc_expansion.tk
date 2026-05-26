@@ -1,4 +1,4 @@
-import core/libc::*
+import sys/libc::*
 import core/types::char
 import std/io::println
 

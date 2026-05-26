@@ -5,7 +5,7 @@
 import core/types::{char, usize, Addr, ADDR0}
 
 import core/option::{Option}
-import core/libc::{libc_malloc, libc_free, libc_strlen}
+import sys/libc::{libc_malloc, libc_free, libc_strlen}
 
 pub fn path_sep() -> char {
     return 92:char

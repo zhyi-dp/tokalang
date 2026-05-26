@@ -5,7 +5,7 @@ import core/str::{str, str}
 import std/hashmap::{HashMap}
 import std/vec::{Vec}
 import std/math
-import core/libc::{libc_memset}
+import sys/libc::{libc_memset}
 import core/comptime::{reflect}
 
 // Result type for parsing: Ok(remaining_json) or Err(error_message)

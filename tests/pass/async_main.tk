@@ -1,6 +1,6 @@
 import std/task::{sleep, block_on, __toka_spawn_blocking}
 import std/io::{println}
-import core/libc::{libc_exit}
+import sys/libc::{libc_exit}
 
 // Used to demonstrate interruption of the second subtask
 fn worker_b() -> async i32 {

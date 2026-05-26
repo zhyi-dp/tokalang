@@ -14,11 +14,11 @@
 
 // core/prelude.tk
 pub import core/types::*
-pub import core/str::*
-pub import core/string::*
-pub import core/option::*
-pub import core/result::*
-pub import core/task::*
+pub import core/str::{str, cstr, ViewStrSplitIterator, bytes, UnicodeError}
+pub import core/string::{string}
+pub import core/option::{Option}
+pub import core/result::{Result}
+pub import core/task::{TaskHandle}
 
 import core/internal/runtime::__toka_panic_handler;
 

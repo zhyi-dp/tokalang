@@ -4,7 +4,7 @@
 
 import core/types::{usize, Addr, ADDR0}
 import core/traits::{@encap}
-import core/libc::{libc_malloc, libc_free, libc_memcpy}
+import sys/libc::{libc_malloc, libc_free, libc_memcpy}
 import core/str::{str}
 
 pub shape ArenaChunk (

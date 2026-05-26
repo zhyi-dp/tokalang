@@ -1,6 +1,6 @@
 import core/str::{str, _internal_str_cast}
 import core/types::{Addr}
-import core/libc::{libc_memcpy}
+import sys/libc::{libc_memcpy}
 
 pub shape TokenKind(
     Unknown |

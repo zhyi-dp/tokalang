@@ -1,5 +1,5 @@
 import core/result::{Result}
-import core/libc::{libc_exit}
+import sys/libc::{libc_exit}
 
 pub fn main() -> i32 {
     auto res = Result<i32, i32>::Ok(123)

@@ -1,6 +1,6 @@
 import core/types::{usize}
 import core/traits::{@encap}
-import core/libc::*
+import sys/libc::*
 import core/option::{Option}
 
 pub shape VecDeque<'T> (

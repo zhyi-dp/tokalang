@@ -5,7 +5,7 @@ import std/io::{File, println, remove_file}
 import core/result::{Result}
 import core/types::{usize, Addr}
 import core/types::{usize, Addr}
-import core/libc::{libc_strcmp}
+import sys/libc::{libc_strcmp}
 import sys/libc::{libc_printf}
 
 fn main() -> i32 {

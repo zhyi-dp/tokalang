@@ -2,7 +2,7 @@
 import std/io::{println, File}
 
 import std/vec::{Vec}
-import core/libc::*
+import sys/libc::*
 
 fn print_freqs(start: i32, end: i32, cts: Vec<i32>) {
     auto c_iter# = start

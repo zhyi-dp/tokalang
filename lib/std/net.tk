@@ -2,7 +2,7 @@
 
 import core/types::{usize, char, ADDR0}
 
-import core/libc::*
+import sys/libc::*
 import core/result::{Result}
 import core/option::{Option}
 import sys/os as sys

@@ -18,6 +18,10 @@ import core/result::{Result}
 import core/traits::{@encap, @PartialEq, @PartialOrd}
 import core/utf8::*
 
+import core/memory::{copy_memory, compare_memory}
+
+extern fn libc_strlen(*s: char) -> usize
+
 // A memory-safe, zero-allocation reference to a string view
 pub shape str(
     &buf$: [char], //$ inner immutable
@@ -78,7 +82,7 @@ impl ViewStrSplitIterator {
         unsafe {
             auto cpy# = self.clone()
             auto ret_val: usize = 0
-            libc_memcpy(&ret_val as *void, &cpy as *void, 8)
+            copy_memory(&ret_val as Addr, &cpy as Addr, 8)
             return ret_val as *char
         }
     }
@@ -96,7 +100,7 @@ impl ViewStrSplitIterator {
                 auto b_addr = self.raw_ptr() as Addr
                 auto ptr_addr = b_addr + self.pos
                 auto ret# = str(&buf = self.&buf, len = remaining)
-                libc_memcpy(&ret as *void, &ptr_addr as *void, 8)
+                copy_memory(&ret as Addr, &ptr_addr as Addr, 8)
                 return Option<str>::Some(ret)
             }
         }
@@ -118,7 +122,7 @@ impl ViewStrSplitIterator {
             // Only loop if we have enough characters left
             if self.len >= self.sep.len + self.pos {
                 loop i <= max_i {
-                    if libc_memcmp(&(self.buf[i]) as *void, &(self.sep.buf[0]) as *void, self.sep.len) == 0 {
+                    if compare_memory(&(self.buf[i]) as Addr, &(self.sep.buf[0]) as Addr, self.sep.len) == 0 {
                         found = true
                         break
                     }
@@ -138,7 +142,7 @@ impl ViewStrSplitIterator {
                 auto b_addr = self.raw_ptr() as Addr
                 auto ptr_addr = b_addr + start
                 auto ret# = str(&buf = self.&buf, len = segment_len)
-                libc_memcpy(&ret as *void, &ptr_addr as *void, 8)
+                copy_memory(&ret as Addr, &ptr_addr as Addr, 8)
                 return Option<str>::Some(ret)
             } else {
                 // No more separators, emit the last part
@@ -147,7 +151,7 @@ impl ViewStrSplitIterator {
                 auto b_addr = self.raw_ptr() as Addr
                 auto ptr_addr = b_addr + start
                 auto ret# = str(&buf = self.&buf, len = segment_len)
-                libc_memcpy(&ret as *void, &ptr_addr as *void, 8)
+                copy_memory(&ret as Addr, &ptr_addr as Addr, 8)
                 return Option<str>::Some(ret)
             }
         }
@@ -232,7 +236,7 @@ impl str@StrCommon {
         if self.len != other.len { return false }
         if self.len <= 0 { return true }
         unsafe {
-            return libc_memcmp(&(self.buf[0]) as *void, &(other.buf[0]) as *void, self.len) == 0
+            return compare_memory(&(self.buf[0]) as Addr, &(other.buf[0]) as Addr, self.len) == 0
         }
     }
 
@@ -240,7 +244,7 @@ impl str@StrCommon {
         if prefix.len > self.len { return false }
         if prefix.len <= 0 { return true }
         unsafe {
-            return libc_memcmp(&(self.buf[0]) as *void, &(prefix.buf[0]) as *void, prefix.len) == 0
+            return compare_memory(&(self.buf[0]) as Addr, &(prefix.buf[0]) as Addr, prefix.len) == 0
         }
     }
 
@@ -251,7 +255,7 @@ impl str@StrCommon {
         if suffix.len <= 0 { return true }
         unsafe {
             auto offset = self.len - suffix.len
-            return libc_memcmp(&(self.buf[offset]) as *void, &(suffix.buf[0]) as *void, suffix.len) == 0
+            return compare_memory(&(self.buf[offset]) as Addr, &(suffix.buf[0]) as Addr, suffix.len) == 0
         }
     }
 
@@ -272,7 +276,7 @@ impl str@StrCommon {
             auto i#: usize = 0
             auto max_i = self.len - needle.len
             loop i <= max_i {
-                if libc_memcmp(&(self.buf[i]) as *void, &(needle.buf[0]) as *void, needle.len) == 0 {
+                if compare_memory(&(self.buf[i]) as Addr, &(needle.buf[0]) as Addr, needle.len) == 0 {
                     return Option<usize>::Some(i)
                 }
                 i = i + 1
@@ -368,7 +372,7 @@ impl str@StringOps {
             
             // 2. Overwrite the internal array pointer (offset 0) unconditionally via FFI
             // This safely bypasses Toka's raw pointer immutability laws (E0406/E0443)
-            libc_memcpy(&ret as *void, &ptr_addr as *void, 8)
+            copy_memory(&ret as Addr, &ptr_addr as Addr, 8)
             return ret
         }
     }
@@ -411,7 +415,7 @@ impl str@StringOps {
             auto b_addr = self.raw_ptr() as Addr
             auto ptr_addr = b_addr + start
             auto ret# = str(&buf = self.&buf, len = self.len - start)
-            libc_memcpy(&ret as *void, &ptr_addr as *void, 8)
+            copy_memory(&ret as Addr, &ptr_addr as Addr, 8)
             return ret
         }
     }
@@ -551,7 +555,7 @@ impl str {
         unsafe {
             auto cpy# = self.clone()
             auto ret_val: usize = 0
-            libc_memcpy(&ret_val as *void, &cpy as *void, 8)
+            copy_memory(&ret_val as Addr, &cpy as Addr, 8)
             return ret_val as *char
         }
     }
@@ -564,7 +568,7 @@ impl str {
         unsafe {
             auto cpy# = self.clone()
             auto ret# = bytes(&buf = null as *[byte] as &[byte], len = self.len)
-            libc_memcpy(&ret as *void, &cpy as *void, 16)
+            copy_memory(&ret as Addr, &cpy as Addr, 16)
             return ret
         }
     }
@@ -673,7 +677,7 @@ impl bytes {
             // Validation passed! Zero-cost 16-byte bitcast from bytes to str
             auto cpy# = self.clone()
             auto ret# = str(&buf = null as *[char] as &[char], len = self.len)
-            libc_memcpy(&ret as *void, &cpy as *void, 16)
+            copy_memory(&ret as Addr, &cpy as Addr, 16)
             return Result<str, UnicodeError>::Ok(ret)
         }
     }

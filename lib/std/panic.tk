@@ -1,6 +1,6 @@
 import core/option::{Option}
 import core/result::{Result}
-import core/libc::{libc_abort}
+import sys/libc::{libc_abort}
 import sys/libc::{libc_printf}
 
 impl<'T> Option<'T> {

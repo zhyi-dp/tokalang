@@ -2,7 +2,7 @@
 
 import core/types::{usize, char}
 
-import core/libc::{libc_snprintf, libc_malloc, libc_free}
+import sys/libc::{libc_snprintf, libc_malloc, libc_free}
 import core/traits::{@encap}
 import std/vec::{Vec}
 

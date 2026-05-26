@@ -46,7 +46,7 @@ pub fn rc_inc<T>(*ptr: RcBox<T>) {
     unsafe {
         if *ptr == null { return }
         
-        // ✅ : fetch_add(&ptr.strong, 1) ->
+        // : fetch_add(&ptr.strong, 1) ->
         // strong
         fetch_add(ptr.*strong#, 1, Ordering::Relaxed)
     }
@@ -57,7 +57,7 @@ pub fn rc_dec<T>(*ptr: RcBox<T>) {
     unsafe {
         if *ptr == null { return }
 
-        // ✅  strong  price  atomic
+        // strong  price  atomic
         auto old_count = fetch_sub(ptr.*strong#, 1, Ordering::Relaxed)
 
         if old_count == 1 {
@@ -67,7 +67,7 @@ pub fn rc_dec<T>(*ptr: RcBox<T>) {
             // ptr.data.drop() //  T  drop
 
             // 2.  Weak
-            // ✅  weak
+            // weak
             auto old_weak = fetch_sub(ptr.*weak#, 1, Ordering::Relaxed)
             
             if old_weak == 1 {

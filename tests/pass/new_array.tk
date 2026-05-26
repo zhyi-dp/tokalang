@@ -1,6 +1,6 @@
 // Copyright (c) 2026 YiZhonghua<zhyi@dpai.com>. All rights reserved.
 import std/io::println
-import core/libc::*
+import sys/libc::*
 import core/traits::{@encap}
 
 shape Data(val: i32)

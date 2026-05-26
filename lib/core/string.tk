@@ -18,8 +18,14 @@
 
 import core/types::{char, usize, Addr, ADDR0, OAddr}
 import core/traits::{@encap, @Hash, @PartialEq, @PartialOrd}
-import core/libc::*
-import core/str::{str, cstr}
+import core/str::{str, cstr, libc_strlen}
+
+extern fn libc_malloc(size: usize) -> *void
+extern fn libc_free(*ptr: void) -> void
+extern fn libc_memcpy(*dest: void, *src: void, n: usize) -> *void
+extern fn libc_sprintf(*dest: char, *format: char, ...) -> usize
+extern fn libc_snprintf(*dest: char, size: usize, *format: char, ...) -> i32
+extern fn libc_sscanf(*s: char, *format: char, ...) -> i32
 
 // ------------------------------------------------------
 // 1.5 Pointer Extensions

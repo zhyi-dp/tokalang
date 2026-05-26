@@ -154,7 +154,7 @@ void DiagnosticEngine::reportImpl(SourceLocation loc, int length, DiagID id,
       }
       std::cerr << reset << "\n";
 
-      // 👉  (Suggestions)
+      // (Suggestions)
       if (id == DiagID::ERR_POINTER_SIGIL_MISSING) {
         std::cerr << padding << blue << "|" << reset << "   \033[1;32m👉 help:\033[0m Variable implies pointer type but lacks explicit sigil. Did you mean '^var'?\n";
       } else if (id == DiagID::ERR_MEMBER_SIGIL_MISMATCH) {

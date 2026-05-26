@@ -1,5 +1,5 @@
 import std/rand::{Random}
-import core/libc::{libc_abort, libc_exit}
+import sys/libc::{libc_abort, libc_exit}
 
 pub fn main() -> i32 {
     auto rng# = Random::new(42:u64, 54:u64)

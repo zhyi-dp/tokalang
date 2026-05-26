@@ -1,7 +1,7 @@
 // Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
 import core/types::{char, usize, Addr, ADDR0}
 
-import core/libc::*
+import sys/libc::*
 import sys/libc::*
 
 pub fn path_sep() -> char {

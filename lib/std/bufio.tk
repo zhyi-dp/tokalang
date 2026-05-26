@@ -2,7 +2,7 @@
 
 import core/types::{usize, Addr}
 import core/result::{Result}
-import core/libc::*
+import sys/libc::*
 import std/io::{@Reader, @Writer}
 
 /// BufferedReader wraps a reader and buffers its input.

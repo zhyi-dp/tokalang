@@ -1,6 +1,4 @@
-// import core/prelude -- Cycle break
-
-import core/libc::{libc_exit}
+extern fn libc_exit(status: i32) -> void
 
 
 pub shape Option<'T> (

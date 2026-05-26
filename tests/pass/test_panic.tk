@@ -2,7 +2,7 @@ import std/panic::*
 import core/option::{Option}
 import core/result::{Result}
 import core/memory::{copy_memory, set_memory, compare_memory}
-import core/libc::*
+import sys/libc::*
 import core/types::{Addr, usize}
 
 fn main() -> i32 {

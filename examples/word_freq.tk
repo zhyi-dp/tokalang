@@ -3,7 +3,7 @@ import std/io::{println, File}
 
 import std/hash_map::{HashMap, HashMapIterator}
 import std/vec::{Vec}
-import core/libc::*
+import sys/libc::*
 
 fn main() -> i32 {
     // 1. Read File

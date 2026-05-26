@@ -327,7 +327,8 @@ std::unique_ptr<Module> Parser::parseModule() {
   // traits.tk)
   bool isCoreLib =
       m_CurrentFile.find("lib/core/") != std::string::npos ||
-      m_CurrentFile.find("core/") == 0; // if relative path starts with core/
+      m_CurrentFile.find("core/") == 0 ||
+      m_CurrentFile.find("lib/sys/libc.tk") != std::string::npos; // if relative path starts with core/
 
   if (!isCoreLib && m_CurrentFile.find("prelude.tk") == std::string::npos) {
     // import core/prelude::{*}

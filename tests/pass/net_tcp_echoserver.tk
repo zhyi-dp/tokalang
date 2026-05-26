@@ -1,7 +1,7 @@
 import std/io::{println}
 import std/net::{TcpListener, TcpStream, Ipv4Addr, SocketAddrV4}
 
-import core/libc
+import sys/libc
 import sys/net as sys
 import core/types
 import core/result::{Result}

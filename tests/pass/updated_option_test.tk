@@ -1,7 +1,7 @@
 import core/option::Option
 import core/result::Result
 import std/io::println
-import core/libc
+import sys/libc
 
 fn main() -> i32 {
     // Test Option

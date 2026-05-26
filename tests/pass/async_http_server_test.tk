@@ -2,7 +2,7 @@ import std/io::{println}
 import stdx/net/http::{HttpRequest, HttpResponse, HttpMethod, parse_http_request}
 import std/net::{TcpListener, TcpStream, Ipv4Addr, SocketAddrV4, net_async_accept, net_async_read}
 
-import core/libc
+import sys/libc
 import core/types
 import core/result::{Result}
 import std/task::{sleep_async, block_on}

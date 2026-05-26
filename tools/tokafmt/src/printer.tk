@@ -1,7 +1,7 @@
 
 import core/str::{str, _internal_str_cast}
 import core/types::{Addr}
-import core/libc::{libc_memcpy}
+import sys/libc::{libc_memcpy}
 import src/token::{Token, TokenKind}
 import src/token as token
 import src/lexer::{Lexer}

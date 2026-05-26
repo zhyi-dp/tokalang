@@ -1,6 +1,5 @@
-// import core/prelude -- Cycle break
+import core/option::libc_exit
 
-import core/libc::{libc_exit}
 
 
 // The Toka compiler natively supports Deep Move / Cede semantics for Resources

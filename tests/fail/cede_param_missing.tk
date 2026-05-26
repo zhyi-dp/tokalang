@@ -1,5 +1,5 @@
 import core/result::{Result}
-import core/libc::{libc_exit}
+import sys/libc::{libc_exit}
 
 shape Payload(val: i32)
 

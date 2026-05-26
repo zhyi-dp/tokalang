@@ -1,6 +1,6 @@
 // lib/core/intrinsics/atomic.tk
 // Native LLVM Atomic Operations
-// ⚠️  core prelude
+// core prelude
 
 // (Memory Ordering)
 pub shape Ordering (

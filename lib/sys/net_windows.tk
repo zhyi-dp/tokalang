@@ -2,7 +2,7 @@
 // lib/sys/net_windows.tk
 
 import core/types::{char, usize, Addr, ADDR0}
-import core/libc::{libc_malloc, libc_free}
+import sys/libc::{libc_malloc, libc_free}
 import sys/libc::{libc_htons, toka_ensure_wsa_initialized, libc_usleep}
 
 extern fn WSAGetLastError() -> i32
