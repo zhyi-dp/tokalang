@@ -4,7 +4,7 @@
 import std/io::println
 import core/result::{Result}
 
-import std/llvm::{
+import toolchain/llvm::{
     LLVMContext,
     LLVMModule,
     LLVMType,

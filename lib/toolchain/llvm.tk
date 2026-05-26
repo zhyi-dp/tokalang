@@ -6,7 +6,7 @@ import core/types::{char, usize, Addr}
 import core/traits::{@encap}
 import core/result::{Result}
 
-import sys/llvm::{
+import sys/llvm_ffi::{
     toka_llvm_create_context,
     toka_llvm_create_module,
     toka_llvm_dispose_module,

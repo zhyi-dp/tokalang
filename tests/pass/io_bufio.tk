@@ -1,6 +1,6 @@
 import std/io::{File, println, remove_file}
 
-import std/bufio::{BufferedReader, BufferedWriter}
+import stdx/io/bufio::{BufferedReader, BufferedWriter}
 
 pub fn main() -> i32 {
     auto path = string::from("test_bufio_temp.tmp")

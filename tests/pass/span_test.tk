@@ -3,7 +3,7 @@
 // Verification tests for Toka's pointer-based Span & SourceMap system in Toka.
 
 import std/io::println
-import stdx/span::{Span, SourceMap, Location}
+import stdx/trace/span::{Span, SourceMap, Location}
 import core/str::{str}
 import core/types::{usize, Addr}
 

@@ -1,4 +1,4 @@
-import std/rand::{Random}
+import stdx/rand/rand::{Random}
 import sys/libc::{libc_abort, libc_exit}
 
 pub fn main() -> i32 {
