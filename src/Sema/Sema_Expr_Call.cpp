@@ -1331,6 +1331,20 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
 
     auto argType = checkExpr(Call->Args[i].get(), paramType);
     
+    if (paramType && paramType->IsWritable) {
+      Expr *argExpr = Call->Args[i].get();
+      while (auto *un = dynamic_cast<UnaryExpr *>(argExpr)) {
+        argExpr = un->RHS.get();
+      }
+      if (auto *VE = dynamic_cast<VariableExpr *>(argExpr)) {
+        std::string actualName = VE->Name;
+        SymbolInfo *InfoPtr = nullptr;
+        if (CurrentScope->findVariableWithDeref(VE->Name, InfoPtr, actualName)) {
+          InfoPtr->HasBeenMutated = true;
+        }
+      }
+    }
+    
     // [NEW] Enforce explicit cede for normal function calls
     bool isCededParam = false;
     if (Fn && i < Fn->Args.size()) {

@@ -203,6 +203,7 @@ std::unique_ptr<Expr> Sema::foldGenericConstant(std::unique_ptr<Expr> E) {
 std::shared_ptr<toka::Type> Sema::checkExpr(Expr *E) {
   if (!E)
     return toka::Type::fromString("void");
+  ActiveNodeRAII Active(E);
   m_LastInitMask = ~0ULL; // Default to fully set
   auto T = checkExprImpl(E);
   // [Fix] Monomorphize type before assigning it to the node
@@ -571,6 +572,13 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       return resolveType(t);
   } else if (auto *ve = dynamic_cast<VariableExpr *>(E)) {
     m_AccessedVariables.insert(ve->Name); // [CLOSURE] Tracker
+    if (m_InLHS) {
+      std::string actualName = ve->Name;
+      SymbolInfo *InfoPtr = nullptr;
+      if (CurrentScope->findVariableWithDeref(ve->Name, InfoPtr, actualName)) {
+        InfoPtr->HasBeenMutated = true;
+      }
+    }
 
     // [NEW] Enforce Suffix Lifecycle Rule: '#' and '$' only allowed in declarations
     // or explicit mutable method invocation caller contexts.
@@ -2015,6 +2023,22 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
             error(Met, DiagID::ERR_IMMUTABLE_MOD,
                   "Method '" + Met->Method +
                       "' requires explicit mutable argument (use '#')");
+          }
+          if (requiresMutableBorrow) {
+            Expr *objExpr = Met->Object.get();
+            while (auto *PE = dynamic_cast<PostfixExpr *>(objExpr)) {
+              objExpr = PE->LHS.get();
+            }
+            while (auto *un = dynamic_cast<UnaryExpr *>(objExpr)) {
+              objExpr = un->RHS.get();
+            }
+            if (auto *VE = dynamic_cast<VariableExpr *>(objExpr)) {
+              std::string actualName = VE->Name;
+              SymbolInfo *InfoPtr = nullptr;
+              if (CurrentScope->findVariableWithDeref(VE->Name, InfoPtr, actualName)) {
+                InfoPtr->HasBeenMutated = true;
+              }
+            }
           }
         }
 

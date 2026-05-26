@@ -65,6 +65,9 @@ public:
   
   /// Extract the exact text of the line associated with the given FullSourceLoc.
   std::string getLineData(FullSourceLoc FullLoc) const;
+
+  /// Get the 1-based unique File ID for a given SourceLocation.
+  uint32_t getFileID(SourceLocation Loc) const;
 };
 
 } // namespace toka

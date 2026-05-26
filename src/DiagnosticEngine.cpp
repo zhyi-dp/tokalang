@@ -13,11 +13,25 @@
 // limitations under the License.
 #include "toka/DiagnosticEngine.h"
 #include "toka/SourceManager.h"
+#include "toka/AST.h"
 #include <iostream>
 
 extern bool g_JsonDiagnostics;
 
 namespace toka {
+
+uint32_t ASTNode::NextNodeSerial = 1;
+uint32_t ASTNode::CurrentExpansionContext = 0;
+const ASTNode *DiagnosticEngine::ActiveNode = nullptr;
+
+ActiveNodeRAII::ActiveNodeRAII(const ASTNode *Node) {
+  Prev = DiagnosticEngine::ActiveNode;
+  DiagnosticEngine::ActiveNode = Node;
+}
+
+ActiveNodeRAII::~ActiveNodeRAII() {
+  DiagnosticEngine::ActiveNode = Prev;
+}
 
 SourceManager *DiagnosticEngine::SrcMgr = nullptr;
 int DiagnosticEngine::ErrorCount = 0;
@@ -81,7 +95,9 @@ void DiagnosticEngine::reportImpl(DiagLoc loc, DiagID id,
     }
     std::cout << "{\"file\": \"" << loc.File << "\", \"line\": " << loc.Line 
               << ", \"col\": " << loc.Col << ", \"message\": \"" << escapedMsg 
-              << "\", \"code\": \"" << getCode(id) << "\", \"level\": " << (int)level << "}\n";
+              << "\", \"code\": \"" << getCode(id) << "\", \"level\": " << (int)level
+              << ", \"ast_anchor\": 0, \"semantic_id\": {\"file_id\": 0, \"node_serial\": 0, \"expansion_context\": 0}"
+              << ", \"compiler_version\": \"0.9.8-02\"}\n";
 #ifndef __EMSCRIPTEN__
     if (level == DiagLevel::Error) exit(0); // Exit 0 for LSP so it doesn't think it crashed
 #endif
@@ -122,14 +138,55 @@ void DiagnosticEngine::reportImpl(SourceLocation loc, DiagID id,
 
 void DiagnosticEngine::reportImpl(SourceLocation loc, int length, DiagID id,
                                   const std::string &message) {
+  DiagLevel level = getLevel(id);
+  if (::g_JsonDiagnostics && level == DiagLevel::Error) {
+    ErrorCount++;
+  }
+
+  if (::g_JsonDiagnostics) {
+    std::string escapedMsg = message;
+    size_t pos = 0;
+    while ((pos = escapedMsg.find('"', pos)) != std::string::npos) {
+      escapedMsg.replace(pos, 1, "\\\"");
+      pos += 2;
+    }
+    std::string fileName = "";
+    int line = 0;
+    int col = 0;
+    uint32_t file_id = 0;
+    if (SrcMgr) {
+      FullSourceLoc Full = SrcMgr->getFullSourceLoc(loc);
+      fileName = Full.FileName;
+      line = (int)Full.Line;
+      col = (int)Full.Column;
+      file_id = SrcMgr->getFileID(loc);
+    }
+    uint32_t node_serial = 0;
+    uint32_t expansion_context = 0;
+    if (ActiveNode) {
+      node_serial = ActiveNode->NodeSerial;
+      expansion_context = ActiveNode->ExpansionContext;
+    }
+    std::cout << "{\"file\": \"" << fileName << "\", \"line\": " << line 
+              << ", \"col\": " << col << ", \"message\": \"" << escapedMsg 
+              << "\", \"code\": \"" << getCode(id) << "\", \"level\": " << (int)level
+              << ", \"ast_anchor\": " << loc.getRawEncoding()
+              << ", \"semantic_id\": {\"file_id\": " << file_id
+              << ", \"node_serial\": " << node_serial
+              << ", \"expansion_context\": " << expansion_context << "}"
+              << ", \"compiler_version\": \"0.9.8-02\"}\n";
+#ifndef __EMSCRIPTEN__
+    if (level == DiagLevel::Error) exit(0); // Exit 0 for LSP so it doesn't think it crashed
+#endif
+    return;
+  }
+
   if (SrcMgr) {
     FullSourceLoc Full = SrcMgr->getFullSourceLoc(loc);
     DiagLoc DL{Full.FileName, (int)Full.Line, (int)Full.Column, length};
     
     // Print the basic header first
     reportImpl(DL, id, message);
-    
-    if (::g_JsonDiagnostics) return;
 
     // Print rich snippet if available
     std::string lineData = SrcMgr->getLineData(Full);

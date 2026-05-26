@@ -33,7 +33,17 @@ struct GenericParam {
 
 class ASTNode {
 public:
+  static uint32_t NextNodeSerial;
+  static uint32_t CurrentExpansionContext;
+
   SourceLocation Loc;
+  uint32_t NodeSerial;
+  uint32_t ExpansionContext;
+
+  ASTNode() {
+    NodeSerial = NextNodeSerial++;
+    ExpansionContext = CurrentExpansionContext;
+  }
 
   virtual ~ASTNode() = default;
   virtual std::string toString() const = 0;

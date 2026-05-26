@@ -1,0 +1,19 @@
+{
+  "spec_version": "0.9.8-02",
+  "compiler_compat": ">=0.9.8-01 <0.9.9",
+  "diagnostics": {
+    "W0401": {
+      "stage": "Sema",
+      "domain": "Ownership",
+      "kind": "Unused",
+      "auto_fix": "remove_mut_flag",
+      "description": "Variable declared as mutable '#' but never modified. Making it immutable reduces developer cognitive load and enables backend optimizations."
+    },
+    "W0701": {
+      "stage": "Codegen",
+      "domain": "Type",
+      "kind": "Mismatch",
+      "description": "Backend type is unresolved during codegen. Defaulting to i32 fallback."
+    }
+  }
+}

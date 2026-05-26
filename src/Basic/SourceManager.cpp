@@ -172,4 +172,17 @@ std::string SourceManager::getLineData(FullSourceLoc FullLoc) const {
   return "";
 }
 
+uint32_t SourceManager::getFileID(SourceLocation Loc) const {
+  if (Loc.isInvalid())
+    return 0;
+
+  uint32_t Offset = Loc.getRawEncoding();
+  for (size_t i = 0; i < Files.size(); ++i) {
+    if (Offset >= Files[i].GlobalStartOffset && Offset < Files[i].GlobalEndOffset) {
+      return (uint32_t)(i + 1);
+    }
+  }
+  return 0;
+}
+
 } // namespace toka

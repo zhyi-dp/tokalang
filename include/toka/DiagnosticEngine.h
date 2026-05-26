@@ -38,10 +38,20 @@ enum class DiagID {
   NUM_DIAGNOSTICS
 };
 
+class ASTNode;
+
+class ActiveNodeRAII {
+  const ASTNode *Prev;
+public:
+  ActiveNodeRAII(const ASTNode *Node);
+  ~ActiveNodeRAII();
+};
+
 class DiagnosticEngine {
 public:
   static int ErrorCount;
   static SourceManager *SrcMgr;
+  static const ASTNode *ActiveNode;
 
   static void init(SourceManager &SM) { SrcMgr = &SM; }
 

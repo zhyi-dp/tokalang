@@ -27,6 +27,7 @@ namespace toka {
 struct SymbolInfo {
   // New Type Object (Source of Truth)
   std::shared_ptr<toka::Type> TypeObj;
+  SourceLocation DeclLoc;
 
   bool IsTypeAlias = false; // [NEW] For Generic Params (T -> i32)
   bool Moved = false;
@@ -81,6 +82,8 @@ struct SymbolInfo {
 
   bool HasConstValue = false;
   uint64_t ConstValue = 0;
+  bool IsDeclaredMutable = false;
+  bool HasBeenMutated = false;
   bool IsRebindable = false; // [NEW] prefix '#' or '!' rebind permission
   bool IsMorphicExempt = false; // [NEW] Track morphic exemption
 

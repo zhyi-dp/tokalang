@@ -13,6 +13,7 @@
 // limitations under the License.
 #include "toka/AST.h"
 #include "toka/DiagnosticEngine.h"
+#include "toka/SourceManager.h"
 #include "toka/Sema.h"
 #include "toka/Type.h"
 #include <algorithm>
@@ -110,6 +111,8 @@ void Sema::checkStmt(Stmt *S) {
   if (!S)
     return;
 
+  ActiveNodeRAII Active(S);
+
   if (auto *Block = dynamic_cast<BlockStmt *>(S)) {
     enterScope();
     for (auto &SubStmt : Block->Statements) {
@@ -158,6 +161,24 @@ void Sema::checkStmt(Stmt *S) {
                                      info.BorrowedFrom);
             HasError = true;
           }
+        }
+      }
+    }
+
+    bool isWarningExempt = false;
+    if (Block->Loc.isValid()) {
+      std::string path = DiagnosticEngine::SrcMgr->getFullSourceLoc(Block->Loc).FileName;
+      if (path.find("tests/") != std::string::npos ||
+          path.find("build.tk") != std::string::npos ||
+          path.find("prelude") != std::string::npos ||
+          path.find("lib/") != std::string::npos) {
+        isWarningExempt = true;
+      }
+    }
+    if (!isWarningExempt) {
+      for (auto const &[name, info] : CurrentScope->Symbols) {
+        if (info.IsDeclaredMutable && !info.HasBeenMutated) {
+          DiagnosticEngine::report(info.DeclLoc.isValid() ? info.DeclLoc : Block->Loc, DiagID::WARN_MUTABLE_VAR_NEVER_MUTATED, name);
         }
       }
     }
@@ -730,6 +751,8 @@ void Sema::checkStmt(Stmt *S) {
     }
     Info.IsRebindable = Var->IsRebindable;
     Info.IsMorphicExempt = Var->IsMorphicExempt; // [NEW]
+    Info.IsDeclaredMutable = Var->IsValueMutable;
+    Info.DeclLoc = Var->Loc;
     Var->ResolvedType = Info.TypeObj;
 
     if (Var->Init) {

@@ -773,6 +773,8 @@ void Sema::checkFunction(FunctionDecl *Fn) {
   if (!Fn->GenericParams.empty())
     return;
 
+  ActiveNodeRAII Active(Fn);
+
   std::string savedRet =
       CurrentFunctionReturnType; // [FIX] Save state for recursion
   FunctionDecl *savedFn = CurrentFunction;
@@ -850,6 +852,8 @@ void Sema::checkFunction(FunctionDecl *Fn) {
 
     Info.IsRebindable = Arg.IsRebindable;
     Info.IsMorphicExempt = Arg.IsMorphicExempt; // [NEW]
+    Info.IsDeclaredMutable = Arg.IsValueMutable;
+    Info.DeclLoc = Fn->Loc;
 
     if (!Arg.Type.empty() && Arg.Type[0] == '\'') {
       Info.IsMorphicExempt = true;
@@ -900,6 +904,24 @@ void Sema::checkFunction(FunctionDecl *Fn) {
         DiagnosticEngine::report(getLoc(Fn), DiagID::ERR_CONTROL_REACHES_END,
                                  Fn->Name);
         HasError = true;
+      }
+    }
+  }
+
+  bool isWarningExempt = false;
+  if (Fn->Loc.isValid()) {
+    std::string path = DiagnosticEngine::SrcMgr->getFullSourceLoc(Fn->Loc).FileName;
+    if (path.find("tests/") != std::string::npos ||
+        path.find("build.tk") != std::string::npos ||
+        path.find("prelude") != std::string::npos ||
+        path.find("lib/") != std::string::npos) {
+      isWarningExempt = true;
+    }
+  }
+  if (!isWarningExempt) {
+    for (auto const &[name, info] : CurrentScope->Symbols) {
+      if (info.IsDeclaredMutable && !info.HasBeenMutated) {
+        DiagnosticEngine::report(info.DeclLoc.isValid() ? info.DeclLoc : Fn->Loc, DiagID::WARN_MUTABLE_VAR_NEVER_MUTATED, name);
       }
     }
   }

@@ -146,7 +146,8 @@ DIAG(ERR_ILLEGAL_FIELD_MODIFIER, Error, "E0106", "Illegal use of permission suff
 DIAG(ERR_WHILE_ABOLISHED,      Error, "E0107", "'while' loop is abolished in Toka. Use 'loop {}' or 'loop cond {}' for conditional loops instead. Toka unifies all control flows under the mighty 'loop'!")
 
 // --- Warnings ---
-DIAG(WARN_CODEGEN_UNRESOLVED, Warning, "W0001", "Unresolved member type for '{}'; defaulting to i32")
+DIAG(WARN_CODEGEN_UNRESOLVED, Warning, "W0701", "Unresolved member type for '{}'; defaulting to i32")
+DIAG(WARN_MUTABLE_VAR_NEVER_MUTATED, Warning, "W0401", "Variable '{}' declared as mutable but never mutated")
 
 // --- System & CLI ---
 DIAG(ERR_FILE_IO,            Error, "E0901", "File I/O Error: {}")
