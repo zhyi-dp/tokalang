@@ -9,6 +9,43 @@
       "auto_fix": "remove_mut_flag",
       "description": "Variable declared as mutable '#' but never modified. Making it immutable reduces developer cognitive load and enables backend optimizations."
     },
+    "W0402": {
+      "stage": "Sema",
+      "domain": "Ownership",
+      "kind": "Unused",
+      "confidence": "Guaranteed",
+      "description": "Variable is declared but never read. Dead variables should be cleaned to reduce code rot."
+    },
+    "W0403": {
+      "stage": "Sema",
+      "domain": "Scope",
+      "kind": "Unused",
+      "confidence": "Guaranteed",
+      "description": "Module import or imported symbol is declared but never used. Redundant imports pollute the dependency DAG graph."
+    },
+    "W0406": {
+      "stage": "Sema",
+      "domain": "Type",
+      "kind": "Discarded",
+      "confidence": "Guaranteed",
+      "description": "Discarded Result type. Errors should be explicitly handled or bound to '_' to signify intentional ignore."
+    },
+    "S0401": {
+      "stage": "Sema",
+      "domain": "ControlFlow",
+      "kind": "DeadCode",
+      "severity": "Structural",
+      "confidence": "Guaranteed",
+      "description": "Unreachable code detected after an unconditional return/diverging block."
+    },
+    "S0402": {
+      "stage": "Sema",
+      "domain": "ControlFlow",
+      "kind": "InfiniteLoop",
+      "severity": "Structural",
+      "confidence": "Heuristic",
+      "description": "Potential non-progress loop condition. The loop condition variable is never mutated inside the loop body, which might cause an infinite loop unless handled concurrently or via FFI."
+    },
     "W0701": {
       "stage": "Codegen",
       "domain": "Type",

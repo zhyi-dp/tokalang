@@ -115,6 +115,10 @@ void DiagnosticEngine::reportImpl(DiagLoc loc, DiagID id,
     color = "\033[1;33m"; // Yellow Bold
     std::cerr << color << "warning[" << getCode(id) << "]" << reset << ": "
               << message << "\n";
+  } else if (level == DiagLevel::Structural) {
+    color = "\033[1;35m"; // Magenta Bold
+    std::cerr << color << "structural[" << getCode(id) << "]" << reset << ": "
+              << message << "\n";
   } else {
     color = "\033[1;36m"; // Cyan Bold
     std::cerr << color << "note" << reset << ": " << message << "\n";
@@ -196,8 +200,10 @@ void DiagnosticEngine::reportImpl(SourceLocation loc, int length, DiagID id,
       
       const char *blue = "\033[1;34m";
       const char *reset = "\033[0m";
-      const char *caretColor = getLevel(id) == DiagLevel::Warning ? "\033[1;33m" : "\033[1;31m";
-      if (getLevel(id) == DiagLevel::Note) caretColor = "\033[1;36m";
+      const char *caretColor = "\033[1;31m"; // Default Red
+      if (getLevel(id) == DiagLevel::Warning) caretColor = "\033[1;33m"; // Yellow
+      else if (getLevel(id) == DiagLevel::Structural) caretColor = "\033[1;35m"; // Magenta
+      else if (getLevel(id) == DiagLevel::Note) caretColor = "\033[1;36m"; // Cyan
       
       std::cerr << padding << blue << "|" << reset << "\n";
       std::cerr << " " << lineNumStr << " " << blue << "|" << reset << " " << lineData << "\n";

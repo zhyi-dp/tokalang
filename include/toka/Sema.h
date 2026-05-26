@@ -84,6 +84,9 @@ struct SymbolInfo {
   uint64_t ConstValue = 0;
   bool IsDeclaredMutable = false;
   bool HasBeenMutated = false;
+  bool HasBeenUsed = false;
+  bool IsDeclaredVariable = false;
+  const ImportDecl* ImportingDecl = nullptr;
   bool IsRebindable = false; // [NEW] prefix '#' or '!' rebind permission
   bool IsMorphicExempt = false; // [NEW] Track morphic exemption
 

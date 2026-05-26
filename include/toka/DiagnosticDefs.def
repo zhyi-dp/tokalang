@@ -148,6 +148,11 @@ DIAG(ERR_WHILE_ABOLISHED,      Error, "E0107", "'while' loop is abolished in Tok
 // --- Warnings ---
 DIAG(WARN_CODEGEN_UNRESOLVED, Warning, "W0701", "Unresolved member type for '{}'; defaulting to i32")
 DIAG(WARN_MUTABLE_VAR_NEVER_MUTATED, Warning, "W0401", "Variable '{}' declared as mutable but never mutated")
+DIAG(WARN_UNUSED_VARIABLE, Warning, "W0402", "Variable '{}' is declared but never read")
+DIAG(WARN_UNUSED_IMPORT, Warning, "W0403", "Import '{}' is declared but never used")
+DIAG(WARN_UNUSED_RESULT, Warning, "W0406", "Discarded Result type '{}'; errors should be explicitly handled")
+DIAG(WARN_UNREACHABLE_CODE, Structural, "S0401", "Unreachable code detected after unconditional return")
+DIAG(WARN_NON_PROGRESS_LOOP, Structural, "S0402", "Potential non-progress loop condition: variable '{}' is never mutated inside the loop body")
 
 // --- System & CLI ---
 DIAG(ERR_FILE_IO,            Error, "E0901", "File I/O Error: {}")

@@ -95,6 +95,25 @@ bool Sema::checkModule(Module &M) {
   SyntheticShapes.clear();
 
   CurrentModule = nullptr;
+
+  bool isWarningExempt = false;
+  if (!M.Imports.empty() && M.Imports[0]->Loc.isValid()) {
+    std::string path = DiagnosticEngine::SrcMgr->getFullSourceLoc(M.Imports[0]->Loc).FileName;
+    if (path.find("tests/") != std::string::npos ||
+        path.find("build.tk") != std::string::npos ||
+        path.find("prelude") != std::string::npos ||
+        path.find("lib/") != std::string::npos) {
+      isWarningExempt = true;
+    }
+  }
+  if (!isWarningExempt) {
+    for (auto &Imp : M.Imports) {
+      if (!Imp->IsImplicit && !Imp->IsPub && !Imp->HasBeenUsed) {
+        DiagnosticEngine::report(Imp->Loc, DiagID::WARN_UNUSED_IMPORT, Imp->PhysicalPath);
+      }
+    }
+  }
+
   exitScope();
   return !HasError;
 }
@@ -282,6 +301,7 @@ void Sema::registerGlobals(Module &M) {
       SymbolInfo info;
       info.TypeObj = toka::Type::fromString("module");
       info.ReferencedModule = target;
+      info.ImportingDecl = Imp.get();
       std::string modName = Imp->Alias.empty() ? target->Name : Imp->Alias;
 
       SymbolInfo existing;
@@ -327,6 +347,7 @@ void Sema::registerGlobals(Module &M) {
               SymbolInfo fnInfo;
               fnInfo.TypeObj = toka::Type::fromString("fn");
               fnInfo.ReferencedModule = target;
+              fnInfo.ImportingDecl = Imp.get();
               fnInfo.ASTPtr = fn;
               CurrentScope->define(actualName, fnInfo);
               if (Imp->IsPub) {
@@ -379,6 +400,7 @@ void Sema::registerGlobals(Module &M) {
               SymbolInfo extInfo;
               extInfo.TypeObj = toka::Type::fromString("extern");
               extInfo.ReferencedModule = target;
+              extInfo.ImportingDecl = Imp.get();
               extInfo.ASTPtr = ext;
               CurrentScope->define(name, extInfo);
               if (Imp->IsPub) {
@@ -415,6 +437,7 @@ void Sema::registerGlobals(Module &M) {
             globalInfo.TypeObj = toka::Type::fromString(fullType);
             globalInfo.IsRebindable = v->IsRebindable;
             globalInfo.ReferencedModule = target;
+            globalInfo.ImportingDecl = Imp.get();
             globalInfo.ASTPtr = v;
             std::string actualName = item.Alias.empty() ? name : item.Alias;
             if (CurrentScope->Symbols.count(actualName)) {
@@ -468,6 +491,7 @@ void Sema::registerGlobals(Module &M) {
               SymbolInfo fnInfo;
               fnInfo.TypeObj = toka::Type::fromString("fn");
               fnInfo.ReferencedModule = target;
+              fnInfo.ImportingDecl = Imp.get();
               fnInfo.ASTPtr = fn;
               CurrentScope->define(name, fnInfo);
               if (Imp->IsPub) {
@@ -516,6 +540,7 @@ void Sema::registerGlobals(Module &M) {
               SymbolInfo extInfo;
               extInfo.TypeObj = toka::Type::fromString("extern");
               extInfo.ReferencedModule = target;
+              extInfo.ImportingDecl = Imp.get();
               extInfo.ASTPtr = ext;
               CurrentScope->define(name, extInfo);
               if (Imp->IsPub) {
@@ -552,6 +577,7 @@ void Sema::registerGlobals(Module &M) {
             globalInfo.TypeObj = toka::Type::fromString(fullType);
             globalInfo.IsRebindable = v->IsRebindable;
             globalInfo.ReferencedModule = target;
+            globalInfo.ImportingDecl = Imp.get();
             globalInfo.ASTPtr = v;
             if (CurrentScope->Symbols.count(name)) {
               if (CurrentScope->Symbols[name].ASTPtr != v) {
@@ -853,6 +879,7 @@ void Sema::checkFunction(FunctionDecl *Fn) {
     Info.IsRebindable = Arg.IsRebindable;
     Info.IsMorphicExempt = Arg.IsMorphicExempt; // [NEW]
     Info.IsDeclaredMutable = Arg.IsValueMutable;
+    Info.IsDeclaredVariable = true;
     Info.DeclLoc = Fn->Loc;
 
     if (!Arg.Type.empty() && Arg.Type[0] == '\'') {
@@ -922,6 +949,11 @@ void Sema::checkFunction(FunctionDecl *Fn) {
     for (auto const &[name, info] : CurrentScope->Symbols) {
       if (info.IsDeclaredMutable && !info.HasBeenMutated) {
         DiagnosticEngine::report(info.DeclLoc.isValid() ? info.DeclLoc : Fn->Loc, DiagID::WARN_MUTABLE_VAR_NEVER_MUTATED, name);
+      }
+      if (info.IsDeclaredVariable && !info.HasBeenUsed) {
+        if (name != "self" && (name.empty() || name[0] != '_')) {
+          DiagnosticEngine::report(info.DeclLoc.isValid() ? info.DeclLoc : Fn->Loc, DiagID::WARN_UNUSED_VARIABLE, name);
+        }
       }
     }
   }

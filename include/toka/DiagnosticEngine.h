@@ -29,7 +29,7 @@ struct DiagLoc {
   int Length = 1;
 };
 
-enum class DiagLevel { Warning, Error, Note };
+enum class DiagLevel { Warning, Error, Note, Structural };
 
 enum class DiagID {
 #define DIAG(ID, Level, Code, Msg) ID,

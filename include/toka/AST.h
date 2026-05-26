@@ -1456,6 +1456,7 @@ public:
   std::string PhysicalPath;
   std::string Alias;             // Module alias (e.g. import path as alias)
   std::vector<ImportItem> Items; // If empty, it's a module import (import path)
+  bool HasBeenUsed = false;
 
   ImportDecl(bool isPub, const std::string &path, const std::string &alias = "",
              std::vector<ImportItem> items = {})

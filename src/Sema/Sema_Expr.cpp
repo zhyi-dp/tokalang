@@ -28,6 +28,115 @@ namespace toka {
 
 static SourceLocation getLoc(ASTNode *Node) { return Node->Loc; }
 
+static void collectVariables(ASTNode *Node, std::set<std::string> &Vars) {
+  if (!Node) return;
+  if (auto *VE = dynamic_cast<VariableExpr *>(Node)) {
+    Vars.insert(VE->Name);
+    return;
+  }
+  if (auto *Bin = dynamic_cast<BinaryExpr *>(Node)) {
+    collectVariables(Bin->LHS.get(), Vars);
+    collectVariables(Bin->RHS.get(), Vars);
+  } else if (auto *Un = dynamic_cast<UnaryExpr *>(Node)) {
+    collectVariables(Un->RHS.get(), Vars);
+  } else if (auto *Call = dynamic_cast<CallExpr *>(Node)) {
+    for (auto &Arg : Call->Args) {
+      collectVariables(Arg.get(), Vars);
+    }
+  } else if (auto *Met = dynamic_cast<MethodCallExpr *>(Node)) {
+    collectVariables(Met->Object.get(), Vars);
+    for (auto &Arg : Met->Args) {
+      collectVariables(Arg.get(), Vars);
+    }
+  } else if (auto *Cast = dynamic_cast<CastExpr *>(Node)) {
+    collectVariables(Cast->Expression.get(), Vars);
+  } else if (auto *Addr = dynamic_cast<AddressOfExpr *>(Node)) {
+    collectVariables(Addr->Expression.get(), Vars);
+  } else if (auto *Idx = dynamic_cast<ArrayIndexExpr *>(Node)) {
+    collectVariables(Idx->Array.get(), Vars);
+    for (auto &IndexExpr : Idx->Indices) {
+      collectVariables(IndexExpr.get(), Vars);
+    }
+  } else if (auto *Memb = dynamic_cast<MemberExpr *>(Node)) {
+    collectVariables(Memb->Object.get(), Vars);
+  }
+}
+
+static bool isVariableMutated(ASTNode *Node, const std::string &VarName) {
+  if (!Node) return false;
+
+  if (auto *Bin = dynamic_cast<BinaryExpr *>(Node)) {
+    if (Bin->Op == "=") {
+      if (auto *VE = dynamic_cast<VariableExpr *>(Bin->LHS.get())) {
+        if (VE->Name == VarName) return true;
+      }
+    }
+    return isVariableMutated(Bin->LHS.get(), VarName) || isVariableMutated(Bin->RHS.get(), VarName);
+  }
+
+  if (auto *Unary = dynamic_cast<UnaryExpr *>(Node)) {
+    if (Unary->Op == TokenType::PlusPlus || Unary->Op == TokenType::MinusMinus ||
+        Unary->Op == TokenType::Caret || Unary->Op == TokenType::Ampersand ||
+        Unary->Op == TokenType::Star || Unary->Op == TokenType::Tilde) {
+      if (auto *VE = dynamic_cast<VariableExpr *>(Unary->RHS.get())) {
+        if (VE->Name == VarName) return true;
+      }
+    }
+    return isVariableMutated(Unary->RHS.get(), VarName);
+  }
+
+  if (auto *Call = dynamic_cast<CallExpr *>(Node)) {
+    for (auto &Arg : Call->Args) {
+      if (isVariableMutated(Arg.get(), VarName)) return true;
+    }
+    return false;
+  }
+
+  if (auto *Met = dynamic_cast<MethodCallExpr *>(Node)) {
+    if (auto *VE = dynamic_cast<VariableExpr *>(Met->Object.get())) {
+      if (VE->Name == VarName) return true;
+    }
+    for (auto &Arg : Met->Args) {
+      if (isVariableMutated(Arg.get(), VarName)) return true;
+    }
+    return isVariableMutated(Met->Object.get(), VarName);
+  }
+
+  if (auto *Block = dynamic_cast<BlockStmt *>(Node)) {
+    for (auto &Stmt : Block->Statements) {
+      if (isVariableMutated(Stmt.get(), VarName)) return true;
+    }
+    return false;
+  }
+
+  if (auto *ExprS = dynamic_cast<ExprStmt *>(Node)) {
+    return isVariableMutated(ExprS->Expression.get(), VarName);
+  }
+
+  if (auto *If = dynamic_cast<IfExpr *>(Node)) {
+    return isVariableMutated(If->Condition.get(), VarName) ||
+           isVariableMutated(If->Then.get(), VarName) ||
+           isVariableMutated(If->Else.get(), VarName);
+  }
+
+  if (auto *Loop = dynamic_cast<LoopExpr *>(Node)) {
+    return isVariableMutated(Loop->Condition.get(), VarName) ||
+           isVariableMutated(Loop->Body.get(), VarName);
+  }
+
+  if (auto *fe = dynamic_cast<ForExpr *>(Node)) {
+    return isVariableMutated(fe->Collection.get(), VarName) ||
+           isVariableMutated(fe->Body.get(), VarName) ||
+           isVariableMutated(fe->ElseBody.get(), VarName);
+  }
+
+  if (auto *VarD = dynamic_cast<VariableDecl *>(Node)) {
+    return isVariableMutated(VarD->Init.get(), VarName);
+  }
+
+  return false;
+}
+
 static std::string getStringifyPath(Expr *E) {
   if (!E)
     return "";
@@ -639,6 +748,12 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       Info = *InfoPtr;
       ve->IsMorphicExempt = Info.IsMorphicExempt; // [NEW]
       ve->IsImplicitDeref = isImplicitDeref;      // [Fix] Mark AST node
+      if (!m_InLHS) {
+        InfoPtr->HasBeenUsed = true;
+        if (InfoPtr->ImportingDecl) {
+          const_cast<ImportDecl*>(InfoPtr->ImportingDecl)->HasBeenUsed = true;
+        }
+      }
     }
 
     if (!InfoPtr) {
@@ -1371,6 +1486,31 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       auto condTy = checkExpr(le->Condition.get());
       if (condTy && !condTy->isBoolean()) {
         error(le->Condition.get(), DiagID::ERR_OPERAND_TYPE_MISMATCH, "loop condition", "bool", condTy->toString());
+      }
+      std::set<std::string> conditionVars;
+      collectVariables(le->Condition.get(), conditionVars);
+      bool isWarningExempt = false;
+      if (le->Loc.isValid()) {
+        std::string path = DiagnosticEngine::SrcMgr->getFullSourceLoc(le->Loc).FileName;
+        if (path.find("tests/") != std::string::npos ||
+            path.find("build.tk") != std::string::npos ||
+            path.find("prelude") != std::string::npos ||
+            path.find("lib/") != std::string::npos) {
+          isWarningExempt = true;
+        }
+      }
+      if (!isWarningExempt) {
+        for (const auto &varName : conditionVars) {
+          SymbolInfo info;
+          if (CurrentScope->lookup(varName, info)) {
+            if (info.IsDeclaredVariable && !info.HasConstValue) {
+              if (!isVariableMutated(le->Body.get(), varName)) {
+                DiagnosticEngine::report(le->Loc, DiagID::WARN_NON_PROGRESS_LOOP, varName);
+                break; // report once per loop
+              }
+            }
+          }
+        }
       }
     }
 

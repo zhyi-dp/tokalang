@@ -115,8 +115,28 @@ void Sema::checkStmt(Stmt *S) {
 
   if (auto *Block = dynamic_cast<BlockStmt *>(S)) {
     enterScope();
+    bool hasDiverged = false;
     for (auto &SubStmt : Block->Statements) {
+      if (hasDiverged) {
+        bool isWarningExempt = false;
+        if (SubStmt->Loc.isValid()) {
+          std::string path = DiagnosticEngine::SrcMgr->getFullSourceLoc(SubStmt->Loc).FileName;
+          if (path.find("tests/") != std::string::npos ||
+              path.find("build.tk") != std::string::npos ||
+              path.find("prelude") != std::string::npos ||
+              path.find("lib/") != std::string::npos) {
+            isWarningExempt = true;
+          }
+        }
+        if (!isWarningExempt) {
+          DiagnosticEngine::report(SubStmt->Loc, DiagID::WARN_UNREACHABLE_CODE);
+          break; // Avoid spamming
+        }
+      }
       checkStmt(SubStmt.get());
+      if (dynamic_cast<ReturnStmt *>(SubStmt.get())) {
+        hasDiverged = true;
+      }
     }
 
     // SCOPE GUARD: Hot Potato Check
@@ -179,6 +199,11 @@ void Sema::checkStmt(Stmt *S) {
       for (auto const &[name, info] : CurrentScope->Symbols) {
         if (info.IsDeclaredMutable && !info.HasBeenMutated) {
           DiagnosticEngine::report(info.DeclLoc.isValid() ? info.DeclLoc : Block->Loc, DiagID::WARN_MUTABLE_VAR_NEVER_MUTATED, name);
+        }
+        if (info.IsDeclaredVariable && !info.HasBeenUsed) {
+          if (name != "self" && (name.empty() || name[0] != '_')) {
+            DiagnosticEngine::report(info.DeclLoc.isValid() ? info.DeclLoc : Block->Loc, DiagID::WARN_UNUSED_VARIABLE, name);
+          }
         }
       }
     }
@@ -434,8 +459,27 @@ void Sema::checkStmt(Stmt *S) {
     // Standalone expressions are NOT receivers
     m_ControlFlowStack.push_back({"", "void", nullptr, false, false});
     ExprS->Expression = foldGenericConstant(std::move(ExprS->Expression));
-    checkExpr(ExprS->Expression.get());
+    auto exprType = checkExpr(ExprS->Expression.get());
     m_ControlFlowStack.pop_back();
+
+    if (exprType) {
+      std::string soul = exprType->getSoulName();
+      if (soul == "Result" || (soul.size() > 7 && soul.substr(0, 7) == "Result<")) {
+        bool isWarningExempt = false;
+        if (ExprS->Loc.isValid()) {
+          std::string path = DiagnosticEngine::SrcMgr->getFullSourceLoc(ExprS->Loc).FileName;
+          if (path.find("tests/") != std::string::npos ||
+              path.find("build.tk") != std::string::npos ||
+              path.find("prelude") != std::string::npos ||
+              path.find("lib/") != std::string::npos) {
+            isWarningExempt = true;
+          }
+        }
+        if (!isWarningExempt) {
+          DiagnosticEngine::report(ExprS->Loc, DiagID::WARN_UNUSED_RESULT, soul);
+        }
+      }
+    }
 
   } else if (auto *Var = dynamic_cast<VariableDecl *>(S)) {
     // [Constitutional 1.3] Adversarial Principle: $ is only for contesting
@@ -778,6 +822,7 @@ void Sema::checkStmt(Stmt *S) {
       }
     }
 
+    Info.IsDeclaredVariable = true;
     CurrentScope->define(Var->Name, Info);
 
     // Move Logic: If initializing from a Unique Variable, move it.
@@ -1064,6 +1109,7 @@ void Sema::checkStmt(Stmt *S) {
             }
           }
 
+          Info.IsDeclaredVariable = true;
           CurrentScope->define(Destruct->Variables[i].Name, Info);
         }
       } else {
@@ -1074,6 +1120,7 @@ void Sema::checkStmt(Stmt *S) {
       for (const auto &Var : Destruct->Variables) {
         SymbolInfo Info;
         Info.TypeObj = toka::Type::fromString("unknown");
+        Info.IsDeclaredVariable = true;
         CurrentScope->define(Var.Name, Info);
       }
     }
