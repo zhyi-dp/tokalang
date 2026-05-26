@@ -1,0 +1,28 @@
+import std/io::{println}
+
+fn main() -> i32 {
+    // 1. Define high-level Str
+    auto s: str = "Toka 1.0"
+    println("Original str: {}", s)
+
+    // 2. Downgrade to raw bytes with 0-cost
+    auto b = s.bytes()
+    if b.len() != 8:usize { return 1 }
+    
+    // 3. O(1) Byte indexing
+    auto b0 = b.at(0:usize)
+    auto b1 = b.at(5:usize)
+    if b0.unwrap() != 84:byte { return 2 } // 'T' is 84
+    if b1.unwrap() != 49:byte { return 3 } // '1' is 49
+
+    // 4. Try to upgrade back to str with validation scan
+    auto res = b.try_to_str()
+    if !res.is_ok() { return 4 }
+    
+    auto s_back = res.unwrap()
+    println("Recovered str: {}", s_back)
+    if !s_back.equals(s) { return 5 }
+
+    println("str_bytes regression test passed successfully!")
+    return 0
+}

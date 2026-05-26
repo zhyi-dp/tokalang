@@ -14,6 +14,7 @@
 
 import core/types::*
 import core/option::{Option}
+import core/result::{Result}
 import core/traits::{@encap, @PartialEq, @PartialOrd}
 import core/utf8::*
 
@@ -558,6 +559,15 @@ impl str {
     pub fn as_cstr(self) -> cstr {
         return cstr(*buf = self.raw_ptr())
     }
+
+    pub fn bytes(self) -> bytes {
+        unsafe {
+            auto cpy# = self.clone()
+            auto ret# = bytes(&buf = null as *[byte] as &[byte], len = self.len)
+            libc_memcpy(&ret as *void, &cpy as *void, 16)
+            return ret
+        }
+    }
 }
 
 
@@ -593,6 +603,78 @@ impl cstr {
             }
             auto len = libc_strlen(self.*buf)
             return str(&buf = (self.*buf as *[char]) as &[char], len = len)
+        }
+    }
+}
+
+
+// ============================================================================
+// bytes (Raw Physical Byte Stream View) & UnicodeError
+// ============================================================================
+
+pub shape UnicodeError(
+    invalid_byte: byte,
+    position: usize
+)
+
+pub shape bytes(
+    &buf$: [byte],
+    len$: usize
+)
+
+impl bytes@encap {
+    pub fn clone(self) -> bytes <- self {
+        return bytes(&buf = self.&buf, len = self.len)
+    }
+
+    fn drop(self#) {}
+}
+
+impl bytes {
+    pub fn len(self) -> usize {
+        return self.len
+    }
+
+    pub fn is_empty(self) -> bool {
+        return self.len == 0
+    }
+
+    pub fn at(self, idx: usize) -> Option<byte> {
+        if idx >= self.len {
+            return Option<byte>::None
+        }
+        unsafe {
+            return Option<byte>::Some(self.buf[idx])
+        }
+    }
+
+    pub fn try_to_str(self) -> Result<str, UnicodeError> {
+        if self.len == 0 {
+            unsafe {
+                auto ret# = str(&buf = null as *[char] as &[char], len = 0)
+                return Result<str, UnicodeError>::Ok(ret)
+            }
+        }
+        
+        unsafe {
+            // Reinterpret &[byte] to &[char] to use existing Utf8Iterator
+            auto &c_buf = &(self.buf[0]) as *[char] as &[char]
+            auto iter# = Utf8Iterator(&buf = &c_buf, len = self.len, pos = 0)
+            loop true {
+                auto prev_pos = iter.current_pos()
+                auto opt = iter#.next()
+                if opt.is_none() { break }
+                if opt.unwrap() == REPLACEMENT_CHAR {
+                    auto bad_byte = self.buf[prev_pos]
+                    return Result<str, UnicodeError>::Err(UnicodeError(invalid_byte = bad_byte, position = prev_pos))
+                }
+            }
+            
+            // Validation passed! Zero-cost 16-byte bitcast from bytes to str
+            auto cpy# = self.clone()
+            auto ret# = str(&buf = null as *[char] as &[char], len = self.len)
+            libc_memcpy(&ret as *void, &cpy as *void, 16)
+            return Result<str, UnicodeError>::Ok(ret)
         }
     }
 }

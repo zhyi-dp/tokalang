@@ -1,0 +1,1 @@
+// Empty file to avoid circular dependency. Moved bytes to core/str.tk

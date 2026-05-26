@@ -469,6 +469,12 @@ std::shared_ptr<toka::Type> Sema::checkIndexExpr(ArrayIndexExpr *Idx) {
   std::shared_ptr<toka::Type> resultType = nullptr;
   baseType = resolveType(baseType, true);
 
+  std::string typeStr = toka::Type::stripMorphology(baseType->toString());
+  if (typeStr == "str" || typeStr == "String" || typeStr == "string") {
+    error(Idx, "error[E0490]: Subscript indexing is disabled for UTF-8 '" + typeStr + "'. Use 's.chars()' for sequential traversal, or 's.bytes()' for raw O(1) hardware indexing.");
+    return toka::Type::fromString("unknown");
+  }
+
   if (baseType->isArray()) {
     resultType = baseType->getArrayElementType();
   } else if (baseType->isPointer()) {

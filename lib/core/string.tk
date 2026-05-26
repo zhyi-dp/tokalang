@@ -1,0 +1,943 @@
+// Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// ==========================================
+// Toka Standard Library: String (Core Portion)
+// Version: 1.3.1 (In-Place Capture & Strict Morphology)
+// ==========================================
+
+import core/types::{char, usize, Addr, ADDR0, OAddr}
+import core/traits::{@encap, @Hash, @PartialEq, @PartialOrd}
+import core/libc::*
+import core/str::{str, cstr}
+
+// ------------------------------------------------------
+// 1.5 Pointer Extensions
+// ------------------------------------------------------
+impl char {
+    pub fn as_str(*self) -> str {
+        unsafe {
+            auto len = libc_strlen(*self) as i32
+            return str(&buf = (*self as *[char]) as &[char], len = len)
+        }
+    }
+}
+
+// ------------------------------------------------------
+// 2. Shape Definition
+// ------------------------------------------------------
+
+pub shape String (
+    nul *buf#: [char] = null as *[char],
+    len#: usize = 0,
+    cap#: usize = 0
+)
+
+impl String@encap {
+    pub cap
+    pub fn clone(self) -> String {
+        return String::from_with_len(self.c_str(), self.len)
+    }
+
+    fn drop(self#) {
+        unsafe {
+            if self.*buf != null {
+                // libc_free(self.*buf as *void)
+                self.*buf = null 
+                self.len = 0
+                self.cap = 0
+            }
+        }
+    }
+}
+
+// ------------------------------------------------------
+// 3. Iterators
+// ------------------------------------------------------
+
+pub shape SplitIterator (
+    nul *source: [char],
+    source_len: usize,
+    current_pos#: usize,
+    delimiter: char
+)
+
+impl SplitIterator@encap {
+    fn drop(self#) {
+        // Observer only, no resource to free
+    }
+    
+    pub fn clone(self) -> SplitIterator {
+        return SplitIterator(
+            *source = self.*source,
+            source_len = self.source_len,
+            current_pos = self.current_pos,
+            delimiter = self.delimiter
+        )
+    }
+}
+
+impl SplitIterator {
+    pub fn next(self#) -> String {
+        unsafe {
+             if self.current_pos >= self.source_len {
+                 self.current_pos = self.source_len + 1
+                 return String::from("") 
+             }
+             
+             auto start = self.current_pos
+             auto found# = false
+             auto i#: usize = start
+             
+             loop i < self.source_len {
+                 if self.source[i] == self.delimiter {
+                     found = true
+                     break
+                 }
+                 i = i + 1
+             }
+             
+             auto end = i
+             auto len = end - start
+             
+             if found {
+                 self.current_pos = end + 1
+             } else {
+                 self.current_pos = self.source_len + 1
+             }
+             
+             auto *start_ptr = (self.*source as usize + start) as *char
+             return String::from_with_len(*start_ptr, len)
+        }
+    }
+    
+    pub fn is_done(self) -> bool {
+        return self.current_pos > self.source_len
+    }
+}
+
+
+// ------------------------------------------------------
+// 4. String Implementation
+// ------------------------------------------------------
+
+impl String@delegate {
+    pub fn target(self) -> str {
+        return str(&buf = self.*buf as &[char], len = self.len)
+    }
+}
+
+impl String @Send {}
+impl String @Sync {}
+
+impl String {
+
+    // === Constructors ===
+
+    pub fn from(s: str) -> String {
+        if s.len() == 0 {
+            unsafe {
+                auto *p# = unsafe alloc [1] char as *[char]
+                p[0] = 0 as char
+                return String(*buf = *p, len = 0, cap = 1)
+            }
+        }
+        unsafe {
+            auto l = s.len()
+            auto *p# = unsafe alloc [l + 1] char as *[char]
+            libc_memcpy(*p as *void, s.raw_ptr() as *void, l)
+            p[l] = 0 as char
+            
+            return String(
+                *buf = *p,
+                len = l,
+                cap = l + 1
+            )
+        }
+    }
+
+    pub fn from_cstr(*s: char) -> String {
+        if *s == null {
+            unsafe {
+                auto *p# = unsafe alloc [1] char as *[char]
+                p[0] = 0 as char
+                return String(*buf = *p, len = 0, cap = 1)
+            }
+        }
+        unsafe {
+            auto l = libc_strlen(*s)
+            auto *p# = unsafe alloc [l + 1] char as *[char]
+            libc_memcpy(*p as *void, *s as *void, l)
+            p[l] = 0 as char
+            
+            return String(
+                *buf = *p,
+                len = l,
+                cap = l + 1
+            )
+        }
+    }
+    
+    // Internal helper for substrings
+    pub fn from_with_len(*s: char, len: usize) -> String {
+        unsafe {
+            auto l = len
+            auto *p# = unsafe alloc [l + 1] char as *[char]
+            libc_memcpy(*p as *void, *s as *void, l)
+            p[l] = 0 as char
+            
+            return String(
+                *buf = *p,
+                len = l,
+                cap = l + 1
+            )
+        }
+    }
+
+    pub fn from_raw(*s: u8, len: usize) -> String {
+        unsafe {
+            auto l = len
+            auto *p# = unsafe alloc [l + 1] char as *[char]
+            libc_memcpy(*p as *void, *s as *void, l)
+            p[l] = 0 as char
+            
+            return String(*buf = *p, len = l, cap = l + 1)
+        }
+    }
+
+    pub fn from_str(s: str) -> String {
+        return String::from(s)
+    }
+
+    // === Converters ===
+
+    /**
+     * Creates a String from a C-string and frees the input pointer.
+     * Useful for FFI functions returning allocated strings.
+     */
+    pub fn from_take(*s: char) -> String {
+        unsafe {
+            auto l = libc_strlen(*s)
+            auto *p# = unsafe alloc [l + 1] char as *[char]
+            libc_memcpy(*p as *void, *s as *void, l)
+            p[l] = 0 as char
+            
+            // Seal the memory leak: free the input pointer as promised
+            libc_free(*s as *void)
+            
+            return String(
+                *buf = *p,
+                len = l,
+                cap = l + 1
+            )
+        }
+    }
+
+    pub fn from_int(val: i32) -> String {
+        unsafe {
+            auto *buf# = unsafe alloc [16] char as *[char]
+            libc_sprintf(*buf as *char, c"%d", val)
+            auto len = libc_strlen(*buf as *char)
+            
+            return String(
+                *buf = *buf,
+                len = len,
+                cap = 16
+            )
+        }
+    }
+
+    pub fn from_i64(val: i64) -> String {
+        unsafe {
+            auto *buf# = unsafe alloc [32] char as *[char]
+            libc_sprintf(*buf as *char, c"%lld", val)
+            auto len = libc_strlen(*buf as *char)
+            return String(*buf = *buf, len = len, cap = 32)
+        }
+    }
+    
+    pub fn from_f64(val: f64) -> String {
+         unsafe {
+            auto *buf# = unsafe alloc [32] char as *[char]
+            libc_sprintf(*buf as *char, c"%g", val)
+            auto len = libc_strlen(*buf as *char)
+            return String(*buf = *buf, len = len, cap = 32)
+        }
+    }
+
+    // === View ===
+    
+
+    pub fn capacity(self) -> usize {
+        return self.cap
+    }
+
+    pub fn c_str(self) -> *char {
+        return self.*buf as *char
+    }
+
+    pub fn as_cstr(self) -> cstr {
+        return cstr(*buf = self.c_str())
+    }
+
+    pub fn as_str(self) -> str {
+        unsafe {
+            return str(&buf = self.*buf as &[char], len = self.len)
+        }
+    }
+
+    pub fn as_view(self) -> str {
+        return self.as_str()
+    }
+    
+    // === Mutation ===
+
+    pub fn push_str(self#, s: str) -> i32 {
+        return self#.push_view(s)
+    }
+
+    pub fn push_cstr(self#, *s: char) -> i32 {
+        unsafe {
+            auto slen = libc_strlen(*s)
+            auto needed = self.len + slen
+            
+            if needed >= self.cap {
+                auto new_cap = (self.cap * 2) + slen + 1
+                
+                auto *tmp = unsafe alloc [new_cap] char
+                if *tmp == null { return 0 }
+                if self.*buf != null {
+                    libc_memcpy(*tmp as *void, self.*buf as *void, self.len)
+                }
+                self.*buf = *tmp
+                self.cap = new_cap
+            }
+            
+            auto *dst# = (self.*buf as usize + self.len) as *[char]
+            libc_memcpy(*dst as *void, *s as *void, slen)
+            self.len = needed
+            dst[slen] = 0 as char
+        }
+        return 1
+    }
+
+    pub fn push_view_addr(self#, addr: Addr, slen: usize) -> i32 {
+        if slen == 0 { return 1 }
+        unsafe {
+            auto needed = self.len + slen
+            
+            if needed >= self.cap {
+                auto new_cap = (self.cap * 2) + slen + 1
+                
+                auto *tmp = unsafe alloc [new_cap] char
+                if *tmp == null { return 0 }
+                if self.*buf != null {
+                    libc_memcpy(*tmp as *void, self.*buf as *void, self.len)
+                }
+                self.*buf = *tmp
+                self.cap = new_cap
+            }
+            
+            auto *dst# = (self.*buf as usize + self.len) as *[char]
+            libc_memcpy(*dst as *void, addr as *void, slen)
+            self.len = needed
+            dst[slen] = 0 as char
+        }
+        return 1
+    }
+
+    pub fn push_view(self#, v: str) -> i32 {
+        if v.len() == 0 { return 1 }
+        unsafe {
+            auto slen = v.len()
+            auto needed = self.len + slen
+            
+            if needed >= self.cap {
+                auto new_cap = (self.cap * 2) + slen + 1
+                
+                auto *tmp = unsafe alloc [new_cap] char
+                if *tmp == null { return 0 }
+                if self.*buf != null {
+                    libc_memcpy(*tmp as *void, self.*buf as *void, self.len)
+                }
+                self.*buf = *tmp
+                self.cap = new_cap
+            }
+            
+            auto *dst# = (self.*buf as usize + self.len) as *[char]
+            libc_memcpy(*dst as *void, v.raw_ptr() as *void, slen)
+            self.len = needed
+            dst[slen] = 0 as char
+        }
+        return 1
+    }
+
+    pub fn push_buf(self#, *buf: u8, count: usize) -> i32 {
+        if count == 0 { return 1 }
+        unsafe {
+            auto needed = self.len + count
+            if needed >= self.cap {
+                auto new_cap = (self.cap * 2) + count + 1
+                
+                auto *tmp = unsafe alloc [new_cap] char
+                if *tmp == null { return 0 }
+                if self.*buf != null {
+                    libc_memcpy(*tmp as *void, self.*buf as *void, self.len)
+                }
+                self.*buf = *tmp
+                self.cap = new_cap
+            }
+            auto *dst# = (self.*buf as usize + self.len) as *[char]
+            libc_memcpy(*dst as *void, *buf as *void, count)
+            self.len = needed
+            dst[count] = 0 as char
+        }
+        return 1
+    }
+
+    pub fn push_char(self#, c: char) -> i32 {
+        unsafe {
+            auto needed = self.len + 1
+            
+            if needed >= self.cap {
+                auto new_cap = (self.cap * 2) + 2
+                
+                auto *tmp = unsafe alloc [new_cap] char
+                if *tmp == null { return 0 }
+                if self.*buf != null {
+                    libc_memcpy(*tmp as *void, self.*buf as *void, self.len)
+                }
+                self.*buf = *tmp
+                self.cap = new_cap
+            }
+            
+            auto *dst# = (self.*buf as usize + self.len) as *[char]
+            dst[0] = c
+            dst[1] = 0 as char
+            self.len = needed
+        }
+        return 1
+    }
+
+    pub fn pop_char(self#) -> char {
+        if self.len == 0 { return 0:char }
+        unsafe {
+            auto *b# = self.*buf
+            auto last_char = b[self.len - 1]
+            b[self.len - 1] = 0:char
+            self.len = self.len - 1
+            return last_char
+        }
+    }
+
+    pub fn clear(self#) {
+        unsafe {
+            self.len = 0
+            if self.*buf != null {
+                self.buf[0] = 0 as char
+            }
+        }
+    }
+
+    pub fn unsafe_forget(self#) {
+        unsafe {
+            self.*buf = null
+            self.len = 0
+            self.cap = 0
+        }
+    }
+    
+    pub fn parse_f64(self) -> Result<f64, String> {
+        if self.len == 0 { return Result<f64, String>::Err(String::from("empty string")) }
+        auto val# = 0.0:f64
+        auto count = libc_sscanf(self.c_str(), c"%lf", &val as *void)
+        if count != 1 {
+            return Result<f64, String>::Err(String::from("invalid float format"))
+        }
+        return Result<f64, String>::Ok(val)
+    }
+    
+    // === Utilities ===
+    
+    fn is_whitespace(c: char) -> bool {
+        if c == 32 as char { return true } // space
+        if c == 9 as char { return true }  // tab
+        if c == 10 as char { return true } // newline
+        if c == 13 as char { return true } // cr
+        return false
+    }
+
+    
+    // === Extended Utilities (Python-like) ===
+
+    // delim as i32 to avoid ABI char passing issues
+    pub fn split(self, delim: i32) -> SplitIterator {
+        return SplitIterator(
+            *source = self.*buf,
+            source_len = self.len,
+            current_pos = 0,
+            delimiter = delim as char
+        )
+    }
+
+    // === New Utilities ===
+
+    pub fn count_char(self, c: char) -> usize {
+        return self.as_str().count_char(c)
+    }
+
+
+    pub fn find_char(self, c: char) -> i32 {
+        auto opt = self.as_str().index_of(c)
+        if opt.is_none() { return -1 }
+        return opt.unwrap() as i32
+    }
+
+    pub fn starts_with(self, other: str) -> bool {
+        return self.as_str().starts_with(other)
+    }
+
+    pub fn ends_with(self, other: str) -> bool {
+        return self.as_str().ends_with(other)
+    }
+
+    pub fn contains(self, other: str) -> bool {
+        return self.as_str().index_of_str(other).is_some()
+    }
+
+    pub fn starts_with_char(self, c: char) -> bool {
+        return self.as_str().starts_with_char(c)
+    }
+
+    pub fn ends_with_char(self, c: char) -> bool {
+        return self.as_str().ends_with_char(c)
+    }
+    
+    pub fn trim(self) -> String {
+        return self.as_str().trim().to_string()
+    }
+
+    pub fn trim_start(self) -> String {
+        return self.as_str().trim_start().to_string()
+    }
+
+    pub fn trim_end(self) -> String {
+        return self.as_str().trim_end().to_string()
+    }
+
+    pub fn to_upper(self) -> String {
+        auto res# = String::from_with_len(self.c_str(), self.len)
+        unsafe {
+            auto i#: usize = 0
+            auto *b# = (res.c_str() as usize) as *[char]#
+            loop i < res.len {
+                auto c = b[i]
+                if c >= 97:char && c <= 122:char { // 'a'-'z'
+                    b[i] = (c as i32 - 32) as char
+                }
+                i = i + 1
+            }
+        }
+        return res
+    }
+
+    pub fn to_lower(self) -> String {
+        auto res# = String::from_with_len(self.c_str(), self.len)
+        unsafe {
+            auto i#: usize = 0
+            auto *b# = (res.c_str() as usize) as *[char]#
+            loop i < res.len {
+                auto c = b[i]
+                if c >= 65:char && c <= 90:char { // 'A'-'Z'
+                    b[i] = (c as i32 + 32) as char
+                }
+                i = i + 1
+            }
+        }
+        return res
+    }
+
+    pub fn replace(self, old_c: char, new_c: char) -> String {
+        auto res# = String::from_with_len(self.c_str(), self.len)
+        unsafe {
+            auto i#: usize = 0
+            auto *b# = (res.c_str() as usize) as *[char]#
+            loop i < res.len {
+                if b[i] == old_c {
+                    b[i] = new_c
+                }
+                i = i + 1
+            }
+        }
+        return res
+    }
+
+    pub fn substring(self, start_idx: i32, end_idx: i32) -> String {
+        auto slen = self.len as i32
+        auto s# = start_idx
+        auto e# = end_idx
+        
+        if s < 0 { s = slen + s }
+        if e < 0 { e = slen + e }
+        
+        if s < 0 { s = 0 }
+        if e > slen { e = slen }
+        if s >= e { return String::from("") }
+        
+        unsafe {
+            auto *p = (self.*buf as usize + s as usize) as *char
+            return String::from_with_len(*p, (e - s) as usize)
+        }
+    }
+
+    pub fn find_str(self, needle: str) -> i32 {
+        auto opt = self.as_str().index_of_str(needle)
+        if opt.is_none() { return -1 }
+        return opt.unwrap() as i32
+    }
+
+    pub fn replace_str(self, old_s: str, new_s: str) -> String {
+        if old_s.len() == 0 { return self.clone() }
+        
+        auto res# = String::from("")
+        unsafe {
+             auto i#: usize = 0
+             // Get pointers to buffers
+             auto *s_buf = self.*buf
+             auto *old_buf = old_s.raw_ptr() as *[char]
+             
+             loop i < self.len {
+                  auto is_match# = true
+                  if i + old_s.len() > self.len {
+                      is_match = false
+                  } else {
+                      auto j#: usize = 0
+                      loop j < old_s.len() {
+                          // Direct buffer access for speed inside unsafe
+                          auto idx = i + j
+                          if s_buf[idx] != old_buf[j] {
+                              is_match = false
+                              break
+                          }
+                          j = j + 1
+                      }
+                  }
+                  
+                  if is_match {
+                      res#.push_view(new_s)
+                      i = i + old_s.len()
+                  } else {
+                      res#.push_char(s_buf[i])
+                      i = i + 1
+                  }
+             }
+        }
+        return res
+    }
+    
+    pub fn repeat(self, n: i32) -> String {
+        if n <= 0 { return String::from("") }
+        auto res# = String::from("")
+        // Pre-reserve could be optimization todo
+        auto i# = 0
+        loop i < n {
+            res#.push_str(self.as_str())
+            i = i + 1
+        }
+        return res
+    }
+    
+    pub fn reverse(self) -> String {
+        if self.len <= 1 { return self.clone() }
+        unsafe {
+            auto res# = String::from_with_len(self.c_str(), self.len)
+            auto i#: usize = 0
+            auto *dest# = (res.c_str() as usize) as *[char]#
+            auto *src = self.*buf
+            loop i < self.len {
+                dest[i] = src[self.len - 1 - i]
+                i = i + 1
+            }
+            return res
+        }
+    }
+}
+impl String@Hash {
+    pub fn hash(self) -> u64 {
+        unsafe {
+            auto hash#: u64 = 5381
+            auto i#: usize = 0
+            auto *b = self.*buf
+            loop i < self.len {
+                auto c = b[i] as u64
+                hash = ((hash bshl 5) + hash) + c
+                i = i + 1
+            }
+            return hash
+        }
+    }
+}
+
+impl String@PartialEq {
+    pub fn eq(self, other: String) -> bool {
+        return self.as_str().eq(other.as_str())
+    }
+}
+
+impl String@PartialOrd {
+    pub fn cmp(self, other: String) -> i32 {
+        unsafe {
+            auto i#: usize = 0
+            auto *b1 = self.c_str()
+            auto *b2 = other.c_str()
+            loop i < self.len && i < other.len() {
+                auto *p1 = (b1 as usize + i) as *char
+                auto *p2 = (b2 as usize + i) as *char
+                if *p1 < *p2 { return -1 }
+                if *p1 > *p2 { return 1 }
+                i = i + 1
+            }
+            if self.len < other.len() { return -1 }
+            if self.len > other.len() { return 1 }
+            return 0
+        }
+    }
+}
+
+// ------------------------------------------------------
+// 5. Extensions
+// ------------------------------------------------------
+
+impl str {
+    pub fn to_string(self) -> String {
+        return String::from_str(self)
+    }
+    pub fn repeat(self, n: i32) -> String {
+        if n <= 0 || self.len() == 0 { return String::from("") }
+        unsafe {
+            auto l = self.len() * n
+            auto *p# = unsafe alloc [l + 1] char as *[char]
+            auto *src = &(self.buf()[0]) as *void
+            
+            auto i# = 0
+            loop i < n {
+                auto offset = i * self.len()
+                libc_memcpy((*p as usize + offset) as *void, *src, self.len())
+                i = i + 1
+            }
+            p[l] = 0 as char
+            
+            return String(
+                *buf = *p,
+                len = l,
+                cap = l + 1
+            )
+        }
+    }
+}
+impl i32 {
+    pub fn to_string_fmt(self, fmt: str) -> String { return _format_i64(self as i64, fmt) }
+    pub fn to_string(self) -> String {
+        return String::from_int(self)
+    }
+}
+
+impl i64 {
+    pub fn to_string_fmt(self, fmt: str) -> String { return _format_i64(self as i64, fmt) }
+    pub fn to_string(self) -> String {
+        return String::from_i64(self)
+    }
+}
+
+impl u64 {
+    pub fn to_string_fmt(self, fmt: str) -> String { return _format_i64(self as i64, fmt) }
+    pub fn to_string(self) -> String {
+        unsafe {
+             auto *buf# = libc_malloc(32) as *char
+             libc_snprintf(*buf, 32, c"%llu", self)
+             auto s = String::from_cstr(*buf)
+             libc_free(*buf as *void)
+             return s
+        }
+    }
+}
+
+impl f32 {
+    pub fn to_string_fmt(self, fmt: str) -> String { return _format_f64(self as f64, fmt) }
+    pub fn to_string(self) -> String {
+        return String::from_f64(self as f64)
+    }
+}
+
+impl f64 {
+    pub fn to_string_fmt(self, fmt: str) -> String { return _format_f64(self, fmt) }
+    pub fn to_string(self) -> String {
+        return String::from_f64(self)
+    }
+}
+
+impl bool {
+    pub fn to_string(self) -> String {
+        if self { return String::from("true") }
+        return String::from("false")
+    }
+}
+
+
+pub trait @ToString {
+    pub fn to_string(self) -> String
+}
+
+pub trait @ToFormat {
+    pub fn to_string_fmt(self, fmt: str) -> String
+}
+
+impl char {
+    pub fn to_string(self) -> String {
+        unsafe {
+            auto s# = String::from("")
+            s#.push_char(self)
+            return s
+        }
+    }
+}
+
+impl OAddr {
+    pub fn to_string(self) -> String {
+        unsafe {
+            auto *buf# = unsafe alloc [32] char as *[char]
+            libc_sprintf(*buf as *char, c"0x%016llX", self)
+            auto len = libc_strlen(*buf as *char)
+            return String(*buf = *buf, len = len, cap = 32)
+        }
+    }
+}
+
+impl usize {
+    pub fn to_string_fmt(self, fmt: str) -> String { return _format_i64(self as i64, fmt) }
+    pub fn to_string(self) -> String {
+        return String::from_i64(self as i64)
+    }
+}
+
+impl cstr {
+    pub fn to_string(self) -> String {
+        return String::from_cstr(self.raw_ptr())
+    }
+}
+
+impl u32 {
+    pub fn to_string_fmt(self, fmt: str) -> String { return _format_i64(self as i64, fmt) }
+    pub fn to_string(self) -> String { return String::from_i64(self as i64) }
+}
+impl u16 {
+    pub fn to_string_fmt(self, fmt: str) -> String { return _format_i64(self as i64, fmt) }
+    pub fn to_string(self) -> String { return String::from_i64(self as i64) }
+}
+impl u8 {
+    pub fn to_string_fmt(self, fmt: str) -> String { return _format_i64(self as i64, fmt) }
+    pub fn to_string(self) -> String { return String::from_i64(self as i64) }
+}
+impl i16 {
+    pub fn to_string_fmt(self, fmt: str) -> String { return _format_i64(self as i64, fmt) }
+    pub fn to_string(self) -> String { return String::from_i64(self as i64) }
+}
+impl i8 {
+    pub fn to_string_fmt(self, fmt: str) -> String { return _format_i64(self as i64, fmt) }
+    pub fn to_string(self) -> String { return String::from_i64(self as i64) }
+}
+impl Addr {
+    pub fn to_string(self) -> String {
+        unsafe {
+            auto *buf# = unsafe alloc [32] char as *[char]
+            libc_sprintf(*buf as *char, c"0x%016llX", self as i64)
+            auto len = libc_strlen(*buf as *char)
+            return String(*buf = *buf, len = len, cap = 32)
+        }
+    }
+}
+
+pub fn _format_i64(val: i64, fmt: str) -> String {
+    unsafe {
+        if fmt.len() == 0 {
+            return String::from_i64(val)
+        }
+        
+        auto *c_fmt# = unsafe alloc [fmt.len() + 8] char as *[char]
+        c_fmt[0] = 37:char // '%'
+        auto i# = 1:usize
+        auto last_char# = fmt.buf()[fmt.len() - 1]
+        
+        auto type_char# = 100:char // 'd'
+        auto has_type# = false
+        
+        if last_char == 120:char { type_char = 120:char; has_type = true } // 'x'
+        else if last_char == 88:char { type_char = 88:char; has_type = true } // 'X'
+        else if last_char == 111:char { type_char = 111:char; has_type = true } // 'o'
+        
+        auto fmt_len# = fmt.len()
+        if has_type { fmt_len = fmt_len - 1 }
+        
+        auto j# = 0:usize
+        loop j < fmt_len {
+            c_fmt[i] = fmt.buf()[j]
+            i = i + 1
+            j = j + 1
+        }
+        
+        c_fmt[i] = 108:char // 'l'
+        c_fmt[i+1] = 108:char // 'l'
+        c_fmt[i+2] = type_char
+        c_fmt[i+3] = 0:char
+        
+        auto *buf# = unsafe alloc [64] char as *[char]
+        libc_sprintf(*buf as *char, *c_fmt as *char, val)
+        
+        libc_free(*c_fmt as *void)
+        
+        auto len = libc_strlen(*buf as *char)
+        return String(*buf = *buf, len = len, cap = 64)
+    }
+}
+
+pub fn _format_f64(val: f64, fmt: str) -> String {
+    unsafe {
+        if fmt.len() == 0 {
+            return String::from_f64(val)
+        }
+        auto *c_fmt# = unsafe alloc [fmt.len() + 4] char as *[char]
+        c_fmt[0] = 37:char // '%'
+        auto i# = 1:usize
+        auto j# = 0:usize
+        loop j < fmt.len() {
+            c_fmt[i] = fmt.buf()[j]
+            i = i + 1
+            j = j + 1
+        }
+        c_fmt[i] = 102:char // 'f'
+        c_fmt[i+1] = 0:char
+        
+        auto *buf# = unsafe alloc [64] char as *[char]
+        libc_sprintf(*buf as *char, *c_fmt as *char, val)
+        
+        libc_free(*c_fmt as *void)
+        
+        auto len = libc_strlen(*buf as *char)
+        return String(*buf = *buf, len = len, cap = 64)
+    }
+}
+
+// ==========================================
+// 终极第一步：大宗师别名大合龙
+// ==========================================
+pub alias string = String
