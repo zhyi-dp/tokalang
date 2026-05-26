@@ -216,11 +216,11 @@
             "patterns": [
                 {
                     "name": "support.type.primitive.toka",
-                    "match": "\\b(i8|u8|i16|u16|i32|u32|i64|u64|f32|f64|bool|void|char|byte|str|nul|Task|Channel|Fn)\\b"
+                    "match": "\\b(i8|u8|i16|u16|i32|u32|i64|u64|f32|f64|bool|void|char|byte|str|string|nul|Task|Channel|Fn)\\b"
                 },
                 {
                     "name": "support.type.core.toka",
-                    "match": "\\b(Option|Result|Vec|String|HashMap|Map|Set|Box|Rc|Arc|Cell|RefCell|Mutex|RwLock)\\b"
+                    "match": "\\b(Option|Result|Vec|HashMap|Map|Set|Box|Rc|Arc|Cell|RefCell|Mutex|RwLock)\\b"
                 },
                 {
                     "name": "entity.name.type.toka",
