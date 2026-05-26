@@ -12,11 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// lib/core/internal/runtime.tk
-import core/types::{usize}
-
 extern fn libc_abort() -> void
 
-pub fn __toka_panic_handler(msg: str) {
+pub fn __toka_panic_handler(_msg: str) {
     libc_abort()
 }

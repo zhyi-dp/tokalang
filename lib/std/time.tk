@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import core/types::{usize, char, Addr}
-import sys/libc::*
-import sys/libc::*
+
 
 import sys/os/time as sys
 import core/traits::{@PartialEq, @PartialOrd}
@@ -99,7 +97,7 @@ impl Duration {
 
     pub fn to_string(self) -> string {
         unsafe {
-            auto buf# = [0:i8; 32]
+            auto buf = [0:i8; 32]
             auto *p = (&buf[0] as Addr) as *char
             if self.secs > 0 {
                 auto ms = self.nanos / 1000000:u32
@@ -152,7 +150,7 @@ impl Instant@PartialOrd {
 impl Instant {
     pub fn now() -> Instant {
         unsafe {
-            auto buf# = [0:i64; 2]
+            auto buf = [0:i64; 2]
             auto tv_addr = &buf[0] as Addr
             if !sys::sys_clock_monotonic(tv_addr) {
                 return Instant(duration_since_boot = Duration::from_secs(0:u64))
@@ -221,7 +219,7 @@ impl SystemTime@PartialOrd {
 impl SystemTime {
     pub fn now() -> SystemTime {
         unsafe {
-            auto buf# = [0:i64; 2]
+            auto buf = [0:i64; 2]
             auto tv_addr = &buf[0] as Addr
             if !sys::sys_clock_realtime(tv_addr) {
                 return SystemTime(duration_since_epoch = Duration::from_secs(0:u64))
@@ -257,11 +255,11 @@ impl SystemTime {
     pub fn to_datetime(self) -> DateTime {
         unsafe {
             auto secs = self.duration_since_epoch.as_secs()
-            auto s_val# = secs as i64
+            auto s_val = secs as i64
             
             // struct tm is usually ~44-56 bytes.
             // Allocate an array of 16 i32s (64 bytes) to safely hold it on the stack.
-            auto tm_buf# = [0:i32; 16]
+            auto tm_buf = [0:i32; 16]
             auto *tm_addr = &tm_buf[0] as *void
             
             auto *tm_ptr = toka_localtime_r(&s_val as *i64, *tm_addr)
@@ -287,9 +285,9 @@ impl SystemTime {
     pub fn to_utc(self) -> DateTime {
         unsafe {
             auto secs = self.duration_since_epoch.as_secs()
-            auto s_val# = secs as i64
+            auto s_val = secs as i64
             
-            auto tm_buf# = [0:i32; 16]
+            auto tm_buf = [0:i32; 16]
             auto *tm_addr = &tm_buf[0] as *void
             
             auto *tm_ptr = toka_gmtime_r(&s_val as *i64, *tm_addr)
@@ -338,7 +336,7 @@ impl DateTime {
     // Basic formatting like "2026-04-23 08:30:00"
     pub fn to_string(self) -> string {
         unsafe {
-            auto buf# = [0:i8; 32]
+            auto buf = [0:i8; 32]
             auto *p = (&buf[0] as Addr) as *char
             libc_snprintf(
                 *p, 32:usize,

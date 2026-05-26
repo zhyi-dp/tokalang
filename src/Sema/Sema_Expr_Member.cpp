@@ -459,6 +459,10 @@ std::shared_ptr<toka::Type> Sema::checkIndexExpr(ArrayIndexExpr *Idx) {
       if (Info->IsMutable()) {
         baseType = baseType->withAttributes(true, baseType->IsNullable);
       }
+      if (m_InLHS) {
+        Info->HasBeenMutated = true;
+      }
+      Info->HasBeenUsed = true;
     } else {
       baseType = checkExpr(Idx->Array.get());
     }

@@ -1,7 +1,5 @@
 // Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
 
-import core/types::{usize, char}
-
 import sys/libc::{libc_snprintf, libc_malloc, libc_free}
 import core/traits::{@encap}
 import std/vec::{Vec}
@@ -29,7 +27,7 @@ impl StringBuilder {
         )
     }
 
-    pub fn with_capacity(cap: i32) -> StringBuilder {
+    pub fn with_capacity(_cap: i32) -> StringBuilder {
         return StringBuilder(
             buffer = string::from("") 
         )
@@ -54,7 +52,7 @@ impl StringBuilder {
 
     pub fn append_u64(self#, v: u64) {
         unsafe {
-             auto *buf# = libc_malloc(32) as *char
+             auto *buf = libc_malloc(32) as *char
              libc_snprintf(*buf, 32, c"%llu", v)
              self.buffer#.push_cstr(*buf)
              libc_free(*buf as *void)

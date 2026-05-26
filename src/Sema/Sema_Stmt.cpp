@@ -198,11 +198,27 @@ void Sema::checkStmt(Stmt *S) {
     if (!isWarningExempt) {
       for (auto const &[name, info] : CurrentScope->Symbols) {
         if (info.IsDeclaredMutable && !info.HasBeenMutated) {
-          DiagnosticEngine::report(info.DeclLoc.isValid() ? info.DeclLoc : Block->Loc, DiagID::WARN_MUTABLE_VAR_NEVER_MUTATED, name);
+          if (name != "self") {
+            std::string stripped = name;
+            size_t idx = 0;
+            while (idx < stripped.size() && (stripped[idx] == '*' || stripped[idx] == '&' || stripped[idx] == '^' || stripped[idx] == '~' || stripped[idx] == '#')) {
+              idx++;
+            }
+            if (stripped.empty() || idx >= stripped.size() || stripped[idx] != '_') {
+              DiagnosticEngine::report(info.DeclLoc.isValid() ? info.DeclLoc : Block->Loc, DiagID::WARN_MUTABLE_VAR_NEVER_MUTATED, name);
+            }
+          }
         }
         if (info.IsDeclaredVariable && !info.HasBeenUsed) {
-          if (name != "self" && (name.empty() || name[0] != '_')) {
-            DiagnosticEngine::report(info.DeclLoc.isValid() ? info.DeclLoc : Block->Loc, DiagID::WARN_UNUSED_VARIABLE, name);
+          if (name != "self") {
+            std::string stripped = name;
+            size_t idx = 0;
+            while (idx < stripped.size() && (stripped[idx] == '*' || stripped[idx] == '&' || stripped[idx] == '^' || stripped[idx] == '~' || stripped[idx] == '#')) {
+              idx++;
+            }
+            if (stripped.empty() || idx >= stripped.size() || stripped[idx] != '_') {
+              DiagnosticEngine::report(info.DeclLoc.isValid() ? info.DeclLoc : Block->Loc, DiagID::WARN_UNUSED_VARIABLE, name);
+            }
           }
         }
       }

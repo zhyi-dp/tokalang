@@ -359,6 +359,7 @@ void Sema::registerGlobals(Module &M) {
           for (auto const &[name, sh] : target->Shapes) {
             ShapeMap[name] =
                 sh; // Still needs to be in global maps for resolution
+            ShapeImportMap[name] = Imp.get(); // [NEW]
             if (Imp->IsPub) {
               ms.Shapes[name] = sh;
             }
@@ -366,6 +367,7 @@ void Sema::registerGlobals(Module &M) {
           // Import all aliases
           for (auto const &[name, ai] : target->TypeAliases) {
             TypeAliasMap[name] = ai;
+            ShapeImportMap[name] = Imp.get(); // [NEW]
             if (Imp->IsPub) {
               ms.TypeAliases[name] = ai;
             }
@@ -373,6 +375,7 @@ void Sema::registerGlobals(Module &M) {
           // Import all traits
           for (auto const &[name, trait] : target->Traits) {
             TraitMap[name] = trait;
+            ShapeImportMap[name] = Imp.get(); // [NEW]
             if (Imp->IsPub) {
               ms.Traits[name] = trait;
             }
@@ -501,18 +504,21 @@ void Sema::registerGlobals(Module &M) {
             found = true;
           } else if (target->Shapes.count(item.Symbol)) {
             ShapeMap[name] = target->Shapes[item.Symbol];
+            ShapeImportMap[name] = Imp.get(); // [NEW]
             if (Imp->IsPub) {
               ms.Shapes[name] = target->Shapes[item.Symbol];
             }
             found = true;
           } else if (target->TypeAliases.count(item.Symbol)) {
             TypeAliasMap[name] = target->TypeAliases[item.Symbol];
+            ShapeImportMap[name] = Imp.get(); // [NEW]
             if (Imp->IsPub) {
               ms.TypeAliases[name] = target->TypeAliases[item.Symbol];
             }
             found = true;
           } else if (target->Traits.count(lookupSym)) {
             TraitMap[name] = target->Traits[lookupSym];
+            ShapeImportMap[name] = Imp.get(); // [NEW]
             if (Imp->IsPub) {
               ms.Traits[name] = target->Traits[lookupSym];
             }
@@ -728,6 +734,9 @@ void Sema::registerImpl(ImplDecl *Impl) {
   if (!Impl->TraitName.empty()) {
     if (TraitMap.count(Impl->TraitName)) {
       TraitDecl *TD = TraitMap[Impl->TraitName];
+      if (ShapeImportMap.count(Impl->TraitName)) {
+        const_cast<ImportDecl*>(ShapeImportMap[Impl->TraitName])->HasBeenUsed = true;
+      }
       for (auto &Method : TD->Methods) {
         if (implemented.count(Method->Name)) {
           // Verify Signature Match (Pub/Priv)
@@ -949,12 +958,26 @@ void Sema::checkFunction(FunctionDecl *Fn) {
     for (auto const &[name, info] : CurrentScope->Symbols) {
       if (info.IsDeclaredMutable && !info.HasBeenMutated) {
         if (name != "self") {
-          DiagnosticEngine::report(info.DeclLoc.isValid() ? info.DeclLoc : Fn->Loc, DiagID::WARN_MUTABLE_VAR_NEVER_MUTATED, name);
+          std::string stripped = name;
+          size_t idx = 0;
+          while (idx < stripped.size() && (stripped[idx] == '*' || stripped[idx] == '&' || stripped[idx] == '^' || stripped[idx] == '~' || stripped[idx] == '#')) {
+            idx++;
+          }
+          if (stripped.empty() || idx >= stripped.size() || stripped[idx] != '_') {
+            DiagnosticEngine::report(info.DeclLoc.isValid() ? info.DeclLoc : Fn->Loc, DiagID::WARN_MUTABLE_VAR_NEVER_MUTATED, name);
+          }
         }
       }
       if (info.IsDeclaredVariable && !info.HasBeenUsed) {
-        if (name != "self" && (name.empty() || name[0] != '_')) {
-          DiagnosticEngine::report(info.DeclLoc.isValid() ? info.DeclLoc : Fn->Loc, DiagID::WARN_UNUSED_VARIABLE, name);
+        if (name != "self") {
+          std::string stripped = name;
+          size_t idx = 0;
+          while (idx < stripped.size() && (stripped[idx] == '*' || stripped[idx] == '&' || stripped[idx] == '^' || stripped[idx] == '~' || stripped[idx] == '#')) {
+            idx++;
+          }
+          if (stripped.empty() || idx >= stripped.size() || stripped[idx] != '_') {
+            DiagnosticEngine::report(info.DeclLoc.isValid() ? info.DeclLoc : Fn->Loc, DiagID::WARN_UNUSED_VARIABLE, name);
+          }
         }
       }
     }

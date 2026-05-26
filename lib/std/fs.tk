@@ -13,7 +13,6 @@
 // limitations under the License.
 import sys/os/fs as sys
 
-import core/types::{Addr, ADDR0}
 import std/io::{File, IoStringResult, println}
 import core/result::{Result}
 import core/option::{Option}

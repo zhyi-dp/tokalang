@@ -83,8 +83,8 @@ impl<'T: @Send> Sender<'T> {
             assert(false, "Mutex lock failed during Sender clone")
             return Sender<'T>(~channel = self.~channel)
         }
-        auto lguard# = lguard_res.unwrap()
-        auto *q# = lguard.get_ref()
+        auto lguard = lguard_res.unwrap()
+        auto *q = lguard.get_ref()
         q.senders = q.senders + 1
         return Sender<'T>(~channel = self.~channel)
     }
@@ -92,7 +92,7 @@ impl<'T: @Send> Sender<'T> {
     pub fn send(self#, val: cede 'T) -> Result<(), Error> {
         auto lguard = self.channel.state.lock()!
         
-        auto *q# = lguard.get_ref()
+        auto *q = lguard.get_ref()
         if q.closed {
             return Result<(), Error>::Err(Error::new(1:i32, string::from("Send on closed channel")))
         }
@@ -116,15 +116,15 @@ impl<'T: @Send> Sender<'T> {
 impl<'T: @Send> Receiver<'T> {
     pub fn get_raw_addr(self#) -> Addr {
         unsafe {
-            auto *mut_ptr# = ((*self) as *Receiver<'T>)
+            auto *mut_ptr = ((*self) as *Receiver<'T>)
             return *mut_ptr as Addr
         }
     }
     
     pub fn recv(self#) -> Result<Option<'T>, Error> {
-        auto lguard# = self.channel.state.lock()!
+        auto lguard = self.channel.state.lock()!
 
-        auto *q# = lguard.get_ref()
+        auto *q = lguard.get_ref()
         loop q.queue.len() == 0 {
             if q.closed && q.queue.len() == 0 {
                 return Result<Option<'T>, Error>::Ok(Option<'T>::None())
@@ -140,8 +140,8 @@ impl<'T: @Send> Receiver<'T> {
     }
 
     pub fn try_recv(self#) -> Result<Option<Option<'T> >, Error> {
-        auto lguard# = self.channel.state.lock()!
-        auto *q# = lguard.get_ref()
+        auto lguard = self.channel.state.lock()!
+        auto *q = lguard.get_ref()
         if q.queue.len() > 0 {
             auto item = q.queue#.pop()
             if q.capacity >= 0 {
@@ -163,8 +163,8 @@ impl<'T: @Send> Sender<'T>@encap {
         if lguard_res.is_err() {
             return
         }
-        auto lguard# = lguard_res.unwrap()
-        auto *q# = lguard.get_ref()
+        auto lguard = lguard_res.unwrap()
+        auto *q = lguard.get_ref()
         q.senders = q.senders - 1
         if q.senders == 0 {
             q.closed = true
@@ -177,8 +177,8 @@ impl<'T: @Send> Sender<'T>@encap {
         if lguard_res.is_err() {
             return Sender<'T>(~channel = self.~channel)
         }
-        auto lguard# = lguard_res.unwrap()
-        auto *q# = lguard.get_ref()
+        auto lguard = lguard_res.unwrap()
+        auto *q = lguard.get_ref()
         q.senders = q.senders + 1
         return Sender<'T>(~channel = self.~channel)
     }
@@ -190,8 +190,8 @@ impl<'T: @Send> Receiver<'T>@encap {
         if lguard_res.is_err() {
             return
         }
-        auto lguard# = lguard_res.unwrap()
-        auto *q# = lguard.get_ref()
+        auto lguard = lguard_res.unwrap()
+        auto *q = lguard.get_ref()
         q.receivers = q.receivers - 1
         if q.receivers == 0 {
             q.closed = true

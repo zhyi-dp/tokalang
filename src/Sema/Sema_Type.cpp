@@ -239,6 +239,9 @@ std::shared_ptr<toka::Type> Sema::resolveType(std::shared_ptr<toka::Type> type,
   }
 
   if (auto shape = std::dynamic_pointer_cast<toka::ShapeType>(type)) {
+    if (ShapeImportMap.count(shape->Name)) {
+      const_cast<ImportDecl*>(ShapeImportMap[shape->Name])->HasBeenUsed = true;
+    }
     if (!shape->Name.empty() && shape->Name.front() == '(' && shape->Name.back() == ')') {
       std::string nameStr = shape->Name;
       if (ParenthesizedRecordTypes.count(nameStr)) {

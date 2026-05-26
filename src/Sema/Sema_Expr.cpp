@@ -62,14 +62,35 @@ static void collectVariables(ASTNode *Node, std::set<std::string> &Vars) {
   }
 }
 
+static bool isLValueRef(ASTNode *Node, const std::string &VarName) {
+  if (!Node) return false;
+  if (auto *VE = dynamic_cast<VariableExpr *>(Node)) {
+    return VE->Name == VarName;
+  }
+  if (auto *Memb = dynamic_cast<MemberExpr *>(Node)) {
+    return isLValueRef(Memb->Object.get(), VarName);
+  }
+  if (auto *Idx = dynamic_cast<ArrayIndexExpr *>(Node)) {
+    return isLValueRef(Idx->Array.get(), VarName);
+  }
+  if (auto *Cast = dynamic_cast<CastExpr *>(Node)) {
+    return isLValueRef(Cast->Expression.get(), VarName);
+  }
+  if (auto *Unary = dynamic_cast<UnaryExpr *>(Node)) {
+    return isLValueRef(Unary->RHS.get(), VarName);
+  }
+  return false;
+}
+
 static bool isVariableMutated(ASTNode *Node, const std::string &VarName) {
   if (!Node) return false;
 
   if (auto *Bin = dynamic_cast<BinaryExpr *>(Node)) {
-    if (Bin->Op == "=") {
-      if (auto *VE = dynamic_cast<VariableExpr *>(Bin->LHS.get())) {
-        if (VE->Name == VarName) return true;
-      }
+    if (Bin->Op == "=" || Bin->Op == "+=" || Bin->Op == "-=" ||
+        Bin->Op == "*=" || Bin->Op == "/=" || Bin->Op == "%=" ||
+        Bin->Op == "&=" || Bin->Op == "|=" || Bin->Op == "^=" ||
+        Bin->Op == "<<=" || Bin->Op == ">>=") {
+      if (isLValueRef(Bin->LHS.get(), VarName)) return true;
     }
     return isVariableMutated(Bin->LHS.get(), VarName) || isVariableMutated(Bin->RHS.get(), VarName);
   }
@@ -78,9 +99,7 @@ static bool isVariableMutated(ASTNode *Node, const std::string &VarName) {
     if (Unary->Op == TokenType::PlusPlus || Unary->Op == TokenType::MinusMinus ||
         Unary->Op == TokenType::Caret || Unary->Op == TokenType::Ampersand ||
         Unary->Op == TokenType::Star || Unary->Op == TokenType::Tilde) {
-      if (auto *VE = dynamic_cast<VariableExpr *>(Unary->RHS.get())) {
-        if (VE->Name == VarName) return true;
-      }
+      if (isLValueRef(Unary->RHS.get(), VarName)) return true;
     }
     return isVariableMutated(Unary->RHS.get(), VarName);
   }
@@ -1524,7 +1543,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
               if (firstCheckableVar.empty()) {
                 firstCheckableVar = varName;
               }
-              if (isVariableMutated(le->Body.get(), varName)) {
+              if (isVariableMutated(le->Body.get(), varName) || isVariableMutated(le->Condition.get(), varName)) {
                 anyMutated = true;
                 break;
               }

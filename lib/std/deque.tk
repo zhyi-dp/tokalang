@@ -1,8 +1,3 @@
-import core/types::{usize}
-import core/traits::{@encap}
-import sys/libc::*
-import core/option::{Option}
-
 pub shape VecDeque<'T> (
     nul *#buf#: ['T] = null as *['T],
     cap#: usize = 0,

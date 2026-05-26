@@ -9,7 +9,6 @@ import sys/libc::{libc_usleep}
 import sys/sync as sys_sync
 import std/time::{Instant}
 import core/task::{TaskHandle, __toka_coro_resume, __toka_coro_done, __toka_coro_destroy}
-import core/types::{Addr}
 import sys/os/net as sysnet
 
 pub fn current_time_ms() -> i64 {
@@ -231,8 +230,11 @@ pub fn __toka_spawn_blocking(*task: void) {
             }
             d_i += 1
         }
-        loop g_detached_tasks.len() > keep_d {
+        auto pop_count = g_detached_tasks.len() - keep_d
+        auto p_i# = 0:usize
+        loop p_i < pop_count {
             g_detached_tasks#.pop()
+            p_i += 1
         }
         unlock_queue()
         
@@ -258,7 +260,7 @@ pub fn __toka_spawn_blocking(*task: void) {
         println("  [scheduler] Entering reactor_wait_impl with timeout: {}", timeout_ms)
         // Block on the reactor
         unsafe {
-            auto events_buf# = [0:Addr; 64]
+            auto events_buf = [0:Addr; 64]
             auto *events_ptr = &events_buf[0] as *Addr
             
             auto n = sysnet::reactor_wait_impl(g_reactor_fd, timeout_ms, *events_ptr, 64)

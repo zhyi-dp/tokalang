@@ -147,8 +147,8 @@ impl<'T> Vec<'T> {
                 return Vec<'T>(*buf=null, len=0, cap=0)
             }
             // alloc array syntax
-            auto *new_buf# = unsafe alloc [capacity] 'T
-            return Vec<'T>(*buf=*new_buf, len=0, cap=capacity)
+            auto *_new_buf# = unsafe alloc [capacity] 'T
+            return Vec<'T>(*buf=*_new_buf, len=0, cap=capacity)
         }
     }
 
@@ -273,10 +273,10 @@ impl<'T> Vec<'T> {
             if new_cap == 0 {
                 // Initial allocation case
                 auto cap = 4 : usize
-                auto *new_buf# = unsafe alloc [4] 'T
+                auto *_new_buf# = unsafe alloc [4] 'T
                 
                 // Fields
-                self.*buf = *new_buf
+                self.*buf = *_new_buf
                 self.cap = cap
             } else {
                 // Growth case

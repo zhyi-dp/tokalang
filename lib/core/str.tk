@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
 import core/types::*
 import core/option::{Option}
 import core/result::{Result}
@@ -80,7 +81,7 @@ impl ViewStrSplitIterator {
     pub fn raw_ptr(self) -> *char {
         if self.len == 0 { return null as *char }
         unsafe {
-            auto cpy# = self.clone()
+            auto cpy = self.clone()
             auto ret_val: usize = 0
             copy_memory(&ret_val as Addr, &cpy as Addr, 8)
             return ret_val as *char
@@ -99,7 +100,7 @@ impl ViewStrSplitIterator {
             unsafe {
                 auto b_addr = self.raw_ptr() as Addr
                 auto ptr_addr = b_addr + self.pos
-                auto ret# = str(&buf = self.&buf, len = remaining)
+                auto ret = str(&buf = self.&buf, len = remaining)
                 copy_memory(&ret as Addr, &ptr_addr as Addr, 8)
                 return Option<str>::Some(ret)
             }
@@ -141,7 +142,7 @@ impl ViewStrSplitIterator {
                 // Construct the segment
                 auto b_addr = self.raw_ptr() as Addr
                 auto ptr_addr = b_addr + start
-                auto ret# = str(&buf = self.&buf, len = segment_len)
+                auto ret = str(&buf = self.&buf, len = segment_len)
                 copy_memory(&ret as Addr, &ptr_addr as Addr, 8)
                 return Option<str>::Some(ret)
             } else {
@@ -150,7 +151,7 @@ impl ViewStrSplitIterator {
                 auto segment_len = self.len - start
                 auto b_addr = self.raw_ptr() as Addr
                 auto ptr_addr = b_addr + start
-                auto ret# = str(&buf = self.&buf, len = segment_len)
+                auto ret = str(&buf = self.&buf, len = segment_len)
                 copy_memory(&ret as Addr, &ptr_addr as Addr, 8)
                 return Option<str>::Some(ret)
             }
@@ -368,7 +369,7 @@ impl str@StringOps {
             auto ptr_addr = b_addr + pos
             
             // 1. Construct safe view using original reference to satisfy PAL
-            auto ret# = str(&buf = self.&buf, len = actual_len)
+            auto ret = str(&buf = self.&buf, len = actual_len)
             
             // 2. Overwrite the internal array pointer (offset 0) unconditionally via FFI
             // This safely bypasses Toka's raw pointer immutability laws (E0406/E0443)
@@ -414,7 +415,7 @@ impl str@StringOps {
             
             auto b_addr = self.raw_ptr() as Addr
             auto ptr_addr = b_addr + start
-            auto ret# = str(&buf = self.&buf, len = self.len - start)
+            auto ret = str(&buf = self.&buf, len = self.len - start)
             copy_memory(&ret as Addr, &ptr_addr as Addr, 8)
             return ret
         }
@@ -445,7 +446,7 @@ impl str@StringOps {
 
     pub fn lines(self) -> ViewStrLinesIterator <- self {
         auto nl_str = _internal_str_cast("\n")
-        auto s_iter# = self.split(nl_str)
+        auto s_iter = self.split(nl_str)
         return ViewStrLinesIterator(split_iter = s_iter)
     }
 
@@ -553,7 +554,7 @@ impl str {
     pub fn raw_ptr(self) -> *char {
         if self.len == 0 { return null as *char }
         unsafe {
-            auto cpy# = self.clone()
+            auto cpy = self.clone()
             auto ret_val: usize = 0
             copy_memory(&ret_val as Addr, &cpy as Addr, 8)
             return ret_val as *char
@@ -566,8 +567,8 @@ impl str {
 
     pub fn bytes(self) -> bytes {
         unsafe {
-            auto cpy# = self.clone()
-            auto ret# = bytes(&buf = null as *[byte] as &[byte], len = self.len)
+            auto cpy = self.clone()
+            auto ret = bytes(&buf = null as *[byte] as &[byte], len = self.len)
             copy_memory(&ret as Addr, &cpy as Addr, 16)
             return ret
         }
@@ -655,7 +656,7 @@ impl bytes {
     pub fn try_to_str(self) -> Result<str, UnicodeError> {
         if self.len == 0 {
             unsafe {
-                auto ret# = str(&buf = null as *[char] as &[char], len = 0)
+                auto ret = str(&buf = null as *[char] as &[char], len = 0)
                 return Result<str, UnicodeError>::Ok(ret)
             }
         }
@@ -675,8 +676,8 @@ impl bytes {
             }
             
             // Validation passed! Zero-cost 16-byte bitcast from bytes to str
-            auto cpy# = self.clone()
-            auto ret# = str(&buf = null as *[char] as &[char], len = self.len)
+            auto cpy = self.clone()
+            auto ret = str(&buf = null as *[char] as &[char], len = self.len)
             copy_memory(&ret as Addr, &cpy as Addr, 16)
             return Result<str, UnicodeError>::Ok(ret)
         }

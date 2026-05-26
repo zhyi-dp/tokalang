@@ -1,5 +1,4 @@
 // Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
-import core/types::{char, usize, Addr, ADDR0}
 import sys/libc::*
 import sys/os/abi::*
 
@@ -9,7 +8,7 @@ pub fn get_last_error() -> i32 {
     unsafe {
         auto addr = __errno_location()
         if addr == 0:Addr { return 0 }
-        auto *val# = addr as *i32
+        auto *val = addr as *i32
         return val
     }
 }
@@ -38,26 +37,26 @@ pub fn net_setsockopt_reuse_impl(fd: i32) -> i32 {
 
 fn fill_sockaddr_in(*addr_buf: char, ip: usize, port: i32) -> bool {
     unsafe {
-        auto *base_ptr# = *addr_buf
+        auto *base_ptr = *addr_buf
         
         // Offset 0: family = 2 (u16 on Linux)
-        auto *p_family# = *base_ptr as *u16
-        p_family = 2:u16
+        auto *_p_family# = *base_ptr as *u16
+        _p_family = 2:u16
         
         // Offset 2: port (u16)
         auto nport: u16 = libc_htons(port as u16)
-        auto *p_port# = (*base_ptr as usize + 2) as *u16
-        p_port = nport
+        auto *_p_port# = (*base_ptr as usize + 2) as *u16
+        _p_port = nport
         
         // Offset 4: addr (u32)
-        auto *p_addr# = (*base_ptr as usize + 4) as *u32
-        p_addr = ip as u32
+        auto *_p_addr# = (*base_ptr as usize + 4) as *u32
+        _p_addr = ip as u32
         
         // Offset 8..16: Zero
         auto i#: usize = 8
         loop i < 16 {
-            auto *p_z# = (*base_ptr as usize + i) as *char
-            p_z = 0 as char
+            auto *_p_z# = (*base_ptr as usize + i) as *char
+            _p_z = 0 as char
             i += 1
         }
         return true
@@ -68,7 +67,7 @@ pub fn get_errno_impl() -> i32 {
     unsafe {
         auto addr = __errno_location()
         if addr == 0:Addr { return 0 }
-        auto *val# = addr as *i32
+        auto *val = addr as *i32
         return val
     }
 }
@@ -78,9 +77,9 @@ pub fn net_getsockopt_error_impl(fd: i32) -> i32 {
         auto pval = unsafe alloc [4] byte as Addr
         auto pvlen = unsafe alloc [4] byte as Addr
         auto *val# = pval as *i32
-        auto *vlen# = pvlen as *u32
+        auto *_vlen# = pvlen as *u32
         val = 0
-        vlen = 4:u32
+        _vlen = 4:u32
         auto res = getsockopt(fd, 1, 4, pval as *void, pvlen as *u32)
         auto err = val
         libc_free(pval as *void)
@@ -93,7 +92,7 @@ pub fn net_getsockopt_error_impl(fd: i32) -> i32 {
 pub fn net_bind_impl(fd: i32, host: usize, port: i32) -> i32 {
     unsafe {
         // Allocate 32 bytes to be safe
-        auto *addr_buf# = unsafe alloc [32] byte as *char
+        auto *addr_buf = unsafe alloc [32] byte as *char
         
         if *addr_buf as usize == 0 {
              return -1
@@ -120,7 +119,7 @@ pub fn net_listen_impl(fd: i32) -> i32 {
 
 pub fn net_connect_impl(fd: i32, host: usize, port: i32) -> i32 {
     unsafe {
-        auto *addr_buf# = unsafe alloc [32] byte as *char
+        auto *addr_buf = unsafe alloc [32] byte as *char
         
         if *addr_buf as usize == 0 {
              return -2
@@ -143,7 +142,7 @@ pub fn net_accept_impl(fd: i32) -> i32 {
         // We ignore the peer address for now in this impl
         auto *addr_len_ptr# = unsafe alloc [4] byte as *[u32]
         addr_len_ptr[0] = 16
-        auto *addr_buf# = unsafe alloc [16] byte as *void
+        auto *addr_buf = unsafe alloc [16] byte as *void
         
         auto res = libc_accept(fd, *addr_buf, *addr_len_ptr as *u32)
         
@@ -175,7 +174,7 @@ pub fn net_write_impl(fd: i32, *buf: u8, len: usize) -> i64 {
 
 pub fn net_sendto_impl(fd: i32, *buf: u8, len: usize, host: usize, port: i32) -> i64 {
     unsafe {
-        auto *addr_buf# = unsafe alloc [32] byte as *char
+        auto *addr_buf = unsafe alloc [32] byte as *char
         if *addr_buf as usize == 0 { return -1 }
         if !fill_sockaddr_in(*addr_buf, host, port) {
             libc_free(*addr_buf as *void)
@@ -189,7 +188,7 @@ pub fn net_sendto_impl(fd: i32, *buf: u8, len: usize, host: usize, port: i32) ->
 
 pub fn net_recvfrom_impl(fd: i32, *buf: u8, len: usize, *out_host: usize, *out_port: i32) -> i64 {
     unsafe {
-        auto *addr_buf# = unsafe alloc [32] byte as *char
+        auto *addr_buf = unsafe alloc [32] byte as *char
         auto *addrlen# = unsafe alloc [4] byte as *u32
         addrlen = 16:u32
         
@@ -197,8 +196,8 @@ pub fn net_recvfrom_impl(fd: i32, *buf: u8, len: usize, *out_host: usize, *out_p
         if res >= 0:i64 {
             auto *p0 = (*addr_buf as usize + 2) as *u8
             auto *p1 = (*addr_buf as usize + 3) as *u8
-            auto *pp# = *out_port
-            pp = ((p0 as i32) bshl 8) bor (p1 as i32)
+            auto *_pp# = *out_port
+            _pp = ((p0 as i32) bshl 8) bor (p1 as i32)
             
             auto *a = (*addr_buf as usize + 4) as *u8
             auto *b = (*addr_buf as usize + 5) as *u8
@@ -208,8 +207,8 @@ pub fn net_recvfrom_impl(fd: i32, *buf: u8, len: usize, *out_host: usize, *out_p
             auto bu = b as usize
             auto cu = c as usize
             auto du = d as usize
-            auto *ph# = *out_host
-            ph = au bor (bu bshl 8) bor (cu bshl 16) bor (du bshl 24)
+            auto *_ph# = *out_host
+            _ph = au bor (bu bshl 8) bor (cu bshl 16) bor (du bshl 24)
         }
         libc_free(*addr_buf as *void)
         libc_free(*addrlen as *void)
@@ -239,7 +238,7 @@ pub fn reactor_create_impl() -> i32 {
 
 pub fn reactor_add_read_impl(reactor_fd: i32, fd: i32, coro_handle: Addr) -> bool {
     unsafe {
-        auto *ev# = unsafe alloc [12] byte as *char
+        auto *ev = unsafe alloc [12] byte as *char
         if *ev as usize == 0 {
              return false
         }
@@ -247,12 +246,12 @@ pub fn reactor_add_read_impl(reactor_fd: i32, fd: i32, coro_handle: Addr) -> boo
         auto base = *ev as usize
         
         // events = EPOLLIN (1) | EPOLLONESHOT (1073741824) = 1073741825:u32
-        auto *p_events# = base as *u32
-        p_events = 1073741825:u32
+        auto *_p_events# = base as *u32
+        _p_events = 1073741825:u32
         
         // data.ptr = coro_handle
-        auto *p_data# = (base + 4) as *Addr
-        p_data = coro_handle  
+        auto *_p_data# = (base + 4) as *Addr
+        _p_data = coro_handle  
         
         // 1 = EPOLL_CTL_ADD, 3 = EPOLL_CTL_MOD
         auto res# = epoll_ctl(reactor_fd, 1, fd, *ev as *void)
@@ -267,7 +266,7 @@ pub fn reactor_add_read_impl(reactor_fd: i32, fd: i32, coro_handle: Addr) -> boo
 
 pub fn reactor_add_write_impl(reactor_fd: i32, fd: i32, coro_handle: Addr) -> bool {
     unsafe {
-        auto *ev# = unsafe alloc [12] byte as *char
+        auto *ev = unsafe alloc [12] byte as *char
         if *ev as usize == 0 {
              return false
         }
@@ -275,12 +274,12 @@ pub fn reactor_add_write_impl(reactor_fd: i32, fd: i32, coro_handle: Addr) -> bo
         auto base = *ev as usize
         
         // events = EPOLLOUT (4) | EPOLLONESHOT (1073741824) = 1073741828:u32
-        auto *p_events# = base as *u32
-        p_events = 1073741828:u32
+        auto *_p_events# = base as *u32
+        _p_events = 1073741828:u32
         
         // data.ptr = coro_handle
-        auto *p_data# = (base + 4) as *Addr
-        p_data = coro_handle  
+        auto *_p_data# = (base + 4) as *Addr
+        _p_data = coro_handle  
         
         // 1 = EPOLL_CTL_ADD, 3 = EPOLL_CTL_MOD
         auto res# = epoll_ctl(reactor_fd, 1, fd, *ev as *void)
@@ -295,7 +294,7 @@ pub fn reactor_add_write_impl(reactor_fd: i32, fd: i32, coro_handle: Addr) -> bo
 
 pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, max: i32) -> i32 {
     unsafe {
-        auto *events# = unsafe alloc [12 * max] byte as *void
+        auto *events = unsafe alloc [12 * max] byte as *void
         if *events as usize == 0 {
             return -1
         }
@@ -308,8 +307,8 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
             auto ev_base = *events as usize + ((12 * i) as usize)
             auto *p_data = (ev_base + 4) as *Addr
             auto h = p_data // value
-            auto *dest# = (*out_events as usize + ((8 * i) as usize)) as *Addr
-            dest = h
+            auto *_dest# = (*out_events as usize + ((8 * i) as usize)) as *Addr
+            _dest = h
             i += 1
         }
         

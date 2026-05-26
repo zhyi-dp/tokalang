@@ -19,7 +19,7 @@ impl<'T: @Send> Mutex<'T> {
     
     pub fn get_raw_addr(self#) -> Addr {
         unsafe {
-            auto *mut_ptr# = ((*self) as *Mutex<'T>)
+            auto *mut_ptr = ((*self) as *Mutex<'T>)
             return *mut_ptr as Addr
         }
     }
@@ -51,7 +51,7 @@ impl<'T: @Send> Mutex<'T> {
             }
             
             auto temp_h: Addr = self.handle
-            auto *mut_ptr# = ((*self) as *Mutex<'T>)
+            auto *mut_ptr = ((*self) as *Mutex<'T>)
             
             return Result<MutexLock<'T>, Error>::Ok(MutexLock<'T>(
                 handle = temp_h,
@@ -147,7 +147,7 @@ impl<'T: {@Send, @Sync}> RwMutex<'T> {
             }
             
             auto temp_h: Addr = self.handle
-            auto *mut_ptr# = ((*self) as *RwMutex<'T>)
+            auto *mut_ptr = ((*self) as *RwMutex<'T>)
             
             return Result<RwReadLock<'T>, Error>::Ok(RwReadLock<'T>(
                 handle = temp_h,
@@ -168,7 +168,7 @@ impl<'T: {@Send, @Sync}> RwMutex<'T> {
             }
             
             auto temp_h: Addr = self.handle
-            auto *mut_ptr# = ((*self) as *RwMutex<'T>)
+            auto *mut_ptr = ((*self) as *RwMutex<'T>)
             
             return Result<RwWriteLock<'T>, Error>::Ok(RwWriteLock<'T>(
                 handle = temp_h,

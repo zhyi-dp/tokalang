@@ -1,5 +1,3 @@
-import core/option::libc_exit
-
 
 
 // The Toka compiler natively supports Deep Move / Cede semantics for Resources

@@ -245,6 +245,7 @@ private:
       GlobalFunctions; // All functions across all modules
   std::map<std::string, ExternDecl *> ExternMap;
   std::map<std::string, ShapeDecl *> ShapeMap;
+  std::map<std::string, const ImportDecl*> ShapeImportMap; // [NEW] Track which ImportDecl brought in a shape/type
   struct AliasInfo {
     std::string Target;
     bool IsStrong;

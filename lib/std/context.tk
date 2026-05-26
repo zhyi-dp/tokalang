@@ -48,7 +48,7 @@ impl BackgroundContext@Context {
         return Option<Receiver<bool>>::None()
     }
 
-    pub fn value(self, key: string) -> Option<string> {
+    pub fn value(self, _key: string) -> Option<string> {
         return Option<string>::None()
     }
 }

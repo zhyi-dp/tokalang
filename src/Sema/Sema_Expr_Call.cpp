@@ -147,9 +147,14 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
       if (CallName == "std::io::println" || CallName == "std::io::print") {
           visible = true;
       } else {
-          SymbolInfo val;
-          if (CurrentScope->lookup(CallName, val)) {
+          SymbolInfo *symPtr = nullptr;
+          std::string actualCallName = CallName;
+          if (CurrentScope->findVariableWithDeref(CallName, symPtr, actualCallName)) {
               visible = true;
+              symPtr->HasBeenUsed = true;
+              if (symPtr->ImportingDecl) {
+                  const_cast<ImportDecl*>(symPtr->ImportingDecl)->HasBeenUsed = true;
+              }
           }
       }
 
@@ -258,9 +263,15 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
       visible = (CallName == "std::io::println_legacy" || CallName == "std::io::print_legacy" || 
                  CallName == "println_legacy" || CallName == "print_legacy");
       if (!visible) {
-        SymbolInfo val;
-        if (CurrentScope->lookup(CallName, val))
-          visible = true;
+          SymbolInfo *symPtr = nullptr;
+          std::string actualCallName = CallName;
+          if (CurrentScope->findVariableWithDeref(CallName, symPtr, actualCallName)) {
+              visible = true;
+              symPtr->HasBeenUsed = true;
+              if (symPtr->ImportingDecl) {
+                  const_cast<ImportDecl*>(symPtr->ImportingDecl)->HasBeenUsed = true;
+              }
+          }
       }
     }
     if (!visible) {
