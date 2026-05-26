@@ -125,7 +125,7 @@ pub fn opendir_impl(path: Addr) -> Addr {
         // FindFirstFile needs a wildcard like \*
         auto search_path# = string::from(path as *char)
         if !search_path.ends_with("/") && !search_path.ends_with("\\") {
-            search_path#.push_str(c"/")
+            search_path#.push_str("/")
         }
         auto star = string::from("*")
         search_path#.push_str(star.as_str())

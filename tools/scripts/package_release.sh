@@ -42,16 +42,31 @@ rm -rf "${PACKAGE_DIR}"
 mkdir -p "${PACKAGE_DIR}/bin"
 mkdir -p "${PACKAGE_DIR}/lib"
 
-# Copy binaries
-if [ -f build/bin/tokac ] || [ -f build/bin/tokac.exe ]; then
-    cp -a build/bin/toka build/bin/toka.exe "${PACKAGE_DIR}/bin/" 2>/dev/null || true
-    cp -a build/bin/tokac build/bin/tokac.exe "${PACKAGE_DIR}/bin/" 2>/dev/null || true
-    cp -a build/bin/tokafmt build/bin/tokafmt.exe "${PACKAGE_DIR}/bin/" 2>/dev/null || true
-    cp -a build/bin/tokalsp build/bin/tokalsp.exe "${PACKAGE_DIR}/bin/" 2>/dev/null || true
+# Verify and copy binaries
+MISSING_BINARIES=0
+EXPECTED_BINS=()
+
+if [ "$OS" = "windows" ]; then
+    EXPECTED_BINS=("tokac.exe" "toka.exe" "tokafmt.exe" "tokalsp.exe")
 else
-    echo "Error: tokac binary not found in build/bin/. Please build the compiler first."
+    EXPECTED_BINS=("tokac" "toka" "tokafmt" "tokalsp")
+fi
+
+for bin in "${EXPECTED_BINS[@]}"; do
+    if [ ! -f "build/bin/${bin}" ]; then
+        echo "❌ Error: Required binary 'build/bin/${bin}' not found!"
+        MISSING_BINARIES=1
+    fi
+done
+
+if [ "$MISSING_BINARIES" -ne 0 ]; then
+    echo "❌ Error: Packaging aborted due to missing core binaries."
     exit 1
 fi
+
+for bin in "${EXPECTED_BINS[@]}"; do
+    cp -a "build/bin/${bin}" "${PACKAGE_DIR}/bin/"
+done
 
 # Copy standard library
 cp -a lib/* "${PACKAGE_DIR}/lib/"

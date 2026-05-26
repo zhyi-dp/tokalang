@@ -127,6 +127,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: msys2 {0}
         run: |
+          set -e
           mkdir build && cd build
           # Use Ninja for better stability on Windows CI
           cmake .. -G "Ninja" -DCMAKE_BUILD_TYPE=Release
@@ -174,7 +175,6 @@ jobs:
           ./bin/tokac.exe -I ../lib -I ../tools/toka ../tools/toka/src/main.tk -o ./bin/toka.exe -O3
           ./bin/tokac.exe -I ../lib -I ../tools/tokafmt ../tools/tokafmt/src/main.tk -o ./bin/tokafmt.exe -O3
           ./bin/tokac.exe -I ../lib -I ../tools/tokalsp ../tools/tokalsp/main.tk -o ./bin/tokalsp.exe -O3
-          set +x
 
       - name: Run Package Script
         if: startsWith(github.ref, 'refs/tags/v')
