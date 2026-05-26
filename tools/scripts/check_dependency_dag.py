@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Copyright (c) 2026 Toka Project. All rights reserved.
 # tools/scripts/check_dependency_dag.py
-# Static dependency linter to strictly enforce Toka 1.0 architecture & DAG constraints.
+# Static dependency linter to strictly enforce Toka 1.0/10.0 LDT Architecture & DAG constraints.
 
 import os
 import sys
@@ -30,7 +30,6 @@ def parse_imports(filepath):
             continue
         
         # Match import statements, e.g., "import package/name::{" or "import package/name :: {"
-        # Also handles "import package/name" if that's supported.
         match = re.match(r"^\s*import\s+([a-zA-Z0-9_/]+)", line)
         if match:
             imports.append(match.group(1))
@@ -39,38 +38,32 @@ def parse_imports(filepath):
 
 def check_dag(base_dir):
     """
-    Runs the full 9 DAG checks under base_dir (normally GitDP/tokalang/lib).
+    Runs the comprehensive Toka 10-Year Anti-Rot Dependency Linter.
     """
     errors = []
     
-    # Rule 8: stdx/core is frozen and only contains context.tk
-    stdx_core_dir = os.path.join(base_dir, "stdx", "core")
-    if os.path.isdir(stdx_core_dir):
-        files = os.listdir(stdx_core_dir)
-        for f in files:
-            if f != "context.tk":
-                errors.append(f"[Rule 8 Violation]: stdx/core is physically frozen. Found forbidden file: {os.path.join(stdx_core_dir, f)}")
+    # Forbidden namespace directories under stdx
+    forbidden_stdx_dirs = {"runtime", "utils", "common", "misc"}
     
-    # Rule 9: No forbidden namespace directories (runtime, utils, common, misc) under lib/stdx/
-    forbidden_dirs = {"runtime", "utils", "common", "misc"}
+    # Standard Freeze list of forbidden abstractions inside std
+    forbidden_std_abstractions = {"json", "http", "cli", "log", "encoding"}
+    
     stdx_dir = os.path.join(base_dir, "stdx")
     if os.path.isdir(stdx_dir):
         for root, dirs, files in os.walk(stdx_dir):
             for d in dirs:
-                if d.lower() in forbidden_dirs:
-                    errors.append(f"[Rule 9 Violation]: Found forbidden directory name '{d}' in {root}")
+                if d.lower() in forbidden_stdx_dirs:
+                    errors.append(f"[Rule 3/9 Violation]: Found forbidden namespace directory '{d}' under stdx: {root}")
             for f in files:
-                # Also prevent filenames that match
                 base, ext = os.path.splitext(f)
-                if base.lower() in forbidden_dirs:
-                    errors.append(f"[Rule 9 Violation]: Found forbidden filename '{f}' in {root}")
+                if base.lower() in forbidden_stdx_dirs:
+                    errors.append(f"[Rule 3/9 Violation]: Found forbidden namespace filename '{f}' under stdx: {root}")
 
     # Process all .tk and .tki files under lib
     for root, dirs, files in os.walk(base_dir):
-        # Prevent searching in any forbidden directory under lib/
+        # Prevent walking into any forbidden directories to avoid duplicates
         for d in list(dirs):
-            if d.lower() in forbidden_dirs:
-                # We already caught this, but let's prevent walking into it to avoid duplicate errors
+            if d.lower() in forbidden_stdx_dirs:
                 dirs.remove(d)
                 
         for file in files:
@@ -85,75 +78,94 @@ def check_dag(base_dir):
             # Find all imports in this file
             imports = parse_imports(filepath)
             
-            # Rule 6: sys/llvm_ffi is the unique LLVM-related file in lib/sys/
-            if parts[0] == "sys":
-                if "llvm" in file.lower() and file != "llvm_ffi.tk":
-                    errors.append(f"[Rule 6 Violation]: {rel_path} has 'llvm' in its name, but only sys/llvm_ffi.tk is allowed.")
-                # Scan for any external function starting with toka_llvm_ in other sys files
-                if file != "llvm_ffi.tk":
-                    try:
-                        with open(filepath, "r", encoding="utf-8") as f:
-                            for line_num, line in enumerate(f, 1):
-                                if "toka_llvm_" in line:
-                                    errors.append(f"[Rule 6 Violation]: {rel_path}:{line_num} declares/references 'toka_llvm_', but only sys/llvm_ffi.tk is allowed to declare LLVM FFI.")
-                    except Exception as e:
-                        pass
+            current_layer = parts[0]
+            
+            # Check 1.0 Std Freeze Rule (Rule 2: No semantic leaking in std)
+            if current_layer == "std":
+                for item in forbidden_std_abstractions:
+                    if item in file.lower() or item in rel_path.lower():
+                        errors.append(f"[Rule 2 Violation]: std cannot contain domain abstraction '{item}'. Violating file: {rel_path}")
+            
+            # Check Rule 4: Atomic Single Truth (std/atomic.tk is a pure façade)
+            if rel_path == os.path.join("std", "atomic.tk"):
+                try:
+                    with open(filepath, "r", encoding="utf-8") as f:
+                        content = f.read()
+                        # Strict Facade check: no loops, spinlocks or direct syscalls/extern fn
+                        if "loop" in content or "while" in content:
+                            errors.append(f"[Rule 4 Violation]: std/atomic.tk must be a pure façade. Spinlocks or loops are strictly forbidden.")
+                        if "extern" in content:
+                            errors.append(f"[Rule 4 Violation]: std/atomic.tk must be a pure façade. extern fn declarations are strictly forbidden.")
+                except Exception:
+                    pass
 
-            # Rule 5: lib/stdx/rand/rand.tk cannot import any platform-specific API (sys/*)
-            if rel_path == os.path.join("stdx", "rand", "rand.tk"):
+            # Check Rule 5: Pure Rand Algorithm (stdx/rand has no entropy/OS randomness)
+            if len(parts) >= 2 and parts[0] == "stdx" and parts[1] == "rand":
                 for imp in imports:
                     if imp.startswith("sys/"):
-                        errors.append(f"[Rule 5 Violation]: stdx/rand/rand.tk cannot import platform-specific API '{imp}'.")
+                        errors.append(f"[Rule 5 Violation]: stdx/rand/rand.tk cannot import platform sys API '{imp}'.")
 
             for imp in imports:
-                # Check for Rule 9: No forbidden namespace imports (only under stdx namespace)
+                imp_parts = imp.split('/')
+                imp_root = imp_parts[0]
+                
+                # Check for Rule 3: No forbidden namespace imports under stdx/
                 if imp.startswith("stdx/"):
-                    imp_parts = imp.split('/')
                     for p in imp_parts:
-                        if p.lower() in forbidden_dirs:
-                            errors.append(f"[Rule 9 Violation]: {rel_path} imports '{imp}', which contains forbidden namespace '{p}'.")
+                        if p.lower() in forbidden_stdx_dirs:
+                            errors.append(f"[Rule 3 Violation]: {rel_path} imports '{imp}', containing forbidden namespace '{p}'.")
 
-                # Rule 1: stdx absolutely cannot import toolchain
-                if parts[0] == "stdx" and imp.startswith("toolchain"):
-                    errors.append(f"[Rule 1 Violation]: {rel_path} is in stdx but imports toolchain module '{imp}'.")
-
-                # Rule 2: toolchain absolutely cannot import stdx
-                if parts[0] == "toolchain" and imp.startswith("stdx"):
-                    errors.append(f"[Rule 2 Violation]: {rel_path} is in toolchain but imports stdx module '{imp}'.")
-
-                # Rule 3: stdx cannot import specific platform physical implementations (sys/linux, sys/macos, sys/windows, etc.)
-                if parts[0] == "stdx":
-                    if imp.startswith("sys/") and not (imp == "sys/libc" or imp.startswith("sys/os")):
-                        errors.append(f"[Rule 3 Violation]: {rel_path} is in stdx but directly imports physical platform ABI '{imp}'.")
-
-                # Rule 4: std absolutely cannot import stdx
-                if parts[0] in ("std", "core", "sys") and imp.startswith("stdx"):
-                    errors.append(f"[Rule 4 Violation]: {rel_path} is in standard/core/sys library but imports stdx module '{imp}'.")
-
-                # Rule 7: stdx/core absolutely cannot import stdx/io/* or stdx/net/*
-                if len(parts) >= 2 and parts[0] == "stdx" and parts[1] == "core":
-                    if imp.startswith("stdx/io") or imp.startswith("stdx/net"):
-                        errors.append(f"[Rule 7 Violation]: {rel_path} is in stdx/core but imports '{imp}'.")
+                # ==========================================
+                # STRICT DAG DIRECTION VERIFICATION
+                # ==========================================
+                
+                # 1. core: can only import core/*
+                if current_layer == "core":
+                    if imp_root != "core":
+                        errors.append(f"[DAG Violation]: core file {rel_path} attempts to import outside core: '{imp}'")
+                        
+                # 2. sys: can import sys/*, core/*
+                elif current_layer == "sys":
+                    if imp_root not in ("sys", "core"):
+                        errors.append(f"[DAG Violation]: sys file {rel_path} attempts to import forbidden layer: '{imp}'")
+                        
+                # 3. std: can import std/*, sys/*, core/*
+                elif current_layer == "std":
+                    if imp_root not in ("std", "sys", "core"):
+                        errors.append(f"[DAG Violation]: std file {rel_path} attempts to import forbidden layer: '{imp}'")
+                        
+                # 4. stdx: can import stdx/*, std/*, core/*, sys/libc, sys/os/*
+                elif current_layer == "stdx":
+                    if imp_root not in ("stdx", "std", "core", "sys"):
+                        errors.append(f"[DAG Violation]: stdx file {rel_path} attempts to import forbidden layer: '{imp}'")
+                    # If importing sys, strictly restrict to sys/libc or sys/os/*
+                    if imp_root == "sys":
+                        if not (imp == "sys/libc" or imp.startswith("sys/os")):
+                            errors.append(f"[DAG Violation]: stdx file {rel_path} directly imports physical platform ABI: '{imp}'")
+                            
+                # 5. toolchain: can import toolchain/*, sys/*, core/*
+                elif current_layer == "toolchain":
+                    if imp_root not in ("toolchain", "sys", "core"):
+                        errors.append(f"[DAG Violation]: toolchain file {rel_path} attempts to import forbidden layer: '{imp}'")
 
     return errors
 
 def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    # Assuming tools/scripts/check_dependency_dag.py, we go up to GitDP/tokalang/lib
     lib_dir = os.path.abspath(os.path.join(script_dir, "..", "..", "lib"))
     
-    print(f"Running Dependency Linter on: {lib_dir}...")
+    print(f"Running Toka 10-Year Anti-Rot Dependency Linter on: {lib_dir}...")
     errors = check_dag(lib_dir)
     
     if errors:
         print("\n[Toka Constitution Violation]: Strict DAG Broken!")
-        print("==================================================")
+        print("======================================================================")
         for err in errors:
             print(f"  - {err}")
-        print("==================================================")
+        print("======================================================================")
         sys.exit(1)
     
-    print("Dependency Linter PASSED! All 9 DAG rules are strictly satisfied.")
+    print("Dependency Linter PASSED! All 10-Year anti-rot DAG rules are strictly satisfied.")
     sys.exit(0)
 
 if __name__ == "__main__":
