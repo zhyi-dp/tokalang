@@ -125,9 +125,15 @@ std::shared_ptr<toka::Type> Sema::checkMemberExpr(MemberExpr *Memb) {
   if (ObjTypeFull == "module") {
     // It's a module access
     if (auto *objVar = dynamic_cast<VariableExpr *>(Memb->Object.get())) {
-      SymbolInfo modSpec;
-      if (CurrentScope->lookup(objVar->Name, modSpec) &&
-          modSpec.ReferencedModule) {
+      SymbolInfo *modSpecPtr = nullptr;
+      std::string actualModName = objVar->Name;
+      if (CurrentScope->findVariableWithDeref(objVar->Name, modSpecPtr, actualModName) &&
+          modSpecPtr->ReferencedModule) {
+        SymbolInfo modSpec = *modSpecPtr;
+        modSpecPtr->HasBeenUsed = true;
+        if (modSpecPtr->ImportingDecl) {
+          const_cast<ImportDecl*>(modSpecPtr->ImportingDecl)->HasBeenUsed = true;
+        }
         ModuleScope *target = (ModuleScope *)modSpec.ReferencedModule;
         if (target->Functions.count(Memb->Member)) {
           return toka::Type::fromString("fn");

@@ -134,6 +134,19 @@ static bool isVariableMutated(ASTNode *Node, const std::string &VarName) {
     return isVariableMutated(VarD->Init.get(), VarName);
   }
 
+  if (auto *Match = dynamic_cast<MatchExpr *>(Node)) {
+    if (isVariableMutated(Match->Target.get(), VarName)) return true;
+    for (auto &Arm : Match->Arms) {
+      if (isVariableMutated(Arm->Body.get(), VarName)) return true;
+      if (Arm->Guard && isVariableMutated(Arm->Guard.get(), VarName)) return true;
+    }
+    return false;
+  }
+
+  if (auto *Ret = dynamic_cast<ReturnStmt *>(Node)) {
+    return Ret->ReturnValue && isVariableMutated(Ret->ReturnValue.get(), VarName);
+  }
+
   return false;
 }
 
@@ -1500,16 +1513,26 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
         }
       }
       if (!isWarningExempt) {
+        bool anyMutated = false;
+        bool hasCheckableVar = false;
+        std::string firstCheckableVar;
         for (const auto &varName : conditionVars) {
           SymbolInfo info;
           if (CurrentScope->lookup(varName, info)) {
             if (info.IsDeclaredVariable && !info.HasConstValue) {
-              if (!isVariableMutated(le->Body.get(), varName)) {
-                DiagnosticEngine::report(le->Loc, DiagID::WARN_NON_PROGRESS_LOOP, varName);
-                break; // report once per loop
+              hasCheckableVar = true;
+              if (firstCheckableVar.empty()) {
+                firstCheckableVar = varName;
+              }
+              if (isVariableMutated(le->Body.get(), varName)) {
+                anyMutated = true;
+                break;
               }
             }
           }
+        }
+        if (hasCheckableVar && !anyMutated) {
+          DiagnosticEngine::report(le->Loc, DiagID::WARN_NON_PROGRESS_LOOP, firstCheckableVar);
         }
       }
     }

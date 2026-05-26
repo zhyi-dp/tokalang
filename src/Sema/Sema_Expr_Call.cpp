@@ -517,8 +517,14 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
   if (!Sh && scopePos != std::string::npos) {
     std::string ModName = CallName.substr(0, scopePos);
     std::string FuncName = CallName.substr(scopePos + 2);
-    SymbolInfo modSpec;
-    if (CurrentScope->lookup(ModName, modSpec)) {
+    SymbolInfo *modSpecPtr = nullptr;
+    std::string actualModName = ModName;
+    if (CurrentScope->findVariableWithDeref(ModName, modSpecPtr, actualModName)) {
+      SymbolInfo modSpec = *modSpecPtr;
+      modSpecPtr->HasBeenUsed = true;
+      if (modSpecPtr->ImportingDecl) {
+        const_cast<ImportDecl*>(modSpecPtr->ImportingDecl)->HasBeenUsed = true;
+      }
       if (modSpec.ReferencedModule) {
         ModuleScope *target = (ModuleScope *)modSpec.ReferencedModule;
         if (target->Functions.count(FuncName))
@@ -579,7 +585,14 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
   }
   // Local Scope Lookup (Local, Imported, or Shadowed)
   SymbolInfo sym;
-  if (CurrentScope->lookup(CallName, sym)) {
+  SymbolInfo *symPtr = nullptr;
+  std::string actualCallName = CallName;
+  if (CurrentScope->findVariableWithDeref(CallName, symPtr, actualCallName)) {
+    sym = *symPtr;
+    symPtr->HasBeenUsed = true;
+    if (symPtr->ImportingDecl) {
+      const_cast<ImportDecl*>(symPtr->ImportingDecl)->HasBeenUsed = true;
+    }
     // Find implementation based on lookup
     for (auto *GF : GlobalFunctions) {
       if (GF->Name == CallName) {

@@ -86,9 +86,15 @@ std::string Sema::resolveType(const std::string &Type, bool force) {
     std::string ModName = Type.substr(0, scopePos);
     std::string TargetType = Type.substr(scopePos + 2);
 
-    SymbolInfo modSpec;
-    if (CurrentScope && CurrentScope->lookup(ModName, modSpec) &&
-        modSpec.ReferencedModule) {
+    SymbolInfo *modSpecPtr = nullptr;
+    std::string actualModName = ModName;
+    if (CurrentScope && CurrentScope->findVariableWithDeref(ModName, modSpecPtr, actualModName) &&
+        modSpecPtr->ReferencedModule) {
+      SymbolInfo modSpec = *modSpecPtr;
+      modSpecPtr->HasBeenUsed = true;
+      if (modSpecPtr->ImportingDecl) {
+        const_cast<ImportDecl*>(modSpecPtr->ImportingDecl)->HasBeenUsed = true;
+      }
       ModuleScope *target = (ModuleScope *)modSpec.ReferencedModule;
       if (target->TypeAliases.count(TargetType)) {
         auto &aliasInfo = target->TypeAliases[TargetType];
@@ -431,9 +437,15 @@ std::shared_ptr<toka::Type> Sema::resolveType(std::shared_ptr<toka::Type> type,
     if (scopePos != std::string::npos) {
       std::string ModName = shape->Name.substr(0, scopePos);
       std::string TargetType = shape->Name.substr(scopePos + 2);
-      SymbolInfo modSpec;
-      if (CurrentScope && CurrentScope->lookup(ModName, modSpec) &&
-          modSpec.ReferencedModule) {
+      SymbolInfo *modSpecPtr = nullptr;
+      std::string actualModName = ModName;
+      if (CurrentScope && CurrentScope->findVariableWithDeref(ModName, modSpecPtr, actualModName) &&
+          modSpecPtr->ReferencedModule) {
+        SymbolInfo modSpec = *modSpecPtr;
+        modSpecPtr->HasBeenUsed = true;
+        if (modSpecPtr->ImportingDecl) {
+          const_cast<ImportDecl*>(modSpecPtr->ImportingDecl)->HasBeenUsed = true;
+        }
         ModuleScope *target = (ModuleScope *)modSpec.ReferencedModule;
         if (target->TypeAliases.count(TargetType)) {
           auto &aliasInfo = target->TypeAliases[TargetType];

@@ -1,6 +1,3 @@
-import core/types::{Addr, usize}
-import sys/libc::{libc_malloc, libc_free}
-import sys/libc::{libc_pthread_create, libc_pthread_join, libc_pthread_detach}
 
 /// Spawns a new OS thread using the underlying POSIX API.
 /// Returns the thread ID (Addr) or 0 on failure.

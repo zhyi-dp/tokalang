@@ -1,7 +1,3 @@
-import core/option::{Option}
-import core/result::{Result}
-import sys/libc::{libc_abort}
-import sys/libc::{libc_printf}
 
 impl<'T> Option<'T> {
     /// Unwrap the option or panic with a custom error message

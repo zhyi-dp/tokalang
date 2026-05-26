@@ -1,9 +1,6 @@
 // Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
 
-import std/vec::Vec
 
-import sys/libc::*
-import core/types::{Addr, ADDR0, char, usize}
 
 pub shape Child(pid: i32)
 
@@ -34,29 +31,34 @@ impl Child {
 
 pub shape Command(
     program: string,
-    args: Vec<string>
+    args#: Vec<string>
 )
 
 impl Command {
     pub fn new(program: string) -> Command {
-        auto args# = Vec::new()
+        auto args# = Vec<string>::new()
         // Standard convention: argv[0] is the program name
         args#.push(program.clone())
         
-        Command(
+        return Command(
             program=program,
             args=args
         )
     }
     
     pub fn arg(self#, arg: string) {
-        self.args.push(arg)
+        self.args#.push(arg)
     }
     
     pub fn args(self#, args: Vec<string>) {
-        auto iter = args.iter()
-        loop iter.next() is val {
-            self.args.push(val.clone())
+        auto iter# = args.iter()
+        loop true {
+            match iter#.next() {
+                auto Option<string>::Some(&val) => {
+                    self.args#.push(val.clone())
+                }
+                _ => break
+            }
         }
     }
     
@@ -70,7 +72,7 @@ impl Command {
             
             if pid == 0 {
                 // Child process
-                self#.do_exec()
+                self.do_exec()
                 // If exec returns, it failed
                 libc_exit(127) 
             }
@@ -81,7 +83,7 @@ impl Command {
     }
     
     // Helper to setup argv and call execvp
-    fn do_exec(self#) {
+    fn do_exec(self) {
         unsafe {
              libc_exit(127)
         }

@@ -948,7 +948,9 @@ void Sema::checkFunction(FunctionDecl *Fn) {
   if (!isWarningExempt) {
     for (auto const &[name, info] : CurrentScope->Symbols) {
       if (info.IsDeclaredMutable && !info.HasBeenMutated) {
-        DiagnosticEngine::report(info.DeclLoc.isValid() ? info.DeclLoc : Fn->Loc, DiagID::WARN_MUTABLE_VAR_NEVER_MUTATED, name);
+        if (name != "self") {
+          DiagnosticEngine::report(info.DeclLoc.isValid() ? info.DeclLoc : Fn->Loc, DiagID::WARN_MUTABLE_VAR_NEVER_MUTATED, name);
+        }
       }
       if (info.IsDeclaredVariable && !info.HasBeenUsed) {
         if (name != "self" && (name.empty() || name[0] != '_')) {

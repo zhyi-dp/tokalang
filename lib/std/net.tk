@@ -1,10 +1,5 @@
 // Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
 
-import core/types::{usize, char, ADDR0}
-
-import sys/libc::*
-import core/result::{Result}
-import core/option::{Option}
 import sys/os/base as sys
 import sys/os/net as sysnet
 import std/io::{@Reader, @Writer}
@@ -129,8 +124,8 @@ impl UdpSocket {
             if self.closed {
                 return Result<UdpRecvInfo, string>::Err(string::from("Socket closed"))
             }
-            auto out_host# = 0:usize
-            auto out_port# = 0:i32
+            auto out_host = 0:usize
+            auto out_port = 0:i32
             auto *ph = (&out_host as Addr) as *usize
             auto *pp = (&out_port as Addr) as *i32
             auto n: i64 = sysnet::net_recvfrom_impl(self.fd, *buf, len, *ph, *pp)
@@ -430,7 +425,7 @@ impl TcpListener {
 }
 
 // ==== Top Level Async Helpers ====
-pub fn net_async_read(stream#: TcpStream, *buf: u8, len: usize) -> async Result<usize, string> {
+pub fn net_async_read(stream: TcpStream, *buf: u8, len: usize) -> async Result<usize, string> {
     auto ret# = Result<usize, string>::Err(string::from("Unreachable"))
     unsafe {
         if stream.closed {
@@ -465,7 +460,7 @@ pub fn net_async_read(stream#: TcpStream, *buf: u8, len: usize) -> async Result<
     return ret
 }
 
-pub fn net_async_accept(listener#: TcpListener) -> async TcpStream {
+pub fn net_async_accept(listener: TcpListener) -> async TcpStream {
     auto ret# = TcpStream(fd=-1, closed=true)
     unsafe {
         if listener.closed {
@@ -501,7 +496,7 @@ pub fn net_async_accept(listener#: TcpListener) -> async TcpStream {
     return ret
 }
 
-pub fn net_async_write(stream#: TcpStream, *buf: u8, len: usize) -> async Result<usize, string> {
+pub fn net_async_write(stream: TcpStream, *buf: u8, len: usize) -> async Result<usize, string> {
     auto ret# = Result<usize, string>::Err(string::from("Unreachable"))
     unsafe {
         if stream.closed {

@@ -11,3 +11,6 @@ impl Error {
         return Error(code = code, message = msg)
     }
 }
+
+pub fn __unused_dummy() {}
+
