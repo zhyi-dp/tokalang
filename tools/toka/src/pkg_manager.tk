@@ -1,18 +1,18 @@
 import std/io::{println}
 import stdx/serde/json::{JsonNode}
-import std/string::{String}
+import std/string::{string}
 import std/fs::{read_to_string}
 import sys/libc::{libc_system}
 import std/vec::{Vec}
 import core/option::{Option}
 
 pub shape DepEntry(
-    name: String,
-    val: String
+    name: string,
+    val: string
 )
 
 pub fn parse_package_tk() -> Vec<DepEntry> {
-    auto res = read_to_string(String::from("package.tk"))
+    auto res = read_to_string(string::from("package.tk"))
     auto deps# = Vec<DepEntry>::new()
     if res.is_err() { return deps }
     
@@ -91,16 +91,16 @@ pub fn cmd_fetch() -> i32 {
             auto tag = pkg_val.substring(colon_idx + 1, pkg_val.len() as i32)
             println("\x1b[1;36m   Resolving\x1b[0m {} @ {}", pkg_name, pkg_val)
             
-            auto target_dir# = String::from(".toka/packages/")
+            auto target_dir# = string::from(".toka/packages/")
             target_dir#.push_str(pkg_name.as_str())
             target_dir#.push_str("-")
             target_dir#.push_str(tag.as_str())
             
             unsafe {
-                auto check_cmd# = String::from("test -d ")
+                auto check_cmd# = string::from("test -d ")
                 check_cmd#.push_str(target_dir.as_str())
                 if libc_system(check_cmd.c_str()) != 0 {
-                    auto git_cmd# = String::from("git clone --depth 1 --branch ")
+                    auto git_cmd# = string::from("git clone --depth 1 --branch ")
                     git_cmd#.push_str(tag.as_str())
                     git_cmd#.push_str(" https://")
                     git_cmd#.push_str(repo_url.as_str())
@@ -112,7 +112,7 @@ pub fn cmd_fetch() -> i32 {
         } else {
             auto colon_idx = pkg_val.find_str(":")
             auto real_name# = pkg_name.clone()
-            auto version# = String::from("latest")
+            auto version# = string::from("latest")
             if colon_idx != -1 {
                 real_name = pkg_val.substring(0, colon_idx)
                 version = pkg_val.substring(colon_idx + 1, pkg_val.len() as i32)
@@ -121,13 +121,13 @@ pub fn cmd_fetch() -> i32 {
             }
             
             println("\x1b[1;36m   Resolving\x1b[0m {} v{}", real_name, version)
-            auto target_dir# = String::from(".toka/packages/")
+            auto target_dir# = string::from(".toka/packages/")
             target_dir#.push_str(real_name.as_str())
             target_dir#.push_str("-")
             target_dir#.push_str(version.as_str())
             
             unsafe {
-                auto check_cmd# = String::from("test -d ")
+                auto check_cmd# = string::from("test -d ")
                 check_cmd#.push_str(target_dir.as_str())
                 if libc_system(check_cmd.c_str()) != 0 {
                     auto safe_name# = real_name.clone()
@@ -136,10 +136,10 @@ pub fn cmd_fetch() -> i32 {
                         safe_name = safe_name.substring(slash_idx + 1, safe_name.len() as i32)
                     }
 
-                    auto url# = String::from("http://localhost:8080/")
+                    auto url# = string::from("http://localhost:8080/")
                     auto env_url = libc_getenv(c"TOKA_REGISTRY_URL") as Addr
                     if env_url != 0:Addr {
-                        url = String::from_cstr(env_url as *char)
+                        url = string::from_cstr(env_url as *char)
                         if !url.ends_with("/") {
                             url#.push_str("/")
                         }
@@ -152,7 +152,7 @@ pub fn cmd_fetch() -> i32 {
                     
                     println("\x1b[1;32m Downloading\x1b[0m {} v{}", real_name, version)
                     
-                    auto curl_cmd# = String::from("curl -sL \"")
+                    auto curl_cmd# = string::from("curl -sL \"")
                     curl_cmd#.push_str(url.as_str())
                     curl_cmd#.push_str("\" -o .toka_tmp_dl.tar.gz")
                     
@@ -160,11 +160,11 @@ pub fn cmd_fetch() -> i32 {
                     if dl_res != 0 {
                         println("    \x1b[31m[Error]\x1b[0m Failed to download package {} from registry", pkg_name)
                     } else {
-                        auto mkdir_cmd# = String::from("mkdir -p ")
+                        auto mkdir_cmd# = string::from("mkdir -p ")
                         mkdir_cmd#.push_str(target_dir.as_str())
                         libc_system(mkdir_cmd.c_str())
                         
-                        auto tar_cmd# = String::from("tar -xzf .toka_tmp_dl.tar.gz -C ")
+                        auto tar_cmd# = string::from("tar -xzf .toka_tmp_dl.tar.gz -C ")
                         tar_cmd#.push_str(target_dir.as_str())
                         auto tar_res = libc_system(tar_cmd.c_str())
                         if tar_res != 0 {
@@ -184,9 +184,9 @@ pub fn cmd_fetch() -> i32 {
     return 0
 }
 
-pub fn build_pkg_args() -> String {
+pub fn build_pkg_args() -> string {
     auto deps = parse_package_tk()
-    auto out# = String::from("")
+    auto out# = string::from("")
     
     auto i# = 0:usize
     loop i < deps.len() {
@@ -228,7 +228,7 @@ pub fn build_pkg_args() -> String {
 }
 
 pub fn cmd_publish() -> i32 {
-    auto res = read_to_string(String::from("package.tk"))
+    auto res = read_to_string(string::from("package.tk"))
     if res.is_err() {
         println("Error: package.tk not found. Are you in a Toka project?")
         return 1
@@ -237,8 +237,8 @@ pub fn cmd_publish() -> i32 {
     auto content = res.unwrap()
     auto lines# = content.split('\n' as i32)
     
-    auto name# = String::from("")
-    auto version# = String::from("")
+    auto name# = string::from("")
+    auto version# = string::from("")
     
     loop !lines.is_done() {
         auto line = lines#.next().trim()
@@ -270,13 +270,13 @@ pub fn cmd_publish() -> i32 {
     
     println("Packaging {} v{}...", name, version)
     
-    auto tar_cmd# = String::from("tar -czf ")
+    auto tar_cmd# = string::from("tar -czf ")
     
     // Check if the name has a namespace (e.g. zhyi-dp/utils). We want to replace '/' with '-' for the file name.
     auto safe_name# = name.clone()
     auto slash_idx = safe_name.find_str("/")
     if slash_idx != -1 {
-        // Since Toka String doesn't have a built in replace yet, let's just use the substring after the slash for the tarball name
+        // Since Toka string doesn't have a built in replace yet, let's just use the substring after the slash for the tarball name
         // Or we could extract just the package name for the tarball
         safe_name = safe_name.substring(slash_idx + 1, safe_name.len() as i32)
     }
@@ -310,10 +310,10 @@ pub fn cmd_publish() -> i32 {
     println("Successfully created archive: {}-{}.tar.gz", safe_name, version)
     
     // Build the upload command
-    auto url# = String::from("http://localhost:3000")
+    auto url# = string::from("http://localhost:3000")
     auto env_url = (unsafe libc_getenv(c"TOKA_REGISTRY_URL")) as Addr
     if env_url != 0:Addr {
-        url = String::from_cstr(env_url as *char)
+        url = string::from_cstr(env_url as *char)
     }
     if !url.ends_with("/") {
         url#.push_str("/")
@@ -321,7 +321,7 @@ pub fn cmd_publish() -> i32 {
     url#.push_str("api/publish")
 
     println("Uploading to {}...", url)
-    auto curl_cmd# = String::from("curl -sL -X POST -F \"file=@")
+    auto curl_cmd# = string::from("curl -sL -X POST -F \"file=@")
     curl_cmd#.push_str(safe_name.as_str())
     curl_cmd#.push_str("-")
     curl_cmd#.push_str(version.as_str())
@@ -343,10 +343,10 @@ import stdx/serde/json::{deserialize_shape, JsonRes, FromJson, json_skip_value}
 import core/result::{Result}
 
 pub shape PkgMeta(
-    name: String = String::from(""),
-    version: String = String::from(""),
-    description: String = String::from(""),
-    repository: String = String::from("")
+    name: string = string::from(""),
+    version: string = string::from(""),
+    description: string = string::from(""),
+    repository: string = string::from("")
 )
 
 impl PkgMeta@FromJson {
@@ -368,8 +368,8 @@ pub shape Catalog(
     packages: Vec<PkgMeta> = Vec<PkgMeta>::new()
 )
 
-pub fn resolve_package(query: String) -> Option<String> {
-    auto catalog_path = String::from(".toka/catalog.json")
+pub fn resolve_package(query: string) -> Option<string> {
+    auto catalog_path = string::from(".toka/catalog.json")
     
     unsafe {
         if libc_system(c"test -f .toka/catalog.json") != 0 {
@@ -380,13 +380,13 @@ pub fn resolve_package(query: String) -> Option<String> {
     
     auto res = read_to_string(catalog_path)
     if res.is_err() {
-        return Option<String>::None
+        return Option<string>::None
     }
     
     auto content = res.unwrap()
     auto parsed = deserialize_shape<Catalog>(content.as_view())
     if parsed.is_err() {
-        return Option<String>::None
+        return Option<string>::None
     }
     
     auto catalog = parsed.unwrap()
@@ -399,19 +399,19 @@ pub fn resolve_package(query: String) -> Option<String> {
                 auto result# = repo.clone()
                 result#.push_str(":v")
                 result#.push_str(pkg.version.as_str())
-                return Option<String>::Some(result)
+                return Option<string>::Some(result)
             }
         }
         i += 1
     }
     
-    return Option<String>::None
+    return Option<string>::None
 }
 
-pub fn cmd_search(query: String) -> i32 {
+pub fn cmd_search(query: string) -> i32 {
     println("Searching for '{}' in registry...", query)
     
-    auto catalog_path = String::from(".toka/catalog.json")
+    auto catalog_path = string::from(".toka/catalog.json")
     
     unsafe {
         libc_system(c"mkdir -p .toka")

@@ -24,7 +24,7 @@ fn test_cancel() -> async i32 {
     println("7. Canceled check passed")
     auto err_opt = ctx.err()
     assert(err_opt.is_some(), "Context err should be Some")
-    assert(err_opt.unwrap() == String::from("context canceled"), "Context err mismatch")
+    assert(err_opt.unwrap() == string::from("context canceled"), "Context err mismatch")
     println("8. Err check passed")
     
     auto done_rx_opt = ctx#.done()
@@ -137,18 +137,18 @@ fn test_propagation() -> async i32 {
 
 fn test_value() -> async i32 {
     auto bg = background()
-    auto ctx1 = with_value<BackgroundContext>(cede bg, String::from("key1"), String::from("val1"))
-    auto ctx2 = with_value<ValueContext<BackgroundContext>>(cede ctx1, String::from("key2"), String::from("val2"))
+    auto ctx1 = with_value<BackgroundContext>(cede bg, string::from("key1"), string::from("val1"))
+    auto ctx2 = with_value<ValueContext<BackgroundContext>>(cede ctx1, string::from("key2"), string::from("val2"))
     
-    auto v1 = ctx2.value(String::from("key1"))
+    auto v1 = ctx2.value(string::from("key1"))
     assert(v1.is_some(), "key1 should be found")
-    assert(v1.unwrap() == String::from("val1"), "key1 value mismatch")
+    assert(v1.unwrap() == string::from("val1"), "key1 value mismatch")
     
-    auto v2 = ctx2.value(String::from("key2"))
+    auto v2 = ctx2.value(string::from("key2"))
     assert(v2.is_some(), "key2 should be found")
-    assert(v2.unwrap() == String::from("val2"), "key2 value mismatch")
+    assert(v2.unwrap() == string::from("val2"), "key2 value mismatch")
     
-    auto v3 = ctx2.value(String::from("key3"))
+    auto v3 = ctx2.value(string::from("key3"))
     assert(v3.is_none(), "key3 should not be found")
     
     println("test_value passed!")

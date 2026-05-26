@@ -1,7 +1,7 @@
 import std/io::{println}
 import stdx/net/http::{HttpRequest, HttpResponse, HttpMethod, parse_http_request}
 import std/net::{TcpListener, TcpStream, Ipv4Addr, SocketAddrV4}
-import std/string::{String}
+import std/string::{string}
 import core/libc
 import core/types
 import core/result::{Result}
@@ -18,10 +18,10 @@ fn handle_request(req#: HttpRequest) -> HttpResponse {
     }
     
     auto is_home# = false
-    if req.path.eq(String::from("/home")) { is_home = true }
+    if req.path.eq(string::from("/home")) { is_home = true }
     
     if is_get && is_home {
-        auto res = HttpResponse::html(String::from("<h1>Welcome to Toka HTTP Framework</h1>"))
+        auto res = HttpResponse::html(string::from("<h1>Welcome to Toka HTTP Framework</h1>"))
         return res
     }
     
@@ -61,7 +61,7 @@ fn run_server(port: u16) -> i32 {
             return 0
         }
         
-        auto req_str = String::from_with_len(&buf[0] as *char, n as i32)
+        auto req_str = string::from_with_len(&buf[0] as *char, n as i32)
         println("[Server] Incoming Request length: {} bytes", n as i32)
         
         auto req# = parse_http_request(req_str)
@@ -119,7 +119,7 @@ pub fn main() -> i32 {
             retries = retries + 1
         }
         
-        auto req_line = String::from("GET /home HTTP/1.1\r\nHost: localhost:49998\r\nAccept: */*\r\n\r\n")
+        auto req_line = string::from("GET /home HTTP/1.1\r\nHost: localhost:49998\r\nAccept: */*\r\n\r\n")
         auto write_res = stream#.write_string(req_line)
         
         // Read response

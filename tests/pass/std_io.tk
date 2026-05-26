@@ -16,15 +16,15 @@ import std/string
 import std/io::{println, File}
 
 fn main() -> i32 {
-    auto content = String::from("Hello File IO!\nLine 2")
+    auto content = string::from("Hello File IO!\nLine 2")
     
     // Write
-    auto f1# = File::open(String::from("test_io.txt"), "w")
+    auto f1# = File::open(string::from("test_io.txt"), "w")
     f1.write(content.as_view())
     f1#.close()
     
     // Read
-    auto f2# = File::open(String::from("test_io.txt"), "r")
+    auto f2# = File::open(string::from("test_io.txt"), "r")
     
     println("Reading lines:")
     
@@ -32,7 +32,7 @@ fn main() -> i32 {
     auto tmp1# = f2.read_line()
     auto l1 = tmp1#.unwrap()
     println("Line 1: {}", l1.c_str())
-    if !l1.eq(String::from("Hello File IO!\n")) {
+    if !l1.eq(string::from("Hello File IO!\n")) {
          println("Line 1 mismatch")
          return 1
     }
@@ -41,7 +41,7 @@ fn main() -> i32 {
     auto tmp2# = f2.read_line()
     auto l2 = tmp2#.unwrap()
     println("Line 2: {}", l2.c_str())
-     if !l2.eq(String::from("Line 2")) {
+     if !l2.eq(string::from("Line 2")) {
          println("Line 2 mismatch")
          // Note: "Line 2" might not have \n if file ended there. 
          // My write call content was "Hello File IO!\nLine 2".

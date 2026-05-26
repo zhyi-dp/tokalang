@@ -1,12 +1,12 @@
 import stdx/crypto/sha256::{Sha256}
-import std/string::{String}
+import std/string::{string}
 import std/io::{println}
 
 fn test_empty_string() -> i32 {
     auto sha# = Sha256::new()
-    sha#.update(String::from("").as_view())
+    sha#.update(string::from("").as_view())
     auto hash = sha#.finalize_hex()
-    auto expected_hash = String::from("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
+    auto expected_hash = string::from("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
     if !hash.as_str().equals(expected_hash.as_str()) {
         println("Empty hash mismatch")
         return 1
@@ -16,9 +16,9 @@ fn test_empty_string() -> i32 {
 
 fn test_abc() -> i32 {
     auto sha# = Sha256::new()
-    sha#.update(String::from("abc").as_view())
+    sha#.update(string::from("abc").as_view())
     auto hash = sha#.finalize_hex()
-    auto expected_hash = String::from("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+    auto expected_hash = string::from("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
     if !hash.as_str().equals(expected_hash.as_str()) {
         println("abc hash mismatch")
         return 1
@@ -28,9 +28,9 @@ fn test_abc() -> i32 {
 
 fn test_hello_world() -> i32 {
     auto sha# = Sha256::new()
-    sha#.update(String::from("hello world").as_view())
+    sha#.update(string::from("hello world").as_view())
     auto hash = sha#.finalize_hex()
-    auto expected_hash = String::from("b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9")
+    auto expected_hash = string::from("b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9")
     if !hash.as_str().equals(expected_hash.as_str()) {
         println("hello world hash mismatch")
         return 1

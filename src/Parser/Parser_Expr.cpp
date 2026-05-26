@@ -348,7 +348,7 @@ std::unique_ptr<Expr> Parser::parseExpr(int minPrec, bool allowTrailingClosure) 
               check(TokenType::Plus) || check(TokenType::Minus) ||
               check(TokenType::Slash) || check(TokenType::And) ||
               check(TokenType::Percent) || check(TokenType::Or) ||
-              check(TokenType::Dot)) {  // [NEW] 遇到成员访问点号时立即终止类型解析，杜绝类型吞噬
+              check(TokenType::Dot)) {  // [NEW]
             shouldBreak = true;
           }
 

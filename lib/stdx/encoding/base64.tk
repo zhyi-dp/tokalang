@@ -1,14 +1,14 @@
-import std/string::{String}
+import std/string::{string}
 
-pub fn encode_str(data: str) -> String {
+pub fn encode_str(data: str) -> string {
     auto len = data.len()
     auto *ptr# = data.buf() as *[u8]
     return encode_bytes(*ptr, len)
 }
 
-pub fn encode_bytes(*data: [u8], len: usize) -> String {
-    auto res# = String::from("")
-    auto b64_chars = String::from("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
+pub fn encode_bytes(*data: [u8], len: usize) -> string {
+    auto res# = string::from("")
+    auto b64_chars = string::from("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
     auto *chars = b64_chars.c_str() as *[char]
 
     auto i#: usize = 0

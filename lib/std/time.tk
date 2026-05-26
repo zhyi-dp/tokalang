@@ -15,7 +15,7 @@
 import core/types::{usize, char, Addr}
 import core/libc::*
 import sys/libc::*
-import std/string::{String}
+import std/string::{string}
 import sys/os as sys
 import core/traits::{@PartialEq, @PartialOrd}
 
@@ -97,7 +97,7 @@ impl Duration {
         return Duration(secs = mut_secs - other.secs, nanos = mut_nanos - other.nanos)
     }
 
-    pub fn to_string(self) -> String {
+    pub fn to_string(self) -> string {
         unsafe {
             auto buf# = [0:i8; 32]
             auto *p = (&buf[0] as Addr) as *char
@@ -117,7 +117,7 @@ impl Duration {
             } else {
                 libc_snprintf(*p, 32:usize, c"%uns", self.nanos)
             }
-            return String::from_cstr(*p)
+            return string::from_cstr(*p)
         }
     }
 }
@@ -336,7 +336,7 @@ impl DateTime@encap {
 
 impl DateTime {
     // Basic formatting like "2026-04-23 08:30:00"
-    pub fn to_string(self) -> String {
+    pub fn to_string(self) -> string {
         unsafe {
             auto buf# = [0:i8; 32]
             auto *p = (&buf[0] as Addr) as *char
@@ -345,7 +345,7 @@ impl DateTime {
                 c"%04d-%02d-%02d %02d:%02d:%02d",
                 self.year, self.month, self.day, self.hour, self.minute, self.second
             )
-            return String::from_cstr(*p)
+            return string::from_cstr(*p)
         }
     }
 }

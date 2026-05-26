@@ -1,5 +1,5 @@
 import std/io::println
-import std/string::{String}
+import std/string::{string}
 
 fn main() -> i32 {
     auto s = "hello toka"
@@ -8,8 +8,8 @@ fn main() -> i32 {
     auto sub = s.substring(0, 5)
     println("Slice: {}", sub)
     
-    auto ss = String::from("world")
-    println("String: {}", ss)
+    auto ss = string::from("world")
+    println("string: {}", ss)
     
     println("Mixed: {} and {}", s, ss)
     return 0

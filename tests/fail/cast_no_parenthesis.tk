@@ -2,13 +2,13 @@ shape MyType(val: i32)
 
 impl MyType {
     pub fn test(self) {
-        // 无操作
+        
     }
 }
 
 fn main() -> i32 {
     auto x = MyType(val = 10)
-    // 故意写成无括号，以测试解析器在遇到 '.' 时是否会中断强转类型解析并报出语法错
+    // '.'
     auto y = x as MyType.test()
     return 0
 }

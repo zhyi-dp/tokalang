@@ -1,5 +1,5 @@
 import std/io::println
-import std/string::String
+import std/string::string
 import core/str::str
 import core/str::cstr
 
@@ -43,18 +43,18 @@ fn test_str(s: str) -> i32 {
     }
 }
 
-fn test_string(s: String) -> i32 {
+fn test_string(s: string) -> i32 {
     match s {
         "hello" => {
-            println("String: hello matched")
+            println("string: hello matched")
             return 8
         }
         "world" => {
-            println("String: world matched")
+            println("string: world matched")
             return 9
         }
         _ => {
-            println("String: default matched")
+            println("string: default matched")
             return 10
         }
     }
@@ -79,16 +79,16 @@ fn main() -> i32 {
     assert(r6 == 6, "str empty")
     assert(r7 == 7, "str default")
 
-    // 3. Test String matching
-    auto s1 = String::from("hello")
-    auto s2 = String::from("world")
-    auto s3 = String::from("other")
+    // 3. Test string matching
+    auto s1 = string::from("hello")
+    auto s2 = string::from("world")
+    auto s3 = string::from("other")
     auto r8 = test_string(s1)
     auto r9 = test_string(s2)
     auto r10 = test_string(s3)
-    assert(r8 == 8, "String hello")
-    assert(r9 == 9, "String world")
-    assert(r10 == 10, "String default")
+    assert(r8 == 8, "string hello")
+    assert(r9 == 9, "string world")
+    assert(r10 == 10, "string default")
 
     println("All string literal matching tests passed successfully!")
     return 0

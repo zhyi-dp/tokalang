@@ -1,6 +1,6 @@
 import std/time::{Duration, Instant, SystemTime, DateTime}
 import std/io::{println}
-import std/string::{String}
+import std/string::{string}
 
 fn main() -> i32 {
     // 1. Test Duration Precise Arithmetic
@@ -35,13 +35,13 @@ fn main() -> i32 {
     }
 
     // 3. Test Duration Formatting
-    if d1.to_string() != String::from("5.500s") {
+    if d1.to_string() != string::from("5.500s") {
         println("Duration to_string failed")
         return 1
     }
     
     auto d3 = Duration::new(0:u64, 45000000:u32) // 45ms
-    if d3.to_string() != String::from("45ms") {
+    if d3.to_string() != string::from("45ms") {
         println("Duration to_string ms failed")
         return 1
     }

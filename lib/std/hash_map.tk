@@ -221,7 +221,7 @@ impl<'K, 'V> HashMap<'K, 'V> {
                 i += 1
             }
             
-            // 在被覆写前手动释放旧缓冲，防止泄露
+            
             if self.keys.*buf != null {
                 unsafe free [0] self.keys.*#buf
             }
@@ -232,7 +232,7 @@ impl<'K, 'V> HashMap<'K, 'V> {
                 unsafe free [0] self.meta.*#buf
             }
             
-            // 使用 cede 显式完成所有权大转移，阻止 new_k 等发生析构毁坏新内存
+            // cede  new_k
             self.keys = cede new_k
             self.vals = cede new_v
             self.meta = cede new_m

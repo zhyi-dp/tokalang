@@ -1,13 +1,13 @@
 import core/result::{Result, Result}
-import std/string::String
+import std/string::string
 import std/io::println
 
-fn test() -> Result<String, String> {
-    auto r = Result<String, String>::Ok(String::from("hello"))
+fn test() -> Result<string, string> {
+    auto r = Result<string, string>::Ok(string::from("hello"))
     auto v = r!
     // EXPECT: use of moved variable
     auto z = r
-    return Result<String, String>::Ok(v)
+    return Result<string, string>::Ok(v)
 }
 
 pub fn main() -> i32 { 

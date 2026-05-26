@@ -4,7 +4,7 @@ import core/option::{Option}
 import core/result::{Result}
 import std/vec::{Vec}
 import std/fs
-import std/string::{String}
+import std/string::{string}
 import std/fs::{ReadDir}
 
 fn test_option() {
@@ -13,8 +13,8 @@ fn test_option() {
 }
 
 fn test_result() {
-    auto ok = Result<i32, String>::Ok(100)
-    auto err = Result<i32, String>::Err(String::from("error"))
+    auto ok = Result<i32, string>::Ok(100)
+    auto err = Result<i32, string>::Err(string::from("error"))
 }
 
 fn test_vec() {
@@ -30,7 +30,7 @@ fn test_vec() {
 }
 
 fn test_fs() {
-    auto path = String::from(".")
+    auto path = string::from(".")
     auto dir = fs::read_dir(path)
 }
 

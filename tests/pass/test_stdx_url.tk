@@ -1,14 +1,14 @@
 import stdx/net/url::{url_encode, url_decode, query_decode, parse_url}
-import std/string::{String}
+import std/string::{string}
 import core/result::{Result}
 import std/io::{println}
 
 pub fn main() -> i32 {
     // 1. Encode Test
-    auto raw = String::from("hello world!+&你好")
+    auto raw = string::from("hello world!+&你好")
     auto encoded = url_encode(raw)
     // Expected: hello%20world%21%2B%26%E4%BD%A0%E5%A5%BD
-    if encoded != String::from("hello%20world%21%2B%26%E4%BD%A0%E5%A5%BD") {
+    if encoded != string::from("hello%20world%21%2B%26%E4%BD%A0%E5%A5%BD") {
         println("encode failed: {}", encoded)
         return 1
     }
@@ -29,14 +29,14 @@ pub fn main() -> i32 {
     }
     
     // 3. Query Decode (plus as space)
-    auto q_raw = String::from("hello+world%2Bfoo")
+    auto q_raw = string::from("hello+world%2Bfoo")
     match query_decode(q_raw) {
         auto Result::Err(&e) => {
             println("query_decode failed: {}", e)
             return 1
         }
         auto Result::Ok(&d) => {
-            if d != String::from("hello world+foo") {
+            if d != string::from("hello world+foo") {
                 println("query_decode mismatch: {}", d)
                 return 1
             }
@@ -44,33 +44,33 @@ pub fn main() -> i32 {
     }
     
     // 4. URL Parse Test
-    auto url_res = parse_url(String::from("https://example.com:8080/path/to/api?query=1#frag"))
+    auto url_res = parse_url(string::from("https://example.com:8080/path/to/api?query=1#frag"))
     match url_res {
         auto Result::Err(&e) => {
             println("parse_url failed: {}", e)
             return 1
         }
         auto Result::Ok(&u) => {
-            if u.scheme != String::from("https") { return 1 }
-            if u.host != String::from("example.com") { return 1 }
+            if u.scheme != string::from("https") { return 1 }
+            if u.host != string::from("example.com") { return 1 }
             if u.port != 8080:u16 { return 1 }
-            if u.path != String::from("/path/to/api") { return 1 }
-            if u.query != String::from("query=1") { return 1 }
-            if u.fragment != String::from("frag") { return 1 }
+            if u.path != string::from("/path/to/api") { return 1 }
+            if u.query != string::from("query=1") { return 1 }
+            if u.fragment != string::from("frag") { return 1 }
         }
     }
     
     // 5. URL Parse Edge Case (No port, no scheme, only path)
-    auto url_res2 = parse_url(String::from("/only/path?q=2"))
+    auto url_res2 = parse_url(string::from("/only/path?q=2"))
     match url_res2 {
         auto Result::Err(&e) => { return 1 }
         auto Result::Ok(&u) => {
-            if u.scheme != String::from("") { return 1 }
-            if u.host != String::from("") { return 1 }
+            if u.scheme != string::from("") { return 1 }
+            if u.host != string::from("") { return 1 }
             if u.port != 0:u16 { return 1 }
-            if u.path != String::from("/only/path") { return 1 }
-            if u.query != String::from("q=2") { return 1 }
-            if u.fragment != String::from("") { return 1 }
+            if u.path != string::from("/only/path") { return 1 }
+            if u.query != string::from("q=2") { return 1 }
+            if u.fragment != string::from("") { return 1 }
         }
     }
 

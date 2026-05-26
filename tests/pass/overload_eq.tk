@@ -1,9 +1,9 @@
-import std/string::String
+import std/string::string
 import std/io::println
 
 shape MyObj(
     id: i32,
-    name: String
+    name: string
 )
 
 impl MyObj {
@@ -13,14 +13,14 @@ impl MyObj {
 }
 
 fn main() -> i32 {
-    auto s1 = String::from("hello")
-    auto s2 = String::from("hello")
-    auto s3 = String::from("world")
+    auto s1 = string::from("hello")
+    auto s2 = string::from("hello")
+    auto s3 = string::from("world")
     
-    // Test std::String overload
+    // Test std::string overload
     if s1 == s2 {
         if s1 != s3 {
-            println("{}", "String overload ok!")
+            println("{}", "string overload ok!")
         } else {
             return 1
         }
@@ -29,9 +29,9 @@ fn main() -> i32 {
     }
     
     // Test Custom Object overload
-    auto obj1 = MyObj(id=10, name=String::from("dpai"))
-    auto obj2 = MyObj(id=10, name=String::from("dpai"))
-    auto obj3 = MyObj(id=20, name=String::from("dpai"))
+    auto obj1 = MyObj(id=10, name=string::from("dpai"))
+    auto obj2 = MyObj(id=10, name=string::from("dpai"))
+    auto obj3 = MyObj(id=20, name=string::from("dpai"))
     
     if obj1 == obj2 {
         if obj1 != obj3 {

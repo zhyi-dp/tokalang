@@ -1,7 +1,7 @@
 // lib/stdx/serde/json.tk
 // Standard Serialization for JSON using Toka Comptime Reflection
 
-import std/string::{String}
+import std/string::{string}
 import core/str::{str, str}
 import std/hash_map::{HashMap}
 import std/vec::{Vec}
@@ -16,57 +16,57 @@ pub shape JsonNode (
     NullNode(i32) = 0 |
     BoolNode(bool) = 1 |
     NumNode(f64) = 2 |
-    StrNode(String) = 3 |
+    StrNode(string) = 3 |
     ArrayNode(Vec<JsonNode>) = 4 |
-    ObjectNode(HashMap<String, JsonNode>) = 5
+    ObjectNode(HashMap<string, JsonNode>) = 5
 )
 
 // --- ToJson Trait ---
 
 pub trait @ToJson {
     // Append JSON representation to the buffer and return the updated buffer
-    pub fn write_json(self, buf#: String) -> String
+    pub fn write_json(self, buf#: string) -> string
 }
 
 impl<'T: @ToJson> &'T@ToJson {
-    pub fn write_json(self, buf#: String) -> String {
+    pub fn write_json(self, buf#: string) -> string {
         // [Compiler Magic] This will call the write_json on the soul
         return self.write_json(buf)
     }
 }
 
 impl i32@ToJson {
-    pub fn write_json(self, buf#: String) -> String {
-        auto tmp = String::from_int(self)
+    pub fn write_json(self, buf#: string) -> string {
+        auto tmp = string::from_int(self)
         buf#.push_view(tmp.as_view())
         return buf
     }
 }
 
 impl i64@ToJson {
-    pub fn write_json(self, buf#: String) -> String {
-        auto tmp = String::from_i64(self)
+    pub fn write_json(self, buf#: string) -> string {
+        auto tmp = string::from_i64(self)
         buf#.push_view(tmp.as_view())
         return buf
     }
 }
 
 impl f64@ToJson {
-    pub fn write_json(self, buf#: String) -> String {
-        auto tmp = String::from_f64(self)
+    pub fn write_json(self, buf#: string) -> string {
+        auto tmp = string::from_f64(self)
         buf#.push_view(tmp.as_view())
         return buf
     }
 }
 
 impl bool@ToJson {
-    pub fn write_json(self, buf#: String) -> String {
+    pub fn write_json(self, buf#: string) -> string {
         if self { buf#.push_str("true") } else { buf#.push_str("false") }
         return buf
     }
 }
 
-fn json_write_escaped_string(s: str, buf#: String) {
+fn json_write_escaped_string(s: str, buf#: string) {
     buf#.push_str("\"")
     auto i#: usize = 0
     loop i < s.len() {
@@ -85,21 +85,21 @@ fn json_write_escaped_string(s: str, buf#: String) {
 }
 
 impl str@ToJson {
-    pub fn write_json(self, buf#: String) -> String {
+    pub fn write_json(self, buf#: string) -> string {
         json_write_escaped_string(self, buf)
         return buf
     }
 }
 
-impl String@ToJson {
-    pub fn write_json(self, buf#: String) -> String {
+impl string@ToJson {
+    pub fn write_json(self, buf#: string) -> string {
         json_write_escaped_string(self.as_view(), buf)
         return buf
     }
 }
 
 // Reflection-based serializer for structural Shapes
-pub fn serialize_shape<'T>(obj: 'T, buf#: String) -> String {
+pub fn serialize_shape<'T>(obj: 'T, buf#: string) -> string {
     buf#.push_str("{")
     auto first# = true
     for auto f in reflect<'T>().fields {
@@ -118,7 +118,7 @@ pub fn serialize_shape<'T>(obj: 'T, buf#: String) -> String {
 }
 
 impl<'T: @ToJson> Vec<'T>@ToJson {
-    pub fn write_json(self, buf#: String) -> String {
+    pub fn write_json(self, buf#: string) -> string {
         buf#.push_str("[")
         auto first# = true
         auto i#: usize = 0
@@ -134,7 +134,7 @@ impl<'T: @ToJson> Vec<'T>@ToJson {
 }
 
 impl<'K: @ToJson, 'V: @ToJson> HashMap<'K, 'V>@ToJson {
-    pub fn write_json(self, buf#: String) -> String {
+    pub fn write_json(self, buf#: string) -> string {
         buf#.push_str("{")
         auto first# = true
         auto iter# = self.iter()
@@ -156,7 +156,7 @@ impl<'K: @ToJson, 'V: @ToJson> HashMap<'K, 'V>@ToJson {
 }
 
 impl<'T: @ToJson> Option<'T>@ToJson {
-    pub fn write_json(self, buf#: String) -> String {
+    pub fn write_json(self, buf#: string) -> string {
         match self {
             auto Option<'T>::Some(&val) => return val.write_json(buf)
             _ => {
@@ -168,7 +168,7 @@ impl<'T: @ToJson> Option<'T>@ToJson {
 }
 
 impl<'T: @ToJson, 'E: @ToJson> Result<'T, 'E>@ToJson {
-    pub fn write_json(self, buf#: String) -> String {
+    pub fn write_json(self, buf#: string) -> string {
         buf#.push_str("{\"")
         match self {
             auto Result<'T, 'E>::Ok(&val) => {
@@ -185,8 +185,8 @@ impl<'T: @ToJson, 'E: @ToJson> Result<'T, 'E>@ToJson {
     }
 }
 
-pub fn to_json<'T: @ToJson>(obj: 'T) -> String {
-    auto res# = String::from("")
+pub fn to_json<'T: @ToJson>(obj: 'T) -> string {
+    auto res# = string::from("")
     res = obj.write_json(res)
     return res
 }
@@ -364,7 +364,7 @@ fn json_parse_hex4(rem: str, start: usize) -> u32 {
     return cp
 }
 
-fn json_push_utf8(str#: String, cp: u32) {
+fn json_push_utf8(str#: string, cp: u32) {
     if cp <= 127:u32 { str#.push_char(cp as char) }
     else if cp <= 2047:u32 {
         str#.push_char((192:u32 + (cp / 64:u32)) as char)
@@ -381,7 +381,7 @@ fn json_push_utf8(str#: String, cp: u32) {
     }
 }
 
-impl String@FromJson {
+impl string@FromJson {
     pub fn parse_json(self#, json: str) -> JsonRes {
         auto rem = json_skip_whitespace(json)
         if rem.len() == 0 || rem.byte_at(0) != 34 { return JsonRes::Err("Expected string") }
@@ -394,7 +394,7 @@ impl String@FromJson {
             i += 1
         }
         if !closed { return JsonRes::Err("Unterminated string") }
-        auto new_str# = String::from("")
+        auto new_str# = string::from("")
         auto j#: usize = 1
         loop j < i {
             auto c = rem.byte_at(j)
@@ -619,7 +619,7 @@ impl JsonNode {
         
         auto c = rem.byte_at(0)
         if c == 123 { // '{'
-            auto map# = HashMap<String, JsonNode>::new()
+            auto map# = HashMap<string, JsonNode>::new()
             rem = rem.substr(1, rem.len() - 1)
             auto first# = true
             loop true {
@@ -631,7 +631,7 @@ impl JsonNode {
                     rem = json_skip_whitespace(rem)
                 }
                 first = false
-                auto key# = String::from("")
+                auto key# = string::from("")
                 rem = key#.parse_json(rem)!
                 rem = json_skip_whitespace(rem)
                 if rem.len() == 0 || rem.byte_at(0) != 58 { return JsonRes::Err("Expected :") }
@@ -662,7 +662,7 @@ impl JsonNode {
             self = JsonNode::ArrayNode(cede arr)
             return JsonRes::Ok(rem)
         } else if c == 34 { // '"'
-            auto s# = String::from("")
+            auto s# = string::from("")
             rem = s#.parse_json(rem)!
             self = JsonNode::StrNode(cede s)
             return JsonRes::Ok(rem)

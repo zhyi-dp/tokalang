@@ -1,4 +1,4 @@
-import std/string::{String}
+import std/string::{string}
 import core/str::{str, _internal_str_cast}
 import core/types::{Addr}
 import core/libc::{libc_memcpy}
@@ -18,7 +18,7 @@ fn rebuild_str(addr: Addr, len: usize) -> str {
 
 pub shape Printer (
     indent_level#: i32,
-    output#: String,
+    output#: string,
     needs_indent#: bool,
     in_shape#: bool,
     paren_depth#: i32
@@ -28,7 +28,7 @@ impl Printer {
     pub fn new() -> Printer {
         return Printer(
             indent_level = 0,
-            output = String::from(""),
+            output = string::from(""),
             needs_indent = false,
             in_shape = false,
             paren_depth = 0
@@ -44,7 +44,7 @@ impl Printer {
         self.needs_indent = false
     }
 
-    pub fn format(self#, lex#: Lexer) -> String {
+    pub fn format(self#, lex#: Lexer) -> string {
         auto last_kind# = TokenKind::Unknown()
         auto last_lexeme# = _str_cast("")
         auto in_import# = false

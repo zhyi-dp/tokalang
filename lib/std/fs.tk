@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 import sys/os as sys
-import std/string::{String}
+import std/string::{string}
 import core/types::{Addr, ADDR0}
 import std/io::{File, IoStringResult, println}
 import core/result::{Result}
@@ -43,21 +43,21 @@ impl ReadDir {
     /**
      * Returns the next directory entry name.
      */
-    pub fn next(self#) -> Option<String> {
+    pub fn next(self#) -> Option<string> {
         loop !self.finished {
             auto name_opt = sys::readdir_impl(self.handle)
             if name_opt.is_none() {
                 self.finished = true
                 sys::closedir_impl(self.handle)
-                return Option<String>::None
+                return Option<string>::None
             }
             
             auto name = name_opt.unwrap()
             if name.as_str() != "." && name.as_str() != ".." {
-                return Option<String>::Some(name)
+                return Option<string>::Some(name)
             }
         }
-        return Option<String>::None
+        return Option<string>::None
     }
     
     pub fn close(self#) {
@@ -71,7 +71,7 @@ impl ReadDir {
 /**
  * Returns an iterator over the entries in a directory.
  */
-pub fn read_dir(path: String) -> ReadDir {
+pub fn read_dir(path: string) -> ReadDir {
     auto h = sys::opendir_impl(path.c_str() as Addr)
     if h == ADDR0 {
         return ReadDir(handle = h, finished = true)
@@ -86,21 +86,21 @@ pub fn read_dir(path: String) -> ReadDir {
 
  * Creates a new, empty directory at the provided path.
  */
-pub fn create_dir(path: String) -> bool {
+pub fn create_dir(path: string) -> bool {
     return sys::mkdir_impl(path.c_str() as Addr)
 }
 
 /**
  * Removes an empty directory.
  */
-pub fn remove_dir(path: String) -> bool {
+pub fn remove_dir(path: string) -> bool {
     return sys::rmdir_impl(path.c_str() as Addr)
 }
 
 /**
  * Returns true if the path exists on disk and is a file or directory.
  */
-pub fn exists(path: String) -> bool {
+pub fn exists(path: string) -> bool {
     return sys::path_exists(path.c_str() as Addr)
 }
 
@@ -128,10 +128,10 @@ impl Metadata {
      }
 }
 
-pub fn metadata(path: String) -> Result<Metadata, String> {
+pub fn metadata(path: string) -> Result<Metadata, string> {
     auto handle = sys::stat_impl(path.c_str() as Addr)
     if handle == ADDR0 {
-        return Result<Metadata, String>::Err(String::from("Path not found"))
+        return Result<Metadata, string>::Err(string::from("Path not found"))
     }
     
     auto m = Metadata(
@@ -141,16 +141,16 @@ pub fn metadata(path: String) -> Result<Metadata, String> {
     )
     
     sys::stat_free_impl(handle)
-    return Result<Metadata, String>::Ok(m)
+    return Result<Metadata, string>::Ok(m)
 }
 
 /**
  * Read the entire contents of a file into a string.
  */
-pub fn read_to_string(path: String) -> IoStringResult {
+pub fn read_to_string(path: string) -> IoStringResult {
     auto f# = File::open(path, "r")
     if !f.is_valid() {
-        return IoStringResult::Err(String::from("Failed to open file for reading"))
+        return IoStringResult::Err(string::from("Failed to open file for reading"))
     }
     
     auto s_res = f#.read_to_string()
@@ -162,18 +162,18 @@ pub fn read_to_string(path: String) -> IoStringResult {
 /**
  * Write a slice as the entire contents of a file.
  */
-pub fn write_string(path: String, content: str) -> Result<bool, String> {
+pub fn write_string(path: string, content: str) -> Result<bool, string> {
     auto f# = File::open(path, "w")
     if !f.is_valid() {
-        return Result<bool, String>::Err(String::from("Failed to open file for writing"))
+        return Result<bool, string>::Err(string::from("Failed to open file for writing"))
     }
     
     auto write_len = f#.write(content)
     f#.close()
     
     if write_len != content.len() {
-        return Result<bool, String>::Err(String::from("Failed to write all content to file"))
+        return Result<bool, string>::Err(string::from("Failed to write all content to file"))
     }
     
-    return Result<bool, String>::Ok(true)
+    return Result<bool, string>::Ok(true)
 }

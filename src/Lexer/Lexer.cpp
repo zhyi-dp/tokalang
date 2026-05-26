@@ -99,7 +99,7 @@ static std::unordered_map<std::string, TokenType> Keywords = {
 
 Lexer::Lexer(const char *source, SourceLocation startLoc)
     : m_Source(source), m_Current(source), m_StartLoc(startLoc) {
-  // 安全无害过滤 UTF-8 BOM (\xEF\xBB\xBF)
+  // UTF-8 BOM (\xEF\xBB\xBF)
   if (m_Current && 
       static_cast<unsigned char>(m_Current[0]) == 0xEF &&
       static_cast<unsigned char>(m_Current[1]) == 0xBB &&

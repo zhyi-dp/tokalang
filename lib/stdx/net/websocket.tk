@@ -1,4 +1,4 @@
-import std/string::{String}
+import std/string::{string}
 import std/net::{TcpStream, net_async_read}
 import stdx/crypto/sha1::{Sha1}
 import stdx/encoding/base64
@@ -30,17 +30,17 @@ impl WsConnection@encap {
     pub fn clone(self) = delete
 }
 
-pub fn ws_accept_async(stream#: TcpStream) -> async Result<WsConnection, String> {
-        auto req_str# = String::from("")
+pub fn ws_accept_async(stream#: TcpStream) -> async Result<WsConnection, string> {
+        auto req_str# = string::from("")
         auto headers_done# = false
         
-        auto crlf_crlf# = String::from("")
+        auto crlf_crlf# = string::from("")
         crlf_crlf#.push_char(13 as char)
         crlf_crlf#.push_char(10 as char)
         crlf_crlf#.push_char(13 as char)
         crlf_crlf#.push_char(10 as char)
         
-        auto crlf_single# = String::from("")
+        auto crlf_single# = string::from("")
         crlf_single#.push_char(13 as char)
         crlf_single#.push_char(10 as char)
         
@@ -52,10 +52,10 @@ pub fn ws_accept_async(stream#: TcpStream) -> async Result<WsConnection, String>
             auto bytes_read = net_async_read(stream, *#buf_raw as *u8, 1024).await!
             
             if bytes_read == 0 {
-                return Result<WsConnection, String>::Err(String::from("Connection closed before headers"))
+                return Result<WsConnection, string>::Err(string::from("Connection closed before headers"))
             }
             
-            auto temp_chunk = String::from_raw(*#buf_raw as *u8, bytes_read)
+            auto temp_chunk = string::from_raw(*#buf_raw as *u8, bytes_read)
             req_str#.push_str(temp_chunk.as_str())
             
             auto rv = req_str.as_view()
@@ -65,7 +65,7 @@ pub fn ws_accept_async(stream#: TcpStream) -> async Result<WsConnection, String>
             
             tries += 1
             if tries > 20 {
-                return Result<WsConnection, String>::Err(String::from("Header too large or timeout"))
+                return Result<WsConnection, string>::Err(string::from("Header too large or timeout"))
             }
         }
         
@@ -78,14 +78,14 @@ pub fn ws_accept_async(stream#: TcpStream) -> async Result<WsConnection, String>
         }
         
         if idx_opt.is_none() {
-            return Result<WsConnection, String>::Err(String::from("Missing Sec-WebSocket-Key"))
+            return Result<WsConnection, string>::Err(string::from("Missing Sec-WebSocket-Key"))
         }
         auto start_idx = idx_opt.unwrap() + key_marker.len()
         
         auto rest_view = req_view.substring(start_idx, req_view.len())
         auto end_idx_opt = rest_view.index_of_str(crlf_single.as_view())
         if end_idx_opt.is_none() {
-            return Result<WsConnection, String>::Err(String::from("Malformed headers"))
+            return Result<WsConnection, string>::Err(string::from("Malformed headers"))
         }
         
         auto swk# = rest_view.substring(0, end_idx_opt.unwrap()).trim().to_string()
@@ -106,11 +106,11 @@ pub fn ws_accept_async(stream#: TcpStream) -> async Result<WsConnection, String>
         stream#.write_string_async(b64_res).await!
         stream#.write_view_async(crlf_crlf.as_view()).await!
         
-        return Result<WsConnection, String>::Ok(WsConnection(stream=stream, is_client=false))
+        return Result<WsConnection, string>::Ok(WsConnection(stream=stream, is_client=false))
     }
 
 impl WsConnection {
-    pub fn read_text_async(self#) -> async Result<String, String> {
+    pub fn read_text_async(self#) -> async Result<string, string> {
         // Read 2 bytes framing header
         auto head_vec# = Vec<u8>::with_capacity(2)
         auto *head = head_vec.unsafe_as_raw()
@@ -153,7 +153,7 @@ impl WsConnection {
         }
 
         if payload_len == 0 {
-            return Result<String, String>::Ok(String::from(""))
+            return Result<string, string>::Ok(string::from(""))
         }
 
         auto payload_vec# = Vec<u8>::with_capacity(payload_len)
@@ -168,7 +168,7 @@ impl WsConnection {
                 auto *rd_ptr# = rd_addr as *[0]u8
                 auto nr = net_async_read(self.stream, *#rd_ptr as *u8, to_rd).await!
                 if nr == 0 {
-                    return Result<String, String>::Err(String::from("Peer closed during payload"))
+                    return Result<string, string>::Err(string::from("Peer closed during payload"))
                 }
                 total_read += nr
             }
@@ -182,12 +182,12 @@ impl WsConnection {
             }
         }
         
-        auto ret_str = String::from_raw(*#payload as *u8, payload_len)
+        auto ret_str = string::from_raw(*#payload as *u8, payload_len)
 
-        return Result<String, String>::Ok(ret_str)
+        return Result<string, string>::Ok(ret_str)
     }
 
-    pub fn write_text_async(self#, s: str) -> async Result<usize, String> {
+    pub fn write_text_async(self#, s: str) -> async Result<usize, string> {
         auto p_len = s.len()
         
         // Write header
@@ -207,7 +207,7 @@ impl WsConnection {
             }
             head_len = 4
         } else {
-            return Result<usize, String>::Err(String::from("Too large for test WS text writer"))
+            return Result<usize, string>::Err(string::from("Too large for test WS text writer"))
         }
         
         self.stream#.write_async(*#head as *u8, head_len).await!
@@ -215,7 +215,7 @@ impl WsConnection {
         // Write unmasked payload
         self.stream#.write_view_async(s).await!
         
-        return Result<usize, String>::Ok(p_len)
+        return Result<usize, string>::Ok(p_len)
     }
 
 }

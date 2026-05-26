@@ -1,8 +1,8 @@
 import std/io::{println}
-import std/string::{String}
+import std/string::{string}
 
 fn main() -> i32 {
-    auto s# = String::from("hello tokalang")
+    auto s# = string::from("hello tokalang")
     
     // Test count_char
     if s.count_char(108:char) != 3 { // 'l'

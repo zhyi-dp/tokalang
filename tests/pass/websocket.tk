@@ -1,7 +1,7 @@
 import std/net::{TcpListener, SocketAddrV4, Ipv4Addr, TcpStream, net_async_accept, net_async_read}
 import std/task::{block_on, sleep_async}
 import std/io::println
-import std/string::String
+import std/string::string
 import core/result::Result
 import core/libc
 import stdx/net/websocket::{WsConnection, ws_accept_async}
@@ -27,7 +27,7 @@ fn server_task(server#: TcpListener) -> async i32 {
     }
     auto msg = msg_res.unwrap()
     
-    assert(msg.eq(String::from("Hello, Toka WS!")), "Message mismatch!")
+    assert(msg.eq(string::from("Hello, Toka WS!")), "Message mismatch!")
     
     // Echo back
     auto wr_res = ws_conn#.write_text_async("Echo: ").await
@@ -53,11 +53,11 @@ fn client_task() -> async i32 {
         retries = retries + 1
     }
     
-    auto crlf_single# = String::from("")
+    auto crlf_single# = string::from("")
     crlf_single#.push_char(13 as char)
     crlf_single#.push_char(10 as char)
     
-    auto req# = String::from("GET / HTTP/1.1")
+    auto req# = string::from("GET / HTTP/1.1")
     req#.push_str(crlf_single.as_str())
     req#.push_str("Host: localhost")
     req#.push_str(crlf_single.as_str())

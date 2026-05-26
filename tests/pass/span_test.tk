@@ -48,18 +48,18 @@ fn main() -> i32 {
     assert(resolved_combined == expected3, "combined should match exact range")
 
     // 5. Test Unicode / UTF-8 character column resolution
-    // "fn main() -> i32 {\n    // 中文字符注释\n    auto"
+    // "fn main() -> i32 {\n    // \n    auto"
     // "fn main() -> i32 {\n" is 19 characters/bytes.
-    // "中文字符注释" contains 6 Chinese characters, which take 6 * 3 = 18 bytes in UTF-8.
+    // "" contains 6 Chinese characters, which take 6 * 3 = 18 bytes in UTF-8.
     // Let's verify character-based column counting!
     auto unicode_source: str = "fn main() -> i32 {\n    // 中文字符注释\n    auto"
     auto unicode_map = SourceMap::new("unicode.tk", unicode_source)
     
     // Offset calculation:
     // Line 1: "fn main() -> i32 {\n" -> 19 characters/bytes.
-    // Line 2: "    // 中文字符注释\n"
+    // Line 2: "    // \n"
     //   - "    // " (7 bytes, 7 chars)
-    //   - "中文字符注释" (18 bytes, 6 chars)
+    //   - "" (18 bytes, 6 chars)
     //   - "\n" (1 byte)
     // Line 3: "    auto"
     //   - "    " (4 bytes, 4 chars)
@@ -72,12 +72,12 @@ fn main() -> i32 {
     auto expected_auto: str = "auto"
     assert(unicode_span.to_str(unicode_source) == expected_auto, "should resolve to 'auto'")
     
-    // Let's resolve the character '注' (the 5th Chinese char) in "    // 中文字符注释"
-    // Byte offset: 19 (Line 1) + 7 (spaces) + 4 * 3 (12 bytes for 4 chars "中文字符") = 38.
-    // Expected character column for '注':
+    // Let's resolve the character '' (the 5th Chinese char) in "    // "
+    // Byte offset: 19 (Line 1) + 7 (spaces) + 4 * 3 (12 bytes for 4 chars "") = 38.
+    // Expected character column for '':
     // 1-indexed: 7 (spaces) + 4 (chars before) + 1 (the char itself) = 12.
     // (If byte-based, column would be 7 + 12 + 1 = 20!)
-    auto char_span = Span::new((unicode_source.raw_ptr() as usize + 38:usize) as Addr, 3:usize) // '注' (3 bytes)
+    auto char_span = Span::new((unicode_source.raw_ptr() as usize + 38:usize) as Addr, 3:usize) // '' (3 bytes)
     auto char_loc = unicode_map.resolve_loc(char_span)
     println("Chinese char '注' at offset 38 resolves to: line={}, column={}", char_loc.line, char_loc.column)
     assert(char_loc.line == 2:usize, "Line should be 2")

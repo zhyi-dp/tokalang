@@ -1,6 +1,6 @@
 import std/net::{TcpListener, SocketAddrV4, Ipv4Addr, TcpStream, net_async_accept, net_async_read}
 import std/task::{sleep_async, block_on}
-import std/string::{String}
+import std/string::{string}
 import std/io::{println}
 
 pub fn async_server() -> async i32 {
@@ -53,7 +53,7 @@ pub fn async_client() -> async i32 {
     }
     
     println("[Client] Writing 'Hello Async' to server (non-blocking)...")
-    auto w_res = stream#.write_string_async(String::from("Hello Async")).await
+    auto w_res = stream#.write_string_async(string::from("Hello Async")).await
     w_res.unwrap()
     
     println("[Client] Awaiting response...")

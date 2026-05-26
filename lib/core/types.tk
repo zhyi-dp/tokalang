@@ -32,10 +32,10 @@ pub alias Char32 = u32 // UTF-32 code point
 pub alias Char = Char32
 /*
 pub type string = Vec < char > // encoding-neutral string
-pub type String8 = Vec < byte > // UTF-8 String
-pub type String16 = Vec < u16 > // UTF-16 String
-pub type String32 = Vec < Char32 > // UTF-32 String
-pub alias String = String8
+pub type String8 = Vec < byte > // UTF-8 string
+pub type String16 = Vec < u16 > // UTF-16 string
+pub type String32 = Vec < Char32 > // UTF-32 string
+pub alias string = String8
 
 //Slice (like C++ std::string_view or Rust &cstr)
 

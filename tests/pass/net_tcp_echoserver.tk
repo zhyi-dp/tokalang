@@ -1,6 +1,6 @@
 import std/io::{println}
 import std/net::{TcpListener, TcpStream, Ipv4Addr, SocketAddrV4}
-import std/string::{String}
+import std/string::{string}
 import core/libc
 import sys/net as sys
 import core/types
@@ -87,7 +87,7 @@ pub fn main() -> i32 {
         }
         println("[Client] Connected successfully!")
         
-        auto msg = String::from("Hello Toka")
+        auto msg = string::from("Hello Toka")
         auto write_res = stream#.write_string(msg)
         if write_res.is_ok() {
             println("[Client] Sent {} bytes", write_res.unwrap() as i32)

@@ -1,18 +1,18 @@
 // Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
 
 import core/types::{usize, char}
-import std/string::{String}
+import std/string::{string}
 import core/libc::{libc_snprintf, libc_malloc, libc_free}
 import core/traits::{@encap}
 import std/vec::{Vec}
 
 pub shape StringBuilder (
-    buffer: String
+    buffer: string
 )
 
 impl StringBuilder@encap {
     fn drop(self#) {
-        // String drops automatically
+        // string drops automatically
     }
     
     pub fn clone(self) -> StringBuilder {
@@ -25,17 +25,17 @@ impl StringBuilder@encap {
 impl StringBuilder {
     pub fn new() -> StringBuilder {
         return StringBuilder(
-            buffer = String::from("")
+            buffer = string::from("")
         )
     }
 
     pub fn with_capacity(cap: i32) -> StringBuilder {
         return StringBuilder(
-            buffer = String::from("") 
+            buffer = string::from("") 
         )
     }
 
-    pub fn append(self#, s: String) {
+    pub fn append(self#, s: string) {
         self.buffer#.push_str(s.as_str())
     }
 
@@ -48,7 +48,7 @@ impl StringBuilder {
     }
 
     pub fn append_i32(self#, v: i32) {
-        auto s = String::from_int(v)
+        auto s = string::from_int(v)
         self.buffer#.push_str(s.as_str())
     }
 
@@ -62,7 +62,7 @@ impl StringBuilder {
     }
 
     pub fn append_f64(self#, v: f64) {
-        auto s = String::from_f64(v)
+        auto s = string::from_f64(v)
         self.buffer#.push_str(s.as_str())
     }
     
@@ -74,7 +74,7 @@ impl StringBuilder {
         }
     }
 
-    pub fn to_string(self) -> String {
+    pub fn to_string(self) -> string {
         return self.buffer.clone()
     }
     
@@ -100,7 +100,7 @@ impl StringBuilder {
 // ------------------------------------------------------
 
 pub shape AnsiStyle (
-    code: String
+    code: string
 )
 
 impl AnsiStyle@encap {
@@ -114,47 +114,47 @@ impl AnsiStyle@encap {
 
 impl AnsiStyle {
     pub fn empty() -> AnsiStyle {
-        return AnsiStyle(code = String::from(""))
+        return AnsiStyle(code = string::from(""))
     }
     
     pub fn reset() -> AnsiStyle {
-        return AnsiStyle(code = String::from("\x1b[0m"))
+        return AnsiStyle(code = string::from("\x1b[0m"))
     }
     
     pub fn red() -> AnsiStyle {
-        return AnsiStyle(code = String::from("\x1b[31m"))
+        return AnsiStyle(code = string::from("\x1b[31m"))
     }
     
     pub fn green() -> AnsiStyle {
-        return AnsiStyle(code = String::from("\x1b[32m"))
+        return AnsiStyle(code = string::from("\x1b[32m"))
     }
     
     pub fn yellow() -> AnsiStyle {
-        return AnsiStyle(code = String::from("\x1b[33m"))
+        return AnsiStyle(code = string::from("\x1b[33m"))
     }
     
     pub fn blue() -> AnsiStyle {
-        return AnsiStyle(code = String::from("\x1b[34m"))
+        return AnsiStyle(code = string::from("\x1b[34m"))
     }
     
     pub fn magenta() -> AnsiStyle {
-        return AnsiStyle(code = String::from("\x1b[35m"))
+        return AnsiStyle(code = string::from("\x1b[35m"))
     }
     
     pub fn cyan() -> AnsiStyle {
-        return AnsiStyle(code = String::from("\x1b[36m"))
+        return AnsiStyle(code = string::from("\x1b[36m"))
     }
     
     pub fn white() -> AnsiStyle {
-        return AnsiStyle(code = String::from("\x1b[37m"))
+        return AnsiStyle(code = string::from("\x1b[37m"))
     }
     
     pub fn bold(self) -> AnsiStyle {
         if self.code.len() == 0 {
-            return AnsiStyle(code = String::from("\x1b[1m"))
+            return AnsiStyle(code = string::from("\x1b[1m"))
         }
         auto inner = self.code.substring(2, (self.code.len() - 1) as i32)
-        auto res# = String::from("\x1b[1;")
+        auto res# = string::from("\x1b[1;")
         res#.push_str(inner.as_str())
         res#.push_str("m")
         return AnsiStyle(code = res)
@@ -171,8 +171,8 @@ pub shape Location (
 )
 
 pub shape SourceFile (
-    name: String,
-    source: String,
+    name: string,
+    source: string,
     line_starts: Vec<usize>
 )
 
@@ -189,7 +189,7 @@ impl SourceFile@encap {
 }
 
 impl SourceFile {
-    pub fn new(name: String, source: String) -> SourceFile {
+    pub fn new(name: string, source: string) -> SourceFile {
         auto line_starts = Vec<usize>::new()
         line_starts#.push(0:usize)
         
@@ -238,11 +238,11 @@ impl SourceFile {
         return Location(line = line_idx + 1, column = col)
     }
     
-    pub fn get_line_content(self, line: usize) -> String {
+    pub fn get_line_content(self, line: usize) -> string {
         auto line_idx = line - 1
         auto size = self.line_starts.len()
         if line_idx >= size {
-            return String::from("")
+            return string::from("")
         }
         
         auto start = self.line_starts.get(line_idx) as i32
@@ -284,7 +284,7 @@ pub shape DiagnosticSeverity (
 pub shape DiagnosticLabel (
     offset: usize,
     length: usize,
-    message: String
+    message: string
 )
 
 impl DiagnosticLabel@encap {
@@ -300,8 +300,8 @@ impl DiagnosticLabel@encap {
 
 pub shape Diagnostic (
     severity: DiagnosticSeverity,
-    code: String,
-    message: String,
+    code: string,
+    message: string,
     *labels: [DiagnosticLabel],
     labels_count: usize
 )
@@ -331,7 +331,7 @@ fn get_digits(v: usize) -> i32 {
 }
 
 impl Diagnostic {
-    pub fn render(self, file: SourceFile, color: bool) -> String {
+    pub fn render(self, file: SourceFile, color: bool) -> string {
         auto sb# = StringBuilder::new()
         
         auto sev_style# = AnsiStyle::empty()

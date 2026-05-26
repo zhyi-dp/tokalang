@@ -1,9 +1,9 @@
 // Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
 import std/io::{File, println, remove_file}
-import std/string::{String}
+import std/string::{string}
 
 fn main() -> i32 {
-    auto path = String::from("test_optimized_io.txt")
+    auto path = string::from("test_optimized_io.txt")
     
     // 1. Prepare test file
     {
@@ -23,18 +23,18 @@ fn main() -> i32 {
         if f.is_valid() {
             auto l1_res# = f#.read_line()
             match l1_res {
-                auto Result<String, String>::Ok(&l1) => {
+                auto Result<string, string>::Ok(&l1) => {
                     println("Read L1: {}", l1.c_str())
-                    if !l1.eq(String::from("Line 1: High Performance\n")) { return 2 }
+                    if !l1.eq(string::from("Line 1: High Performance\n")) { return 2 }
                 }
                 _ => return 3
             }
             
             auto l2_res# = f#.read_line()
             match l2_res {
-                auto Result<String, String>::Ok(&l2) => {
+                auto Result<string, string>::Ok(&l2) => {
                     println("Read L2: {}", l2.c_str())
-                    if !l2.eq(String::from("Line 2: Native Buffering\n")) { return 4 }
+                    if !l2.eq(string::from("Line 2: Native Buffering\n")) { return 4 }
                 }
                 _ => return 5
             }

@@ -1,6 +1,6 @@
 import std/env
 import std/io::{File, print, println}
-import std/string::{String}
+import std/string::{string}
 import src/lexer::{Lexer}
 import src/printer::{Printer}
 import core/str::{str, _internal_str_cast}
@@ -204,7 +204,7 @@ impl Lexer {
             return Token::new(TokenKind::Number(), (num).raw_ptr() as Addr, (num).len(), start_line, start_col)
         }
 
-        // String Literal
+        // string Literal
         if c == '"' { // '"'
             auto start_idx = self.pos
             self#.advance() // Consume opening quote
@@ -291,7 +291,7 @@ fn rebuild_str(addr: Addr, len: usize) -> str {
 
 pub shape Printer (
     indent_level#: i32,
-    output#: String,
+    output#: string,
     needs_indent#: bool,
     in_shape#: bool,
     paren_depth#: i32
@@ -301,7 +301,7 @@ impl Printer {
     pub fn new() -> Printer {
         return Printer(
             indent_level = 0,
-            output = String::from(""),
+            output = string::from(""),
             needs_indent = false,
             in_shape = false,
             paren_depth = 0
@@ -317,7 +317,7 @@ impl Printer {
         self.needs_indent = false
     }
 
-    pub fn format(self#, lex#: Lexer) -> String {
+    pub fn format(self#, lex#: Lexer) -> string {
         auto last_kind# = TokenKind::Unknown()
         auto last_lexeme# = _str_cast("")
         auto in_import# = false

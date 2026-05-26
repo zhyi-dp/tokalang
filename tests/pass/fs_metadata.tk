@@ -1,7 +1,7 @@
 import std/fs::{Metadata}
 import std/fs
 import std/io::{File, println, remove_file}
-import std/string::{String}
+import std/string::{string}
 import core/result::{Result}
 import core/types::{usize, Addr}
 import core/types::{usize, Addr}
@@ -10,8 +10,8 @@ import sys/libc::{libc_printf}
 
 fn main() -> i32 {
     unsafe {
-        auto filename = String::from("test_meta.txt")
-        auto dirname = String::from("test_meta_dir")
+        auto filename = string::from("test_meta.txt")
+        auto dirname = string::from("test_meta_dir")
         
         // Debug path
         libc_printf(c"Debug dirname: %s\n", dirname.c_str())
@@ -27,7 +27,7 @@ fn main() -> i32 {
             // Check if directory
             auto m_res = fs::metadata(dirname.clone())
             match m_res {
-                auto Result<Metadata, String>::Ok(m) => {
+                auto Result<Metadata, string>::Ok(m) => {
                     if m.is_dir() {
                         println("Is Dir")
                         unsafe {
@@ -80,7 +80,7 @@ fn main() -> i32 {
                         remove_file(dirname.clone())
                     }
                 }
-                auto Result<Metadata, String>::Err(&e) => {
+                auto Result<Metadata, string>::Err(&e) => {
                      println("Metadata failed: {}", e)
                 }
             }
@@ -102,7 +102,7 @@ fn main() -> i32 {
         {
             auto meta_res = fs::metadata(filename.clone())
             match meta_res {
-                auto Result<Metadata, String>::Ok(m) => {
+                auto Result<Metadata, string>::Ok(m) => {
                     println("Mode: {}", m.mode as i32)
                     if !m.is_file() {
                         println("Error: Should be file")
@@ -118,7 +118,7 @@ fn main() -> i32 {
                     }
                     println("File size: {}", m.len() as i32)
                 }
-                auto Result<Metadata, String>::Err(&e) => {
+                auto Result<Metadata, string>::Err(&e) => {
                     println("Metadata failed for file: {}", e)
                     return 5
                 }
@@ -141,7 +141,7 @@ fn main() -> i32 {
         {
             auto meta_res = fs::metadata(dirname.clone())
             match meta_res {
-                auto Result<Metadata, String>::Ok(m) => {
+                auto Result<Metadata, string>::Ok(m) => {
                     if !m.is_dir() {
                         println("Error: Should be dir")
                         return 6
@@ -151,7 +151,7 @@ fn main() -> i32 {
                         return 7
                     }
                 }
-                auto Result<Metadata, String>::Err(&e) => {
+                auto Result<Metadata, string>::Err(&e) => {
                     println("Metadata failed for dir: {}", e)
                     return 8
                 }

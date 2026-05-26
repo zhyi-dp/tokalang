@@ -3,9 +3,9 @@
 // Deprecated Tuple test to verify parser-level interception.
 // EXPECT: error[E0472]
 
-import std/string::String
+import std/string::string
 
-shape MyTuple(i32, String)
+shape MyTuple(i32, string)
 
 pub fn main() -> i32 {
     return 0

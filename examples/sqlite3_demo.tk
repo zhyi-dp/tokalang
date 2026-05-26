@@ -1,5 +1,5 @@
 import core/types::{char, Addr}
-import std/string::{String}
+import std/string::{string}
 import std/io::{println}
 
 extern fn sqlite3_libversion() -> *char
@@ -13,12 +13,12 @@ pub fn main() -> i32 {
     
     // Check SQLite Version
     auto *version_ptr = sqlite3_libversion()
-    auto version_str = String::from(*version_ptr)
+    auto version_str = string::from(*version_ptr)
     println("SQLite Version: {}", version_str)
     
     // Open Database
     auto db_ptr# = 0:Addr
-    auto db_name = String::from_str("test.db")
+    auto db_name = string::from_str("test.db")
     auto rc = sqlite3_open(db_name.c_str(), *db_ptr as Addr)
     
     if rc != 0 {
@@ -26,7 +26,7 @@ pub fn main() -> i32 {
         return 1
     }
     
-    auto sql = String::from_str("CREATE TABLE ...")
+    auto sql = string::from_str("CREATE TABLE ...")
     auto errmsg_ptr# = 0:Addr
     auto exec_rc = sqlite3_exec(db_ptr, sql.c_str(), 0:Addr, 0:Addr, *errmsg_ptr as Addr)
     if exec_rc != 0 {

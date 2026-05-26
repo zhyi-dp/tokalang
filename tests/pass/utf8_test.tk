@@ -2,10 +2,10 @@ import std/io::println
 import core/utf8::*
 import core/str::*
 import core/option::*
-import std/string::{String}
+import std/string::{string}
 
 fn main() -> i32 {
-    auto s_str = String::from("Hello你好世界!")
+    auto s_str = string::from("Hello你好世界!")
     auto s = s_str.as_str() // 5 (ASCII) + 4 (3-byte each) + 1 (ASCII) = 18 bytes
     
     if s.len() != 18:usize { return 1 }
@@ -19,7 +19,7 @@ fn main() -> i32 {
     
     auto sub = s.substr_chars(5:usize, 4:usize)
     println("substr: {}", sub.raw_ptr())
-    auto target_str = String::from("你好世界")
+    auto target_str = string::from("你好世界")
     if !sub.equals(target_str.as_str()) { return 4 }
     
     // index 0 -> 'H' (72)

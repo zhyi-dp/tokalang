@@ -1,4 +1,4 @@
-error[E0437]: Method 'drop' is private to 'String' and cannot be accessed from module 'encap_method_priv'
+error[E0437]: Method 'drop' is private to 'string' and cannot be accessed from module 'encap_method_priv'
  --> tests/fail/encap_method_priv.tk:21:6
     |
  21 |     s.drop()

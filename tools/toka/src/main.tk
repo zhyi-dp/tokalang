@@ -1,4 +1,4 @@
-import std/string::{String}
+import std/string::{string}
 import std/env
 import std/io::{println, File}
 import std/fs::{read_to_string}
@@ -26,9 +26,9 @@ fn print_help() {
     println("  -v, --verbose  Enable verbose compiler output")
 }
 
-fn generate_project_files(name: String, dest_dir: String, is_lib: bool) {
+fn generate_project_files(name: string, dest_dir: string, is_lib: bool) {
     unsafe {
-        auto pkg_file# = String::from("echo 'pub const PACKAGE = (\n    name = \"")
+        auto pkg_file# = string::from("echo 'pub const PACKAGE = (\n    name = \"")
         pkg_file#.push_str(name.as_str())
         pkg_file#.push_str("\",\n    version = \"0.1.0\",\n    dependencies = (\n    )\n)' > ")
         if !dest_dir.is_empty() {
@@ -39,7 +39,7 @@ fn generate_project_files(name: String, dest_dir: String, is_lib: bool) {
         libc_system(pkg_file.c_str())
 
         if is_lib {
-            auto build_file# = String::from("echo 'import build::{Library, run_build}\n\nfn main() -> i32 {\n    auto lib# = Library::make(\"")
+            auto build_file# = string::from("echo 'import build::{Library, run_build}\n\nfn main() -> i32 {\n    auto lib# = Library::make(\"")
             build_file#.push_str(name.as_str())
             build_file#.push_str("\" as *char, \"lib/")
             build_file#.push_str(name.as_str())
@@ -51,7 +51,7 @@ fn generate_project_files(name: String, dest_dir: String, is_lib: bool) {
             build_file#.push_str("build.tk")
             libc_system(build_file.c_str())
         } else {
-            auto build_file# = String::from("echo 'import build::{Executable, run_build}\n\nfn main() -> i32 {\n    auto app# = Executable::make(\"")
+            auto build_file# = string::from("echo 'import build::{Executable, run_build}\n\nfn main() -> i32 {\n    auto app# = Executable::make(\"")
             build_file#.push_str(name.as_str())
             build_file#.push_str("\" as *char, \"src/main.tk\" as *char)\n    return run_build(app)\n}' > ")
             if !dest_dir.is_empty() {
@@ -64,9 +64,9 @@ fn generate_project_files(name: String, dest_dir: String, is_lib: bool) {
     }
 }
 
-fn cmd_new(name: String, is_lib: bool) -> i32 {
+fn cmd_new(name: string, is_lib: bool) -> i32 {
     unsafe {
-        auto check_cmd# = String::from("test -d ")
+        auto check_cmd# = string::from("test -d ")
         check_cmd#.push_str(name.as_str())
         if libc_system(check_cmd.c_str()) == 0 {
             println("Error: Directory '{}' already exists! Aborting.", name)
@@ -74,13 +74,13 @@ fn cmd_new(name: String, is_lib: bool) -> i32 {
         }
         
         if is_lib {
-            auto cmd# = String::from("mkdir -p ")
+            auto cmd# = string::from("mkdir -p ")
             cmd#.push_str(name.as_str())
             cmd#.push_str("/lib/")
             cmd#.push_str(name.as_str())
             libc_system(cmd.c_str())
             
-            auto tk_file# = String::from("echo '// Library module\n\npub fn hello() {\n    // TODO: implement\n}' > ")
+            auto tk_file# = string::from("echo '// Library module\n\npub fn hello() {\n    // TODO: implement\n}' > ")
             tk_file#.push_str(name.as_str())
             tk_file#.push_str("/lib/")
             tk_file#.push_str(name.as_str())
@@ -90,12 +90,12 @@ fn cmd_new(name: String, is_lib: bool) -> i32 {
             generate_project_files(name.clone(), name.clone(), is_lib)
             println("Created new Toka library: {}", name)
         } else {
-            auto cmd# = String::from("mkdir -p ")
+            auto cmd# = string::from("mkdir -p ")
             cmd#.push_str(name.as_str())
             cmd#.push_str("/src")
             libc_system(cmd.c_str())
             
-            auto tk_file# = String::from("echo 'import std/io::{println, File}
+            auto tk_file# = string::from("echo 'import std/io::{println, File}
 import std/fs::{read_to_string}\n\nfn main() -> i32 {\n    println(\"Hello, Toka!\")\n    return 0\n}' > ")
             tk_file#.push_str(name.as_str())
             tk_file#.push_str("/src/main.tk")
@@ -119,7 +119,7 @@ fn cmd_init(is_lib: bool) -> i32 {
         libc_system(c"basename \"$PWD\" > .toka_tmp_basename")
         // For simplicity, we just use 'app' or 'lib' if we can't easily read it, 
         // but ideally we read the name. Let's use 'my_project' as a safe default for init
-        auto name = String::from("my_project") 
+        auto name = string::from("my_project") 
         // Note: A real implementation would read from .toka_tmp_basename
         libc_system(c"rm -f .toka_tmp_basename")
         
@@ -131,16 +131,16 @@ fn cmd_init(is_lib: bool) -> i32 {
             libc_system(c"echo 'import std/io::{println, File}\nimport std/fs::{read_to_string}\n\nfn main() -> i32 {\n    println(\"Hello, Toka!\")\n    return 0\n}' > src/main.tk")
         }
         
-        generate_project_files(name, String::from(""), is_lib)
+        generate_project_files(name, string::from(""), is_lib)
         println("Initialized Toka project in current directory.")
         return 0
     }
 }
 
-fn cmd_add(pkg_url_or_name: String) -> i32 {
+fn cmd_add(pkg_url_or_name: string) -> i32 {
     unsafe {
         auto pkg_url# = pkg_url_or_name.clone()
-        auto pkg_alias# = String::from("")
+        auto pkg_alias# = string::from("")
         
         // If it doesn't contain '/', it's a registry lookup
         if !pkg_url.contains("/") {
@@ -181,7 +181,7 @@ fn cmd_add(pkg_url_or_name: String) -> i32 {
             return 1
         }
         
-        auto res = read_to_string(String::from("package.tk"))
+        auto res = read_to_string(string::from("package.tk"))
         if res.is_err() {
             println("\x1b[1;31m       Error\x1b[0m failed to read package.tk")
             return 1
@@ -206,7 +206,7 @@ fn cmd_add(pkg_url_or_name: String) -> i32 {
         auto rest = pkg_content.substring(insert_pos, pkg_content.len() as i32)
         new_content#.push_str(rest.as_str())
         
-        auto file# = File::open(String::from("package.tk"), "w")
+        auto file# = File::open(string::from("package.tk"), "w")
         if !file.is_valid() {
             println("\x1b[1;31m       Error\x1b[0m failed to open package.tk for writing")
             return 1
@@ -217,9 +217,9 @@ fn cmd_add(pkg_url_or_name: String) -> i32 {
         println("\x1b[1;32m       Added\x1b[0m {} to package.tk", pkg_alias)
         
         println("\x1b[1;32m    Updating\x1b[0m package.lock...")
-        auto lock_file# = File::open(String::from("package.lock"), "a")
+        auto lock_file# = File::open(string::from("package.lock"), "a")
         if lock_file.is_valid() {
-            auto lock_entry# = String::from("")
+            auto lock_entry# = string::from("")
             lock_entry#.push_str(pkg_alias.as_str())
             lock_entry#.push_str(" ")
             lock_entry#.push_str(pkg_url.as_str())
@@ -241,7 +241,7 @@ fn cmd_build() -> i32 {
     }
 
     unsafe {
-        auto cmd# = String::from("tokac ")
+        auto cmd# = string::from("tokac ")
         auto toka_lib = libc_getenv(c"TOKA_LIB") as Addr
         if toka_lib != 0:Addr {
             cmd#.push_str("-I ")
@@ -255,16 +255,16 @@ fn cmd_build() -> i32 {
         if !pkg_args.is_empty() {
             cmd#.push_str(pkg_args.as_str())
             cmd#.push_str(" ")
-            env::set_var(String::from("TOKA_PKG_ARGS"), pkg_args)
+            env::set_var(string::from("TOKA_PKG_ARGS"), pkg_args)
         } else {
-            env::set_var(String::from("TOKA_PKG_ARGS"), String::from(""))
+            env::set_var(string::from("TOKA_PKG_ARGS"), string::from(""))
         }
         
-        auto build_file# = String::from("build.tk")
+        auto build_file# = string::from("build.tk")
         if libc_system(c"test -f build.tk") != 0 {
             if libc_system(c"test -f Project.tk") == 0 {
                 println("\n\x1b[33mWarning: Project.tk is deprecated. Please rename it to build.tk\x1b[0m\n")
-                build_file = String::from("Project.tk")
+                build_file = string::from("Project.tk")
             } else {
                 println("\x1b[1;31m       Error\x1b[0m build.tk not found in current directory.")
                 return 1
@@ -285,9 +285,9 @@ fn cmd_build() -> i32 {
 }
 
 
-fn cmd_run_single(file: String) -> i32 {
+fn cmd_run_single(file: string) -> i32 {
     unsafe {
-        auto cmd# = String::from("tokac ")
+        auto cmd# = string::from("tokac ")
         auto toka_lib = libc_getenv(c"TOKA_LIB") as Addr
         if toka_lib != 0:Addr {
             cmd#.push_str("-I ")
@@ -325,7 +325,7 @@ fn cmd_run() -> i32 {
 fn cmd_test() -> i32 {
     unsafe {
         println("Running Toka tests...")
-        auto cmd# = String::from("cat << 'EOF' > .toka_test_runner.sh\nset -e\npassed=0\nfailed=0\n")
+        auto cmd# = string::from("cat << 'EOF' > .toka_test_runner.sh\nset -e\npassed=0\nfailed=0\n")
         cmd#.push_str("if [ ! -d \"tests\" ]; then echo \"No tests directory found.\"; exit 0; fi\n")
         cmd#.push_str("for test_file in $(find tests -name '*.tk'); do\n")
         cmd#.push_str("  printf \"  \\x1b[1;36mTesting\\x1b[0m %s ... \" \"$test_file\"\n")
@@ -360,7 +360,7 @@ fn cmd_test() -> i32 {
 fn cmd_doc() -> i32 {
     unsafe {
         println("Generating documentation...")
-        auto cmd# = String::from("cat << 'EOF' > .toka_doc_generator.sh\nset -e\nmkdir -p docs\n")
+        auto cmd# = string::from("cat << 'EOF' > .toka_doc_generator.sh\nset -e\nmkdir -p docs\n")
         cmd#.push_str("doc_file=\"docs/API.md\"\necho \"# API Documentation\" > \"$doc_file\"\necho \"Generated by \\`toka doc\\`\" >> \"$doc_file\"\necho \"\" >> \"$doc_file\"\n")
         cmd#.push_str("find src lib -name '*.tk' 2>/dev/null | while read file; do\n")
         cmd#.push_str("  awk '\n")
@@ -442,7 +442,7 @@ fn main() -> i32 {
         cmd = env::get_arg(2)
     }
     
-    if cmd.eq(String::from("new")) {
+    if cmd.eq(string::from("new")) {
         if argc < 3 + shift {
              println("Error: 'toka new' requires a project name.")
              return 1
@@ -451,25 +451,25 @@ fn main() -> i32 {
         auto is_lib# = false
         if argc >= 4 + shift {
             auto flag = env::get_arg(3 + shift)
-            if flag.eq(String::from("--lib")) {
+            if flag.eq(string::from("--lib")) {
                 is_lib = true
             }
         }
         return cmd_new(name, is_lib)
     }
     
-    if cmd.eq(String::from("init")) {
+    if cmd.eq(string::from("init")) {
         auto is_lib# = false
         if argc >= 3 + shift {
             auto flag = env::get_arg(2 + shift)
-            if flag.eq(String::from("--lib")) {
+            if flag.eq(string::from("--lib")) {
                 is_lib = true
             }
         }
         return cmd_init(is_lib)
     }
     
-    if cmd.eq(String::from("add")) {
+    if cmd.eq(string::from("add")) {
         if argc < 3 + shift {
              println("Error: 'toka add' requires a package URL.")
              return 1
@@ -478,21 +478,21 @@ fn main() -> i32 {
         return cmd_add(url)
     }
     
-    if cmd.eq(String::from("rm")) {
+    if cmd.eq(string::from("rm")) {
         println("TODO: Implement toka rm")
         return 0
     }
     
-    if cmd.eq(String::from("up")) {
+    if cmd.eq(string::from("up")) {
         println("TODO: Implement toka up")
         return 0
     }
     
-    if cmd.eq(String::from("fetch")) {
+    if cmd.eq(string::from("fetch")) {
         return cmd_fetch()
     }
     
-    if cmd.eq(String::from("search")) {
+    if cmd.eq(string::from("search")) {
         if argc < 3 + shift {
              println("Error: 'toka search' requires a query string.")
              return 1
@@ -501,38 +501,38 @@ fn main() -> i32 {
         return cmd_search(query)
     }
     
-    if cmd.eq(String::from("publish")) {
+    if cmd.eq(string::from("publish")) {
         return cmd_publish()
     }
     
-    if cmd.eq(String::from("build")) {
+    if cmd.eq(string::from("build")) {
         return cmd_build()
     }
     
-    if cmd.eq(String::from("run")) {
+    if cmd.eq(string::from("run")) {
         if argc > 2 + shift {
             return cmd_run_single(env::get_arg(2 + shift))
         }
         return cmd_run()
     }
     
-    if cmd.eq(String::from("test")) {
+    if cmd.eq(string::from("test")) {
         return cmd_test()
     }
     
-    if cmd.eq(String::from("doc")) {
+    if cmd.eq(string::from("doc")) {
         return cmd_doc()
     }
     
-    if cmd.eq(String::from("clean")) {
+    if cmd.eq(string::from("clean")) {
         return cmd_clean()
     }
     
-    if cmd.eq(String::from("fmt")) {
+    if cmd.eq(string::from("fmt")) {
         return cmd_fmt()
     }
     
-    if cmd.eq(String::from("--version")) || cmd.eq(String::from("-v")) {
+    if cmd.eq(string::from("--version")) || cmd.eq(string::from("-v")) {
         println("toka manager version 0.9.7")
         return 0
     }

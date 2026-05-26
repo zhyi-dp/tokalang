@@ -1,7 +1,7 @@
-import std/string::{String}
+import std/string::{string}
 
-pub fn encode_hex(*data: [u8], len: usize) -> String {
-    auto res# = String::from("")
+pub fn encode_hex(*data: [u8], len: usize) -> string {
+    auto res# = string::from("")
     auto lut = "0123456789abcdef"
     auto i#: usize = 0
     unsafe {
@@ -15,7 +15,7 @@ pub fn encode_hex(*data: [u8], len: usize) -> String {
     return res
 }
 
-pub fn encode_hex_view(data: str) -> String {
+pub fn encode_hex_view(data: str) -> string {
     auto *ptr# = data.buf() as *[u8]
     return encode_hex(*ptr, data.len())
 }

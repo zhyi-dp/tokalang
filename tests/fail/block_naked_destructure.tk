@@ -1,8 +1,8 @@
 import core/result::Result
-import std/string::String
+import std/string::string
 
 pub fn main() -> i32 {
-    auto string_res# = Result<String, String>::Ok(String::from("Test"))
+    auto string_res# = Result<string, string>::Ok(string::from("Test"))
     
     match string_res# {
         auto Ok(msg) => { // SHOULD FAIL HERE!

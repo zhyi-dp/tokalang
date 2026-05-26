@@ -13,15 +13,15 @@
 // limitations under the License.
 // simple_string.tk
 import std/io::println
-import std/string::String
+import std/string::string
 
 fn main() -> i32 {
-    auto s = String::from("Hi")
+    auto s = string::from("Hi")
     println("{}", s.len())
     println("{}", s.capacity())
     println("{}", s.c_str())
     // Address-of method call (implicit passing of pointer to self?)
-    // String::push_str takes self#. 
+    // string::push_str takes self#. 
     s#.push_str(" World")
     
     // println uses copy or we should implement borrow?
@@ -29,7 +29,7 @@ fn main() -> i32 {
     println("Original: {}", s.c_str()) 
     
     // Copy construction test
-    // String has pointer.
+    // string has pointer.
     
     // s.clone()? No clone yet.
     // s2 = s => Shallow copy.

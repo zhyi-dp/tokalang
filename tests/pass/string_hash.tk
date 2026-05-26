@@ -1,11 +1,11 @@
 import std/io::println
-import std/string::String
+import std/string::string
 import core/traits::{@Hash}
 
 fn main() -> i32 {
-    auto s1 = String::from("hello")
-    auto s2 = String::from("hello")
-    auto s3 = String::from("world")
+    auto s1 = string::from("hello")
+    auto s2 = string::from("hello")
+    auto s3 = string::from("world")
     
     auto h1 = s1.hash()
     auto h2 = s2.hash()

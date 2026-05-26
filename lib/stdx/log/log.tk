@@ -1,5 +1,5 @@
 import std/io::{print_line, print}
-import std/string::{String}
+import std/string::{string}
 import std/time::{SystemTime, DateTime}
 
 pub alias LogLevel = i32
@@ -27,11 +27,11 @@ impl Logger {
         self.level = level
     }
 
-    fn get_prefix(self, level: LogLevel) -> String {
+    fn get_prefix(self, level: LogLevel) -> string {
         auto now = SystemTime::now().to_datetime()
         auto time_str = now.to_string()
         
-        auto prefix# = String::from("\x1b[90m")
+        auto prefix# = string::from("\x1b[90m")
         prefix#.push_str("[")
         prefix#.push_str(time_str.as_str())
         prefix#.push_str("] ")
@@ -54,7 +54,7 @@ impl Logger {
         return prefix
     }
 
-    pub fn debug(self, msg: String) {
+    pub fn debug(self, msg: string) {
         if self.level <= LOG_DEBUG {
             auto out# = self.get_prefix(LOG_DEBUG)
             out#.push_str(msg.as_str())
@@ -62,7 +62,7 @@ impl Logger {
         }
     }
 
-    pub fn info(self, msg: String) {
+    pub fn info(self, msg: string) {
         if self.level <= LOG_INFO {
             auto out# = self.get_prefix(LOG_INFO)
             out#.push_str(msg.as_str())
@@ -70,7 +70,7 @@ impl Logger {
         }
     }
 
-    pub fn warn(self, msg: String) {
+    pub fn warn(self, msg: string) {
         if self.level <= LOG_WARN {
             auto out# = self.get_prefix(LOG_WARN)
             out#.push_str(msg.as_str())
@@ -78,7 +78,7 @@ impl Logger {
         }
     }
 
-    pub fn error(self, msg: String) {
+    pub fn error(self, msg: string) {
         if self.level <= LOG_ERROR {
             auto out# = self.get_prefix(LOG_ERROR)
             out#.push_str(msg.as_str())
@@ -88,25 +88,25 @@ impl Logger {
 }
 
 // Global convenience functions (defaults to INFO level visibility)
-pub fn debug(msg: String) {
+pub fn debug(msg: string) {
     auto logger = Logger::new(LOG_DEBUG)
     logger.debug(cede msg)
 }
 
 // Global convenience functions (defaults to INFO level visibility)
-pub fn info(msg: String) {
+pub fn info(msg: string) {
     auto logger = Logger::new(LOG_INFO)
     logger.info(cede msg)
 }
 
 // Global convenience functions (defaults to INFO level visibility)
-pub fn warn(msg: String) {
+pub fn warn(msg: string) {
     auto logger = Logger::new(LOG_WARN)
     logger.warn(cede msg)
 }
 
 // Global convenience functions (defaults to INFO level visibility)
-pub fn error(msg: String) {
+pub fn error(msg: string) {
     auto logger = Logger::new(LOG_ERROR)
     logger.error(cede msg)
 }

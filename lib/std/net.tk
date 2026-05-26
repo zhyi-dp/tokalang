@@ -1,7 +1,7 @@
 // Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
 
 import core/types::{usize, char, ADDR0}
-import std/string::{String}
+import std/string::{string}
 import core/libc::*
 import core/result::{Result}
 import core/option::{Option}
@@ -14,7 +14,7 @@ extern fn __builtin_coro_current_handle() -> *void
 extern fn __builtin_coro_suspend()
 
 // Error type for network operations
-alias NetResult<T> = Result<T, String>
+alias NetResult<T> = Result<T, string>
 
 pub shape Ipv4Addr (
     octets: [u8; 4]
@@ -43,13 +43,13 @@ impl Ipv4Addr {
     }
 }
 
-pub fn resolve_ipv4(host: String) -> Result<Ipv4Addr, String> {
+pub fn resolve_ipv4(host: string) -> Result<Ipv4Addr, string> {
     auto *host_ptr = host.c_str() as *char
     auto ip = toka_resolve_ipv4(*host_ptr)
     if ip == 0:u32 {
-        return Result<Ipv4Addr, String>::Err(String::from("DNS resolution failed"))
+        return Result<Ipv4Addr, string>::Err(string::from("DNS resolution failed"))
     }
-    return Result<Ipv4Addr, String>::Ok(Ipv4Addr::from_u32(ip))
+    return Result<Ipv4Addr, string>::Ok(Ipv4Addr::from_u32(ip))
 }
 
 
@@ -111,24 +111,24 @@ impl UdpSocket {
         }
     }
     
-    pub fn send_to(self#, *buf: u8, len: usize, addr: SocketAddrV4) -> Result<usize, String> {
+    pub fn send_to(self#, *buf: u8, len: usize, addr: SocketAddrV4) -> Result<usize, string> {
         unsafe {
             if self.closed {
-                return Result<usize, String>::Err(String::from("Socket closed"))
+                return Result<usize, string>::Err(string::from("Socket closed"))
             }
             auto ip_num = addr.ip.to_u32()
             auto n: i64 = sysnet::net_sendto_impl(self.fd, *buf, len, ip_num as usize, addr.port as i32)
             if n < 0:i64 {
-                return Result<usize, String>::Err(String::from("send_to failed"))
+                return Result<usize, string>::Err(string::from("send_to failed"))
             }
-            return Result<usize, String>::Ok(n as usize)
+            return Result<usize, string>::Ok(n as usize)
         }
     }
     
-    pub fn recv_from(self#, *buf: u8, len: usize) -> Result<UdpRecvInfo, String> {
+    pub fn recv_from(self#, *buf: u8, len: usize) -> Result<UdpRecvInfo, string> {
         unsafe {
             if self.closed {
-                return Result<UdpRecvInfo, String>::Err(String::from("Socket closed"))
+                return Result<UdpRecvInfo, string>::Err(string::from("Socket closed"))
             }
             auto out_host# = 0:usize
             auto out_port# = 0:i32
@@ -136,11 +136,11 @@ impl UdpSocket {
             auto *pp = (&out_port as Addr) as *i32
             auto n: i64 = sysnet::net_recvfrom_impl(self.fd, *buf, len, *ph, *pp)
             if n < 0:i64 {
-                return Result<UdpRecvInfo, String>::Err(String::from("recv_from failed"))
+                return Result<UdpRecvInfo, string>::Err(string::from("recv_from failed"))
             }
             auto ip = Ipv4Addr::from_u32(out_host as u32)
             auto sender_addr = SocketAddrV4::new(ip, out_port as u16)
-            return Result<UdpRecvInfo, String>::Ok(UdpRecvInfo(len = n as usize, addr = sender_addr))
+            return Result<UdpRecvInfo, string>::Ok(UdpRecvInfo(len = n as usize, addr = sender_addr))
         }
     }
     
@@ -250,21 +250,21 @@ impl TcpStream {
     }
     
     
-    pub fn read(self#, *buf: u8, len: usize) -> Result<usize, String> {
+    pub fn read(self#, *buf: u8, len: usize) -> Result<usize, string> {
         unsafe {
             auto my_fd = self.fd
             if self.closed {
-                return Result<usize, String>::Err(String::from("Stream closed"))
+                return Result<usize, string>::Err(string::from("Stream closed"))
             }
             auto n: i64 = sysnet::net_read_impl(my_fd, *buf, len)
             if n < 0 {
-                return Result<usize, String>::Err(String::from("Read error"))
+                return Result<usize, string>::Err(string::from("Read error"))
             }
-            return Result<usize, String>::Ok(n as usize)
+            return Result<usize, string>::Ok(n as usize)
         }
     }
 
-    pub fn read_exact(self#, *buf: u8, len: usize) -> Result<usize, String> {
+    pub fn read_exact(self#, *buf: u8, len: usize) -> Result<usize, string> {
         auto total# = 0:usize
         loop total < len {
             auto *current_ptr = (*buf as Addr + total as u64) as *u8
@@ -272,63 +272,63 @@ impl TcpStream {
             match res {
                 auto Result::Ok(n) => {
                     if n == 0:usize {
-                        return Result<usize, String>::Err(String::from("Unexpected EOF during read_exact"))
+                        return Result<usize, string>::Err(string::from("Unexpected EOF during read_exact"))
                     }
                     total = total + n
                 }
                 auto Result::Err(&e) => {
-                    return Result<usize, String>::Err(e.clone())
+                    return Result<usize, string>::Err(e.clone())
                 }
             }
         }
-        return Result<usize, String>::Ok(total)
+        return Result<usize, string>::Ok(total)
     }
     
-    pub fn write(self#, *buf: u8, len: usize) -> Result<usize, String> {
+    pub fn write(self#, *buf: u8, len: usize) -> Result<usize, string> {
         unsafe {
             auto my_fd = self.fd
             if self.closed {
-                return Result<usize, String>::Err(String::from("Stream closed"))
+                return Result<usize, string>::Err(string::from("Stream closed"))
             }
             auto n: i64 = sysnet::net_write_impl(my_fd, *buf, len)
             if n < 0 {
-                return Result<usize, String>::Err(String::from("Write error"))
+                return Result<usize, string>::Err(string::from("Write error"))
             }
-            return Result<usize, String>::Ok(n as usize)
+            return Result<usize, string>::Ok(n as usize)
         }
     }
     
 
     // Helper to write string
-    pub fn write_string(self#, s: String) -> Result<usize, String> {
+    pub fn write_string(self#, s: string) -> Result<usize, string> {
         auto *ptr = s.c_str() as *u8
         return self#.write(*ptr, s.len() as usize)
     }
     
-    pub fn write_async(self#, *buf: u8, len: usize) -> async Result<usize, String> {
+    pub fn write_async(self#, *buf: u8, len: usize) -> async Result<usize, string> {
         return net_async_write(self, *buf, len).await
     }
     
-    pub fn write_string_async(self#, s: String) -> async Result<usize, String> {
+    pub fn write_string_async(self#, s: string) -> async Result<usize, string> {
         auto *ptr = s.c_str() as *u8
         return self#.write_async(*ptr, s.len() as usize).await
     }
 
-    pub fn write_view(self#, v: str) -> Result<usize, String> {
+    pub fn write_view(self#, v: str) -> Result<usize, string> {
         auto *ptr = v.raw_ptr() as *u8
         return self#.write(*ptr, v.len())
     }
 
-    pub fn write_view_async(self#, v: str) -> async Result<usize, String> {
+    pub fn write_view_async(self#, v: str) -> async Result<usize, string> {
         auto *ptr = v.raw_ptr() as *u8
         return self#.write_async(*ptr, v.len()).await
     }
 
-    pub fn read_async(self#, *buf: u8, len: usize) -> async Result<usize, String> {
+    pub fn read_async(self#, *buf: u8, len: usize) -> async Result<usize, string> {
         return net_async_read(self, *buf, len).await
     }
 
-    pub fn read_exact_async(self#, *buf: u8, len: usize) -> async Result<usize, String> {
+    pub fn read_exact_async(self#, *buf: u8, len: usize) -> async Result<usize, string> {
         auto total# = 0:usize
         loop total < len {
             auto *current_ptr = (*buf as Addr + total as u64) as *u8
@@ -336,16 +336,16 @@ impl TcpStream {
             match res {
                 auto Result::Ok(n) => {
                     if n == 0:usize {
-                        return Result<usize, String>::Err(String::from("Unexpected EOF during read_exact_async"))
+                        return Result<usize, string>::Err(string::from("Unexpected EOF during read_exact_async"))
                     }
                     total = total + n
                 }
                 auto Result::Err(&e) => {
-                    return Result<usize, String>::Err(e.clone())
+                    return Result<usize, string>::Err(e.clone())
                 }
             }
         }
-        return Result<usize, String>::Ok(total)
+        return Result<usize, string>::Ok(total)
     }
 
     pub fn close(self#) {
@@ -432,11 +432,11 @@ impl TcpListener {
 }
 
 // ==== Top Level Async Helpers ====
-pub fn net_async_read(stream#: TcpStream, *buf: u8, len: usize) -> async Result<usize, String> {
-    auto ret# = Result<usize, String>::Err(String::from("Unreachable"))
+pub fn net_async_read(stream#: TcpStream, *buf: u8, len: usize) -> async Result<usize, string> {
+    auto ret# = Result<usize, string>::Err(string::from("Unreachable"))
     unsafe {
         if stream.closed {
-            ret = Result<usize, String>::Err(String::from("Stream closed"))
+            ret = Result<usize, string>::Err(string::from("Stream closed"))
         } else {
             sysnet::net_set_nonblocking_impl(stream.fd)
             
@@ -445,7 +445,7 @@ pub fn net_async_read(stream#: TcpStream, *buf: u8, len: usize) -> async Result<
                 auto n: i64 = sysnet::net_read_impl(stream.fd, *buf, len)
                 if n >= 0:i64 {
                     sleep_async(0:i64).await
-                    ret = Result<usize, String>::Ok(n as usize)
+                    ret = Result<usize, string>::Ok(n as usize)
                     done = true
                 } else {
                     auto err = sys::get_last_error()
@@ -457,7 +457,7 @@ pub fn net_async_read(stream#: TcpStream, *buf: u8, len: usize) -> async Result<
                         __builtin_coro_suspend()
                     } else {
                         sleep_async(0:i64).await
-                        ret = Result<usize, String>::Err(String::from("Read error"))
+                        ret = Result<usize, string>::Err(string::from("Read error"))
                         done = true
                     }
                 }
@@ -503,11 +503,11 @@ pub fn net_async_accept(listener#: TcpListener) -> async TcpStream {
     return ret
 }
 
-pub fn net_async_write(stream#: TcpStream, *buf: u8, len: usize) -> async Result<usize, String> {
-    auto ret# = Result<usize, String>::Err(String::from("Unreachable"))
+pub fn net_async_write(stream#: TcpStream, *buf: u8, len: usize) -> async Result<usize, string> {
+    auto ret# = Result<usize, string>::Err(string::from("Unreachable"))
     unsafe {
         if stream.closed {
-            ret = Result<usize, String>::Err(String::from("Stream closed"))
+            ret = Result<usize, string>::Err(string::from("Stream closed"))
         } else {
             sysnet::net_set_nonblocking_impl(stream.fd)
             
@@ -516,7 +516,7 @@ pub fn net_async_write(stream#: TcpStream, *buf: u8, len: usize) -> async Result
                 auto n: i64 = sysnet::net_write_impl(stream.fd, *buf, len)
                 if n >= 0:i64 {
                     sleep_async(0:i64).await
-                    ret = Result<usize, String>::Ok(n as usize)
+                    ret = Result<usize, string>::Ok(n as usize)
                     done = true
                 } else {
                     auto err = sys::get_last_error()
@@ -528,7 +528,7 @@ pub fn net_async_write(stream#: TcpStream, *buf: u8, len: usize) -> async Result
                         __builtin_coro_suspend()
                     } else {
                         sleep_async(0:i64).await
-                        ret = Result<usize, String>::Err(String::from("Write error"))
+                        ret = Result<usize, string>::Err(string::from("Write error"))
                         done = true
                     }
                 }
@@ -539,13 +539,13 @@ pub fn net_async_write(stream#: TcpStream, *buf: u8, len: usize) -> async Result
 }
 
 impl TcpStream@Reader {
-    pub fn read_bytes(self#, *buf: u8, len: usize) -> Result<usize, String> {
+    pub fn read_bytes(self#, *buf: u8, len: usize) -> Result<usize, string> {
         return self#.read(*buf, len)
     }
 }
 
 impl TcpStream@Writer {
-    pub fn write_bytes(self#, *buf: u8, len: usize) -> Result<usize, String> {
+    pub fn write_bytes(self#, *buf: u8, len: usize) -> Result<usize, string> {
         return self#.write(*buf, len)
     }
 }

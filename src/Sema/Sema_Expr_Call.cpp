@@ -139,7 +139,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
   // 2. Intrinsics (println, print, String::fmt)
   bool isPrintlnLegacy = (CallName == "println_legacy" || CallName == "std::io::println_legacy" || CallName == "print_legacy" || CallName == "std::io::print_legacy");
   bool isPrintln = (CallName == "println" || CallName == "std::io::println" || CallName == "print" || CallName == "std::io::print");
-  bool isStringFmt = (CallName == "String::fmt" || CallName == "std::string::String::fmt" || CallName == "fmt" || CallName == "std::string::fmt");
+  bool isStringFmt = (CallName == "String::fmt" || CallName == "std::string::String::fmt" || CallName == "string::fmt" || CallName == "std::string::string::fmt" || CallName == "fmt" || CallName == "std::string::fmt");
 
   // New non-magical zero-overhead println/print Sema validation
   if (isPrintln) {
@@ -221,7 +221,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
               spec = spec.substr(1);
           }
 
-          if (soulTy == "String" || soulTy == "str") {
+          if (soulTy == "String" || soulTy == "string" || soulTy == "str") {
               if (isFmt) {
                   error(Call->Args[i].get(), "Formatted printing is not yet supported for String/str. Use plain {}.");
               }
@@ -304,7 +304,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
         }
 
         // [P3] Zero-copy println: Bypass to_string check for string types
-        if (soulTy == "String" || soulTy == "str") {
+        if (soulTy == "String" || soulTy == "string" || soulTy == "str") {
             if (isFmt) {
                 error(Call->Args[i].get(), "Formatted printing is not yet supported for String/str. Use plain {}.");
             }
@@ -319,9 +319,10 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
             return toka::Type::fromString("void");
         }
       }
-      auto strTy = resolveType(toka::Type::fromString("String"));
+      auto strTy = resolveType(toka::Type::fromString("string"));
+      if (!strTy) strTy = resolveType(toka::Type::fromString("String"));
       if (!strTy) strTy = resolveType(toka::Type::fromString("std::string::String"));
-      if (!strTy) strTy = toka::Type::fromString("String");
+      if (!strTy) strTy = toka::Type::fromString("string");
       return strTy;
     }
     return toka::Type::fromString("void");

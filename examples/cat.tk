@@ -1,6 +1,6 @@
 import std/env::{args, get_arg}
 import std/io::{File, println}
-import std/string::{String}
+import std/string::{string}
 
 pub fn main() -> i32 {
     auto count = args()
@@ -14,8 +14,8 @@ pub fn main() -> i32 {
     while i < count {
         auto filename = get_arg(i)
         
-        auto file_path = String::from(filename.c_str())
-        auto val_r = String::from("r")
+        auto file_path = string::from(filename.c_str())
+        auto val_r = string::from("r")
         
         auto file# = File::open(file_path, val_r)
         

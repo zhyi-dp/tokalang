@@ -1,5 +1,5 @@
 // lib/stdx/net/url.tk
-import std/string::{String}
+import std/string::{string}
 import core/result::{Result, Result}
 
 // Helper to check if a character is unreserved per RFC 3986
@@ -28,8 +28,8 @@ fn from_hex_char(c: char) -> i32 {
     return -1
 }
 
-pub fn url_encode(input: String) -> String {
-    auto res# = String::from("")
+pub fn url_encode(input: string) -> string {
+    auto res# = string::from("")
     auto i#: usize = 0
     auto len = input.len()
     
@@ -51,8 +51,8 @@ pub fn url_encode(input: String) -> String {
 }
 
 // Helper for decoding
-fn decode_internal(input: String, plus_as_space: bool) -> Result<String, String> {
-    auto res# = String::from("")
+fn decode_internal(input: string, plus_as_space: bool) -> Result<string, string> {
+    auto res# = string::from("")
     auto i#: usize = 0
     auto len = input.len()
     
@@ -62,17 +62,17 @@ fn decode_internal(input: String, plus_as_space: bool) -> Result<String, String>
         auto c = c_opt.unwrap()
         if c == '%' {
             if i + 2 >= len {
-                return Result<String, String>::Err(String::from("invalid percent encoding: truncated"))
+                return Result<string, string>::Err(string::from("invalid percent encoding: truncated"))
             }
             auto c1_opt = input.as_str().at(i + 1)
             auto c2_opt = input.as_str().at(i + 2)
             if c1_opt.is_none() || c2_opt.is_none() {
-                return Result<String, String>::Err(String::from("invalid percent encoding: truncated"))
+                return Result<string, string>::Err(string::from("invalid percent encoding: truncated"))
             }
             auto h1 = from_hex_char(c1_opt.unwrap())
             auto h2 = from_hex_char(c2_opt.unwrap())
             if h1 < 0 || h2 < 0 {
-                return Result<String, String>::Err(String::from("invalid percent encoding: invalid hex characters"))
+                return Result<string, string>::Err(string::from("invalid percent encoding: invalid hex characters"))
             }
             auto b = ((h1 bshl 4) bor h2) as u8
             res#.push_char(b as char)
@@ -86,40 +86,40 @@ fn decode_internal(input: String, plus_as_space: bool) -> Result<String, String>
         i = i + 1
     }
     
-    return Result<String, String>::Ok(res)
+    return Result<string, string>::Ok(res)
 }
 
-pub fn url_decode(input: String) -> Result<String, String> {
+pub fn url_decode(input: string) -> Result<string, string> {
     return decode_internal(input, false)
 }
 
-pub fn query_decode(input: String) -> Result<String, String> {
+pub fn query_decode(input: string) -> Result<string, string> {
     return decode_internal(input, true)
 }
 
 pub shape Url (
-    scheme: String,
-    host: String,
+    scheme: string,
+    host: string,
     port: u16,        // 0 if none
-    path: String,
-    query: String,
-    fragment: String
+    path: string,
+    query: string,
+    fragment: string
 )
 
 impl Url {
     pub fn new() -> Url {
         return Url(
-            scheme = String::from(""),
-            host = String::from(""),
+            scheme = string::from(""),
+            host = string::from(""),
             port = 0:u16,
-            path = String::from(""),
-            query = String::from(""),
-            fragment = String::from("")
+            path = string::from(""),
+            query = string::from(""),
+            fragment = string::from("")
         )
     }
 }
 
-pub fn parse_url(input: String) -> Result<Url, String> {
+pub fn parse_url(input: string) -> Result<Url, string> {
     auto url# = Url::new()
     auto rest# = input
     
@@ -140,7 +140,7 @@ pub fn parse_url(input: String) -> Result<Url, String> {
     }
     
     // 3. Scheme
-    auto scheme_idx_opt = rest.as_str().index_of_str(String::from("://").as_str())
+    auto scheme_idx_opt = rest.as_str().index_of_str(string::from("://").as_str())
     if scheme_idx_opt.is_some() {
         auto scheme_idx = scheme_idx_opt.unwrap() as i32
         url.scheme = rest.substring(0:i32, scheme_idx)
@@ -150,7 +150,7 @@ pub fn parse_url(input: String) -> Result<Url, String> {
     // 4. Host and Port
     // Path starts at the first '/'
     auto path_idx_opt = rest.as_str().index_of('/')
-    auto host_port# = String::from("")
+    auto host_port# = string::from("")
     
     if path_idx_opt.is_some() {
         auto path_idx = path_idx_opt.unwrap() as i32
@@ -178,17 +178,17 @@ pub fn parse_url(input: String) -> Result<Url, String> {
             if ch >= '0' && ch <= '9' {
                 p = p * 10 + (ch as u8 - '0' as u8) as i32
             } else {
-                return Result<Url, String>::Err(String::from("invalid port number"))
+                return Result<Url, string>::Err(string::from("invalid port number"))
             }
             i = i + 1
         }
         if p > 65535 {
-            return Result<Url, String>::Err(String::from("port out of range"))
+            return Result<Url, string>::Err(string::from("port out of range"))
         }
         url.port = p as u16
     } else {
         url.host = host_port
     }
     
-    return Result<Url, String>::Ok(url)
+    return Result<Url, string>::Ok(url)
 }

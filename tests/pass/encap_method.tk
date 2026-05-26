@@ -15,7 +15,7 @@ import std/string
 import std/io::println
 
 fn main() -> i32 {
-    auto s = String::from("Hello")
+    auto s = string::from("Hello")
     println("s:{} s.cap: {}", s, s.cap)
     
     s#.clear()

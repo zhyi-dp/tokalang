@@ -1,10 +1,10 @@
 import std/io::println
 import std/error::{Error}
-import std/string::{String}
+import std/string::{string}
 
 fn divide(a: i32, b: i32) -> Result<i32, Error> {
     if b == 0 {
-        auto msg# = String::from("Division by zero!")
+        auto msg# = string::from("Division by zero!")
         auto err = Error::new(1:i32, msg)
         return Result<i32, Error>::Err(err)
     }

@@ -1,5 +1,5 @@
 import std/net::{Ipv4Addr, SocketAddrV4, UdpSocket}
-import std/string::{String}
+import std/string::{string}
 import core/result::{Result}
 import std/io::{println}
 
@@ -21,7 +21,7 @@ pub fn main() -> i32 {
     }
     
     // Test send_to
-    auto msg = String::from("Hello UDP")
+    auto msg = string::from("Hello UDP")
     auto *buf = msg.c_str() as *u8
     auto len = msg.len() as usize
     auto s_res = s1#.send_to(*buf, len, addr2)

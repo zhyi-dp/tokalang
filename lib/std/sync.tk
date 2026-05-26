@@ -2,7 +2,7 @@
 import sys/sync::{sys_mutex_create, sys_mutex_lock, sys_mutex_unlock, sys_mutex_destroy, sys_rwlock_create, sys_rwlock_rdlock, sys_rwlock_wrlock, sys_rwlock_unlock, sys_rwlock_destroy, sys_cond_create, sys_cond_wait, sys_cond_signal, sys_cond_broadcast, sys_cond_destroy}
 import core/result::{Result}
 import std/error::{Error}
-import std/string::{String}
+import std/string::{string}
 
 /// A mutual exclusion primitive useful for protecting shared data
 pub shape Mutex<'T: @Send>(
@@ -44,8 +44,8 @@ impl<'T: @Send> Mutex<'T> {
         unsafe {
             auto rc = sys_mutex_lock(self.handle)
             if rc != 0 {
-                auto msg# = String::from("mutex lock failed with error code: ")
-                auto rc_str = String::from_int(rc)
+                auto msg# = string::from("mutex lock failed with error code: ")
+                auto rc_str = string::from_int(rc)
                 msg#.push_str(rc_str.as_str())
                 
                 return Result<MutexLock<'T>, Error>::Err(Error::new(rc, msg))
@@ -66,8 +66,8 @@ impl<'T: @Send> Mutex<'T> {
         unsafe {
             auto rc = sys_mutex_unlock(self.handle)
             if rc != 0 {
-                auto msg# = String::from("mutex unlock failed with error code: ")
-                auto rc_str = String::from_int(rc)
+                auto msg# = string::from("mutex unlock failed with error code: ")
+                auto rc_str = string::from_int(rc)
                 msg#.push_str(rc_str.as_str())
                 
                 return Result<i32, Error>::Err(Error::new(rc, msg))
@@ -140,8 +140,8 @@ impl<'T: {@Send, @Sync}> RwMutex<'T> {
         unsafe {
             auto rc = sys_rwlock_rdlock(self.handle)
             if rc != 0 {
-                auto msg# = String::from("rwlock read_lock failed with error code: ")
-                auto rc_str = String::from_int(rc)
+                auto msg# = string::from("rwlock read_lock failed with error code: ")
+                auto rc_str = string::from_int(rc)
                 msg#.push_str(rc_str.as_str())
                 
                 return Result<RwReadLock<'T>, Error>::Err(Error::new(rc, msg))
@@ -161,8 +161,8 @@ impl<'T: {@Send, @Sync}> RwMutex<'T> {
         unsafe {
             auto rc = sys_rwlock_wrlock(self.handle)
             if rc != 0 {
-                auto msg# = String::from("rwlock write_lock failed with error code: ")
-                auto rc_str = String::from_int(rc)
+                auto msg# = string::from("rwlock write_lock failed with error code: ")
+                auto rc_str = string::from_int(rc)
                 msg#.push_str(rc_str.as_str())
                 
                 return Result<RwWriteLock<'T>, Error>::Err(Error::new(rc, msg))
@@ -182,8 +182,8 @@ impl<'T: {@Send, @Sync}> RwMutex<'T> {
         unsafe {
             auto rc = sys_rwlock_unlock(self.handle)
             if rc != 0 {
-                auto msg# = String::from("rwlock unlock failed with error code: ")
-                auto rc_str = String::from_int(rc)
+                auto msg# = string::from("rwlock unlock failed with error code: ")
+                auto rc_str = string::from_int(rc)
                 msg#.push_str(rc_str.as_str())
                 
                 return Result<i32, Error>::Err(Error::new(rc, msg))

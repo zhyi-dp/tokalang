@@ -100,7 +100,7 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
       if (T == "*char" || T == "str" || T == "cstr") {
         litType = toka::Type::fromString(T);
       } else {
-        litType = toka::Type::fromString("String");
+        litType = toka::Type::fromString("string");
       }
     } else if (!Pat->Name.empty() && Pat->Name[0] == '\'') {
       if (T == "Char16" || resolveType(T, true) == "u16") {

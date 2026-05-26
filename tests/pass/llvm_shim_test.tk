@@ -4,7 +4,7 @@
 
 import std/io::println
 import core/result::{Result}
-import std/string::{String}
+import std/string::{string}
 import std/llvm::{
     LLVMContext,
     LLVMModule,
@@ -21,7 +21,7 @@ fn main() -> i32 {
     auto ctx# = LLVMContext::new()
 
     // 2. Create Module
-    auto mod# = LLVMModule::new(String::from("test_module"), ctx)
+    auto mod# = LLVMModule::new(string::from("test_module"), ctx)
 
     // 3. Create function signature: fn add(a: i32, b: i32) -> i32
     auto i32_ty = LLVMType::int(32, ctx)
@@ -38,10 +38,10 @@ fn main() -> i32 {
     }
 
     // 4. Add function to module
-    auto add_fn = mod#.add_function(String::from("add"), fn_ty)
+    auto add_fn = mod#.add_function(string::from("add"), fn_ty)
 
     // 5. Append entry block
-    auto entry_block = LLVMBasicBlock::append(ctx, add_fn, String::from("entry"))
+    auto entry_block = LLVMBasicBlock::append(ctx, add_fn, string::from("entry"))
 
     // 6. Create Builder and position it
     auto builder# = LLVMBuilder::new(ctx)
@@ -51,7 +51,7 @@ fn main() -> i32 {
     auto a = add_fn.get_param(0)
     auto b = add_fn.get_param(1)
     
-    auto add_res = builder#.build_add(a, b, String::from("add_tmp"))
+    auto add_res = builder#.build_add(a, b, string::from("add_tmp"))
     builder#.build_ret(add_res)
 
     // 8. Verify the module IR

@@ -26,7 +26,7 @@ fn main() -> i32 {
     
     // Test multiple args
     println("x={}, b={}, f={}", x, b, f)
-    println("String Literal: {}", "literal works")
+    println("string Literal: {}", "literal works")
 
     // Test weird formatting
     println("Prefix {} Suffix", 123)

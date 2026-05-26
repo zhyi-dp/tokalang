@@ -33,12 +33,12 @@ fn main() -> i32 {
         while running {
             auto nread = libc_read(0, *c, 1)
             if nread > 0 {
-                // Raw Mode 下，回车通常是 13 (\r)
+                // Raw Mode  13 (\r)
                 if c == 'q' as u8 { // 'q'
                     println("\r\nGot: q")
                     running = false
                 } else {
-                    // 格式化输出: 手动加上 \r 回到行首
+                    // :  \r
                     if c < 32 {
                         // 13 is Enter, 27 is ESC
                         println("\r\nGot Control Key: {}", c)

@@ -1,11 +1,11 @@
 import std/net::{Ipv4Addr, resolve_ipv4}
-import std/string::{String}
+import std/string::{string}
 import core/result::{Result}
 import std/io::{println}
 
 pub fn main() -> i32 {
     // 1. Resolve localhost
-    auto local_res = resolve_ipv4(String::from("localhost"))
+    auto local_res = resolve_ipv4(string::from("localhost"))
     match local_res {
         auto Result::Err(&e) => {
             println("resolve localhost failed")
@@ -22,7 +22,7 @@ pub fn main() -> i32 {
     }
     
     // 2. Resolve IP string (getaddrinfo handles this too)
-    auto ip_res = resolve_ipv4(String::from("8.8.8.8"))
+    auto ip_res = resolve_ipv4(string::from("8.8.8.8"))
     match ip_res {
         auto Result::Err(&e) => {
             println("resolve 8.8.8.8 failed")

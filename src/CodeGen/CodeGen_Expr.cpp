@@ -2234,7 +2234,7 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
               );
               llvm::Value *cmpRes = m_Builder.CreateCall(strcmpFn, {currVal, rawPtr});
               return m_Builder.CreateICmpEQ(cmpRes, m_Builder.getInt32(0));
-            } else if (shapeName == "str" || shapeName == "String") {
+            } else if (shapeName == "str" || shapeName == "String" || shapeName == "string") {
               llvm::Value *currBuf = m_Builder.CreateExtractValue(currVal, 0, "str_buf");
               llvm::Value *currLen = m_Builder.CreateExtractValue(currVal, 1, "str_len");
 
@@ -2244,16 +2244,16 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
               if (litSize == 0) {
                 return lenMatch;
               } else {
-                // 1. 获取当前块，并创建两个新块
+                // 1. Get current block, and create two new blocks
                 llvm::BasicBlock *CurrentBB = m_Builder.GetInsertBlock();
                 llvm::Function *TheFunction = CurrentBB->getParent();
                 llvm::BasicBlock *MemcmpBB = llvm::BasicBlock::Create(m_Context, "str_memcmp", TheFunction);
                 llvm::BasicBlock *MergeBB = llvm::BasicBlock::Create(m_Context, "str_match_merge", TheFunction);
 
-                // 2. 长度匹配才跳入 memcmp，否则直接跳到 merge
+                // 2. Only jump to memcmp if lengths match, otherwise jump to merge merge
                 m_Builder.CreateCondBr(lenMatch, MemcmpBB, MergeBB);
 
-                // 3. 构建 Memcmp 块
+                // 3. Construct Memcmp block
                 m_Builder.SetInsertPoint(MemcmpBB);
                 llvm::FunctionCallee memcmpFn = m_Module->getOrInsertFunction(
                     "memcmp",
@@ -2267,11 +2267,11 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
                 llvm::Value *contentMatch = m_Builder.CreateICmpEQ(memcmpRes, m_Builder.getInt32(0));
                 m_Builder.CreateBr(MergeBB);
 
-                // 4. 构建 Merge 块，利用 Phi 节点收束结果
+                // 4. Construct Merge block, merge results using Phi node
                 m_Builder.SetInsertPoint(MergeBB);
                 llvm::PHINode *phiMatch = m_Builder.CreatePHI(m_Builder.getInt1Ty(), 2, "is_str_match");
-                phiMatch->addIncoming(m_Builder.getInt1(false), CurrentBB); // 长度不等，直接 false
-                phiMatch->addIncoming(contentMatch, MemcmpBB);              // 长度相等，取 memcmp 结果
+                phiMatch->addIncoming(m_Builder.getInt1(false), CurrentBB); // Length mismatch, directly false
+                phiMatch->addIncoming(contentMatch, MemcmpBB);              // Length match, take memcmp result
 
                 return phiMatch;
               }
@@ -2296,19 +2296,19 @@ PhysEntity CodeGen::genMatchExpr(const MatchExpr *expr) {
         } else if (pat->PatternKind == MatchArm::Pattern::Range) {
           llvm::Type* valTy = currVal->getType();
 
-          // 精准提取左右边界字面量并物化为 LLVM 常量
+          // Extract left and right boundary literals precisely and materialize as LLVM constants
           uint64_t startVal = pat->SubPatterns[0]->LiteralVal;
           uint64_t endVal = pat->SubPatterns[1]->LiteralVal;
           llvm::Value* startLit = llvm::ConstantInt::get(valTy, startVal);
           llvm::Value* endLit = llvm::ConstantInt::get(valTy, endVal);
 
-          // 动态判定物理符号属性：规避整型默认有符号带来的字符区间越界灾难
+          // Dynamically determine physical sign attributes to avoid character range overflow
           bool isSigned = currTy->isIntegerTy() && 
                           (currSemaType.rfind("u", 0) != 0) && 
                           currSemaType != "Char16" && 
                           currSemaType != "char";
 
-          // 区间比较指令合并下发
+          // Emit combined range comparison instructions
           llvm::Value *ge = isSigned ? m_Builder.CreateICmpSGE(currVal, startLit) 
                                      : m_Builder.CreateICmpUGE(currVal, startLit);
 
@@ -3880,7 +3880,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
   bool isPrintLegacy = (call->Callee == "print_legacy" || (call->Callee.size() > 14 && call->Callee.substr(call->Callee.size() - 14) == "::print_legacy"));
   bool isPrintln = (call->Callee == "println" || (call->Callee.size() > 9 && call->Callee.substr(call->Callee.size() - 9) == "::println"));
   bool isPrint = (call->Callee == "print" || (call->Callee.size() > 7 && call->Callee.substr(call->Callee.size() - 7) == "::print"));
-  bool isStringFmt = (call->Callee == "String::fmt" || call->Callee == "std::string::String::fmt" || call->Callee == "fmt" || call->Callee == "std::string::fmt");
+  bool isStringFmt = (call->Callee == "String::fmt" || call->Callee == "std::string::String::fmt" || call->Callee == "string::fmt" || call->Callee == "std::string::string::fmt" || call->Callee == "fmt" || call->Callee == "std::string::fmt");
 
   // New non-magical zero-overhead println/print unrolled code generation
   if (isPrintln || isPrint) {
@@ -3958,7 +3958,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
               } else {
                   std::string soulTy = Type::stripMorphology(argExpr->ResolvedType ? argExpr->ResolvedType->getSoulName() : "");
 
-              if (soulTy == "String" || soulTy == "str") {
+              if (soulTy == "String" || soulTy == "string" || soulTy == "str") {
                   llvm::Value *finalArg = argVal;
                   if (!argVal->getType()->isPointerTy()) {
                       finalArg = argEnt.isAddress ? argEnt.value : nullptr;
@@ -3969,8 +3969,9 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
                       }
                   }
 
-                  if (soulTy == "String") {
+                  if (soulTy == "String" || soulTy == "string") {
                       llvm::Function *cStrFn = m_Module->getFunction("String_c_str");
+                      if (!cStrFn) cStrFn = m_Module->getFunction("string_c_str");
                       if (cStrFn) {
                           llvm::Value *cstrVal = m_Builder.CreateCall(cStrFn, {finalArg});
                           m_Builder.CreateCall(printStrFn, {cstrVal});
@@ -4060,7 +4061,9 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
 
                       llvm::Value *sretAlloca = nullptr;
                       if (isSRet) {
-                          llvm::Type *stringTy = getLLVMType(toka::Type::fromString("String"));
+                          llvm::Type *stringTy = resolveType("string", false);
+                          if (!stringTy) stringTy = resolveType("String", false);
+                          if (!stringTy) stringTy = getLLVMType(toka::Type::fromString("string"));
                           sretAlloca = createEntryBlockAlloca(stringTy, nullptr, "sret.tmp");
                       }
 
@@ -4166,16 +4169,22 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
     std::function<void(llvm::Type*, llvm::Value*, std::string)> appendFmt; // Keep it declared but unused to avoid diff errors, or just remove it
 
     llvm::Function *fromFn = m_Module->getFunction("String_from_cstr");
+    if (!fromFn) fromFn = m_Module->getFunction("string_from_cstr");
     llvm::Function *pushStrFn = m_Module->getFunction("String_push_cstr");
+    if (!pushStrFn) pushStrFn = m_Module->getFunction("string_push_cstr");
     llvm::Function *cStrFn = m_Module->getFunction("String_c_str");
+    if (!cStrFn) cStrFn = m_Module->getFunction("string_c_str");
     llvm::Function *dropFn = m_Module->getFunction("encap_String_drop");
+    if (!dropFn) dropFn = m_Module->getFunction("encap_string_drop");
 
     if (!fromFn || !pushStrFn || !cStrFn) {
         error(call, "String formatting intrinsic requires std/string. Please import std/string::String.");
         return nullptr;
     }
 
-    llvm::Type *stringTy = getLLVMType(toka::Type::fromString("String"));
+    llvm::Type *stringTy = resolveType("string", false);
+    if (!stringTy) stringTy = resolveType("String", false);
+    if (!stringTy) stringTy = getLLVMType(toka::Type::fromString("string"));
     llvm::Value *sAlloca = createEntryBlockAlloca(stringTy, nullptr, "fmt_string_builder");
     llvm::Value *emptyStr = m_Builder.CreateGlobalString("");
     m_Builder.CreateCall(fromFn, {sAlloca, emptyStr});
@@ -4231,7 +4240,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
                 }
             }
 
-            if (soulTy == "String" || soulTy == "str") {
+            if (soulTy == "String" || soulTy == "string" || soulTy == "str") {
                 if (isFmt) {
                     // String natively ignores format specifier for now, or we could pass it if we implement to_string_fmt on String
                     // For now, treat like regular {}
@@ -4245,11 +4254,12 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
                         finalArg = tmp;
                     }
                 }
-                if (soulTy == "String") {
+                if (soulTy == "String" || soulTy == "string") {
                     llvm::Value *cstrVal = m_Builder.CreateCall(cStrFn, {finalArg});
                     m_Builder.CreateCall(pushStrFn, {sAlloca, cstrVal});
                 } else {
                     llvm::Function *pushViewFn = m_Module->getFunction("String_push_view");
+                    if (!pushViewFn) pushViewFn = m_Module->getFunction("string_push_view");
                     if (pushViewFn) {
                         m_Builder.CreateCall(pushViewFn, {sAlloca, finalArg});
                     }
@@ -4258,7 +4268,9 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
                 bool isSRet = toStrFn->getReturnType()->isVoidTy();
                 llvm::Value *sretAlloca = nullptr;
                 if (isSRet) {
-                    llvm::Type *stringTy = getLLVMType(toka::Type::fromString("String"));
+                    llvm::Type *stringTy = resolveType("string", false);
+                    if (!stringTy) stringTy = resolveType("String", false);
+                    if (!stringTy) stringTy = getLLVMType(toka::Type::fromString("string"));
                     sretAlloca = createEntryBlockAlloca(stringTy, nullptr, "sret.tmp");
                 }
 
@@ -4344,7 +4356,9 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
     }
 
     if (isStringFmt) {
-        llvm::Type *stringTy = getLLVMType(toka::Type::fromString("String"));
+        llvm::Type *stringTy = resolveType("string", false);
+        if (!stringTy) stringTy = resolveType("String", false);
+        if (!stringTy) stringTy = getLLVMType(toka::Type::fromString("string"));
         return m_Builder.CreateLoad(stringTy, sAlloca);
     } else {
         llvm::Value *cstrVal = m_Builder.CreateCall(cStrFn, {sAlloca});

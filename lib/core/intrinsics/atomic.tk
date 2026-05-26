@@ -1,8 +1,8 @@
 // lib/core/intrinsics/atomic.tk
 // Native LLVM Atomic Operations
-// ⚠️ 注意：此文件属于 core，不应依赖 prelude
+// ⚠️  core prelude
 
-// 内存序定义 (Memory Ordering)
+// (Memory Ordering)
 pub shape Ordering (
     Relaxed |
     Release |
@@ -12,8 +12,8 @@ pub shape Ordering (
 )
 
 // ==========================================
-// 编译器底层占位函数 (Compiler Intrinsic Hooks)
-// CodeGen_Expr.cpp 会拦截并用真正的 LLVM 原子指令替换这些函数
+// (Compiler Intrinsic Hooks)
+// CodeGen_Expr.cpp  LLVM
 // ==========================================
 
 pub fn __toka_atomic_load<T>(ptr#: T, _order: Ordering) -> T {
@@ -61,7 +61,7 @@ pub fn __toka_atomic_fence_acquire() {}
 pub fn __toka_atomic_fence_release() {}
 
 // ==========================================
-// 用户态公开 API (Public API Wrappers)
+// API (Public API Wrappers)
 // ==========================================
 
 pub fn load<T>(ptr#: T, _order: Ordering) -> T {

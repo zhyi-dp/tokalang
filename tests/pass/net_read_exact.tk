@@ -1,6 +1,6 @@
 import std/io::{println}
 import std/net::{TcpListener, TcpStream, Ipv4Addr, SocketAddrV4}
-import std/string::{String}
+import std/string::{string}
 import core/libc
 import sys/os as sys
 import core/types
@@ -20,10 +20,10 @@ fn run_server(port: u16) -> i32 {
         if !stream.is_valid() { return 1 }
         
         // Send data in chunks to force multiple reads on client
-        auto msg1 = String::from("Hello")
+        auto msg1 = string::from("Hello")
         stream#.write_string(msg1)
         sleep(1)
-        auto msg2 = String::from("World")
+        auto msg2 = string::from("World")
         stream#.write_string(msg2)
         
         return 0

@@ -2,34 +2,34 @@ import std/vec::{Vec}
 import std/hash_map::{HashMap}
 import core/option::{Option}
 import core/result::{Result}
-import std/string::{String}
+import std/string::{string}
 import std/io
 
 pub shape FlagValue (
     Bool(bool) |
     Int(i64) |
     Float(f64) |
-    Str(String)
+    Str(string)
 )
 
 pub shape FlagDef (
-    name: String,
+    name: string,
     short_name: char,
-    desc: String,
+    desc: string,
     default_val: FlagValue
 )
 
 pub shape ParsedArgs (
-    values#: HashMap<String, FlagValue>,
-    pos_args#: Vec<String>
+    values#: HashMap<string, FlagValue>,
+    pos_args#: Vec<string>
 )
 
 impl ParsedArgs {
     pub fn new() -> ParsedArgs {
-        return ParsedArgs(values=HashMap<String, FlagValue>::new(), pos_args=Vec<String>::new())
+        return ParsedArgs(values=HashMap<string, FlagValue>::new(), pos_args=Vec<string>::new())
     }
 
-    pub fn get_int(self, name: String) -> i64 {
+    pub fn get_int(self, name: string) -> i64 {
         auto val = self.values.get(name)
         if val.is_none() { return 0 }
         match val.unwrap() {
@@ -38,7 +38,7 @@ impl ParsedArgs {
         }
     }
 
-    pub fn get_float(self, name: String) -> f64 {
+    pub fn get_float(self, name: string) -> f64 {
         auto val = self.values.get(name)
         if val.is_none() { return 0.0 }
         match val.unwrap() {
@@ -47,7 +47,7 @@ impl ParsedArgs {
         }
     }
 
-    pub fn get_bool(self, name: String) -> bool {
+    pub fn get_bool(self, name: string) -> bool {
         auto val = self.values.get(name)
         if val.is_none() { return false }
         match val.unwrap() {
@@ -56,49 +56,49 @@ impl ParsedArgs {
         }
     }
 
-    pub fn get_string(self, name: String) -> String {
+    pub fn get_string(self, name: string) -> string {
         auto val = self.values.get(name)
-        if val.is_none() { return String::from("") }
+        if val.is_none() { return string::from("") }
         match val.unwrap() {
             auto FlagValue::Str(&v) => return v.clone()
-            _ => return String::from("")
+            _ => return string::from("")
         }
     }
 
-    pub fn positionals(self) -> Vec<String> {
+    pub fn positionals(self) -> Vec<string> {
         return self.pos_args.clone()
     }
 }
 
 pub shape Parser (
-    prog: String,
-    desc: String,
+    prog: string,
+    desc: string,
     defs#: Vec<FlagDef>
 )
 
 impl Parser {
-    pub fn new(prog: String, desc: String) -> Parser {
+    pub fn new(prog: string, desc: string) -> Parser {
         return Parser(prog=prog, desc=desc, defs=Vec<FlagDef>::new())
     }
 
-    pub fn add_int(self#, name: String, short: char, default_val: i64, desc: String) {
+    pub fn add_int(self#, name: string, short: char, default_val: i64, desc: string) {
         self.defs#.push(FlagDef(name=name, short_name=short, desc=desc, default_val=FlagValue::Int(default_val)))
     }
     
-    pub fn add_bool(self#, name: String, short: char, default_val: bool, desc: String) {
+    pub fn add_bool(self#, name: string, short: char, default_val: bool, desc: string) {
         self.defs#.push(FlagDef(name=name, short_name=short, desc=desc, default_val=FlagValue::Bool(default_val)))
     }
 
-    pub fn add_float(self#, name: String, short: char, default_val: f64, desc: String) {
+    pub fn add_float(self#, name: string, short: char, default_val: f64, desc: string) {
         self.defs#.push(FlagDef(name=name, short_name=short, desc=desc, default_val=FlagValue::Float(default_val)))
     }
 
-    pub fn add_string(self#, name: String, short: char, default_val: String, desc: String) {
+    pub fn add_string(self#, name: string, short: char, default_val: string, desc: string) {
         self.defs#.push(FlagDef(name=name, short_name=short, desc=desc, default_val=FlagValue::Str(default_val)))
     }
 
     pub fn print_help(self) {
-        auto header# = String::from("Usage: ")
+        auto header# = string::from("Usage: ")
         header#.push_str(self.prog.as_str())
         header#.push_str(" [options]")
         io::println("%", header.c_str())
@@ -109,7 +109,7 @@ impl Parser {
         auto i# = 0:usize
         loop i < self.defs.len() {
             auto def = self.defs.get(i)
-            auto line# = String::from("  ")
+            auto line# = string::from("  ")
             if def.short_name != 0:char {
                 line#.push_char(45:char) // '-'
                 line#.push_char(def.short_name)
@@ -151,7 +151,7 @@ impl Parser {
         }
     }
 
-    fn find_def(self, name: String) -> Option<FlagDef> {
+    fn find_def(self, name: string) -> Option<FlagDef> {
         auto i# = 0:usize
         loop i < self.defs.len() {
             auto d = self.defs.get(i)
@@ -172,8 +172,8 @@ impl Parser {
         return Option<FlagDef>::None()
     }
 
-    fn parse_i64(s: String) -> Result<i64, String> {
-        if s.len() == 0 { return Result<i64, String>::Err(String::from("empty string")) }
+    fn parse_i64(s: string) -> Result<i64, string> {
+        if s.len() == 0 { return Result<i64, string>::Err(string::from("empty string")) }
         auto view = s.as_view()
         auto &buf = view.buf()
         auto i# = 0:usize
@@ -193,17 +193,17 @@ impl Parser {
             auto c# = 0:char
             unsafe { c = buf[i] }
             if c < 48:char || c > 57:char {
-                return Result<i64, String>::Err(String::from("invalid integer format"))
+                return Result<i64, string>::Err(string::from("invalid integer format"))
             }
             val = val * 10 + ((c as i64) - 48)
             has_digits = true
             i = i + 1
         }
-        if !has_digits { return Result<i64, String>::Err(String::from("no digits found")) }
-        return Result<i64, String>::Ok(val * sign)
+        if !has_digits { return Result<i64, string>::Err(string::from("no digits found")) }
+        return Result<i64, string>::Ok(val * sign)
     }
 
-    pub fn parse(self, args: Vec<String>) -> Result<ParsedArgs, String> {
+    pub fn parse(self, args: Vec<string>) -> Result<ParsedArgs, string> {
         auto parsed# = ParsedArgs::new()
         
         // 1. Setup defaults
@@ -227,14 +227,14 @@ impl Parser {
                 continue
             }
 
-            if arg == String::from("--") {
+            if arg == string::from("--") {
                 only_positional = true
                 arg_idx = arg_idx + 1
                 continue
             }
 
-            if arg == String::from("-h") || arg == String::from("--help") {
-                return Result<ParsedArgs, String>::Err(String::from("help requested"))
+            if arg == string::from("-h") || arg == string::from("--help") {
+                return Result<ParsedArgs, string>::Err(string::from("help requested"))
             }
 
             if arg.starts_with("--") {
@@ -242,9 +242,9 @@ impl Parser {
                 auto view = arg.as_view()
                 auto eq_idx = view.index_of(61:char) // '='
                 
-                auto key# = String::from("")
+                auto key# = string::from("")
                 auto has_val# = false
-                auto val_str# = String::from("")
+                auto val_str# = string::from("")
                 
                 if eq_idx.is_some() {
                     auto idx = eq_idx.unwrap() as i32
@@ -257,9 +257,9 @@ impl Parser {
 
                 auto opt_def = self.find_def(key)
                 if opt_def.is_none() {
-                    auto err_msg# = String::from("unknown option: --")
+                    auto err_msg# = string::from("unknown option: --")
                     err_msg#.push_str(key.as_str())
-                    return Result<ParsedArgs, String>::Err(err_msg)
+                    return Result<ParsedArgs, string>::Err(err_msg)
                 }
                 auto def = opt_def.unwrap()
 
@@ -267,7 +267,7 @@ impl Parser {
                     auto FlagValue::Bool(_) => {
                         // It's a boolean flag, does not consume next
                         if has_val {
-                            if val_str == String::from("true") || val_str == String::from("1") {
+                            if val_str == string::from("true") || val_str == string::from("1") {
                                 parsed.values#.insert(def.name, FlagValue::Bool(true))
                             } else {
                                 parsed.values#.insert(def.name, FlagValue::Bool(false))
@@ -280,19 +280,19 @@ impl Parser {
                         // Requires value
                         if !has_val {
                             if arg_idx + 1 >= args.len() {
-                                auto err_msg# = String::from("option --")
+                                auto err_msg# = string::from("option --")
                                 err_msg#.push_str(key.as_str())
                                 err_msg#.push_str(" requires a value")
-                                return Result<ParsedArgs, String>::Err(err_msg)
+                                return Result<ParsedArgs, string>::Err(err_msg)
                             }
                             arg_idx = arg_idx + 1
                             val_str = args.get(arg_idx)
                         }
                         auto parse_res = Parser::parse_i64(val_str)
                         if parse_res.is_err() {
-                            auto err_msg# = String::from("invalid integer value for --")
+                            auto err_msg# = string::from("invalid integer value for --")
                             err_msg#.push_str(key.as_str())
-                            return Result<ParsedArgs, String>::Err(err_msg)
+                            return Result<ParsedArgs, string>::Err(err_msg)
                         }
                         parsed.values#.insert(def.name, FlagValue::Int(parse_res.unwrap()))
                     }
@@ -300,29 +300,29 @@ impl Parser {
                         // Requires value
                         if !has_val {
                             if arg_idx + 1 >= args.len() {
-                                auto err_msg# = String::from("option --")
+                                auto err_msg# = string::from("option --")
                                 err_msg#.push_str(key.as_str())
                                 err_msg#.push_str(" requires a value")
-                                return Result<ParsedArgs, String>::Err(err_msg)
+                                return Result<ParsedArgs, string>::Err(err_msg)
                             }
                             arg_idx = arg_idx + 1
                             val_str = args.get(arg_idx)
                         }
                         auto parse_res = val_str.parse_f64()
                         if parse_res.is_err() {
-                            auto err_msg# = String::from("invalid float value for --")
+                            auto err_msg# = string::from("invalid float value for --")
                             err_msg#.push_str(key.as_str())
-                            return Result<ParsedArgs, String>::Err(err_msg)
+                            return Result<ParsedArgs, string>::Err(err_msg)
                         }
                         parsed.values#.insert(def.name, FlagValue::Float(parse_res.unwrap()))
                     }
                     auto FlagValue::Str(&_s) => {
                         if !has_val {
                             if arg_idx + 1 >= args.len() {
-                                auto err_msg# = String::from("option --")
+                                auto err_msg# = string::from("option --")
                                 err_msg#.push_str(key.as_str())
                                 err_msg#.push_str(" requires a value")
-                                return Result<ParsedArgs, String>::Err(err_msg)
+                                return Result<ParsedArgs, string>::Err(err_msg)
                             }
                             arg_idx = arg_idx + 1
                             val_str = args.get(arg_idx)
@@ -335,9 +335,9 @@ impl Parser {
                 auto view = arg.as_view()
                 auto eq_idx = view.index_of(61:char) // '='
                 
-                auto short_block# = String::from("")
+                auto short_block# = string::from("")
                 auto has_val# = false
-                auto val_str# = String::from("")
+                auto val_str# = string::from("")
                 
                 if eq_idx.is_some() {
                     auto idx = eq_idx.unwrap() as i32
@@ -355,9 +355,9 @@ impl Parser {
                     unsafe { c = chars[c_idx] }
                     auto opt_def = self.find_def_short(c)
                     if opt_def.is_none() {
-                        auto err_msg# = String::from("unknown short option: -")
+                        auto err_msg# = string::from("unknown short option: -")
                         err_msg#.push_char(c)
-                        return Result<ParsedArgs, String>::Err(err_msg)
+                        return Result<ParsedArgs, string>::Err(err_msg)
                     }
                     auto def = opt_def.unwrap()
                     
@@ -366,7 +366,7 @@ impl Parser {
                             // bool switch
                             if has_val && c_idx == short_block.len() - 1 {
                                 // Only allow '=' on the last short char
-                                if val_str == String::from("true") || val_str == String::from("1") {
+                                if val_str == string::from("true") || val_str == string::from("1") {
                                     parsed.values#.insert(def.name, FlagValue::Bool(true))
                                 } else {
                                     parsed.values#.insert(def.name, FlagValue::Bool(false))
@@ -378,16 +378,16 @@ impl Parser {
                         auto FlagValue::Int(_) => {
                             // requires value
                             if c_idx != short_block.len() - 1:usize {
-                                auto err_msg# = String::from("short option requiring value must be last in group: -")
+                                auto err_msg# = string::from("short option requiring value must be last in group: -")
                                 err_msg#.push_str(short_block.as_str())
-                                return Result<ParsedArgs, String>::Err(err_msg)
+                                return Result<ParsedArgs, string>::Err(err_msg)
                             }
                             if !has_val {
                                 if arg_idx + 1 >= args.len() {
-                                    auto err_msg# = String::from("option -")
+                                    auto err_msg# = string::from("option -")
                                     err_msg#.push_char(c)
                                     err_msg#.push_str(" requires a value")
-                                    return Result<ParsedArgs, String>::Err(err_msg)
+                                    return Result<ParsedArgs, string>::Err(err_msg)
                                 }
                                 arg_idx = arg_idx + 1
                                 val_str = args.get(arg_idx)
@@ -395,25 +395,25 @@ impl Parser {
                             
                             auto parse_res = Parser::parse_i64(val_str)
                             if parse_res.is_err() {
-                                auto err_msg# = String::from("invalid integer value for -")
+                                auto err_msg# = string::from("invalid integer value for -")
                                 err_msg#.push_char(c)
-                                return Result<ParsedArgs, String>::Err(err_msg)
+                                return Result<ParsedArgs, string>::Err(err_msg)
                             }
                             parsed.values#.insert(def.name, FlagValue::Int(parse_res.unwrap()))
                         }
                         auto FlagValue::Float(_) => {
                             // requires value
                             if c_idx != short_block.len() - 1 {
-                                auto err_msg# = String::from("short option requiring value must be last in group: -")
+                                auto err_msg# = string::from("short option requiring value must be last in group: -")
                                 err_msg#.push_str(short_block.as_str())
-                                return Result<ParsedArgs, String>::Err(err_msg)
+                                return Result<ParsedArgs, string>::Err(err_msg)
                             }
                             if !has_val {
                                 if arg_idx + 1 >= args.len() {
-                                    auto err_msg# = String::from("option -")
+                                    auto err_msg# = string::from("option -")
                                     err_msg#.push_char(c)
                                     err_msg#.push_str(" requires a value")
-                                    return Result<ParsedArgs, String>::Err(err_msg)
+                                    return Result<ParsedArgs, string>::Err(err_msg)
                                 }
                                 arg_idx = arg_idx + 1
                                 val_str = args.get(arg_idx)
@@ -421,24 +421,24 @@ impl Parser {
                             
                             auto parse_res = val_str.parse_f64()
                             if parse_res.is_err() {
-                                auto err_msg# = String::from("invalid float value for -")
+                                auto err_msg# = string::from("invalid float value for -")
                                 err_msg#.push_char(c)
-                                return Result<ParsedArgs, String>::Err(err_msg)
+                                return Result<ParsedArgs, string>::Err(err_msg)
                             }
                             parsed.values#.insert(def.name, FlagValue::Float(parse_res.unwrap()))
                         }
                         auto FlagValue::Str(&_s) => {
                             if c_idx != short_block.len() - 1:usize {
-                                auto err_msg# = String::from("short option requiring value must be last in group: -")
+                                auto err_msg# = string::from("short option requiring value must be last in group: -")
                                 err_msg#.push_str(short_block.as_str())
-                                return Result<ParsedArgs, String>::Err(err_msg)
+                                return Result<ParsedArgs, string>::Err(err_msg)
                             }
                             if !has_val {
                                 if arg_idx + 1 >= args.len() {
-                                    auto err_msg# = String::from("option -")
+                                    auto err_msg# = string::from("option -")
                                     err_msg#.push_char(c)
                                     err_msg#.push_str(" requires a value")
-                                    return Result<ParsedArgs, String>::Err(err_msg)
+                                    return Result<ParsedArgs, string>::Err(err_msg)
                                 }
                                 arg_idx = arg_idx + 1
                                 val_str = args.get(arg_idx)
@@ -456,6 +456,6 @@ impl Parser {
             arg_idx = arg_idx + 1
         }
         
-        return Result<ParsedArgs, String>::Ok(parsed)
+        return Result<ParsedArgs, string>::Ok(parsed)
     }
 }

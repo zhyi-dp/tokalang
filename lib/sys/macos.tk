@@ -1,6 +1,6 @@
 // Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
 import core/types::{char, usize, Addr, ADDR0}
-import std/string::{String}
+import std/string::{string}
 import core/libc::*
 import sys/libc::*
 import core/option::{Option}
@@ -22,7 +22,7 @@ pub fn args_impl() -> i32 {
 }
 
 // Retrieves a specific command-line argument by index.
-pub fn get_arg_impl(i: i32) -> String {
+pub fn get_arg_impl(i: i32) -> string {
     unsafe {
         auto *handle_ptr = _NSGetArgv() as *[Addr]
         auto *argv = handle_ptr[0] as *[Addr]
@@ -31,7 +31,7 @@ pub fn get_arg_impl(i: i32) -> String {
         auto str_addr = argv[idx] as Addr
         auto *final_ptr = str_addr as *[char]
         
-        return String::from_cstr(*final_ptr as *char)
+        return string::from_cstr(*final_ptr as *char)
     }
 }
 
@@ -48,15 +48,15 @@ extern fn toka_readdir_impl(dir: Addr) -> Addr
 extern fn toka_closedir_impl(dir: Addr)
 extern fn toka_readdir_name(entry: Addr) -> Addr
 
-pub fn readdir_impl(dir_handle: Addr) -> Option<String> {
+pub fn readdir_impl(dir_handle: Addr) -> Option<string> {
     unsafe {
         auto entry = toka_readdir_impl(dir_handle) // returns Addr
         if entry == ADDR0 {
-            return Option<String>::None
+            return Option<string>::None
         }
         
         auto *name_ptr = toka_readdir_name(entry) as *char
-        return Option<String>::Some(String::from_cstr(*name_ptr))
+        return Option<string>::Some(string::from_cstr(*name_ptr))
     }
 }
 
@@ -125,16 +125,16 @@ pub fn stat_is_file_impl(mode: u32) -> bool {
 
 // === Environment ===
 
-pub fn getcwd_impl() -> String {
+pub fn getcwd_impl() -> string {
     unsafe {
         // Real implementation using getcwd
         auto *buf = unsafe alloc [1024] byte as *char
         auto res_addr = libc_getcwd(*buf, 1024)
         if res_addr == ADDR0 {
              libc_free(*buf as *void)
-             return String::from("")
+             return string::from("")
         }
-        return String::from_take(*buf)
+        return string::from_take(*buf)
     }
 }
 
@@ -144,28 +144,28 @@ pub fn chdir_impl(path: Addr) -> bool {
     }
 }
 
-pub fn getenv_impl(name: String) -> Option<String> {
+pub fn getenv_impl(name: string) -> Option<string> {
     unsafe {
         // libc_getenv returns *char (Borrowed)
         auto *val = libc_getenv(name.c_str())
         
         if *val == null {
-            return Option<String>::None
+            return Option<string>::None
         }
         
         // Copy from borrowed pointer
-        return Option<String>::Some(String::from_cstr(*val))
+        return Option<string>::Some(string::from_cstr(*val))
     }
 }
 
-pub fn setenv_impl(name: String, value: String) -> bool {
+pub fn setenv_impl(name: string, value: string) -> bool {
     unsafe {
         // overwrite = 1
         return libc_setenv(name.c_str(), value.c_str(), 1) == 0
     }
 }
 
-pub fn unsetenv_impl(name: String) -> bool {
+pub fn unsetenv_impl(name: string) -> bool {
     unsafe {
         return libc_unsetenv(name.c_str()) == 0
     }

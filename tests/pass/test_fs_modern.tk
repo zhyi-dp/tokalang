@@ -4,7 +4,7 @@ import std/io::{println}
 
 pub fn main() -> i32 {
     // Test Metadata
-    auto meta_res = fs::metadata(String::from("lib/std/fs.tk"))
+    auto meta_res = fs::metadata(string::from("lib/std/fs.tk"))
     if meta_res.is_err() {
         println("Error getting metadata: {}", meta_res.unwrap_err())
         return 1
@@ -15,7 +15,7 @@ pub fn main() -> i32 {
     assert(meta.is_file(), "fs.tk should be a file")
     
     // Test ReadDir
-    auto dir_iter# = fs::read_dir(String::from("lib/std"))
+    auto dir_iter# = fs::read_dir(string::from("lib/std"))
     if dir_iter.finished {
         println("Error reading dir")
         return 1
@@ -26,23 +26,23 @@ pub fn main() -> i32 {
         if entry_opt.is_none() { break }
         auto name = entry_opt.unwrap()
         println("DEBUG: entry={}", name)
-        if name == String::from("fs.tk") {
+        if name == string::from("fs.tk") {
             found_fs = true
         }
     }
     assert(found_fs, "fs.tk not found in lib/std")
     
     // Test Path
-    auto p = Path::new(String::from("/usr/bin"))
-    auto p2 = p.join(String::from("toka"))
+    auto p = Path::new(string::from("/usr/bin"))
+    auto p2 = p.join(string::from("toka"))
     println("Joined path: {}", p2.to_string())
-    assert(p2.to_string() == String::from("/usr/bin/toka"), "Path join failed")
-    assert(p2.basename() == String::from("toka"), "Path basename failed")
-    assert(p2.dirname() == String::from("/usr/bin"), "Path dirname failed")
+    assert(p2.to_string() == string::from("/usr/bin/toka"), "Path join failed")
+    assert(p2.basename() == string::from("toka"), "Path basename failed")
+    assert(p2.dirname() == string::from("/usr/bin"), "Path dirname failed")
     
-    auto p3 = p2.with_extension(String::from("exe"))
+    auto p3 = p2.with_extension(string::from("exe"))
     println("With extension: {}", p3.to_string())
-    assert(p3.to_string() == String::from("/usr/bin/toka.exe"), "Path with_extension failed")
+    assert(p3.to_string() == string::from("/usr/bin/toka.exe"), "Path with_extension failed")
     
     println("FS and Path modern tests passed!")
     return 0

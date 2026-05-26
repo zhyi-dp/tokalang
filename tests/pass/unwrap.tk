@@ -1,18 +1,18 @@
 import core/result::{Result, Result}
 import core/option::{Option, Option}
-import std/string::{String}
+import std/string::{string}
 import std/io::println
 
-fn compute_val(fail: bool) -> Result<i32, String> {
+fn compute_val(fail: bool) -> Result<i32, string> {
     if fail {
-        return Result<i32, String>::Err(String::from("failed"))
+        return Result<i32, string>::Err(string::from("failed"))
     }
-    return Result<i32, String>::Ok(42)
+    return Result<i32, string>::Ok(42)
 }
 
-fn test_result(fail: bool) -> Result<i32, String> {
+fn test_result(fail: bool) -> Result<i32, string> {
     auto val = compute_val(fail)!
-    return Result<i32, String>::Ok(val * 2)
+    return Result<i32, string>::Ok(val * 2)
 }
 
 fn compute_opt(fail: bool) -> Option<i32> {

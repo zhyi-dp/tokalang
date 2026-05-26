@@ -13,16 +13,16 @@
 // limitations under the License.
 
 import std/io::println
-import std/string::String
+import std/string::string
 
 // Define shapes representing structs, tuples, and enums
 shape Coord(x: i32, y: i32)
 shape DataTuple(v0: i32, v1: bool)
 
 shape SearchResult(
-    Found(String) |
+    Found(string) |
     NotFound |
-    Redirect(i32, String)
+    Redirect(i32, string)
 )
 
 // Helper function to test match expressions on enums with resources
@@ -72,11 +72,11 @@ fn test_struct_tuple_destructuring() {
 fn main() -> i32 {
     test_struct_tuple_destructuring()
 
-    auto res1 = SearchResult::Found(String::from("Toka Engine"))
+    auto res1 = SearchResult::Found(string::from("Toka Engine"))
     auto code1 = handle_search(res1)
     assert(code1 == 200, "code1 should be 200")
 
-    auto res2 = SearchResult::Redirect(301, String::from("https://toka.org"))
+    auto res2 = SearchResult::Redirect(301, string::from("https://toka.org"))
     auto code2 = handle_search(res2)
     assert(code2 == 301, "code2 should be 301")
 

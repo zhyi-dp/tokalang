@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // ==========================================
-// Toka Standard Library: String (Core Portion)
+// Toka Standard Library: string (Core Portion)
 // Version: 1.3.1 (In-Place Capture & Strict Morphology)
 // ==========================================
 
@@ -37,16 +37,16 @@ impl char {
 // 2. Shape Definition
 // ------------------------------------------------------
 
-pub shape String (
+pub shape string (
     nul *buf#: [char] = null as *[char],
     len#: usize = 0,
     cap#: usize = 0
 )
 
-impl String@encap {
+impl string@encap {
     pub cap
-    pub fn clone(self) -> String {
-        return String::from_with_len(self.c_str(), self.len)
+    pub fn clone(self) -> string {
+        return string::from_with_len(self.c_str(), self.len)
     }
 
     fn drop(self#) {
@@ -88,11 +88,11 @@ impl SplitIterator@encap {
 }
 
 impl SplitIterator {
-    pub fn next(self#) -> String {
+    pub fn next(self#) -> string {
         unsafe {
              if self.current_pos >= self.source_len {
                  self.current_pos = self.source_len + 1
-                 return String::from("") 
+                 return string::from("") 
              }
              
              auto start = self.current_pos
@@ -117,7 +117,7 @@ impl SplitIterator {
              }
              
              auto *start_ptr = (self.*source as usize + start) as *char
-             return String::from_with_len(*start_ptr, len)
+             return string::from_with_len(*start_ptr, len)
         }
     }
     
@@ -128,28 +128,28 @@ impl SplitIterator {
 
 
 // ------------------------------------------------------
-// 4. String Implementation
+// 4. string Implementation
 // ------------------------------------------------------
 
-impl String@delegate {
+impl string@delegate {
     pub fn target(self) -> str {
         return str(&buf = self.*buf as &[char], len = self.len)
     }
 }
 
-impl String @Send {}
-impl String @Sync {}
+impl string @Send {}
+impl string @Sync {}
 
-impl String {
+impl string {
 
     // === Constructors ===
 
-    pub fn from(s: str) -> String {
+    pub fn from(s: str) -> string {
         if s.len() == 0 {
             unsafe {
                 auto *p# = unsafe alloc [1] char as *[char]
                 p[0] = 0 as char
-                return String(*buf = *p, len = 0, cap = 1)
+                return string(*buf = *p, len = 0, cap = 1)
             }
         }
         unsafe {
@@ -158,7 +158,7 @@ impl String {
             libc_memcpy(*p as *void, s.raw_ptr() as *void, l)
             p[l] = 0 as char
             
-            return String(
+            return string(
                 *buf = *p,
                 len = l,
                 cap = l + 1
@@ -166,12 +166,12 @@ impl String {
         }
     }
 
-    pub fn from_cstr(*s: char) -> String {
+    pub fn from_cstr(*s: char) -> string {
         if *s == null {
             unsafe {
                 auto *p# = unsafe alloc [1] char as *[char]
                 p[0] = 0 as char
-                return String(*buf = *p, len = 0, cap = 1)
+                return string(*buf = *p, len = 0, cap = 1)
             }
         }
         unsafe {
@@ -180,7 +180,7 @@ impl String {
             libc_memcpy(*p as *void, *s as *void, l)
             p[l] = 0 as char
             
-            return String(
+            return string(
                 *buf = *p,
                 len = l,
                 cap = l + 1
@@ -189,14 +189,14 @@ impl String {
     }
     
     // Internal helper for substrings
-    pub fn from_with_len(*s: char, len: usize) -> String {
+    pub fn from_with_len(*s: char, len: usize) -> string {
         unsafe {
             auto l = len
             auto *p# = unsafe alloc [l + 1] char as *[char]
             libc_memcpy(*p as *void, *s as *void, l)
             p[l] = 0 as char
             
-            return String(
+            return string(
                 *buf = *p,
                 len = l,
                 cap = l + 1
@@ -204,28 +204,28 @@ impl String {
         }
     }
 
-    pub fn from_raw(*s: u8, len: usize) -> String {
+    pub fn from_raw(*s: u8, len: usize) -> string {
         unsafe {
             auto l = len
             auto *p# = unsafe alloc [l + 1] char as *[char]
             libc_memcpy(*p as *void, *s as *void, l)
             p[l] = 0 as char
             
-            return String(*buf = *p, len = l, cap = l + 1)
+            return string(*buf = *p, len = l, cap = l + 1)
         }
     }
 
-    pub fn from_str(s: str) -> String {
-        return String::from(s)
+    pub fn from_str(s: str) -> string {
+        return string::from(s)
     }
 
     // === Converters ===
 
     /**
-     * Creates a String from a C-string and frees the input pointer.
+     * Creates a string from a C-string and frees the input pointer.
      * Useful for FFI functions returning allocated strings.
      */
-    pub fn from_take(*s: char) -> String {
+    pub fn from_take(*s: char) -> string {
         unsafe {
             auto l = libc_strlen(*s)
             auto *p# = unsafe alloc [l + 1] char as *[char]
@@ -235,7 +235,7 @@ impl String {
             // Seal the memory leak: free the input pointer as promised
             libc_free(*s as *void)
             
-            return String(
+            return string(
                 *buf = *p,
                 len = l,
                 cap = l + 1
@@ -243,13 +243,13 @@ impl String {
         }
     }
 
-    pub fn from_int(val: i32) -> String {
+    pub fn from_int(val: i32) -> string {
         unsafe {
             auto *buf# = unsafe alloc [16] char as *[char]
             libc_sprintf(*buf as *char, c"%d", val)
             auto len = libc_strlen(*buf as *char)
             
-            return String(
+            return string(
                 *buf = *buf,
                 len = len,
                 cap = 16
@@ -257,21 +257,21 @@ impl String {
         }
     }
 
-    pub fn from_i64(val: i64) -> String {
+    pub fn from_i64(val: i64) -> string {
         unsafe {
             auto *buf# = unsafe alloc [32] char as *[char]
             libc_sprintf(*buf as *char, c"%lld", val)
             auto len = libc_strlen(*buf as *char)
-            return String(*buf = *buf, len = len, cap = 32)
+            return string(*buf = *buf, len = len, cap = 32)
         }
     }
     
-    pub fn from_f64(val: f64) -> String {
+    pub fn from_f64(val: f64) -> string {
          unsafe {
             auto *buf# = unsafe alloc [32] char as *[char]
             libc_sprintf(*buf as *char, c"%g", val)
             auto len = libc_strlen(*buf as *char)
-            return String(*buf = *buf, len = len, cap = 32)
+            return string(*buf = *buf, len = len, cap = 32)
         }
     }
 
@@ -457,14 +457,14 @@ impl String {
         }
     }
     
-    pub fn parse_f64(self) -> Result<f64, String> {
-        if self.len == 0 { return Result<f64, String>::Err(String::from("empty string")) }
+    pub fn parse_f64(self) -> Result<f64, string> {
+        if self.len == 0 { return Result<f64, string>::Err(string::from("empty string")) }
         auto val# = 0.0:f64
         auto count = libc_sscanf(self.c_str(), c"%lf", &val as *void)
         if count != 1 {
-            return Result<f64, String>::Err(String::from("invalid float format"))
+            return Result<f64, string>::Err(string::from("invalid float format"))
         }
-        return Result<f64, String>::Ok(val)
+        return Result<f64, string>::Ok(val)
     }
     
     // === Utilities ===
@@ -523,20 +523,20 @@ impl String {
         return self.as_str().ends_with_char(c)
     }
     
-    pub fn trim(self) -> String {
+    pub fn trim(self) -> string {
         return self.as_str().trim().to_string()
     }
 
-    pub fn trim_start(self) -> String {
+    pub fn trim_start(self) -> string {
         return self.as_str().trim_start().to_string()
     }
 
-    pub fn trim_end(self) -> String {
+    pub fn trim_end(self) -> string {
         return self.as_str().trim_end().to_string()
     }
 
-    pub fn to_upper(self) -> String {
-        auto res# = String::from_with_len(self.c_str(), self.len)
+    pub fn to_upper(self) -> string {
+        auto res# = string::from_with_len(self.c_str(), self.len)
         unsafe {
             auto i#: usize = 0
             auto *b# = (res.c_str() as usize) as *[char]#
@@ -551,8 +551,8 @@ impl String {
         return res
     }
 
-    pub fn to_lower(self) -> String {
-        auto res# = String::from_with_len(self.c_str(), self.len)
+    pub fn to_lower(self) -> string {
+        auto res# = string::from_with_len(self.c_str(), self.len)
         unsafe {
             auto i#: usize = 0
             auto *b# = (res.c_str() as usize) as *[char]#
@@ -567,8 +567,8 @@ impl String {
         return res
     }
 
-    pub fn replace(self, old_c: char, new_c: char) -> String {
-        auto res# = String::from_with_len(self.c_str(), self.len)
+    pub fn replace(self, old_c: char, new_c: char) -> string {
+        auto res# = string::from_with_len(self.c_str(), self.len)
         unsafe {
             auto i#: usize = 0
             auto *b# = (res.c_str() as usize) as *[char]#
@@ -582,7 +582,7 @@ impl String {
         return res
     }
 
-    pub fn substring(self, start_idx: i32, end_idx: i32) -> String {
+    pub fn substring(self, start_idx: i32, end_idx: i32) -> string {
         auto slen = self.len as i32
         auto s# = start_idx
         auto e# = end_idx
@@ -592,11 +592,11 @@ impl String {
         
         if s < 0 { s = 0 }
         if e > slen { e = slen }
-        if s >= e { return String::from("") }
+        if s >= e { return string::from("") }
         
         unsafe {
             auto *p = (self.*buf as usize + s as usize) as *char
-            return String::from_with_len(*p, (e - s) as usize)
+            return string::from_with_len(*p, (e - s) as usize)
         }
     }
 
@@ -606,10 +606,10 @@ impl String {
         return opt.unwrap() as i32
     }
 
-    pub fn replace_str(self, old_s: str, new_s: str) -> String {
+    pub fn replace_str(self, old_s: str, new_s: str) -> string {
         if old_s.len() == 0 { return self.clone() }
         
-        auto res# = String::from("")
+        auto res# = string::from("")
         unsafe {
              auto i#: usize = 0
              // Get pointers to buffers
@@ -645,9 +645,9 @@ impl String {
         return res
     }
     
-    pub fn repeat(self, n: i32) -> String {
-        if n <= 0 { return String::from("") }
-        auto res# = String::from("")
+    pub fn repeat(self, n: i32) -> string {
+        if n <= 0 { return string::from("") }
+        auto res# = string::from("")
         // Pre-reserve could be optimization todo
         auto i# = 0
         loop i < n {
@@ -657,10 +657,10 @@ impl String {
         return res
     }
     
-    pub fn reverse(self) -> String {
+    pub fn reverse(self) -> string {
         if self.len <= 1 { return self.clone() }
         unsafe {
-            auto res# = String::from_with_len(self.c_str(), self.len)
+            auto res# = string::from_with_len(self.c_str(), self.len)
             auto i#: usize = 0
             auto *dest# = (res.c_str() as usize) as *[char]#
             auto *src = self.*buf
@@ -672,7 +672,7 @@ impl String {
         }
     }
 }
-impl String@Hash {
+impl string@Hash {
     pub fn hash(self) -> u64 {
         unsafe {
             auto hash#: u64 = 5381
@@ -688,14 +688,14 @@ impl String@Hash {
     }
 }
 
-impl String@PartialEq {
-    pub fn eq(self, other: String) -> bool {
+impl string@PartialEq {
+    pub fn eq(self, other: string) -> bool {
         return self.as_str().eq(other.as_str())
     }
 }
 
-impl String@PartialOrd {
-    pub fn cmp(self, other: String) -> i32 {
+impl string@PartialOrd {
+    pub fn cmp(self, other: string) -> i32 {
         unsafe {
             auto i#: usize = 0
             auto *b1 = self.c_str()
@@ -719,11 +719,11 @@ impl String@PartialOrd {
 // ------------------------------------------------------
 
 impl str {
-    pub fn to_string(self) -> String {
-        return String::from_str(self)
+    pub fn to_string(self) -> string {
+        return string::from_str(self)
     }
-    pub fn repeat(self, n: i32) -> String {
-        if n <= 0 || self.len() == 0 { return String::from("") }
+    pub fn repeat(self, n: i32) -> string {
+        if n <= 0 || self.len() == 0 { return string::from("") }
         unsafe {
             auto l = self.len() * n
             auto *p# = unsafe alloc [l + 1] char as *[char]
@@ -737,7 +737,7 @@ impl str {
             }
             p[l] = 0 as char
             
-            return String(
+            return string(
                 *buf = *p,
                 len = l,
                 cap = l + 1
@@ -746,26 +746,26 @@ impl str {
     }
 }
 impl i32 {
-    pub fn to_string_fmt(self, fmt: str) -> String { return _format_i64(self as i64, fmt) }
-    pub fn to_string(self) -> String {
-        return String::from_int(self)
+    pub fn to_string_fmt(self, fmt: str) -> string { return _format_i64(self as i64, fmt) }
+    pub fn to_string(self) -> string {
+        return string::from_int(self)
     }
 }
 
 impl i64 {
-    pub fn to_string_fmt(self, fmt: str) -> String { return _format_i64(self as i64, fmt) }
-    pub fn to_string(self) -> String {
-        return String::from_i64(self)
+    pub fn to_string_fmt(self, fmt: str) -> string { return _format_i64(self as i64, fmt) }
+    pub fn to_string(self) -> string {
+        return string::from_i64(self)
     }
 }
 
 impl u64 {
-    pub fn to_string_fmt(self, fmt: str) -> String { return _format_i64(self as i64, fmt) }
-    pub fn to_string(self) -> String {
+    pub fn to_string_fmt(self, fmt: str) -> string { return _format_i64(self as i64, fmt) }
+    pub fn to_string(self) -> string {
         unsafe {
              auto *buf# = libc_malloc(32) as *char
              libc_snprintf(*buf, 32, c"%llu", self)
-             auto s = String::from_cstr(*buf)
+             auto s = string::from_cstr(*buf)
              libc_free(*buf as *void)
              return s
         }
@@ -773,39 +773,39 @@ impl u64 {
 }
 
 impl f32 {
-    pub fn to_string_fmt(self, fmt: str) -> String { return _format_f64(self as f64, fmt) }
-    pub fn to_string(self) -> String {
-        return String::from_f64(self as f64)
+    pub fn to_string_fmt(self, fmt: str) -> string { return _format_f64(self as f64, fmt) }
+    pub fn to_string(self) -> string {
+        return string::from_f64(self as f64)
     }
 }
 
 impl f64 {
-    pub fn to_string_fmt(self, fmt: str) -> String { return _format_f64(self, fmt) }
-    pub fn to_string(self) -> String {
-        return String::from_f64(self)
+    pub fn to_string_fmt(self, fmt: str) -> string { return _format_f64(self, fmt) }
+    pub fn to_string(self) -> string {
+        return string::from_f64(self)
     }
 }
 
 impl bool {
-    pub fn to_string(self) -> String {
-        if self { return String::from("true") }
-        return String::from("false")
+    pub fn to_string(self) -> string {
+        if self { return string::from("true") }
+        return string::from("false")
     }
 }
 
 
 pub trait @ToString {
-    pub fn to_string(self) -> String
+    pub fn to_string(self) -> string
 }
 
 pub trait @ToFormat {
-    pub fn to_string_fmt(self, fmt: str) -> String
+    pub fn to_string_fmt(self, fmt: str) -> string
 }
 
 impl char {
-    pub fn to_string(self) -> String {
+    pub fn to_string(self) -> string {
         unsafe {
-            auto s# = String::from("")
+            auto s# = string::from("")
             s#.push_char(self)
             return s
         }
@@ -813,64 +813,64 @@ impl char {
 }
 
 impl OAddr {
-    pub fn to_string(self) -> String {
+    pub fn to_string(self) -> string {
         unsafe {
             auto *buf# = unsafe alloc [32] char as *[char]
             libc_sprintf(*buf as *char, c"0x%016llX", self)
             auto len = libc_strlen(*buf as *char)
-            return String(*buf = *buf, len = len, cap = 32)
+            return string(*buf = *buf, len = len, cap = 32)
         }
     }
 }
 
 impl usize {
-    pub fn to_string_fmt(self, fmt: str) -> String { return _format_i64(self as i64, fmt) }
-    pub fn to_string(self) -> String {
-        return String::from_i64(self as i64)
+    pub fn to_string_fmt(self, fmt: str) -> string { return _format_i64(self as i64, fmt) }
+    pub fn to_string(self) -> string {
+        return string::from_i64(self as i64)
     }
 }
 
 impl cstr {
-    pub fn to_string(self) -> String {
-        return String::from_cstr(self.raw_ptr())
+    pub fn to_string(self) -> string {
+        return string::from_cstr(self.raw_ptr())
     }
 }
 
 impl u32 {
-    pub fn to_string_fmt(self, fmt: str) -> String { return _format_i64(self as i64, fmt) }
-    pub fn to_string(self) -> String { return String::from_i64(self as i64) }
+    pub fn to_string_fmt(self, fmt: str) -> string { return _format_i64(self as i64, fmt) }
+    pub fn to_string(self) -> string { return string::from_i64(self as i64) }
 }
 impl u16 {
-    pub fn to_string_fmt(self, fmt: str) -> String { return _format_i64(self as i64, fmt) }
-    pub fn to_string(self) -> String { return String::from_i64(self as i64) }
+    pub fn to_string_fmt(self, fmt: str) -> string { return _format_i64(self as i64, fmt) }
+    pub fn to_string(self) -> string { return string::from_i64(self as i64) }
 }
 impl u8 {
-    pub fn to_string_fmt(self, fmt: str) -> String { return _format_i64(self as i64, fmt) }
-    pub fn to_string(self) -> String { return String::from_i64(self as i64) }
+    pub fn to_string_fmt(self, fmt: str) -> string { return _format_i64(self as i64, fmt) }
+    pub fn to_string(self) -> string { return string::from_i64(self as i64) }
 }
 impl i16 {
-    pub fn to_string_fmt(self, fmt: str) -> String { return _format_i64(self as i64, fmt) }
-    pub fn to_string(self) -> String { return String::from_i64(self as i64) }
+    pub fn to_string_fmt(self, fmt: str) -> string { return _format_i64(self as i64, fmt) }
+    pub fn to_string(self) -> string { return string::from_i64(self as i64) }
 }
 impl i8 {
-    pub fn to_string_fmt(self, fmt: str) -> String { return _format_i64(self as i64, fmt) }
-    pub fn to_string(self) -> String { return String::from_i64(self as i64) }
+    pub fn to_string_fmt(self, fmt: str) -> string { return _format_i64(self as i64, fmt) }
+    pub fn to_string(self) -> string { return string::from_i64(self as i64) }
 }
 impl Addr {
-    pub fn to_string(self) -> String {
+    pub fn to_string(self) -> string {
         unsafe {
             auto *buf# = unsafe alloc [32] char as *[char]
             libc_sprintf(*buf as *char, c"0x%016llX", self as i64)
             auto len = libc_strlen(*buf as *char)
-            return String(*buf = *buf, len = len, cap = 32)
+            return string(*buf = *buf, len = len, cap = 32)
         }
     }
 }
 
-pub fn _format_i64(val: i64, fmt: str) -> String {
+pub fn _format_i64(val: i64, fmt: str) -> string {
     unsafe {
         if fmt.len() == 0 {
-            return String::from_i64(val)
+            return string::from_i64(val)
         }
         
         auto *c_fmt# = unsafe alloc [fmt.len() + 8] char as *[char]
@@ -906,14 +906,14 @@ pub fn _format_i64(val: i64, fmt: str) -> String {
         libc_free(*c_fmt as *void)
         
         auto len = libc_strlen(*buf as *char)
-        return String(*buf = *buf, len = len, cap = 64)
+        return string(*buf = *buf, len = len, cap = 64)
     }
 }
 
-pub fn _format_f64(val: f64, fmt: str) -> String {
+pub fn _format_f64(val: f64, fmt: str) -> string {
     unsafe {
         if fmt.len() == 0 {
-            return String::from_f64(val)
+            return string::from_f64(val)
         }
         auto *c_fmt# = unsafe alloc [fmt.len() + 4] char as *[char]
         c_fmt[0] = 37:char // '%'
@@ -933,11 +933,11 @@ pub fn _format_f64(val: f64, fmt: str) -> String {
         libc_free(*c_fmt as *void)
         
         auto len = libc_strlen(*buf as *char)
-        return String(*buf = *buf, len = len, cap = 64)
+        return string(*buf = *buf, len = len, cap = 64)
     }
 }
 
 // ==========================================
-// 终极第一步：大宗师别名大合龙
+// Alias compatibility layer
 // ==========================================
-pub alias string = String
+pub alias String = string

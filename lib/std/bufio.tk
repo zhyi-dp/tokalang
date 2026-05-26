@@ -4,7 +4,7 @@ import core/types::{usize, Addr}
 import core/result::{Result}
 import core/libc::*
 import std/io::{@Reader, @Writer}
-import std/string::{String}
+import std/string::{string}
 
 /// BufferedReader wraps a reader and buffers its input.
 pub shape BufferedReader<'R: @Reader> (
@@ -35,9 +35,9 @@ impl<'R: @Reader> BufferedReader<'R> {
         )
     }
 
-    pub fn read_bytes(self#, *out_buf: u8, len: usize) -> Result<usize, String> {
+    pub fn read_bytes(self#, *out_buf: u8, len: usize) -> Result<usize, string> {
         if len == 0 as usize {
-            return Result<usize, String>::Ok(0 as usize)
+            return Result<usize, string>::Ok(0 as usize)
         }
 
         if self.pos >= self.cap {
@@ -45,11 +45,11 @@ impl<'R: @Reader> BufferedReader<'R> {
             match fill_res {
                 auto Result::Ok(n) => {
                     if n == 0 as usize {
-                        return Result<usize, String>::Ok(0 as usize)
+                        return Result<usize, string>::Ok(0 as usize)
                     }
                 }
                 auto Result::Err(&e) => {
-                    return Result<usize, String>::Err(e.clone())
+                    return Result<usize, string>::Err(e.clone())
                 }
             }
         }
@@ -66,11 +66,11 @@ impl<'R: @Reader> BufferedReader<'R> {
         }
 
         self.pos = self.pos + to_copy
-        return Result<usize, String>::Ok(to_copy)
+        return Result<usize, string>::Ok(to_copy)
     }
 
-    pub fn read_line(self#) -> Result<String, String> {
-        auto s# = String::from("")
+    pub fn read_line(self#) -> Result<string, string> {
+        auto s# = string::from("")
         auto done# = false
         
         loop !done {
@@ -84,7 +84,7 @@ impl<'R: @Reader> BufferedReader<'R> {
                         }
                     }
                     auto Result::Err(&e) => {
-                        return Result<String, String>::Err(e.clone())
+                        return Result<string, string>::Err(e.clone())
                     }
                 }
             }
@@ -118,27 +118,27 @@ impl<'R: @Reader> BufferedReader<'R> {
             }
         }
         
-        return Result<String, String>::Ok(s)
+        return Result<string, string>::Ok(s)
     }
 
-    fn fill_buf(self#) -> Result<usize, String> {
+    fn fill_buf(self#) -> Result<usize, string> {
         auto *ptr = &self.buf[0] as *u8
         auto res = self.reader#.read_bytes(*ptr, 4096 as usize)
         match res {
             auto Result::Ok(n) => {
                 self.pos = 0 as usize
                 self.cap = n
-                return Result<usize, String>::Ok(n)
+                return Result<usize, string>::Ok(n)
             }
             auto Result::Err(&e) => {
-                return Result<usize, String>::Err(e.clone())
+                return Result<usize, string>::Err(e.clone())
             }
         }
     }
 }
 
 impl<'R: @Reader> BufferedReader<'R>@Reader {
-    pub fn read_bytes(self#, *buf: u8, len: usize) -> Result<usize, String> {
+    pub fn read_bytes(self#, *buf: u8, len: usize) -> Result<usize, string> {
         return self#.read_bytes(*buf, len)
     }
 }
@@ -170,9 +170,9 @@ impl<'W: @Writer> BufferedWriter<'W> {
         )
     }
 
-    pub fn write_bytes(self#, *in_buf: u8, len: usize) -> Result<usize, String> {
+    pub fn write_bytes(self#, *in_buf: u8, len: usize) -> Result<usize, string> {
         if len == 0 as usize {
-            return Result<usize, String>::Ok(0 as usize)
+            return Result<usize, string>::Ok(0 as usize)
         }
 
         if len >= 4096 as usize {
@@ -180,7 +180,7 @@ impl<'W: @Writer> BufferedWriter<'W> {
             match flush_res {
                 auto Result::Ok(_) => {}
                 auto Result::Err(&e) => {
-                    return Result<usize, String>::Err(e.clone())
+                    return Result<usize, string>::Err(e.clone())
                 }
             }
             return self.writer#.write_bytes(*in_buf, len)
@@ -191,7 +191,7 @@ impl<'W: @Writer> BufferedWriter<'W> {
             match flush_res {
                 auto Result::Ok(_) => {}
                 auto Result::Err(&e) => {
-                    return Result<usize, String>::Err(e.clone())
+                    return Result<usize, string>::Err(e.clone())
                 }
             }
         }
@@ -201,36 +201,36 @@ impl<'W: @Writer> BufferedWriter<'W> {
             libc_memcpy(*dest as *void, *in_buf as *void, len)
         }
         self.pos = self.pos + len
-        return Result<usize, String>::Ok(len)
+        return Result<usize, string>::Ok(len)
     }
 
-    pub fn write_string(self#, s: String) -> Result<usize, String> {
+    pub fn write_string(self#, s: string) -> Result<usize, string> {
         auto *ptr = s.c_str() as *u8
         return self#.write_bytes(*ptr, s.len() as usize)
     }
 
-    pub fn flush(self#) -> Result<bool, String> {
+    pub fn flush(self#) -> Result<bool, string> {
         if self.pos > 0 as usize {
             auto *ptr = &self.buf[0] as *u8
             auto res = self.writer#.write_bytes(*ptr, self.pos)
             match res {
                 auto Result::Ok(n) => {
                     if n < self.pos {
-                        return Result<bool, String>::Err(String::from("Short write during flush"))
+                        return Result<bool, string>::Err(string::from("Short write during flush"))
                     }
                     self.pos = 0 as usize
                 }
                 auto Result::Err(&e) => {
-                    return Result<bool, String>::Err(e.clone())
+                    return Result<bool, string>::Err(e.clone())
                 }
             }
         }
-        return Result<bool, String>::Ok(true)
+        return Result<bool, string>::Ok(true)
     }
 }
 
 impl<'W: @Writer> BufferedWriter<'W>@Writer {
-    pub fn write_bytes(self#, *buf: u8, len: usize) -> Result<usize, String> {
+    pub fn write_bytes(self#, *buf: u8, len: usize) -> Result<usize, string> {
         return self#.write_bytes(*buf, len)
     }
 }

@@ -1,5 +1,5 @@
 import sys/libc::{libc_system, libc_access, libc_getenv}
-import std/string::{String}
+import std/string::{string}
 import core/traits::{@encap}
 import std/io::println
 
@@ -7,12 +7,12 @@ pub shape Executable (
     *name: char,
     *version: char,
     *src: char,
-    deps: String,
-    c_srcs: String = String::from(""),
-    lib_dirs: String = String::from(""),
-    libs: String = String::from(""),
-    include_dirs: String = String::from(""),
-    ldflags: String = String::from("")
+    deps: string,
+    c_srcs: string = string::from(""),
+    lib_dirs: string = string::from(""),
+    libs: string = string::from(""),
+    include_dirs: string = string::from(""),
+    ldflags: string = string::from("")
 )
 
 impl Executable@encap {
@@ -38,12 +38,12 @@ impl Executable {
             *name = *name,
             *version = c"0.1.0",
             *src = *src,
-            deps = String::from(""),
-            c_srcs = String::from(""),
-            lib_dirs = String::from(""),
-            libs = String::from(""),
-            include_dirs = String::from(""),
-            ldflags = String::from("")
+            deps = string::from(""),
+            c_srcs = string::from(""),
+            lib_dirs = string::from(""),
+            libs = string::from(""),
+            include_dirs = string::from(""),
+            ldflags = string::from("")
         )
     }
     
@@ -54,35 +54,35 @@ impl Executable {
         self.deps#.push_cstr(*url)
     }
     
-    pub fn add_c_src(self#, path: String) {
+    pub fn add_c_src(self#, path: string) {
         if self.c_srcs.len() > 0:usize {
             self.c_srcs#.push_str(",")
         }
         self.c_srcs#.push_str(path.as_str())
     }
 
-    pub fn add_lib_dir(self#, path: String) {
+    pub fn add_lib_dir(self#, path: string) {
         if self.lib_dirs.len() > 0:usize {
             self.lib_dirs#.push_str(",")
         }
         self.lib_dirs#.push_str(path.as_str())
     }
 
-    pub fn add_lib(self#, name: String) {
+    pub fn add_lib(self#, name: string) {
         if self.libs.len() > 0:usize {
             self.libs#.push_str(",")
         }
         self.libs#.push_str(name.as_str())
     }
 
-    pub fn add_include_dir(self#, path: String) {
+    pub fn add_include_dir(self#, path: string) {
         if self.include_dirs.len() > 0:usize {
             self.include_dirs#.push_str(",")
         }
         self.include_dirs#.push_str(path.as_str())
     }
 
-    pub fn add_ldflag(self#, flag: String) {
+    pub fn add_ldflag(self#, flag: string) {
         if self.ldflags.len() > 0:usize {
             self.ldflags#.push_str(" ")
         }
@@ -102,7 +102,7 @@ pub fn run_build(proj: Executable) -> i32 {
                 auto pkg_url = deps_iter#.next()
                 if pkg_url.len() == 0:usize { break }
                 
-                auto add_cmd# = String::from("toka add ")
+                auto add_cmd# = string::from("toka add ")
                 add_cmd#.push_str(pkg_url.as_str())
                 libc_system(add_cmd.c_str())
             }
@@ -111,8 +111,8 @@ pub fn run_build(proj: Executable) -> i32 {
         auto is_windows# = false
         auto os_env = libc_getenv(c"OS") as Addr
         if os_env != 0:Addr {
-            auto os_str = String::from_cstr(os_env as *char)
-            if os_str == String::from("Windows_NT") {
+            auto os_str = string::from_cstr(os_env as *char)
+            if os_str == string::from("Windows_NT") {
                 is_windows = true
             }
         }
@@ -127,18 +127,18 @@ pub fn run_build(proj: Executable) -> i32 {
         }
 
         // Build tokac string: "tokac src_path > target/debug/main.ll"
-        auto cmd1# = String::from("")
+        auto cmd1# = string::from("")
         if is_windows {
             if libc_access(c"build/bin/tokac.exe", 0) == 0 {
-                cmd1 = String::from("./build/bin/tokac.exe ")
+                cmd1 = string::from("./build/bin/tokac.exe ")
             } else {
-                cmd1 = String::from("tokac ")
+                cmd1 = string::from("tokac ")
             }
         } else {
             if libc_access(c"build/bin/tokac", 0) == 0 {
-                cmd1 = String::from("./build/bin/tokac ")
+                cmd1 = string::from("./build/bin/tokac ")
             } else {
-                cmd1 = String::from("tokac ")
+                cmd1 = string::from("tokac ")
             }
         }
         auto toka_lib = libc_getenv(c"TOKA_LIB") as Addr
@@ -174,58 +174,58 @@ pub fn run_build(proj: Executable) -> i32 {
             cmd1#.push_str(" -O3")
         }
 
-        auto name_str = String::from_cstr(*n)
-        auto version_str = String::from_cstr(*v)
+        auto name_str = string::from_cstr(*n)
+        auto version_str = string::from_cstr(*v)
         println("\x1b[1;32m   Compiling\x1b[0m {} v{} ...", name_str, version_str)
         
         // Execute compiler
         auto res1 = libc_system(cmd1.c_str())
         if res1 != 0 {
-            auto fail_name = String::from_cstr(*n)
+            auto fail_name = string::from_cstr(*n)
             println("\x1b[1;31m       Error\x1b[0m failed to compile {}", fail_name)
             return res1
         }
 
         if is_hybrid {
             auto *env_cxx = libc_getenv(c"CXX")
-            auto cxx# = String::from("")
+            auto cxx# = string::from("")
             if *env_cxx != (ADDR0 as *char) {
-                cxx = String::from_cstr(*env_cxx)
+                cxx = string::from_cstr(*env_cxx)
             } else {
                 if libc_access(c"/usr/bin/clang++-20", 0) == 0 {
-                    cxx = String::from("/usr/bin/clang++-20")
+                    cxx = string::from("/usr/bin/clang++-20")
                 } else if libc_access(c"/usr/bin/clang++", 0) == 0 {
-                    cxx = String::from("/usr/bin/clang++")
+                    cxx = string::from("/usr/bin/clang++")
                 } else if libc_access(c"/usr/bin/g++", 0) == 0 {
-                    cxx = String::from("/usr/bin/g++")
+                    cxx = string::from("/usr/bin/g++")
                 } else {
-                    cxx = String::from("clang++")
+                    cxx = string::from("clang++")
                 }
             }
             
-            auto rt_path# = String::from("")
+            auto rt_path# = string::from("")
             if is_windows {
                 if libc_access(c"lib/sys/toka_rt.obj", 0) == 0 {
-                    rt_path = String::from("lib/sys/toka_rt.obj")
+                    rt_path = string::from("lib/sys/toka_rt.obj")
                 } else if libc_access(c"lib/sys/toka_rt.o", 0) == 0 {
-                    rt_path = String::from("lib/sys/toka_rt.o")
+                    rt_path = string::from("lib/sys/toka_rt.o")
                 } else if libc_access(c"../lib/sys/toka_rt.obj", 0) == 0 {
-                    rt_path = String::from("../lib/sys/toka_rt.obj")
+                    rt_path = string::from("../lib/sys/toka_rt.obj")
                 } else if libc_access(c"../lib/sys/toka_rt.o", 0) == 0 {
-                    rt_path = String::from("../lib/sys/toka_rt.o")
+                    rt_path = string::from("../lib/sys/toka_rt.o")
                 }
             } else {
                 if libc_access(c"lib/sys/toka_rt.o", 0) == 0 {
-                    rt_path = String::from("lib/sys/toka_rt.o")
+                    rt_path = string::from("lib/sys/toka_rt.o")
                 } else if libc_access(c"../lib/sys/toka_rt.o", 0) == 0 {
-                    rt_path = String::from("../lib/sys/toka_rt.o")
+                    rt_path = string::from("../lib/sys/toka_rt.o")
                 }
             }
             
             if rt_path.len() == 0:usize {
                 auto toka_lib = libc_getenv(c"TOKA_LIB") as Addr
                 if toka_lib != 0:Addr {
-                    auto env_rt# = String::from_cstr(toka_lib as *char)
+                    auto env_rt# = string::from_cstr(toka_lib as *char)
                     if !env_rt.ends_with("/") {
                         env_rt#.push_str("/")
                     }
@@ -248,20 +248,20 @@ pub fn run_build(proj: Executable) -> i32 {
             if rt_path.len() == 0:usize {
                 if is_windows {
                     if libc_access(c"/usr/local/lib/toka/sys/toka_rt.obj", 0) == 0 {
-                        rt_path = String::from("/usr/local/lib/toka/sys/toka_rt.obj")
+                        rt_path = string::from("/usr/local/lib/toka/sys/toka_rt.obj")
                     }
                 }
                 if rt_path.len() == 0:usize {
                     if libc_access(c"/usr/local/lib/toka/sys/toka_rt.o", 0) == 0 {
-                        rt_path = String::from("/usr/local/lib/toka/sys/toka_rt.o")
+                        rt_path = string::from("/usr/local/lib/toka/sys/toka_rt.o")
                     }
                 }
             }
             if rt_path.len() == 0:usize {
                 if is_windows {
-                    rt_path = String::from("lib/sys/toka_rt.obj")
+                    rt_path = string::from("lib/sys/toka_rt.obj")
                 } else {
-                    rt_path = String::from("lib/sys/toka_rt.o")
+                    rt_path = string::from("lib/sys/toka_rt.o")
                 }
             }
             
@@ -330,19 +330,19 @@ pub fn run_build(proj: Executable) -> i32 {
             
             auto res2 = libc_system(cmd2.c_str())
             if res2 != 0 {
-                auto fail_name = String::from_cstr(*n)
+                auto fail_name = string::from_cstr(*n)
                 println("\x1b[1;31m       Error\x1b[0m linking failed for {}", fail_name)
                 return res2
             }
             
             // Clean up temporary .o file
-            auto rm_cmd# = String::from("")
+            auto rm_cmd# = string::from("")
             if is_windows {
-                rm_cmd = String::from("del /f /q target\\debug\\")
+                rm_cmd = string::from("del /f /q target\\debug\\")
                 rm_cmd#.push_cstr(&n)
                 rm_cmd#.push_str(".o")
             } else {
-                rm_cmd = String::from("rm -f target/debug/")
+                rm_cmd = string::from("rm -f target/debug/")
                 rm_cmd#.push_cstr(&n)
                 rm_cmd#.push_str(".o")
             }

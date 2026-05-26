@@ -1,14 +1,14 @@
 import std/io::{println}
 import stdx/serde/json::{deserialize_shape}
 import core/str::{str}
-import std/string::{String}
+import std/string::{string}
 
 shape UniTest (
-    msg: String = String(..)
+    msg: string = string(..)
 )
 
 fn main() -> i32 {
-    auto json_str = String::from("{\"msg\": \"hello\\n\\t\\\"world\\\"\\u1f68\\uD83D\\uDE80\"}")
+    auto json_str = string::from("{\"msg\": \"hello\\n\\t\\\"world\\\"\\u1f68\\uD83D\\uDE80\"}")
     auto v_str = json_str.as_str()
     
     auto res = deserialize_shape<UniTest>(v_str)

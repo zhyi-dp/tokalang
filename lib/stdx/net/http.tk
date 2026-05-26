@@ -1,4 +1,4 @@
-import std/string::{String, SplitIterator}
+import std/string::{string, SplitIterator}
 
 pub shape HttpMethod (
     GET = 0 |
@@ -10,15 +10,15 @@ pub shape HttpMethod (
 
 pub shape HttpRequest (
     method: HttpMethod,
-    path: String,
-    body: String
+    path: string,
+    body: string
 )
 
 impl HttpRequest@encap {
     pub method
     pub path
     pub body
-    fn drop(self#) {} // String fields auto drop
+    fn drop(self#) {} // string fields auto drop
     
     pub fn clone(self) -> HttpRequest {
         return HttpRequest(method = self.method, path = self.path.clone(), body = self.body.clone())
@@ -27,8 +27,8 @@ impl HttpRequest@encap {
 
 pub shape HttpResponse (
     status_code: i32,
-    content_type: String,
-    body: String
+    content_type: string,
+    body: string
 )
 
 impl HttpResponse@encap {
@@ -43,18 +43,18 @@ impl HttpResponse@encap {
 }
 
 impl HttpResponse {
-    pub fn ok(body: String) -> HttpResponse {
+    pub fn ok(body: string) -> HttpResponse {
         return HttpResponse(
             status_code = 200,
-            content_type = String::from("text/plain"),
+            content_type = string::from("text/plain"),
             body = body
         )
     }
 
-    pub fn html(body: String) -> HttpResponse {
+    pub fn html(body: string) -> HttpResponse {
         return HttpResponse(
             status_code = 200,
-            content_type = String::from("text/html"),
+            content_type = string::from("text/html"),
             body = body
         )
     }
@@ -62,13 +62,13 @@ impl HttpResponse {
     pub fn not_found() -> HttpResponse {
         return HttpResponse(
             status_code = 404,
-            content_type = String::from("text/plain"),
-            body = String::from("404 Not Found")
+            content_type = string::from("text/plain"),
+            body = string::from("404 Not Found")
         )
     }
 
-    pub fn to_string(self#) -> String {
-        auto res# = String::from("HTTP/1.1 ")
+    pub fn to_string(self#) -> string {
+        auto res# = string::from("HTTP/1.1 ")
         if self.status_code == 200 {
             res#.push_str("200 OK\r\n")
         } else if self.status_code == 404 {
@@ -80,7 +80,7 @@ impl HttpResponse {
         res#.push_str("Content-Type: ")
         res#.push_str(self.content_type.as_str())
         res#.push_str("\r\nContent-Length: ")
-        auto len_str = String::from_int(self.body.len())
+        auto len_str = string::from_int(self.body.len())
         res#.push_str(len_str.as_str())
         res#.push_str("\r\nConnection: close\r\n\r\n")
         
@@ -89,10 +89,10 @@ impl HttpResponse {
     }
 }
 
-pub fn parse_http_request(req_str: String) -> HttpRequest {
+pub fn parse_http_request(req_str: string) -> HttpRequest {
     auto iter# = req_str.split(10) // split by \n
     if iter#.is_done() {
-        return HttpRequest(method = HttpMethod::UNKNOWN, path = String::from("/"), body = String::from(""))
+        return HttpRequest(method = HttpMethod::UNKNOWN, path = string::from("/"), body = string::from(""))
     }
     
     auto first_line# = iter#.next()
@@ -103,12 +103,12 @@ pub fn parse_http_request(req_str: String) -> HttpRequest {
     auto path_str = parts_iter#.next()
     
     auto method# = HttpMethod::UNKNOWN
-    if method_str.eq(String::from("GET")) { method = HttpMethod::GET }
-    else if method_str.eq(String::from("POST")) { method = HttpMethod::POST }
+    if method_str.eq(string::from("GET")) { method = HttpMethod::GET }
+    else if method_str.eq(string::from("POST")) { method = HttpMethod::POST }
     
     return HttpRequest(
         method = method,
         path = path_str.clone(),
-        body = String::from("") // Ignore body parsing for this micro engine
+        body = string::from("") // Ignore body parsing for this micro engine
     )
 }

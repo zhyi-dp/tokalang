@@ -1,5 +1,5 @@
 import std/io::{File, println}
-import std/string::{String}
+import std/string::{string}
 import core/str::{str, str}
 import stdx/serde/json::{deserialize_shape}
 
@@ -8,7 +8,7 @@ pub shape SentryScope (
 )
 
 pub fn main() -> i32 {
-    auto path_str = String::from("./tests/pass/scope_v2.json")
+    auto path_str = string::from("./tests/pass/scope_v2.json")
     auto f# = File::open(path_str, "r")
     if !f.is_valid() {
         println("File not found")

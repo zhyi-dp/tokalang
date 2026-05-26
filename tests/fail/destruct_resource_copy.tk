@@ -1,13 +1,13 @@
-// Naked destructuring of resource String in positional destructuring should be forbidden.
-import std/string::String
+// Naked destructuring of resource string in positional destructuring should be forbidden.
+import std/string::string
 
 shape Pair(
     a: i32,
-    s: String
+    s: string
 )
 
 pub fn main() -> i32 {
-    auto t = Pair(a = 42, s = String::from("Hello Resource"))
+    auto t = Pair(a = 42, s = string::from("Hello Resource"))
     auto Pair(a = .a, s = .s) = t
     return 0
 }

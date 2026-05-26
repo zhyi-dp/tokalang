@@ -1,6 +1,6 @@
 import std/io::println
 import std/io::print
-import std/string::String
+import std/string::string
 
 shape Color (
     code: str
@@ -29,10 +29,10 @@ impl Color {
 }
 
 pub fn print_color(c: Color, text: str) {
-    print(String::from(c.code))
-    print(String::from(text))
+    print(string::from(c.code))
+    print(string::from(text))
     auto r = Color::reset()
-    print(String::from(r.code))
+    print(string::from(r.code))
     println("")
 }
 

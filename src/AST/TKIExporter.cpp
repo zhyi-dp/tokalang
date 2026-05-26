@@ -402,7 +402,7 @@ void TKIExporter::exportFunction(const FunctionDecl &decl, bool forceKeepBody) {
         m_OS << " ";
         exportBlock(*decl.Body);
     } else {
-        m_OS << "\n"; // Semicolon-free "toka 代码行尾不需要分号"
+        m_OS << "\n"; // Semicolon-free "toka "
     }
 }
 

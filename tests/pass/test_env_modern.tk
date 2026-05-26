@@ -10,12 +10,12 @@ pub fn main() -> i32 {
     }
     
     // Test env var
-    env::set_var(String::from("TOKA_TEST"), String::from("123"))
-    auto val_opt = env::var(String::from("TOKA_TEST"))
+    env::set_var(string::from("TOKA_TEST"), string::from("123"))
+    auto val_opt = env::var(string::from("TOKA_TEST"))
     assert(val_opt.is_some(), "Env var not found")
     println("TOKA_TEST: {}", val_opt.unwrap())
     
-    auto not_found = env::var(String::from("DOES_NOT_EXIST_12345"))
+    auto not_found = env::var(string::from("DOES_NOT_EXIST_12345"))
     assert(not_found.is_none(), "Non-existent env var found")
     
     // Test current_dir

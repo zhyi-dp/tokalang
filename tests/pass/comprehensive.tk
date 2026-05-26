@@ -17,7 +17,7 @@
 import std/io::println
 import std/memory
 import core/types::LIMITS
-import std/string::String
+import std/string::string
 
 // --- 1. Enumerations & ADTs ---
 
@@ -55,7 +55,7 @@ shape Entity (
     id: i32,
     pos: Point,
     status: Status,
-    name: String
+    name: string
 )
 
 // --- 4. Implementations ---
@@ -70,7 +70,7 @@ impl Point {
 
 impl Entity@Renderable {
     pub fn render(self) -> i32 {
-        // Accessing underlying pointer of String
+        // Accessing underlying pointer of string
         println("Rendering Entity '{}' (#{}) at ({}, {}) Status: {}", 
             self.name, self.id, self.pos.x, self.pos.y, self.status as i32)
         return 1
@@ -131,11 +131,11 @@ fn color_to_hex(c: Color) -> i32 {
 fn main() -> i32 {
     println("--- Toka Comprehensive Test ---")
 
-    // 6.1 String & Allocations
-    auto name_str = String::from("Hero")
+    // 6.1 string & Allocations
+    auto name_str = string::from("Hero")
     
     // stack allocation
-    // Entity takes ownership of the String buffer (via bitwise copy)
+    // Entity takes ownership of the string buffer (via bitwise copy)
     auto e1# = Entity(
         id = 1,
         pos = Point(x = 10.0:f32, y = 20.0:f32),

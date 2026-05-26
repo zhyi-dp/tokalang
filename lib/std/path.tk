@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import std/string::{String}
+import std/string::{string}
 import core/types::{char, Addr, usize}
 import core/option::{Option}
 import sys/os as sys
@@ -21,15 +21,15 @@ import sys/os as sys
  * A structure representing a filesystem path.
  */
 pub shape Path (
-    inner: String
+    inner: string
 )
 
 impl Path {
-    pub fn new(s: String) -> Path {
+    pub fn new(s: string) -> Path {
         return Path(inner = s)
     }
 
-    pub fn to_string(self) -> String {
+    pub fn to_string(self) -> string {
         return self.inner.clone()
     }
 
@@ -45,7 +45,7 @@ impl Path {
         return false
     }
 
-    pub fn join(self, sub: String) -> Path {
+    pub fn join(self, sub: string) -> Path {
         auto res# = self.inner.clone()
         if res.len() > 0 {
             auto last = res.at(res.len() - 1).unwrap()
@@ -72,10 +72,10 @@ impl Path {
         return Path(inner = res)
     }
 
-    pub fn extension(self) -> String {
+    pub fn extension(self) -> string {
         auto idx = self.inner.find_char(46:char) // '.'
         if idx == -1 {
-            return String::from("")
+            return string::from("")
         }
         
         auto last_dot# = idx as i64
@@ -91,11 +91,11 @@ impl Path {
             auto *p = self.inner.c_str()
             auto addr = *p as Addr
             auto *sub_p = (addr + (last_dot + 1) as Addr) as *char
-            return String::from_cstr(*sub_p)
+            return string::from_cstr(*sub_p)
         }
     }
 
-    pub fn basename(self) -> String {
+    pub fn basename(self) -> string {
         auto last_slash#: i64 = -1
         auto i#: usize = 0
         loop i < self.inner.len() {
@@ -114,11 +114,11 @@ impl Path {
             auto *p = self.inner.c_str()
             auto addr = *p as Addr
             auto *sub_p = (addr + (last_slash + 1) as Addr) as *char
-            return String::from_cstr(*sub_p)
+            return string::from_cstr(*sub_p)
         }
     }
 
-    pub fn dirname(self) -> String {
+    pub fn dirname(self) -> string {
         auto last_slash#: i64 = -1
         auto i#: usize = 0
         loop i < self.inner.len() {
@@ -130,24 +130,24 @@ impl Path {
         }
         
         if last_slash == -1:i64 {
-            return String::from(".")
+            return string::from(".")
         }
         
         if last_slash == 0 {
             auto first = self.inner.at(0).unwrap()
             if first == 92:char {
-                return String::from("\\")
+                return string::from("\\")
             }
-            return String::from("/")
+            return string::from("/")
         }
         
         unsafe {
             auto *p = self.inner.c_str()
-            return String::from_with_len(*p, last_slash as usize)
+            return string::from_with_len(*p, last_slash as usize)
         }
     }
 
-    pub fn file_stem(self) -> String {
+    pub fn file_stem(self) -> string {
         auto base = self.basename()
         auto ext_idx = base.find_char(46:char) // '.'
         if ext_idx == -1 {
@@ -158,17 +158,17 @@ impl Path {
         }
         
         unsafe {
-            return String::from_with_len(base.c_str(), ext_idx)
+            return string::from_with_len(base.c_str(), ext_idx)
         }
     }
 
-    pub fn with_extension(self, ext: String) -> Path {
+    pub fn with_extension(self, ext: string) -> Path {
         auto stem_path_str# = self.inner.clone()
         
         auto ext_idx = self.inner.find_char(46:char)
         if ext_idx != -1 {
             unsafe {
-                stem_path_str = String::from_with_len(self.inner.c_str(), ext_idx)
+                stem_path_str = string::from_with_len(self.inner.c_str(), ext_idx)
             }
         }
         
@@ -198,30 +198,30 @@ impl Path {
  * Global Helper Functions (for backward compatibility)
  */
 
-pub fn join(base: String, sub: String) -> String {
+pub fn join(base: string, sub: string) -> string {
     return Path::new(base).join(sub).to_string()
 }
 
-pub fn extension(path: String) -> String {
+pub fn extension(path: string) -> string {
     return Path::new(path).extension()
 }
 
-pub fn basename(path: String) -> String {
+pub fn basename(path: string) -> string {
     return Path::new(path).basename()
 }
 
-pub fn dirname(path: String) -> String {
+pub fn dirname(path: string) -> string {
     return Path::new(path).dirname()
 }
 
-pub fn is_absolute(path: String) -> bool {
+pub fn is_absolute(path: string) -> bool {
     return Path::new(path).is_absolute()
 }
 
-pub fn file_stem(path: String) -> String {
+pub fn file_stem(path: string) -> string {
     return Path::new(path).file_stem()
 }
 
-pub fn with_extension(path: String, ext: String) -> String {
+pub fn with_extension(path: string, ext: string) -> string {
     return Path::new(path).with_extension(ext).to_string()
 }

@@ -1,7 +1,7 @@
 import std/io::{println}
 import stdx/serde/json::{deserialize_shape}
 import core/str::{str}
-import std/string::{String}
+import std/string::{string}
 
 shape SciTest (
     a: f64 = 0.0,
@@ -12,7 +12,7 @@ shape SciTest (
 
 fn main() -> i32 {
     // 1.2e-4, 3E10, -0.0, -4.56e2
-    auto json_str = String::from("{\"a\": 1.2e-4, \"b\": 3E10, \"c\": -0.0, \"d\": -4.56e2}")
+    auto json_str = string::from("{\"a\": 1.2e-4, \"b\": 3E10, \"c\": -0.0, \"d\": -4.56e2}")
     auto v_str = json_str.as_str()
     
     auto res = deserialize_shape<SciTest>(v_str)

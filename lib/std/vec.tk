@@ -237,8 +237,8 @@ impl<'T> Vec<'T> {
     pub fn unsafe_get(self, index: usize) -> *'T {
         unsafe {
             if self.*buf != null {
-                // 这一步显式转换： *?'T -> *['T]
-                // 既然已经判空，这就是安全的 unsafe 操作
+                // *?'T -> *['T]
+                // unsafe
                 auto *ptr = self.*buf as *['T]
                 return *ptr[index]
             }

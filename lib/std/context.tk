@@ -13,10 +13,10 @@ import std/io::{println}
 /// @Context trait defines the unified lifecycle control contract
 pub trait @Context {
     pub fn is_canceled(self) -> bool
-    pub fn err(self) -> Option<String>
+    pub fn err(self) -> Option<string>
     pub fn deadline(self) -> Option<Instant>
     pub fn done(self#) -> Option<Receiver<bool>>
-    pub fn value(self, key: String) -> Option<String>
+    pub fn value(self, key: string) -> Option<string>
 }
 
 // ------------------------------------------------------
@@ -36,8 +36,8 @@ impl BackgroundContext@Context {
         return false
     }
 
-    pub fn err(self) -> Option<String> {
-        return Option<String>::None()
+    pub fn err(self) -> Option<string> {
+        return Option<string>::None()
     }
 
     pub fn deadline(self) -> Option<Instant> {
@@ -48,8 +48,8 @@ impl BackgroundContext@Context {
         return Option<Receiver<bool>>::None()
     }
 
-    pub fn value(self, key: String) -> Option<String> {
-        return Option<String>::None()
+    pub fn value(self, key: string) -> Option<string> {
+        return Option<string>::None()
     }
 }
 
@@ -63,7 +63,7 @@ pub fn background() -> BackgroundContext {
 
 pub shape CancelState(
     canceled: bool,
-    err: Option<String>,
+    err: Option<string>,
     waiters: Vec<Sender<bool>>,
     has_parent: bool,
     parent_rx: Receiver<bool>
@@ -88,7 +88,7 @@ impl Canceler {
                     return
                 }
                 val.canceled = true
-                val.err = Option<String>::Some(String::from("context canceled"))
+                val.err = Option<string>::Some(string::from("context canceled"))
                 
                 loop val.waiters.len() > 0 {
                     auto tx# = val.waiters#.pop().unwrap()
@@ -126,16 +126,16 @@ impl<'C: @Context> CancelContext<'C>@Context {
         return val.canceled || self.parent.is_canceled()
     }
     
-    pub fn err(self) -> Option<String> {
+    pub fn err(self) -> Option<string> {
         auto lock = self.state.lock().unwrap()
         auto *val = lock.get_ref()
         if val.canceled {
             match val.err {
                 auto Option::Some(&err_str) => {
-                    return Option<String>::Some(err_str.clone())
+                    return Option<string>::Some(err_str.clone())
                 }
                 _ => {
-                    return Option<String>::None()
+                    return Option<string>::None()
                 }
             }
         }
@@ -162,7 +162,7 @@ impl<'C: @Context> CancelContext<'C>@Context {
         return Option<Receiver<bool>>::Some(cede rx)
     }
     
-    pub fn value(self, key: String) -> Option<String> {
+    pub fn value(self, key: string) -> Option<string> {
         return self.parent.value(key)
     }
 }
@@ -202,7 +202,7 @@ fn propagate_cancel(raw_addr: Addr) -> async i32 {
                     
                     if parent_canceled {
                         val.canceled = true
-                        val.err = Option<String>::Some(String::from("context canceled"))
+                        val.err = Option<string>::Some(string::from("context canceled"))
                         loop val.waiters.len() > 0 {
                             auto tx# = val.waiters#.pop().unwrap()
                             auto _ = tx#.send(true)
@@ -239,7 +239,7 @@ pub fn with_cancel<'C: @Context>(parent#: 'C) -> CancelResult<'C> {
     
     auto state = CancelState(
         canceled = false,
-        err = Option<String>::None(),
+        err = Option<string>::None(),
         waiters = cede waiters,
         has_parent = false,
         parent_rx = cede dummy_rx
@@ -294,7 +294,7 @@ impl<'C: @Context> TimeoutContext<'C>@Context {
         return self.cancel_ctx.is_canceled()
     }
     
-    pub fn err(self) -> Option<String> {
+    pub fn err(self) -> Option<string> {
         return self.cancel_ctx.err()
     }
     
@@ -306,7 +306,7 @@ impl<'C: @Context> TimeoutContext<'C>@Context {
         return self.cancel_ctx#.done()
     }
     
-    pub fn value(self, key: String) -> Option<String> {
+    pub fn value(self, key: string) -> Option<string> {
         return self.cancel_ctx.value(key)
     }
 }
@@ -329,7 +329,7 @@ fn timer_helper(ms: i32, raw_addr: Addr) -> async i32 {
                     return 0
                 }
                 val.canceled = true
-                val.err = Option<String>::Some(String::from("context canceled"))
+                val.err = Option<string>::Some(string::from("context canceled"))
                 
                 loop val.waiters.len() > 0 {
                     auto tx# = val.waiters#.pop().unwrap()
@@ -377,8 +377,8 @@ pub fn with_deadline<'C: @Context>(parent#: 'C, deadline: Instant) -> TimeoutRes
 
 pub shape ValueContext<'C: @Context> (
     parent: 'C,
-    key: String,
-    value: String
+    key: string,
+    value: string
 )
 
 impl<'C: @Context> ValueContext<'C>@Context {
@@ -386,7 +386,7 @@ impl<'C: @Context> ValueContext<'C>@Context {
         return self.parent.is_canceled()
     }
     
-    pub fn err(self) -> Option<String> {
+    pub fn err(self) -> Option<string> {
         return self.parent.err()
     }
     
@@ -398,15 +398,15 @@ impl<'C: @Context> ValueContext<'C>@Context {
         return self.parent#.done()
     }
     
-    pub fn value(self, key: String) -> Option<String> {
+    pub fn value(self, key: string) -> Option<string> {
         if self.key == key {
-            return Option<String>::Some(self.value.clone())
+            return Option<string>::Some(self.value.clone())
         }
         return self.parent.value(key)
     }
 }
 
-pub fn with_value<'C: @Context>(parent: cede 'C, key: String, val: String) -> ValueContext<'C> {
+pub fn with_value<'C: @Context>(parent: cede 'C, key: string, val: string) -> ValueContext<'C> {
     return ValueContext<'C>(
         parent = cede parent,
         key = key,

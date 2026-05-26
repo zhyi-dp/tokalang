@@ -1,37 +1,37 @@
 import std/io
 import std/io::{println, print}
 import sys/libc::{libc_fflush, libc_printf}
-import std/string::{String}
+import std/string::{string}
 import core/str::{str, str}
 import stdx/serde/json::{JsonNode}
 
-fn put(s: String) {
-    auto fmt = String::from("%")
+fn put(s: string) {
+    auto fmt = string::from("%")
     libc_printf(fmt.c_str(), s.c_str())
 }
 
-fn put_ptr(*s: String) {
-    auto fmt = String::from("%")
+fn put_ptr(*s: string) {
+    auto fmt = string::from("%")
     libc_printf(fmt.c_str(), s.c_str())
 }
 
 fn print_json_node(val: JsonNode) {
     match val {
-        NullNode(n) => { put(String::from("null")) }
+        NullNode(n) => { put(string::from("null")) }
         BoolNode(b) => { 
-            if b { put(String::from("true")) } else { put(String::from("false")) }
+            if b { put(string::from("true")) } else { put(string::from("false")) }
         }
         NumNode(n) => { 
-            auto num_str = String::from_f64(n)
+            auto num_str = string::from_f64(n)
             put(num_str) 
         }
         StrNode(&s) => {
-            put(String::from("\""))
+            put(string::from("\""))
             put(s)
-            put(String::from("\""))
+            put(string::from("\""))
         }
         ArrayNode(&arr_ptr) => {
-            put(String::from("["))
+            put(string::from("["))
             auto arr_iter# = arr_ptr.iter()
             auto first# = true
             loop true {
@@ -41,47 +41,47 @@ fn print_json_node(val: JsonNode) {
                 print_json_node(item)
                 first = false
             }
-            put(String::from("]"))
+            put(string::from("]"))
         }
         ObjectNode(&map_ptr) => {
-            put(String::from("{"))
+            put(string::from("{"))
             auto iter# = map_ptr#.iter()
             auto first# = true
             loop true {
                 auto entry_opt = iter#.next()
                 if entry_opt.is_none() { break }
                 auto entry = entry_opt.unwrap()
-                if !first { put(String::from(", ")) }
+                if !first { put(string::from(", ")) }
                 first = false
-                put(String::from("\""))
+                put(string::from("\""))
                 auto *k_ptr = entry.key()
                 put_ptr(*k_ptr)
-                put(String::from("\": "))
+                put(string::from("\": "))
                 auto *v_ptr = entry.val()
                 print_json_node_ptr(*v_ptr)
             }
-            put(String::from("}"))
+            put(string::from("}"))
         }
     }
 }
 
 fn print_json_node_ptr(*val_ptr: JsonNode) {
     match val_ptr {
-        NullNode(n) => { put(String::from("null")) }
+        NullNode(n) => { put(string::from("null")) }
         BoolNode(b) => { 
-            if b { put(String::from("true")) } else { put(String::from("false")) }
+            if b { put(string::from("true")) } else { put(string::from("false")) }
         }
         NumNode(n) => { 
-            auto num_str = String::from_f64(n)
+            auto num_str = string::from_f64(n)
             put(num_str) 
         }
         StrNode(&s) => {
-            put(String::from("\""))
+            put(string::from("\""))
             put(s)
-            put(String::from("\""))
+            put(string::from("\""))
         }
         ArrayNode(&arr_ptr) => {
-            put(String::from("["))
+            put(string::from("["))
             auto arr_iter# = arr_ptr.iter()
             auto first# = true
             loop true {
@@ -89,33 +89,33 @@ fn print_json_node_ptr(*val_ptr: JsonNode) {
                 if item_opt.is_none() { break }
                 auto item = item_opt.unwrap()
                 print_json_node(item)
-                if !first { put(String::from(", ")) }
+                if !first { put(string::from(", ")) }
                 first = false
             }
-            put(String::from("]"))
+            put(string::from("]"))
         }
         ObjectNode(&map_ptr) => {
-            put(String::from("{"))
+            put(string::from("{"))
             auto iter# = map_ptr#.iter()
             auto first# = true
             loop true {
                 auto entry_opt = iter#.next()
                 if entry_opt.is_none() { break }
                 auto entry = entry_opt.unwrap()
-                if !first { put(String::from(", ")) }
+                if !first { put(string::from(", ")) }
                 first = false
-                put(String::from("\""))
+                put(string::from("\""))
                 put_ptr(entry.key())
-                put(String::from("\": "))
+                put(string::from("\": "))
                 print_json_node_ptr(entry.val())
             }
-            put(String::from("}"))
+            put(string::from("}"))
         }
     }
 }
 
 pub fn main() -> i32 {
-    auto json_str = String::from("{\"name\": \"Toka\", \"version\": 1.0, \"is_fast\": true, \"scores\": [100, 99.5], \"meta\": {\"type\": null}}")
+    auto json_str = string::from("{\"name\": \"Toka\", \"version\": 1.0, \"is_fast\": true, \"scores\": [100, 99.5], \"meta\": {\"type\": null}}")
     auto v_str = json_str.as_str()
     
     auto root#: JsonNode = JsonNode::NullNode(0)
@@ -143,16 +143,16 @@ pub fn main() -> i32 {
                 auto *val_p = entry.val()
                 
                 put_ptr(*key_p)
-                put(String::from(": "))
+                put(string::from(": "))
                 print_json_node_ptr(*val_p)
-                put(String::from("\n"))
+                put(string::from("\n"))
                 // fflush stdout (null pointer to flush all)
                 libc_fflush(null as *void)
             }
             println("--------------------------")
             
             // Check keys
-            if map_ptr.get(String::from("name")).is_some() {
+            if map_ptr.get(string::from("name")).is_some() {
                 println("Contains name!")
             }
         }

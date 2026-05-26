@@ -1,62 +1,62 @@
 import stdx/cli/flag::{Parser, ParsedArgs}
 import std/vec::{Vec}
-import std/string::{String}
+import std/string::{string}
 import core/result::{Result}
 import std/io::{println}
 
 fn main() -> i32 {
-    auto parser = Parser::new(String::from("test-server"), String::from("A test server"))
-    parser#.add_int(String::from("port"), 'p', 8080, String::from("Port to listen on"))
-    parser#.add_bool(String::from("verbose"), 'v', false, String::from("Enable verbose output"))
-    parser#.add_float(String::from("timeout"), 't', 30.0, String::from("Timeout in seconds"))
-    parser#.add_string(String::from("config"), 'c', String::from("config.toml"), String::from("Config file path"))
+    auto parser = Parser::new(string::from("test-server"), string::from("A test server"))
+    parser#.add_int(string::from("port"), 'p', 8080, string::from("Port to listen on"))
+    parser#.add_bool(string::from("verbose"), 'v', false, string::from("Enable verbose output"))
+    parser#.add_float(string::from("timeout"), 't', 30.0, string::from("Timeout in seconds"))
+    parser#.add_string(string::from("config"), 'c', string::from("config.toml"), string::from("Config file path"))
 
-    auto args# = Vec<String>::new()
-    args#.push(String::from("test-server")) // argv[0]
-    args#.push(String::from("-p"))
-    args#.push(String::from("9090"))
-    args#.push(String::from("--verbose"))
-    args#.push(String::from("--timeout=2.5"))
-    args#.push(String::from("--config=custom.toml"))
-    args#.push(String::from("start"))
-    args#.push(String::from("web"))
+    auto args# = Vec<string>::new()
+    args#.push(string::from("test-server")) // argv[0]
+    args#.push(string::from("-p"))
+    args#.push(string::from("9090"))
+    args#.push(string::from("--verbose"))
+    args#.push(string::from("--timeout=2.5"))
+    args#.push(string::from("--config=custom.toml"))
+    args#.push(string::from("start"))
+    args#.push(string::from("web"))
 
     auto res = parser.parse(args)
     
     if res.is_err() {
-        auto err_msg# = String::from("Parse failed: ")
+        auto err_msg# = string::from("Parse failed: ")
         err_msg#.push_str(res.unwrap_err().as_str())
         println("{}", err_msg.c_str())
         return 1
     }
     auto parsed_args = res.unwrap()
 
-    auto port = parsed_args.get_int(String::from("port"))
+    auto port = parsed_args.get_int(string::from("port"))
     if port != 9090 {
         println("port assertion failed")
         return 1
     }
 
-    auto verbose = parsed_args.get_bool(String::from("verbose"))
+    auto verbose = parsed_args.get_bool(string::from("verbose"))
     if !verbose {
         println("verbose assertion failed")
         return 1
     }
 
-    auto timeout = parsed_args.get_float(String::from("timeout"))
+    auto timeout = parsed_args.get_float(string::from("timeout"))
     if timeout != 2.5 {
         println("timeout assertion failed")
         return 1
     }
 
-    auto config = parsed_args.get_string(String::from("config"))
-    if config != String::from("custom.toml") {
+    auto config = parsed_args.get_string(string::from("config"))
+    if config != string::from("custom.toml") {
         println("config assertion failed")
         return 1
     }
 
     auto pos = parsed_args.positionals()
-    if pos.len() != 2:usize || pos.get(0) != String::from("start") || pos.get(1) != String::from("web") {
+    if pos.len() != 2:usize || pos.get(0) != string::from("start") || pos.get(1) != string::from("web") {
         println("positionals assertion failed")
         return 1
     }

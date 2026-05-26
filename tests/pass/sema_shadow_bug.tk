@@ -1,5 +1,5 @@
 import std/io::println
-import std/string::String
+import std/string::string
 import std/error::Error
 
 shape Dummy(val: i32)
@@ -7,7 +7,7 @@ shape Dummy(val: i32)
 impl Dummy {
     fn test_bug(self) -> Result<i32, Error> {
         if true {
-            auto msg# = String::from("err")
+            auto msg# = string::from("err")
             auto tmp = Result<i32, Error>::Err(Error::new(1, msg))
         }
         

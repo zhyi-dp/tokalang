@@ -1,9 +1,9 @@
 import std/io::{File, println, remove_file}
-import std/string::{String}
+import std/string::{string}
 import std/bufio::{BufferedReader, BufferedWriter}
 
 pub fn main() -> i32 {
-    auto path = String::from("test_bufio_temp.tmp")
+    auto path = string::from("test_bufio_temp.tmp")
     
     // 1. Test Writing with BufferedWriter
     {
@@ -12,9 +12,9 @@ pub fn main() -> i32 {
         
         auto writer# = BufferedWriter<File>::new(raw_f#.take())
         
-        writer#.write_string(String::from("Line 1: Hello from standard bufio!\n")).unwrap()
-        writer#.write_string(String::from("Line 2: Fast buffered writing without syscall storm.\n")).unwrap()
-        writer#.write_string(String::from("Line 3: Finished.\n")).unwrap()
+        writer#.write_string(string::from("Line 1: Hello from standard bufio!\n")).unwrap()
+        writer#.write_string(string::from("Line 2: Fast buffered writing without syscall storm.\n")).unwrap()
+        writer#.write_string(string::from("Line 3: Finished.\n")).unwrap()
         
         writer#.flush().unwrap()
     }
@@ -29,22 +29,22 @@ pub fn main() -> i32 {
         // Read Line 1
         auto l1_res = reader#.read_line().unwrap()
         println("L1: {}", l1_res.c_str())
-        assert(l1_res.eq(String::from("Line 1: Hello from standard bufio!\n")), "L1 mismatch")
+        assert(l1_res.eq(string::from("Line 1: Hello from standard bufio!\n")), "L1 mismatch")
         
         // Read Line 2
         auto l2_res = reader#.read_line().unwrap()
         println("L2: {}", l2_res.c_str())
-        assert(l2_res.eq(String::from("Line 2: Fast buffered writing without syscall storm.\n")), "L2 mismatch")
+        assert(l2_res.eq(string::from("Line 2: Fast buffered writing without syscall storm.\n")), "L2 mismatch")
         
         // Read Line 3
         auto l3_res = reader#.read_line().unwrap()
         println("L3: {}", l3_res.c_str())
-        assert(l3_res.eq(String::from("Line 3: Finished.\n")), "L3 mismatch")
+        assert(l3_res.eq(string::from("Line 3: Finished.\n")), "L3 mismatch")
         
         // Read EOF
         auto l4_res = reader#.read_line().unwrap()
         println("L4 (EOF): '{}'", l4_res.c_str())
-        assert(l4_res.eq(String::from("")), "L4 EOF mismatch")
+        assert(l4_res.eq(string::from("")), "L4 EOF mismatch")
     }
     
     // Cleanup

@@ -1,25 +1,25 @@
 import std/io::{print, println}
-import std/string::{String}
+import std/string::{string}
 
-fn spark_char(val: i32) -> String {
+fn spark_char(val: i32) -> string {
     if val <= 0 {
-        return cede String::from(" ")
+        return cede string::from(" ")
     }
     if val <= 10 {
-        return cede String::from("▂")
+        return cede string::from("▂")
     }
     if val <= 20 {
-        return cede String::from("▃")
+        return cede string::from("▃")
     }
-    return cede String::from("█")
+    return cede string::from("█")
 }
 
 fn test_formatting() {
     auto color = "\x1b[31m"
-    auto label = String::from("Progress")
+    auto label = string::from("Progress")
     auto pct = 85
     
-    auto s# = String::fmt("{}{}: {}%", color, cede label, pct)
+    auto s# = string::fmt("{}{}: {}%", color, cede label, pct)
     println("Formatted: {}", cede s)
 }
 
@@ -30,7 +30,7 @@ fn main() -> i32 {
     // 1. print str (P0/P1)
     print("{}LumiCore{} ", red, reset)
     
-    // 2. String::fmt (P2)
+    // 2. string::fmt (P2)
     test_formatting()
     
     // 3. borrow checker early return (P2)

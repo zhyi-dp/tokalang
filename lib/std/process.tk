@@ -1,7 +1,7 @@
 // Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
 
 import std/vec::Vec
-import std/string::String
+import std/string::string
 import sys/libc::*
 import core/types::{Addr, ADDR0, char, usize}
 
@@ -34,12 +34,12 @@ impl Child {
 
 
 pub shape Command(
-    program: String,
-    args: Vec<String>
+    program: string,
+    args: Vec<string>
 )
 
 impl Command {
-    pub fn new(program: String) -> Command {
+    pub fn new(program: string) -> Command {
         auto args# = Vec::new()
         // Standard convention: argv[0] is the program name
         args#.push(program.clone())
@@ -50,11 +50,11 @@ impl Command {
         )
     }
     
-    pub fn arg(self#, arg: String) {
+    pub fn arg(self#, arg: string) {
         self.args.push(arg)
     }
     
-    pub fn args(self#, args: Vec<String>) {
+    pub fn args(self#, args: Vec<string>) {
         auto iter = args.iter()
         loop iter.next() is val {
             self.args.push(val.clone())

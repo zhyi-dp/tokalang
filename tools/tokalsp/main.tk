@@ -1,5 +1,5 @@
 import std/io::{get_stdin, get_stdout, File, print_line}
-import std/string::{String}
+import std/string::{string}
 import core/str::{str}
 import core/libc::{libc_malloc, libc_free}
 import core/types::{usize, char, ADDR0}
@@ -9,25 +9,25 @@ import sys/libc::{libc_popen, libc_pclose, libc_fread, libc_getenv}
 extern fn toka_setmode(fd: i32, mode: i32) -> i32
 extern fn toka_fileno(*stream: void) -> i32
 
-fn get_tmp_dir() -> String {
+fn get_tmp_dir() -> string {
     unsafe {
         auto *t = libc_getenv(c"TEMP")
         if *t != (ADDR0 as *char) {
-            return String::from_cstr(*t)
+            return string::from_cstr(*t)
         }
         auto *t2 = libc_getenv(c"TMP")
         if *t2 != (ADDR0 as *char) {
-            return String::from_cstr(*t2)
+            return string::from_cstr(*t2)
         }
     }
-    return String::from("/tmp")
+    return string::from("/tmp")
 }
 
 fn setup_io() {
     unsafe {
         auto *os = libc_getenv(c"OS")
         if *os != (ADDR0 as *char) {
-            auto os_str = String::from_cstr(*os)
+            auto os_str = string::from_cstr(*os)
             if os_str.as_view().starts_with("Window") {
                 // _O_BINARY is 0x8000
                 // stdin is usually 0, stdout is 1
@@ -41,7 +41,7 @@ fn setup_io() {
 // Simple JSON-RPC Error response structure
 pub shape JsonRpcError (
     code: i32,
-    message: String
+    message: string
 )
 
 fn parse_content_length(s: str) -> usize {
@@ -66,12 +66,12 @@ fn parse_content_length(s: str) -> usize {
     return len
 }
 
-fn execute_command(cmd: String) -> String {
+fn execute_command(cmd: string) -> string {
     unsafe {
         auto *p = libc_popen(cmd.c_str(), c"r")
-        if *p == (ADDR0 as *void) { return String::from("") }
+        if *p == (ADDR0 as *void) { return string::from("") }
         
-        auto res# = String::from("")
+        auto res# = string::from("")
         auto buf# = [0:char; 1024]
         loop true {
             auto bytes_read = libc_fread(&buf[0] as *void, 1, 1024, *p)
@@ -83,25 +83,25 @@ fn execute_command(cmd: String) -> String {
     }
 }
 
-fn send_notification(method: String, params_json: String) {
+fn send_notification(method: string, params_json: string) {
     auto out = get_stdout()
-    auto payload = String::fmt("{\"jsonrpc\":\"2.0\",\"method\":\"{}\",\"params\":{}}", method.c_str().as_str(), params_json.c_str().as_str())
+    auto payload = string::fmt("{\"jsonrpc\":\"2.0\",\"method\":\"{}\",\"params\":{}}", method.c_str().as_str(), params_json.c_str().as_str())
     
-    auto header = String::fmt("Content-Length: {}\r\n\r\n", payload.len() as i32)
+    auto header = string::fmt("Content-Length: {}\r\n\r\n", payload.len() as i32)
     
     out.write(header.as_view())
     out.write(payload.as_view())
     out.flush()
 }
 
-fn process_message(body: String) {
+fn process_message(body: string) {
     auto root#: JsonNode = JsonNode::NullNode(0)
     auto res = root#.parse_json(body.as_view())
     if res.is_err() { return }
     
     match root {
         auto JsonNode::ObjectNode(&map) => {
-            auto method_opt# = map.get(String::from("method"))
+            auto method_opt# = map.get(string::from("method"))
             if method_opt.is_some() {
                 auto method_node# = method_opt.unwrap()
                 method_opt = Option<JsonNode>::None
@@ -109,40 +109,40 @@ fn process_message(body: String) {
                     auto JsonNode::StrNode(&mstr) => {
                         auto method_str = mstr.as_view()
                         if method_str.equals("initialize") {
-                            auto id_opt# = map.get(String::from("id"))
+                            auto id_opt# = map.get(string::from("id"))
                             if id_opt.is_some() {
                                 auto id_node# = id_opt.unwrap()
                                 id_opt = Option<JsonNode>::None
-                                auto id_str# = String::from("null")
+                                auto id_str# = string::from("null")
                                 match id_node {
-                                    auto JsonNode::NumNode(&n) => { id_str = String::from_f64(n) }
+                                    auto JsonNode::NumNode(&n) => { id_str = string::from_f64(n) }
                                     _ => {}
                                 }
                                 id_node = JsonNode::NullNode(0)
-                                auto response = String::fmt("{\"jsonrpc\":\"2.0\",\"id\":{},\"result\":{\"capabilities\":{\"textDocumentSync\":1}}}", id_str.c_str().as_str())
+                                auto response = string::fmt("{\"jsonrpc\":\"2.0\",\"id\":{},\"result\":{\"capabilities\":{\"textDocumentSync\":1}}}", id_str.c_str().as_str())
                                 auto out = get_stdout()
-                                auto header = String::fmt("Content-Length: {}\r\n\r\n", response.len() as i32)
+                                auto header = string::fmt("Content-Length: {}\r\n\r\n", response.len() as i32)
                                 out.write(header.as_view())
                                 out.write(response.as_view())
                                 out.flush()
                             }
                         } else if method_str.equals("textDocument/didOpen") || method_str.equals("textDocument/didChange") {
-                            auto params_opt# = map.get(String::from("param"))
+                            auto params_opt# = map.get(string::from("param"))
                             if params_opt.is_some() {
                                 auto params_node# = params_opt.unwrap()
                                 params_opt = Option<JsonNode>::None
                                 match params_node {
                                     auto JsonNode::ObjectNode(&pmap) => {
-                                        auto text_opt# = pmap.get(String::from("textDocument"))
-                                        auto doc_uri# = String::from("")
-                                        auto doc_text# = String::from("")
+                                        auto text_opt# = pmap.get(string::from("textDocument"))
+                                        auto doc_uri# = string::from("")
+                                        auto doc_text# = string::from("")
                                         
                                         if text_opt.is_some() {
                                             auto text_node# = text_opt.unwrap()
                                             text_opt = Option<JsonNode>::None
                                             match text_node {
                                                 auto JsonNode::ObjectNode(&tmap) => {
-                                                    auto uri_opt# = tmap.get(String::from("uri"))
+                                                    auto uri_opt# = tmap.get(string::from("uri"))
                                                     if uri_opt.is_some() {
                                                         auto uri_node# = uri_opt.unwrap()
                                                         uri_opt = Option<JsonNode>::None
@@ -152,7 +152,7 @@ fn process_message(body: String) {
                                                         }
                                                         uri_node = JsonNode::NullNode(0)
                                                     }
-                                                    auto text_field# = tmap.get(String::from("text"))
+                                                    auto text_field# = tmap.get(string::from("text"))
                                                     if text_field.is_some() {
                                                         auto tf_node# = text_field.unwrap()
                                                         text_field = Option<JsonNode>::None
@@ -169,7 +169,7 @@ fn process_message(body: String) {
                                         }
                                         
                                         if method_str.equals("textDocument/didChange") {
-                                            auto changes_opt# = pmap.get(String::from("contentChange"))
+                                            auto changes_opt# = pmap.get(string::from("contentChange"))
                                             if changes_opt.is_some() {
                                                 auto changes_node# = changes_opt.unwrap()
                                                 changes_opt = Option<JsonNode>::None
@@ -179,7 +179,7 @@ fn process_message(body: String) {
                                                             auto first_change# = arr.at(0)
                                                             match first_change {
                                                                 auto JsonNode::ObjectNode(&cmap) => {
-                                                                    auto text_c# = cmap.get(String::from("text"))
+                                                                    auto text_c# = cmap.get(string::from("text"))
                                                                     if text_c.is_some() {
                                                                         auto tc_node# = text_c.unwrap()
                                                                         text_c = Option<JsonNode>::None
@@ -203,15 +203,15 @@ fn process_message(body: String) {
                                         
                                         if doc_text.len() > 0 {
                                             auto tmp_dir = get_tmp_dir()
-                                            auto tmp_path = String::fmt("{}/tokalsp_current.tk", tmp_dir.c_str().as_str())
+                                            auto tmp_path = string::fmt("{}/tokalsp_current.tk", tmp_dir.c_str().as_str())
                                             auto tmp_file# = File::open(tmp_path.clone(), "w")
                                             if tmp_file.is_valid() {
                                                 tmp_file.write(doc_text.as_view())
                                                 tmp_file#.close()
                                                 
-                                                auto cmd = String::fmt("timeout 2 tokac --check-json {} 2>&1", tmp_path.c_str().as_str())
+                                                auto cmd = string::fmt("timeout 2 tokac --check-json {} 2>&1", tmp_path.c_str().as_str())
                                                 auto json_out = execute_command(cmd)
-                                                auto diag_json = String::from("{\"uri\":\"")
+                                                auto diag_json = string::from("{\"uri\":\"")
                                                 diag_json#.push_view(doc_uri.as_view())
                                                 diag_json#.push_str("\",\"diagnostics\":[")
                                                 
@@ -223,9 +223,9 @@ fn process_message(body: String) {
                                                             auto JsonNode::ObjectNode(&emap) => {
                                                                 auto line#: i32 = 0
                                                                 auto col#: i32 = 0
-                                                                auto msg# = String::from("")
+                                                                auto msg# = string::from("")
                                                                 
-                                                                auto l_opt# = emap.get(String::from("line"))
+                                                                auto l_opt# = emap.get(string::from("line"))
                                                                 if l_opt.is_some() {
                                                                     auto l_node# = l_opt.unwrap()
                                                                     l_opt = Option<JsonNode>::None
@@ -236,7 +236,7 @@ fn process_message(body: String) {
                                                                     l_node = JsonNode::NullNode(0)
                                                                 }
                                                                 
-                                                                auto c_opt# = emap.get(String::from("col"))
+                                                                auto c_opt# = emap.get(string::from("col"))
                                                                 if c_opt.is_some() {
                                                                     auto c_node# = c_opt.unwrap()
                                                                     c_opt = Option<JsonNode>::None
@@ -247,7 +247,7 @@ fn process_message(body: String) {
                                                                     c_node = JsonNode::NullNode(0)
                                                                 }
                                                                 
-                                                                auto m_opt# = emap.get(String::from("message"))
+                                                                auto m_opt# = emap.get(string::from("message"))
                                                                 if m_opt.is_some() {
                                                                     auto m_node# = m_opt.unwrap()
                                                                     m_opt = Option<JsonNode>::None
@@ -261,7 +261,7 @@ fn process_message(body: String) {
                                                                 if line < 0 { line = 0 }
                                                                 if col < 0 { col = 0 }
                                                                 
-                                                                auto new_diag# = String::fmt("{\"range\":{\"start\":{\"line\":{},\"character\":{}},\"end\":{\"line\":{},\"character\":{}}},\"severity\":1,\"message\":\"{}\"}", line, col, line, col + 1, msg.c_str().as_str())
+                                                                auto new_diag# = string::fmt("{\"range\":{\"start\":{\"line\":{},\"character\":{}},\"end\":{\"line\":{},\"character\":{}}},\"severity\":1,\"message\":\"{}\"}", line, col, line, col + 1, msg.c_str().as_str())
                                                                 diag_json#.push_view(new_diag.as_view())
                                                             }
                                                             _ => {}
@@ -269,7 +269,7 @@ fn process_message(body: String) {
                                                     }
                                                 }
                                                 diag_json#.push_str("]}")
-                                                send_notification(String::from("textDocument/publishDiagnostic"), diag_json)
+                                                send_notification(string::from("textDocument/publishDiagnostic"), diag_json)
                                                 get_stdout().flush()
                                             }
                                         }
@@ -294,7 +294,7 @@ pub fn main() {
     setup_io()
     auto tmp_dir = get_tmp_dir()
     loop true {
-        auto log_path = String::fmt("{}/tokalsp.log", tmp_dir.c_str().as_str())
+        auto log_path = string::fmt("{}/tokalsp.log", tmp_dir.c_str().as_str())
         auto log# = File::open(log_path, "a")
         log.write("LOOP START\n")
         log#.close()
@@ -324,10 +324,10 @@ pub fn main() {
         unsafe {
             auto *buf = libc_malloc(clen) as *char
             input.read(*buf as *u8, clen)
-            auto body = String::from_with_len(*buf, clen)
+            auto body = string::from_with_len(*buf, clen)
             libc_free(*buf as *void)
             
-            auto log_path = String::fmt("{}/tokalsp.log", tmp_dir.c_str().as_str())
+            auto log_path = string::fmt("{}/tokalsp.log", tmp_dir.c_str().as_str())
             auto err# = File::open(log_path, "a")
             err.write("BODY: [")
             err.write(body.as_view())

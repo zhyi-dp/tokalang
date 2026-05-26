@@ -13,13 +13,13 @@
 // limitations under the License.
 // string_v13.tk
 import std/io::println
-import std/string::String
+import std/string::string
 
 fn main() -> i32 {
-    println("Testing String v1.3...")
+    println("Testing string v1.3...")
 
     // 1. Basic Construction
-    auto s = String::from("Hello")
+    auto s = string::from("Hello")
     println("Initial string: {}", s.c_str())
     println("Length: {} (expected 5)", s.len())
     println("Capacity: {} (expected 6)", s.capacity())

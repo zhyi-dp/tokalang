@@ -1,21 +1,21 @@
 import stdx/serde/json::{to_json, deserialize_shape, ToJson, serialize_shape}
-import std/string::{String}
+import std/string::{string}
 import std/io::{println}
 
 pub shape User (
     id: i32 = 0,
-    name: String = String::from(""),
+    name: string = string::from(""),
     active: bool = false
 )
 
 impl User@ToJson {
-    pub fn write_json(self, buf#: String) -> String {
+    pub fn write_json(self, buf#: string) -> string {
         return serialize_shape(self, buf)
     }
 }
 
 pub fn main() -> i32 {
-    auto u1 = User(id = 123, name = String::from("Alice"), active = true)
+    auto u1 = User(id = 123, name = string::from("Alice"), active = true)
     
     // Test Serialization
     auto json_str = to_json(u1)
@@ -32,7 +32,7 @@ pub fn main() -> i32 {
     println("Deserialized: id={}, name={}, active={}", u2.id, u2.name.as_view(), u2.active)
     
     assert(u2.id == 123, "ID mismatch")
-    assert(u2.name.eq(String::from("Alice")), "Name mismatch")
+    assert(u2.name.eq(string::from("Alice")), "Name mismatch")
     assert(u2.active == true, "Active mismatch")
     
     println("JSON Serde tests passed!")

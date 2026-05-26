@@ -12,21 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 import core/types::{usize, char, ADDR0}
-import std/string::{String}
+import std/string::{string}
 import core/libc::*
 import sys/libc::*
 import core/result::{Result}
 
-// Intrinsic (Legacy 备份)
+// Intrinsic (Legacy backup)
 extern fn print_legacy(fmt: str, ...) -> void
 extern fn println_legacy(fmt: str, ...) -> void
 
-// 底层物理流式输出 C 函数
+// Low-level physical streaming output C functions
 extern fn toka_print_str(s: str) -> void
 extern fn toka_print_i32(val: i32) -> void
 extern fn toka_print_f64(val: f64) -> void
 
-// 终极零魔法、强校验、编译期展开 print/println 导出接口
+// Ultimate zero-magic, strictly validated, compile-time expanded print/println interface
 extern fn print(fmt: str, ...) -> void
 extern fn println(fmt: str, ...) -> void
 
@@ -38,9 +38,9 @@ pub shape File (
 )
 
 // Convenience Aliases for Generic Instantiation
-alias IoResult = Result<File, String>
-alias IoStringResult = Result<String, String>
-alias IoSizeResult = Result<usize, String>
+alias IoResult = Result<File, string>
+alias IoStringResult = Result<string, string>
+alias IoSizeResult = Result<usize, string>
 
 impl File@encap {
     pub *
@@ -59,7 +59,7 @@ impl File@encap {
 }
 
 impl File {
-    pub fn open(path: String, mode: str) -> File {
+    pub fn open(path: string, mode: str) -> File {
         unsafe {
             auto temp_buf# = [0:char; 8]
             auto mode_len = mode.len()
@@ -120,10 +120,10 @@ impl File {
         }
     }
     
-    pub fn read_to_string(self) -> Result<String, String> {
+    pub fn read_to_string(self) -> Result<string, string> {
         unsafe {
             if !self.opened { 
-                return IoStringResult::Err(String::from("File not open"))
+                return IoStringResult::Err(string::from("File not open"))
             }
             
             // Get size
@@ -132,7 +132,7 @@ impl File {
             libc_rewind(self.*handle)
             
             if size <= 0 { 
-                return IoStringResult::Ok(String::from(""))
+                return IoStringResult::Ok(string::from(""))
             }
             
             auto *buf# = libc_malloc((size + 1) as usize) as *[char]
@@ -140,7 +140,7 @@ impl File {
             auto last_idx = count as i32
             buf[last_idx] = 0 as char
             
-            auto s# = String::from_with_len(*buf as *char, count as usize)
+            auto s# = string::from_with_len(*buf as *char, count as usize)
             libc_free(*buf as *void)
             
             auto res = IoStringResult::Ok(s)
@@ -165,7 +165,7 @@ impl File {
     pub fn read(self, *buf: u8, len: usize) -> IoSizeResult {
         unsafe {
             if !self.opened { 
-                return IoSizeResult::Err(String::from("File not open"))
+                return IoSizeResult::Err(string::from("File not open"))
             }
             auto count = libc_fread(*buf as *void, 1, len, self.*handle)
             return IoSizeResult::Ok(count as usize)
@@ -180,17 +180,17 @@ impl File {
     }
 
     // Optimized read_line using libc_fgets with zero-allocation stack buffer
-    pub fn read_line(self) -> Result<String, String> {
+    pub fn read_line(self) -> Result<string, string> {
         unsafe {
             if !self.opened { 
-                 return IoStringResult::Err(String::from("File not open"))
+                 return IoStringResult::Err(string::from("File not open"))
             }
             
             auto buf_size = 4096:i32
             auto temp_buf# = [0:char; 4096]
             auto *temp_ptr = &temp_buf[0] as *char
             
-            auto s# = String::from("")
+            auto s# = string::from("")
             auto done# = false
             
             loop !done {
@@ -278,7 +278,7 @@ pub fn stderr() -> File {
 
 
 
-pub fn print_line(s: String) {
+pub fn print_line(s: string) {
     auto out = get_stdout()
     out.write(s.as_view())
     out.write("\n")
@@ -286,7 +286,7 @@ pub fn print_line(s: String) {
 
 // === File Utilities ===
 
-pub fn exists(path: String) -> bool {
+pub fn exists(path: string) -> bool {
     unsafe {
         auto *p = libc_fopen(path.c_str(), c"r")
         if *p != null {
@@ -297,13 +297,13 @@ pub fn exists(path: String) -> bool {
     }
 }
 
-pub fn remove_file(path: String) -> bool {
+pub fn remove_file(path: string) -> bool {
     unsafe {
         return libc_remove(path.c_str()) == 0
     }
 }
 
-pub fn rename_file(old_path: String, new_path: String) -> bool {
+pub fn rename_file(old_path: string, new_path: string) -> bool {
     unsafe {
         return libc_rename(old_path.c_str(), new_path.c_str()) == 0
     }
@@ -314,27 +314,27 @@ pub fn rename_file(old_path: String, new_path: String) -> bool {
 // ------------------------------------------------------
 
 pub trait @Reader {
-    pub fn read_bytes(self#, *buf: u8, len: usize) -> Result<usize, String>
+    pub fn read_bytes(self#, *buf: u8, len: usize) -> Result<usize, string>
 }
 
 pub trait @Writer {
-    pub fn write_bytes(self#, *buf: u8, len: usize) -> Result<usize, String>
+    pub fn write_bytes(self#, *buf: u8, len: usize) -> Result<usize, string>
 }
 
 impl File@Reader {
-    pub fn read_bytes(self#, *buf: u8, len: usize) -> Result<usize, String> {
+    pub fn read_bytes(self#, *buf: u8, len: usize) -> Result<usize, string> {
         return self.read(*buf, len)
     }
 }
 
 impl File@Writer {
-    pub fn write_bytes(self#, *buf: u8, len: usize) -> Result<usize, String> {
+    pub fn write_bytes(self#, *buf: u8, len: usize) -> Result<usize, string> {
         unsafe {
             if !self.opened {
-                return Result<usize, String>::Err(String::from("File not open"))
+                return Result<usize, string>::Err(string::from("File not open"))
             }
             auto n = libc_fwrite(*buf as *void, 1, len, self.*handle)
-            return Result<usize, String>::Ok(n as usize)
+            return Result<usize, string>::Ok(n as usize)
         }
     }
 }

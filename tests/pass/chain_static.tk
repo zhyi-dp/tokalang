@@ -1,14 +1,14 @@
-import std/string::{String}
+import std/string::{string}
 import std/io::println
 
 fn main() -> i32 {
-    auto v = String::from("Chaining test").as_view()
+    auto v = string::from("Chaining test").as_view()
     if v.len() != 13:usize {
         return 1
     }
     
     // Deeper chain
-    auto l = String::from("Deep").as_view().len()
+    auto l = string::from("Deep").as_view().len()
     if l != 4:usize {
         return 1
     }

@@ -1,7 +1,7 @@
 // tests/pass/implicit_borrow_match.tk
 import core/option::Option
 import core/result::Result
-import std/string::String
+import std/string::string
 import std/io::println
 
 // 1. Pure data destructuring test (Copy semantics)
@@ -35,11 +35,11 @@ pub fn check_pure_data() {
 }
 
 // 2. Resource-backed type destructuring test (Explicit Borrow semantics)
-pub fn check_result(res: Result<String, String>) -> i32 {
+pub fn check_result(res: Result<string, string>) -> i32 {
     
     match res {
         // [Explicit Borrow Semantics Verification]
-        // Because String carries an allocated resource (Drop), directly writing 
+        // Because string carries an allocated resource (Drop), directly writing 
         // `auto Ok(msg)` is strictly forbidden (shallow copy of a resource).
         // Developers MUST explicitly wear the reference hat `&` to indicate:
         // "This is a read-only view; ownership is not transferred."
@@ -63,27 +63,27 @@ pub fn check_result(res: Result<String, String>) -> i32 {
 }
 
 // 2. Resource-backed type destructuring test (Explicit Borrow semantics)
-pub fn check_mut_result(res#: Result<String, String>) -> i32 {
+pub fn check_mut_result(res#: Result<string, string>) -> i32 {
     
     match res {
         // [Explicit Borrow Semantics Verification]
-        // Because String carries an allocated resource (Drop), directly writing 
+        // Because string carries an allocated resource (Drop), directly writing 
         // `auto Ok(msg)` is strictly forbidden (shallow copy of a resource).
         // Developers MUST explicitly wear the reference hat `&` to indicate:
         // "This is a read-only view; ownership is not transferred."
         auto Ok(&msg#) => {
-            msg = String::from("modified Ok msg")
+            msg = string::from("modified Ok msg")
             println("Match read success: {}", msg.c_str())
         }
         auto Err(&e#) => {
-            e = String::from("modified Err msg")
+            e = string::from("modified Err msg")
             println("Match error occurred: {}", e.c_str())
         }
     }
 
     match res {
         // [Explicit Borrow Semantics Verification]
-        // Because String carries an allocated resource (Drop), directly writing 
+        // Because string carries an allocated resource (Drop), directly writing 
         // `auto Ok(msg)` is strictly forbidden (shallow copy of a resource).
         // Developers MUST explicitly wear the reference hat `&` to indicate:
         // "This is a read-only view; ownership is not transferred."
@@ -103,13 +103,13 @@ pub fn main() -> i32 {
 
     {
         // string_res legitimately 'owns' this heap memory and the Result's lifecycle.
-        auto string_res = Result<String, String>::Ok(String::from("Toka Destructure Safety"))
+        auto string_res = Result<string, string>::Ok(string::from("Toka Destructure Safety"))
 
         // Invoke the destructuring exhibition
         check_result(string_res)
     }
 
-    auto string_res# = Result<String, String>::Ok(String::from("Toka Destructure Safety"))
+    auto string_res# = Result<string, string>::Ok(string::from("Toka Destructure Safety"))
 
     // Invoke the destructuring exhibition
     check_mut_result(string_res)

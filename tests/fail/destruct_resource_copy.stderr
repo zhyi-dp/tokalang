@@ -1,4 +1,4 @@
-error[E0554]: Naked destructuring of resource 'String' is strictly forbidden to prevent silent copies and double-frees. You must use an explicit borrow '&' (e.g., '&s')
+error[E0554]: Naked destructuring of resource 'string' is strictly forbidden to prevent silent copies and double-frees. You must use an explicit borrow '&' (e.g., '&s')
  --> tests/fail/destruct_resource_copy.tk:11:33
     |
  11 |     auto Pair(a = .a, s = .s) = t

@@ -1,9 +1,9 @@
 import std/io::*
-import std/string::{String}
+import std/string::{string}
 
 fn main() -> i32 {
-    auto path = String::from("test_io_ext.tmp")
-    auto new_path = String::from("test_io_ext_renamed.tmp")
+    auto path = string::from("test_io_ext.tmp")
+    auto new_path = string::from("test_io_ext_renamed.tmp")
     
     // 1. Test stdout
     print("Testing stdout print...\n")

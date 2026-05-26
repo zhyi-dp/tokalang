@@ -22,14 +22,14 @@
 // 4. Comprehensive recursive nested exhaustiveness checks.
 
 import std/io::println
-import std/string::String
+import std/string::string
 
 shape Point(x: i32, y: i32)
-shape Pair(v0: i32, v1: String)
+shape Pair(v0: i32, v1: string)
 
 shape ASTNode(
-    BinaryExpr(String, Point) |
-    UnaryExpr(String, Point) |
+    BinaryExpr(string, Point) |
+    UnaryExpr(string, Point) |
     LiteralExpr(i32)
 )
 
@@ -43,7 +43,7 @@ fn test_struct_tuple_in_match(p: Point, t: Pair) -> i32 {
     }
 
     // [Goal 3] Strict resource safety checks on positional destructuring
-    // 't' contains a String. A bare destructuring `auto Pair(a, s) = t` must be blocked by the compiler
+    // 't' contains a string. A bare destructuring `auto Pair(a, s) = t` must be blocked by the compiler
     // to prevent shallow copy. The developer MUST explicitly borrow the resource:
     auto Pair(a = .v0, &s = .&v1) = t
     println("Pair string: {}", s.c_str())
@@ -68,10 +68,10 @@ fn test_or_pattern_bindings(node: ASTNode) -> Point {
 
 fn main() -> i32 {
     auto p = Point(x = 100, y = 200)
-    auto t = Pair(v0 = 42, v1 = String::from("Hello Resource"))
+    auto t = Pair(v0 = 42, v1 = string::from("Hello Resource"))
     test_struct_tuple_in_match(p, t)
 
-    auto node1 = ASTNode::BinaryExpr(String::from("+"), Point(x = 1, y = 2))
+    auto node1 = ASTNode::BinaryExpr(string::from("+"), Point(x = 1, y = 2))
     auto pt1 = test_or_pattern_bindings(node1)
     assert(pt1.x == 1, "pt1.x mismatch")
 

@@ -14,8 +14,8 @@
 import std/string
 
 fn main() {
-    auto s = String::from("Secret")
-    // buf is NOT listed in impl String@encap { pub len, cap ... }
+    auto s = string::from("Secret")
+    // buf is NOT listed in impl string@encap { pub len, cap ... }
     // So it should be private and inaccessible here
     auto cap = s.cap
     auto len = s.len 

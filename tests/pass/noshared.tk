@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 import std/io::println
-import std/string::String
+import std/string::string
 import std/memory
 
 shape Point (

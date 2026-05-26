@@ -1,6 +1,6 @@
 
 import std/io::{println, File}
-import std/string::{String}
+import std/string::{string}
 import std/vec::{Vec}
 import core/libc::*
 
@@ -21,8 +21,8 @@ fn main() -> i32 {
     println("=== Char Frequency Demo (Refactored) ===")
     
     // 1. Read File
-    auto filename = String::from("demos/data.txt")
-    auto f# = File::open(filename, String::from("r"))
+    auto filename = string::from("demos/data.txt")
+    auto f# = File::open(filename, string::from("r"))
     if !f.is_valid() {
         println("Error: Could not open file")
         return 1

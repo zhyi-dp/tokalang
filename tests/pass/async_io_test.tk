@@ -1,9 +1,9 @@
 import std/task
 import std/task::{block_on, __toka_spawn_blocking}
 import std/io::{File, remove_file}
-import std/string::{String}
+import std/string::{string}
 
-fn async_write(file_name: String) -> async bool {
+fn async_write(file_name: string) -> async bool {
     auto res# = false
     auto file# = File::open(file_name, "w")
     if file.is_valid() {
@@ -14,8 +14,8 @@ fn async_write(file_name: String) -> async bool {
     return res
 }
 
-fn async_read(file_name: String) -> async String {
-    auto res# = String::from("")
+fn async_read(file_name: string) -> async string {
+    auto res# = string::from("")
     auto file# = File::open(file_name, "r")
     if file.is_valid() {
         auto content = file#.read_to_string()
@@ -28,7 +28,7 @@ fn async_read(file_name: String) -> async String {
 }
 
 fn handle_io() -> async i32 {
-    auto path = String::from("test_async_io_file.txt")
+    auto path = string::from("test_async_io_file.txt")
     auto success = async_write(path.clone()).await
     if success {
         auto content = async_read(path.clone()).await

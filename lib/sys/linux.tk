@@ -1,6 +1,6 @@
 // Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
 import core/types::{char, usize, Addr, ADDR0}
-import std/string::{String}
+import std/string::{string}
 import core/libc::*
 import sys/libc::*
 
@@ -13,7 +13,7 @@ pub fn path_sep() -> char {
 // Returns the number of command-line arguments.
 pub fn args_impl() -> i32 {
     unsafe {
-        auto cmd = String::from("/proc/self/cmdline")
+        auto cmd = string::from("/proc/self/cmdline")
         auto *file = libc_fopen(cmd.c_str(), c"rb")
         if *file as Addr == ADDR0 { return 0 }
         auto *buf# = unsafe alloc [4096] byte
@@ -38,17 +38,17 @@ pub fn args_impl() -> i32 {
 }
 
 // Retrieves a specific command-line argument by index.
-pub fn get_arg_impl(index: i32) -> String {
+pub fn get_arg_impl(index: i32) -> string {
     unsafe {
-        auto cmd = String::from("/proc/self/cmdline")
+        auto cmd = string::from("/proc/self/cmdline")
         auto *file = libc_fopen(cmd.c_str(), c"rb")
-        if *file as Addr == ADDR0 { return String::from("") }
+        if *file as Addr == ADDR0 { return string::from("") }
         auto *buf# = unsafe alloc [4096] byte
         auto len = libc_fread(*buf as *void, 1, 4096, *file)
         libc_fclose(*file)
         if len <= 0:usize {
             libc_free(*buf as *void)
-            return String::from("")
+            return string::from("")
         }
         
         auto count# = 0
@@ -60,7 +60,7 @@ pub fn get_arg_impl(index: i32) -> String {
             if p == (0 as char) {
                 if count == index {
                     auto *str_ptr = (*buf as usize + start) as *char
-                    auto s = String::from_cstr(*str_ptr)
+                    auto s = string::from_cstr(*str_ptr)
                     libc_free(*buf as *void)
                     return s
                 }
@@ -70,7 +70,7 @@ pub fn get_arg_impl(index: i32) -> String {
             i += 1
         }
         libc_free(*buf as *void)
-        return String::from("")
+        return string::from("")
     }
 }
 
@@ -87,15 +87,15 @@ extern fn toka_readdir_impl(dir: Addr) -> Addr
 extern fn toka_closedir_impl(dir: Addr)
 extern fn toka_readdir_name(entry: Addr) -> Addr
 
-pub fn readdir_impl(dir_handle: Addr) -> Option<String> {
+pub fn readdir_impl(dir_handle: Addr) -> Option<string> {
     unsafe {
         auto entry = toka_readdir_impl(dir_handle) // returns Addr
         if entry == ADDR0 {
-            return Option<String>::None
+            return Option<string>::None
         }
         
         auto *name_ptr = toka_readdir_name(entry) as *char
-        return Option<String>::Some(String::from_cstr(*name_ptr))
+        return Option<string>::Some(string::from_cstr(*name_ptr))
     }
 }
 
@@ -166,16 +166,16 @@ pub fn stat_is_file_impl(mode: u32) -> bool {
 
 import core/option::{Option}
 
-pub fn getcwd_impl() -> String {
+pub fn getcwd_impl() -> string {
     unsafe {
         // Real implementation using getcwd
         auto *buf = unsafe alloc [1024] byte as *char
         auto res_addr = libc_getcwd(*buf, 1024)
         if res_addr == ADDR0 {
              libc_free(*buf as *void)
-             return String::from("")
+             return string::from("")
         }
-        return String::from_take(*buf)
+        return string::from_take(*buf)
     }
 }
 
@@ -185,28 +185,28 @@ pub fn chdir_impl(path: Addr) -> bool {
     }
 }
 
-pub fn getenv_impl(name: String) -> Option<String> {
+pub fn getenv_impl(name: string) -> Option<string> {
     unsafe {
         // libc_getenv returns *char (Borrowed)
         auto *val = libc_getenv(name.c_str())
         
         if *val == null {
-            return Option<String>::None
+            return Option<string>::None
         }
         
         // Copy from borrowed pointer
-        return Option<String>::Some(String::from_cstr(*val))
+        return Option<string>::Some(string::from_cstr(*val))
     }
 }
 
-pub fn setenv_impl(name: String, value: String) -> bool {
+pub fn setenv_impl(name: string, value: string) -> bool {
     unsafe {
         // overwrite = 1
         return libc_setenv(name.c_str(), value.c_str(), 1) == 0
     }
 }
 
-pub fn unsetenv_impl(name: String) -> bool {
+pub fn unsetenv_impl(name: string) -> bool {
     unsafe {
         return libc_unsetenv(name.c_str()) == 0
     }

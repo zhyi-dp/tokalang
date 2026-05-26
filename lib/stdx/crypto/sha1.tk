@@ -1,4 +1,4 @@
-import std/string::{String}
+import std/string::{string}
 import stdx/encoding/hex
 
 pub shape Sha1 (
@@ -159,7 +159,7 @@ impl Sha1 {
         return hash
     }
 
-    pub fn finalize_hex(self#) -> String {
+    pub fn finalize_hex(self#) -> string {
         auto hash = self#.finalize()
         return hex::encode_hex(&hash as *[u8], 20)
     }
