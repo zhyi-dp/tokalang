@@ -10,7 +10,7 @@ import sys/sync as sys_sync
 import std/time::{Instant}
 import core/task::{TaskHandle, __toka_coro_resume, __toka_coro_done, __toka_coro_destroy}
 import core/types::{Addr}
-import sys/net as sysnet
+import sys/os/net as sysnet
 
 pub fn current_time_ms() -> i64 {
     auto inst = Instant::now()

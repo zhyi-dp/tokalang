@@ -14,7 +14,7 @@
 
 import core/types::{char, Addr, usize}
 import core/option::{Option}
-import sys/os as sys
+import sys/os/base as sys
 
 /**
  * A structure representing a filesystem path.

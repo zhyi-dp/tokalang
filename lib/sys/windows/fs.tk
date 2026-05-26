@@ -1,0 +1,161 @@
+// Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
+import core/types::{usize, Addr, ADDR0}
+import core/option::{Option}
+import sys/libc::{libc_malloc, libc_free}
+import sys/os/abi::*
+import sys/os/base::{to_utf16, from_utf16}
+
+pub shape WIN32_FIND_DATAW (
+    dwFileAttributes: u32,
+    ftCreationTime_dwLowDateTime: u32,
+    ftCreationTime_dwHighDateTime: u32,
+    ftLastAccessTime_dwLowDateTime: u32,
+    ftLastAccessTime_dwHighDateTime: u32,
+    ftLastWriteTime_dwLowDateTime: u32,
+    ftLastWriteTime_dwHighDateTime: u32,
+    nFileSizeHigh: u32,
+    nFileSizeLow: u32,
+    dwReserved0: u32,
+    dwReserved1: u32,
+    cFileName: [u16; 260],
+    cAlternateFileName: [u16; 14]
+)
+
+pub shape WinDir (
+    handle#: HANDLE,
+    find_data#: WIN32_FIND_DATAW,
+    first#: bool
+)
+
+pub fn opendir_impl(path: Addr) -> Addr {
+    unsafe {
+        auto *wpath = to_utf16(path as *char)
+        // FindFirstFile needs a wildcard like \*
+        auto search_path# = string::from_cstr(path as *char)
+        if !search_path.ends_with("/") && !search_path.ends_with("\\") {
+            search_path#.push_str("/")
+        }
+        auto star = string::from("*")
+        search_path#.push_str(star.as_str())
+        auto *wsearch = to_utf16(search_path.c_str())
+        
+        auto *wd# = libc_malloc(sizeof(WinDir)) as *WinDir
+        auto h = FindFirstFileW(*wsearch, *(wd.find_data) as Addr)
+        
+        libc_free(wpath as *void)
+        libc_free(wsearch as *void)
+        
+        if h as Addr == 0xFFFFFFFFFFFFFFFF:Addr {
+            libc_free(*wd as *void)
+            return ADDR0
+        }
+        
+        wd.handle = h
+        wd.first = true
+        return *wd as Addr
+    }
+}
+
+pub fn readdir_impl(dir_handle: Addr) -> Option<string> {
+    unsafe {
+        auto *wd = dir_handle as *WinDir
+        if wd.first {
+            wd.first = false
+            return Option<string>::Some(from_utf16(*(wd.find_data.cFileName[0])))
+        }
+        
+        if FindNextFileW(wd.handle, *(wd.find_data) as Addr) != 0 {
+            return Option<string>::Some(from_utf16(*(wd.find_data.cFileName[0])))
+        }
+        
+        return Option<string>::None
+    }
+}
+
+pub fn closedir_impl(dir_handle: Addr) {
+    unsafe {
+        auto *wd = dir_handle as *WinDir
+        FindClose(wd.handle)
+        libc_free(dir_handle as *void)
+    }
+}
+
+pub fn mkdir_impl(path: Addr) -> bool {
+    unsafe {
+        auto *wpath = to_utf16(path as *char)
+        auto res = CreateDirectoryW(*wpath, ADDR0)
+        libc_free(wpath as *void)
+        return res != 0
+    }
+}
+
+pub fn rmdir_impl(path: Addr) -> bool {
+    unsafe {
+        auto *wpath = to_utf16(path as *char)
+        auto res = RemoveDirectoryW(*wpath)
+        libc_free(wpath as *void)
+        return res != 0
+    }
+}
+
+pub fn path_exists(path: Addr) -> bool {
+    unsafe {
+        auto *wpath = to_utf16(path as *char)
+        auto res = GetFileAttributesW(*wpath)
+        libc_free(wpath as *void)
+        return res != 0xFFFFFFFF:u32
+    }
+}
+
+pub shape WinStat (
+    size: u64,
+    mode: u32,
+    mtime: i64
+)
+
+pub fn stat_impl(path: Addr) -> Addr {
+    unsafe {
+        auto *wpath = to_utf16(path as *char)
+        auto attr = GetFileAttributesW(*wpath)
+        if attr == 0xFFFFFFFF:u32 {
+            libc_free(wpath as *void)
+            return ADDR0
+        }
+        
+        auto *ws# = libc_malloc(sizeof(WinStat)) as *WinStat
+        ws.size = 0 // Placeholder
+        ws.mode = 0x8000 // REG
+        auto is_dir = (attr band 0x00000010:u32) != 0
+        if is_dir {
+            ws.mode = 0x4000 // DIR
+        }
+        ws.mtime = 0
+        
+        libc_free(wpath as *void)
+        return *ws as Addr
+    }
+}
+
+pub fn stat_free_impl(handle: Addr) {
+    unsafe { libc_free(handle as *void) }
+}
+
+pub fn stat_get_mode_impl(handle: Addr) -> u32 {
+    unsafe { return (handle as *WinStat).mode }
+}
+
+pub fn stat_get_size_impl(handle: Addr) -> u64 {
+    unsafe { return (handle as *WinStat).size }
+}
+
+pub fn stat_get_mtime_impl(handle: Addr) -> i64 {
+    unsafe { return (handle as *WinStat).mtime }
+}
+
+pub fn stat_is_dir_impl(mode: u32) -> bool {
+    return (mode band 0x4000) != 0
+}
+
+pub fn stat_is_file_impl(mode: u32) -> bool {
+    return (mode band 0x8000) != 0
+}

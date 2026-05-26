@@ -1,24 +1,8 @@
-// Copyright (c) 2025 Toka Project. All rights reserved.
-// lib/sys/net_windows.tk
-
+// Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
 import core/types::{char, usize, Addr, ADDR0}
 import sys/libc::{libc_malloc, libc_free}
 import sys/libc::{libc_htons, toka_ensure_wsa_initialized, libc_usleep}
-
-extern fn WSAGetLastError() -> i32
-extern fn socket(af: i32, kind: i32, protocol: i32) -> i32
-extern fn bind(s: i32, *name: void, namelen: i32) -> i32
-extern fn listen(s: i32, backlog: i32) -> i32
-extern fn accept(s: i32, *addr: void, *addrlen: i32) -> i32
-extern fn connect(s: i32, *name: void, namelen: i32) -> i32
-extern fn send(s: i32, *buf: void, len: i32, flags: i32) -> i32
-extern fn recv(s: i32, *buf: void, len: i32, flags: i32) -> i32
-extern fn sendto(s: i32, *buf: void, len: i32, flags: i32, *dest_addr: void, tolen: i32) -> i32
-extern fn recvfrom(s: i32, *buf: void, len: i32, flags: i32, *src_addr: void, *fromlen: i32) -> i32
-extern fn closesocket(s: i32) -> i32
-extern fn ioctlsocket(s: i32, cmd: u32, *argp: u32) -> i32
-extern fn setsockopt(s: i32, level: i32, optname: i32, *optval: void, optlen: i32) -> i32
-extern fn getsockopt(s: i32, level: i32, optname: i32, *optval: void, *optlen: i32) -> i32
+import sys/os/abi::*
 
 pub fn get_last_error() -> i32 {
     unsafe { return WSAGetLastError() }
@@ -242,9 +226,6 @@ pub fn net_set_nonblocking_impl(fd: i32) -> bool {
         return ioctlsocket(fd, 0x8004667e:u32, *(mode) as *u32) == 0
     }
 }
-
-extern fn select(nfds: i32, *readfds: void, *writefds: void, *exceptfds: void, *timeout: void) -> i32
-extern fn toka_panic(msg_ptr: Addr, len: i32) -> void
 
 pub shape WinReactor (
     fds: Addr,

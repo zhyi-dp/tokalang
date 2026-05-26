@@ -1,14 +1,13 @@
 // Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
 import core/types::{char, usize, Addr, ADDR0}
+import core/option::{Option}
 
 import sys/libc::*
-import sys/libc::*
+import sys/os/abi::*
 
 pub fn path_sep() -> char {
     return 47:char
 }
-
-// Removed raw syscalls in favor of libc_fopen/fread
 
 // Returns the number of command-line arguments.
 pub fn args_impl() -> i32 {
@@ -74,97 +73,7 @@ pub fn get_arg_impl(index: i32) -> string {
     }
 }
 
-// === File System ===
-
-pub fn opendir_impl(path: Addr) -> Addr {
-    unsafe {
-        return toka_opendir_impl(path)
-    }
-}
-
-extern fn toka_opendir_impl(path: Addr) -> Addr
-extern fn toka_readdir_impl(dir: Addr) -> Addr
-extern fn toka_closedir_impl(dir: Addr)
-extern fn toka_readdir_name(entry: Addr) -> Addr
-
-pub fn readdir_impl(dir_handle: Addr) -> Option<string> {
-    unsafe {
-        auto entry = toka_readdir_impl(dir_handle) // returns Addr
-        if entry == ADDR0 {
-            return Option<string>::None
-        }
-        
-        auto *name_ptr = toka_readdir_name(entry) as *char
-        return Option<string>::Some(string::from_cstr(*name_ptr))
-    }
-}
-
-pub fn closedir_impl(dir_handle: Addr) {
-    unsafe {
-        toka_closedir_impl(dir_handle)
-    }
-}
-
-pub fn mkdir_impl(path: Addr) -> bool {
-    unsafe {
-        // 0755 = 493 in decimal
-        return libc_mkdir(path as *char, 493) == 0
-    }
-}
-
-pub fn rmdir_impl(path: Addr) -> bool {
-    unsafe {
-        return libc_rmdir(path as *char) == 0
-    }
-}
-
-pub fn path_exists(path: Addr) -> bool {
-    unsafe {
-        // Use access(path, F_OK=0)
-        return libc_access(path as *char, 0) == 0
-    }
-}
-
-extern fn toka_stat_impl(path: Addr) -> Addr
-extern fn toka_stat_mode(handle: Addr) -> u32
-extern fn toka_stat_size(handle: Addr) -> u64
-extern fn toka_stat_mtime(handle: Addr) -> i64
-extern fn toka_stat_free(handle: Addr)
-
-pub fn stat_impl(path: Addr) -> Addr {
-    unsafe { return toka_stat_impl(path) }
-}
-
-pub fn stat_free_impl(handle: Addr) {
-    unsafe { toka_stat_free(handle) }
-}
-
-pub fn stat_get_mode_impl(handle: Addr) -> u32 {
-    unsafe { return toka_stat_mode(handle) }
-}
-
-pub fn stat_get_size_impl(handle: Addr) -> u64 {
-    unsafe { return toka_stat_size(handle) }
-}
-
-pub fn stat_get_mtime_impl(handle: Addr) -> i64 {
-    unsafe { return toka_stat_mtime(handle) }
-}
-
-// 0xF000 = 61440
-// 0x4000 = 16384 (DIR)
-// 0x8000 = 32768 (REG)
-pub fn stat_is_dir_impl(mode: u32) -> bool {
-    return (mode band 61440:u32) == 16384:u32
-}
-
-pub fn stat_is_file_impl(mode: u32) -> bool {
-    return (mode band 61440:u32) == 32768:u32
-}
-
 // === Environment ===
-
-import core/option::{Option}
 
 pub fn getcwd_impl() -> string {
     unsafe {
@@ -212,24 +121,9 @@ pub fn unsetenv_impl(name: string) -> bool {
     }
 }
 
-extern fn toka_panic(msg_ptr: Addr, len: i32) -> void
 pub fn __toka_panic_handler(msg: str) {
     unsafe { toka_panic(msg.raw_ptr() as Addr, msg.len() as i32) }
 }
-
-// === Clock API ===
-
-pub fn sys_clock_monotonic(ts_addr: Addr) -> bool {
-    // CLOCK_MONOTONIC (1) on Linux
-    unsafe { return libc_clock_gettime(1, ts_addr) == 0 }
-}
-
-pub fn sys_clock_realtime(ts_addr: Addr) -> bool {
-    // CLOCK_REALTIME (0) on Linux
-    unsafe { return libc_clock_gettime(0, ts_addr) == 0 }
-}
-extern fn __errno_location() -> Addr
-extern fn toka_get_last_error() -> i32
 
 pub fn get_last_error() -> i32 {
     unsafe {

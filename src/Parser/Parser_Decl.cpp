@@ -721,16 +721,23 @@ std::unique_ptr<ImportDecl> Parser::parseImport(bool isPub) {
       break;
   }
 
+  if (physicalPath == "sys/os") {
 #if defined(__linux__)
-  if (physicalPath == "sys/os") physicalPath = "sys/linux";
-  if (physicalPath == "sys/net") physicalPath = "sys/net_linux";
+    physicalPath = "sys/linux";
 #elif defined(__APPLE__)
-  if (physicalPath == "sys/os") physicalPath = "sys/macos";
-  if (physicalPath == "sys/net") physicalPath = "sys/net_macos";
+    physicalPath = "sys/macos";
 #elif defined(_WIN32)
-  if (physicalPath == "sys/os") physicalPath = "sys/windows";
-  if (physicalPath == "sys/net") physicalPath = "sys/net_windows";
+    physicalPath = "sys/windows";
 #endif
+  } else if (physicalPath.rfind("sys/os/", 0) == 0) {
+#if defined(__linux__)
+    physicalPath = "sys/linux/" + physicalPath.substr(7);
+#elif defined(__APPLE__)
+    physicalPath = "sys/macos/" + physicalPath.substr(7);
+#elif defined(_WIN32)
+    physicalPath = "sys/windows/" + physicalPath.substr(7);
+#endif
+  }
 
   std::vector<ImportItem> items;
   std::string moduleAlias;

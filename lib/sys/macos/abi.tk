@@ -1,0 +1,28 @@
+// Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
+
+extern fn _NSGetArgc() -> *i32
+extern fn _NSGetArgv() -> *Addr 
+
+extern fn toka_opendir_impl(path: Addr) -> Addr
+extern fn toka_readdir_impl(dir: Addr) -> Addr
+extern fn toka_closedir_impl(dir: Addr)
+extern fn toka_readdir_name(entry: Addr) -> Addr
+
+extern fn toka_stat_impl(path: Addr) -> Addr
+extern fn toka_stat_mode(handle: Addr) -> u32
+extern fn toka_stat_size(handle: Addr) -> u64
+extern fn toka_stat_mtime(handle: Addr) -> i64
+extern fn toka_stat_free(handle: Addr)
+
+extern fn toka_panic(msg_ptr: Addr, len: i32) -> void
+extern fn toka_get_last_error() -> i32
+
+extern fn bind(fd: i32, *addr: void, len: u32) -> i32
+extern fn connect(fd: i32, *addr: void, len: u32) -> i32
+extern fn accept(fd: i32, *addr: void, *len: u32) -> i32
+extern fn listen(fd: i32, backlog: i32) -> i32
+extern fn getsockopt(fd: i32, level: i32, optname: i32, *optval: void, *optlen: u32) -> i32
+
+extern fn kqueue() -> i32
+extern fn kevent(kq: i32, *changelist: void, nchanges: i32, *eventlist: void, nevents: i32, *timeout: void) -> i32
+extern fn fcntl(fd: i32, cmd: i32, arg: i32) -> i32

@@ -1,0 +1,30 @@
+// Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
+
+extern fn toka_opendir_impl(path: Addr) -> Addr
+extern fn toka_readdir_impl(dir: Addr) -> Addr
+extern fn toka_closedir_impl(dir: Addr)
+extern fn toka_readdir_name(entry: Addr) -> Addr
+
+extern fn toka_stat_impl(path: Addr) -> Addr
+extern fn toka_stat_mode(handle: Addr) -> u32
+extern fn toka_stat_size(handle: Addr) -> u64
+extern fn toka_stat_mtime(handle: Addr) -> i64
+extern fn toka_stat_free(handle: Addr)
+
+extern fn toka_panic(msg_ptr: Addr, len: i32) -> void
+extern fn toka_get_last_error() -> i32
+
+extern fn bind(fd: i32, *addr: void, len: u32) -> i32
+extern fn connect(fd: i32, *addr: void, len: u32) -> i32
+extern fn accept(fd: i32, *addr: void, *len: u32) -> i32
+extern fn listen(fd: i32, backlog: i32) -> i32
+extern fn setsockopt(fd: i32, level: i32, optname: i32, *optval: void, optlen: u32) -> i32
+extern fn getsockopt(fd: i32, level: i32, optname: i32, *optval: void, *optlen: u32) -> i32
+extern fn sendto(fd: i32, *buf: void, len: usize, flags: i32, *dest_addr: void, addrlen: u32) -> i64
+extern fn recvfrom(fd: i32, *buf: void, len: usize, flags: i32, *src_addr: void, *addrlen: u32) -> i64
+extern fn __errno_location() -> Addr
+
+extern fn epoll_create1(flags: i32) -> i32
+extern fn epoll_ctl(epfd: i32, op: i32, fd: i32, *event: void) -> i32
+extern fn epoll_wait(epfd: i32, *events: void, maxevents: i32, timeout: i32) -> i32
+extern fn fcntl(fd: i32, cmd: i32, arg: i32) -> i32
