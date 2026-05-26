@@ -1,6 +1,6 @@
 import core/types::{usize}
 import core/traits::{@PartialOrd, @PartialEq, @encap}
-import std/btree_map::{BTreeMap}
+import std/btreemap::{BTreeMap}
 
 pub shape BTreeSet<'T: @PartialOrd> (
     map#: BTreeMap<'T, bool>

@@ -1,4 +1,4 @@
-import std/hash_map::{HashMap}
+import std/hashmap::{HashMap}
 
 import std/io::{println}
 import sys/libc::{libc_printf}

@@ -1,7 +1,7 @@
 // Copyright (c) 2026 YiZhonghua<zhyi@dpai.com>. All rights reserved.
 
 import std/time::{Instant, Duration}
-import std/mpsc::{channel, Sender, Receiver, ChannelPair}
+import std/channel::{channel, Sender, Receiver, ChannelPair}
 import std/sync::{Mutex}
 import std/vec::{Vec}
 import sys/sync::{sys_mutex_create}

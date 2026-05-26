@@ -1,5 +1,5 @@
 import std/io::println
-import std/hash_map::{HashMap}
+import std/hashmap::{HashMap}
 import core/option::{Option}
 
 fn main() -> i32 {

@@ -1,6 +1,6 @@
 import std/io::{println}
-import std/hash_map::{HashMap}
-import std/hash_set::{HashSet}
+import std/hashmap::{HashMap}
+import std/hashset::{HashSet}
 import core/option::{Option}
 
 fn main() -> i32 {

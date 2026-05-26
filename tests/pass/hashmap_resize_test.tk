@@ -1,5 +1,5 @@
 import std/io::println
-import std/hash_map::{HashMap, MapResult}
+import std/hashmap::{HashMap, MapResult}
 import core/option::{Option}
 import sys/libc::{libc_fflush, libc_printf}
 

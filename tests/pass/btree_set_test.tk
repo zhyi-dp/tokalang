@@ -1,4 +1,4 @@
-import std/btree_set::{BTreeSet}
+import std/btreeset::{BTreeSet}
 import core/primitives
 
 pub fn main() -> i32 {

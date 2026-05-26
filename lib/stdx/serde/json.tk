@@ -2,7 +2,7 @@
 // Standard Serialization for JSON using Toka Comptime Reflection
 
 import core/str::{str, str}
-import std/hash_map::{HashMap}
+import std/hashmap::{HashMap}
 import std/vec::{Vec}
 import std/math
 import core/libc::{libc_memset}

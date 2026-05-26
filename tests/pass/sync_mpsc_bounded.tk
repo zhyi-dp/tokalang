@@ -1,6 +1,6 @@
 import std/io::{println}
 import std/thread::{thread_spawn, JoinHandle}
-import std/mpsc::{sync_channel, Sender, Receiver}
+import std/channel::{sync_channel, Sender, Receiver}
 
 pub fn main() -> i32 {
     auto pair# = sync_channel<i32>(2)

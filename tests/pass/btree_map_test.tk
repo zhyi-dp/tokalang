@@ -1,4 +1,4 @@
-import std/btree_map::{BTreeMap}
+import std/btreemap::{BTreeMap}
 import core/option::{Option}
 import core/primitives
 import std/io

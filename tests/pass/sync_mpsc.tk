@@ -1,4 +1,4 @@
-import std/mpsc::{channel, Sender, Receiver}
+import std/channel::{channel, Sender, Receiver}
 import std/vec::{Vec}
 import std/thread::{thread_spawn, JoinHandle}
 import std/io::{println}
