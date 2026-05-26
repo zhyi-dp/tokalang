@@ -1,6 +1,5 @@
 import std/io::println
 import std/io::print
-import std/string::string
 
 shape Color (
     code: str

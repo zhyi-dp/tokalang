@@ -3,7 +3,7 @@
 // Native Win32 implementation of system primitives.
 
 import core/types::{char, usize, Addr, ADDR0}
-import std/string::{string}
+
 import core/option::{Option}
 import core/libc::{libc_malloc, libc_free, libc_strlen}
 

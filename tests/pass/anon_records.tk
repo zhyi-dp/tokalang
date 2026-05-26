@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 import std/io::println
-import std/string::string
+
 import core/types::LIMITS
 
 shape Point (x :i32, y :i32)
-
 
 fn main() -> i32 {
     // 1. Basic anonymous record

@@ -1,5 +1,5 @@
 import stdx/crypto/sha256::{Sha256}
-import std/string::{string}
+
 import std/io::{println}
 
 fn test_empty_string() -> i32 {

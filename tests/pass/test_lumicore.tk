@@ -1,5 +1,4 @@
 import std/io::{print, println}
-import std/string::{string}
 
 fn spark_char(val: i32) -> string {
     if val <= 0 {

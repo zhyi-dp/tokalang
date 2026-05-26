@@ -1,6 +1,6 @@
 import std/net::{TcpListener, SocketAddrV4, Ipv4Addr, TcpStream, net_async_accept, net_async_read}
 import std/task::{sleep_async, block_on}
-import std/string::{string}
+
 import std/io::{println}
 
 pub fn async_server() -> async i32 {

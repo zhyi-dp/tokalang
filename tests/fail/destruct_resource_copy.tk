@@ -1,5 +1,4 @@
 // Naked destructuring of resource string in positional destructuring should be forbidden.
-import std/string::string
 
 shape Pair(
     a: i32,

@@ -1,5 +1,4 @@
 import core/result::Result
-import std/string::string
 
 pub fn main() -> i32 {
     auto string_res# = Result<string, string>::Ok(string::from("Test"))

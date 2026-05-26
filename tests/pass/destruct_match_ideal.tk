@@ -22,7 +22,6 @@
 // 4. Comprehensive recursive nested exhaustiveness checks.
 
 import std/io::println
-import std/string::string
 
 shape Point(x: i32, y: i32)
 shape Pair(v0: i32, v1: string)

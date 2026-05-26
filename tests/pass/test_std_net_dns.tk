@@ -1,5 +1,5 @@
 import std/net::{Ipv4Addr, resolve_ipv4}
-import std/string::{string}
+
 import core/result::{Result}
 import std/io::{println}
 

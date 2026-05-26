@@ -1,5 +1,5 @@
 import std/io::println
-import std/string::string
+
 fn main() -> i32 {
     // 1. Safe Integer Widening (Omitted 'as')
     auto a: i8 = 42;

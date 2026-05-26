@@ -3,7 +3,7 @@
 // Integration test for FFI hybrid mixed building and linking.
 
 import std/io::{File, println, remove_file}
-import std/string::{string}
+
 import sys/libc::{libc_system, libc_getenv}
 import lib/build::{Executable, run_build}
 

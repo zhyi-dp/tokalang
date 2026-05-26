@@ -1,6 +1,5 @@
 import std/io::println
 import std/thread::{thread_spawn, sleep_ms}
-import std/string::{string}
 
 pub fn main() -> i32 {
     auto target = 256:i64

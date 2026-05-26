@@ -1,4 +1,4 @@
-import std/string::{string}
+
 import std/vec::{Vec}
 import stdx/encoding/hex
 
@@ -47,8 +47,6 @@ fn sig0(x: u32) -> u32 {
 fn sig1(x: u32) -> u32 {
     return rotr(x, 17) ^ rotr(x, 19) ^ (x >> 10)
 }
-
-
 
 impl Sha256 {
     fn process_block(self#, k: *[u32; 64]) {

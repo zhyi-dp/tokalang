@@ -1,15 +1,11 @@
 import std/env
 import std/io::{File, print, println}
-import std/string::{string}
+
 import src/lexer::{Lexer}
 import src/printer::{Printer}
 import core/str::{str, _internal_str_cast}
 import core/types::{Addr}
 import core/libc::{libc_memcpy}
-
-
-
-
 
 pub shape TokenKind(
     Unknown |
@@ -58,10 +54,6 @@ impl Token {
         }
     }
 }
-
-
-
-
 
 pub shape Lexer (
     source: str,
@@ -270,14 +262,6 @@ impl Lexer {
 }
 
 fn _str_cast(s: str) -> str { return s.clone() }
-
-
-
-
-
-
-
-
 
 fn rebuild_str(addr: Addr, len: usize) -> str {
     unsafe {
@@ -534,7 +518,6 @@ impl Printer {
 }
 
 fn _str_cast(s: str) -> str { return s.clone() }
-
 
 fn main() -> i32 {
     auto argc = env::args_count()

@@ -1,4 +1,4 @@
-import std/string::{string}
+
 
 pub fn encode_hex(*data: [u8], len: usize) -> string {
     auto res# = string::from("")

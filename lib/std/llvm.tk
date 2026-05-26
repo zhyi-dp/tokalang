@@ -5,7 +5,6 @@
 import core/types::{char, usize, Addr}
 import core/traits::{@encap}
 import core/result::{Result}
-import std/string::{string}
 
 import sys/llvm::{
     toka_llvm_create_context,

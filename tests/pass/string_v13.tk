@@ -13,7 +13,6 @@
 // limitations under the License.
 // string_v13.tk
 import std/io::println
-import std/string::string
 
 fn main() -> i32 {
     println("Testing string v1.3...")

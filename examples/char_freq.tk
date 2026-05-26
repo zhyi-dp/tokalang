@@ -1,6 +1,6 @@
 
 import std/io::{println, File}
-import std/string::{string}
+
 import std/vec::{Vec}
 import core/libc::*
 

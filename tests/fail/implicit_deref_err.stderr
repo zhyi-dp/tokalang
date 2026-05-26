@@ -1,5 +1,5 @@
 error[E0406]: Type mismatch for argument 1: expected str, got string
- --> tests/fail/implicit_deref_err.tk:10:17
-    |
- 10 |     expect_view(path)
-    |                 ^
+ --> tests/fail/implicit_deref_err.tk:9:17
+   |
+ 9 |     expect_view(path)
+   |                 ^

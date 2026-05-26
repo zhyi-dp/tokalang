@@ -1,7 +1,7 @@
 import std/io::{println}
 import stdx/net/http::{HttpRequest, HttpResponse, HttpMethod, parse_http_request}
 import std/net::{TcpListener, TcpStream, Ipv4Addr, SocketAddrV4}
-import std/string::{string}
+
 import core/libc
 import core/types
 import core/result::{Result}

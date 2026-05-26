@@ -1,5 +1,5 @@
 import sys/libc::{libc_system, libc_access, libc_getenv}
-import std/string::{string}
+
 import core/traits::{@encap}
 import std/io::println
 

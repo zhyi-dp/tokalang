@@ -3,7 +3,6 @@ import sys/thread::{sys_thread_spawn, sys_thread_join, sys_thread_detach, unwrap
 import std/io::{println}
 import core/result::{Result}
 import std/error::{Error}
-import std/string::{string}
 
 /// Suspends the current thread for at least the specified number of milliseconds.
 pub fn sleep_ms(ms: u32) {

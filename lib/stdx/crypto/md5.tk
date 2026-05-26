@@ -1,4 +1,4 @@
-import std/string::{string}
+
 import stdx/encoding/hex
 
 pub shape Md5 (

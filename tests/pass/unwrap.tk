@@ -1,6 +1,6 @@
 import core/result::{Result, Result}
 import core/option::{Option, Option}
-import std/string::{string}
+
 import std/io::println
 
 fn compute_val(fail: bool) -> Result<i32, string> {

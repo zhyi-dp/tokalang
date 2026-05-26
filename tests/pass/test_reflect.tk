@@ -1,6 +1,5 @@
 import core/comptime::{reflect, TypeInfo, FieldInfo}
 import std/io::println
-import std/string::string
 
 pub shape User(name: str, age: i32)
 

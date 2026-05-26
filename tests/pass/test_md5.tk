@@ -1,5 +1,5 @@
 import stdx/crypto/md5::{Md5}
-import std/string::{string}
+
 import std/io::{println}
 
 pub fn main() -> i32 {

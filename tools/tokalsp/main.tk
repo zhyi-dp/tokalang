@@ -1,5 +1,5 @@
 import std/io::{get_stdin, get_stdout, File, print_line}
-import std/string::{string}
+
 import core/str::{str}
 import core/libc::{libc_malloc, libc_free}
 import core/types::{usize, char, ADDR0}

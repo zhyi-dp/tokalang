@@ -1,7 +1,5 @@
 // Copyright (c) 2026 YiZhonghua<zhyi@dpai.com>. All rights reserved.
 
-import std/string::string
-
 // The universal fallback Error struct
 pub shape Error(
     code: i32,

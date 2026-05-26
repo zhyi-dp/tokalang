@@ -4,7 +4,7 @@ import core/option::{Option}
 import core/result::{Result}
 import std/vec::{Vec}
 import std/fs
-import std/string::{string}
+
 import std/fs::{ReadDir}
 
 fn test_option() {

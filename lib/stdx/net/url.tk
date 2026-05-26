@@ -1,5 +1,5 @@
 // lib/stdx/net/url.tk
-import std/string::{string}
+
 import core/result::{Result, Result}
 
 // Helper to check if a character is unreserved per RFC 3986

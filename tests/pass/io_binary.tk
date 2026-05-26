@@ -1,5 +1,5 @@
 import std/io::{File, println, remove_file}
-import std/string::{string}
+
 import core/types::{usize}
 import core/result::{Result}
 

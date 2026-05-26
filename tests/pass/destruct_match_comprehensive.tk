@@ -13,7 +13,6 @@
 // limitations under the License.
 
 import std/io::println
-import std/string::string
 
 // Define shapes representing structs, tuples, and enums
 shape Coord(x: i32, y: i32)

@@ -1,5 +1,5 @@
 import core/types::{char, Addr}
-import std/string::{string}
+
 import std/io::{println}
 
 extern fn sqlite3_libversion() -> *char

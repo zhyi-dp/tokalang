@@ -1,6 +1,5 @@
 import stdx/encoding/base64::{encode_str}
 import std/io::{println}
-import std/string::{string}
 
 pub fn main() -> i32 {
     auto t1 = string::from("light work.")

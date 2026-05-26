@@ -1,4 +1,4 @@
-import std/string::{string}
+
 
 pub fn main() -> i32 {
     auto s# = string::from("")

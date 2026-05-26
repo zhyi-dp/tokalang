@@ -1,6 +1,5 @@
 import std/io :: {println}
 import core/result :: {Result}
-import std/string :: {string}
 import std/llvm :: {LLVMContext, LLVMModule, LLVMType, LLVMValue, LLVMBasicBlock, LLVMBuilder}
 
 fn main() -> i32

@@ -1,6 +1,5 @@
 import std/env::{args, get_arg}
 import std/io::{File, println}
-import std/string::{string}
 
 pub fn main() -> i32 {
     auto count = args()

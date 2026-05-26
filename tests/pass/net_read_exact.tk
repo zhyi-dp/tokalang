@@ -1,6 +1,6 @@
 import std/io::{println}
 import std/net::{TcpListener, TcpStream, Ipv4Addr, SocketAddrV4}
-import std/string::{string}
+
 import core/libc
 import sys/os as sys
 import core/types

@@ -1,4 +1,4 @@
-import std/string::{string}
+
 
 pub fn encode_str(data: str) -> string {
     auto len = data.len()

@@ -4,7 +4,6 @@ import core/types::{usize, Addr}
 import core/result::{Result}
 import core/libc::*
 import std/io::{@Reader, @Writer}
-import std/string::{string}
 
 /// BufferedReader wraps a reader and buffers its input.
 pub shape BufferedReader<'R: @Reader> (
@@ -142,7 +141,6 @@ impl<'R: @Reader> BufferedReader<'R>@Reader {
         return self#.read_bytes(*buf, len)
     }
 }
-
 
 /// BufferedWriter wraps a writer and buffers its output.
 pub shape BufferedWriter<'W: @Writer> (

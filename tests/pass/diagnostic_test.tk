@@ -1,5 +1,5 @@
 import std/io::println
-import std/string::{string}
+
 import std/fmt::{AnsiStyle, SourceFile, Location, DiagnosticSeverity, DiagnosticLabel, Diagnostic}
 
 fn main() -> i32 {

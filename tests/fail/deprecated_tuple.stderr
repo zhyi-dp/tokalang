@@ -1,5 +1,5 @@
 error[E0472]: Tuples are abolished. Shape fields must be named struct fields or tagged enum variants.
- --> tests/fail/deprecated_tuple.tk:8:15
+ --> tests/fail/deprecated_tuple.tk:6:15
    |
- 8 | shape MyTuple(i32, string)
+ 6 | shape MyTuple(i32, string)
    |               ^

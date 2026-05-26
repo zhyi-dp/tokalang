@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 import core/types::{usize, char, ADDR0}
-import std/string::{string}
+
 import core/libc::*
 import sys/libc::*
 import core/result::{Result}
@@ -275,8 +275,6 @@ pub fn stdin() -> File {
 pub fn stderr() -> File {
     return get_stderr()
 }
-
-
 
 pub fn print_line(s: string) {
     auto out = get_stdout()

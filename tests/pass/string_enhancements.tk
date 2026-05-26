@@ -1,5 +1,4 @@
 import std/io::{println}
-import std/string::{string}
 
 fn main() -> i32 {
     auto s# = string::from("hello tokalang")

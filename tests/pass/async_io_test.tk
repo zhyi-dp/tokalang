@@ -1,7 +1,6 @@
 import std/task
 import std/task::{block_on, __toka_spawn_blocking}
 import std/io::{File, remove_file}
-import std/string::{string}
 
 fn async_write(file_name: string) -> async bool {
     auto res# = false

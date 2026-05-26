@@ -1,5 +1,4 @@
 import std/io::{File, println, remove_file}
-import std/string::{string}
 
 fn main() -> i32 {
     auto path = string::from("test_raii_output.txt")

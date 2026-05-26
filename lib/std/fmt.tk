@@ -1,7 +1,7 @@
 // Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
 
 import core/types::{usize, char}
-import std/string::{string}
+
 import core/libc::{libc_snprintf, libc_malloc, libc_free}
 import core/traits::{@encap}
 import std/vec::{Vec}
@@ -455,5 +455,4 @@ impl Diagnostic {
         return sb.to_string()
     }
 }
-
 

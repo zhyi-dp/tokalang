@@ -1,7 +1,7 @@
 // Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
 
 import core/types::{usize, char, ADDR0}
-import std/string::{string}
+
 import core/libc::*
 import core/result::{Result}
 import core/option::{Option}
@@ -51,7 +51,6 @@ pub fn resolve_ipv4(host: string) -> Result<Ipv4Addr, string> {
     }
     return Result<Ipv4Addr, string>::Ok(Ipv4Addr::from_u32(ip))
 }
-
 
 pub shape SocketAddrV4 (
     ip: Ipv4Addr,
@@ -157,7 +156,6 @@ impl UdpSocket {
         return self.fd >= 0
     }
 }
-
 
 // ==========================================
 // TcpStream

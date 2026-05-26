@@ -1,5 +1,5 @@
 import stdx/net/url::{url_encode, url_decode, query_decode, parse_url}
-import std/string::{string}
+
 import core/result::{Result}
 import std/io::{println}
 

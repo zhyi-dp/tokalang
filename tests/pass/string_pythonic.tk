@@ -1,6 +1,5 @@
 // assert is in prelude
 import std/io::{println, print}
-import std/string::{string}
 
 fn main() -> i32 {
     println("Testing Pythonic string extensions...")

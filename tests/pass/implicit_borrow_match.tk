@@ -1,7 +1,7 @@
 // tests/pass/implicit_borrow_match.tk
 import core/option::Option
 import core/result::Result
-import std/string::string
+
 import std/io::println
 
 // 1. Pure data destructuring test (Copy semantics)
@@ -113,7 +113,6 @@ pub fn main() -> i32 {
 
     // Invoke the destructuring exhibition
     check_mut_result(string_res)
-
 
     // At the end of the main function, since string_res is the true owner,
     // its Drop will be uniquely and correctly executed.

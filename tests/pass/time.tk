@@ -1,6 +1,5 @@
 import std/time::{SystemTime, DateTime}
 import std/io::{println}
-import std/string::{string}
 
 fn main() -> i32 {
     auto t = SystemTime::now()

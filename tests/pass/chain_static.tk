@@ -1,4 +1,4 @@
-import std/string::{string}
+
 import std/io::println
 
 fn main() -> i32 {

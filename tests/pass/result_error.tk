@@ -1,6 +1,5 @@
 import std/io::println
 import std/error::{Error}
-import std/string::{string}
 
 fn divide(a: i32, b: i32) -> Result<i32, Error> {
     if b == 0 {

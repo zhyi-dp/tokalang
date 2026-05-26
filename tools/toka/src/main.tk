@@ -1,4 +1,4 @@
-import std/string::{string}
+
 import std/env
 import std/io::{println, File}
 import std/fs::{read_to_string}
@@ -283,7 +283,6 @@ fn cmd_build() -> i32 {
         return 0
     }
 }
-
 
 fn cmd_run_single(file: string) -> i32 {
     unsafe {

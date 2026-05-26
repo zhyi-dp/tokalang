@@ -2,7 +2,6 @@ import std/io::println
 import core/utf8::*
 import core/str::*
 import core/option::*
-import std/string::{string}
 
 fn main() -> i32 {
     auto s_str = string::from("Hello你好世界!")
