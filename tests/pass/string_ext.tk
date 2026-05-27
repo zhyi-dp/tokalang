@@ -7,7 +7,7 @@ fn main() -> i32 {
     // Test at
     auto c = s.at(6).unwrap()
     println("at(6): {}", c as i32) // 'T' is 84
-    if c != 84:char { return 1 }
+    if c as char != 84:char { return 1 }
     
     // Test find_char
     auto idx = s.find_char(84:char) // 'T'

@@ -20,25 +20,25 @@ pub shape Utf8Char(cp: Char32, bytes: usize)
 
 pub const REPLACEMENT_CHAR = 0xFFFD:Char32
 
-pub shape Utf8Iterator(
+pub shape Cursor(
     &buf$: [char],
     len$: usize,
     pos#: usize
 )
 
-impl Utf8Iterator@encap {
-    pub fn clone(self) -> Utf8Iterator <- self {
-        return Utf8Iterator(&buf=self.&buf, len=self.len, pos=self.pos)
+impl Cursor@encap {
+    pub fn clone(self) -> Cursor <- self {
+        return Cursor(&buf = self.&buf, len = self.len, pos = self.pos)
     }
 
     pub fn current_pos(self) -> usize {
         return self.pos
     }
-    
+
     fn drop(self#) {}
 }
 
-impl Utf8Iterator {
+impl Cursor {
     fn decode_char(self) -> Utf8Char {
         if self.pos >= self.len { 
             return Utf8Char(cp=REPLACEMENT_CHAR, bytes=1) 
@@ -115,5 +115,20 @@ impl Utf8Iterator {
         self.pos += result.bytes
         return Option<Char32>::Some(result.cp)
     }
-}
 
+    pub fn peek(self) -> Option<Char32> {
+        if self.pos >= self.len {
+            return Option<Char32>::None
+        }
+        auto result = self.decode_char()
+        return Option<Char32>::Some(result.cp)
+    }
+
+    pub fn rewind(self#, k: usize) {
+        if k > self.pos {
+            self.pos = 0
+        } else {
+            self.pos = self.pos - k
+        }
+    }
+}

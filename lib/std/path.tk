@@ -32,10 +32,10 @@ impl Path {
 
     pub fn is_absolute(self) -> bool {
         if self.inner.len() > 0 {
-            auto first = self.inner.at(0).unwrap()
+            auto first = self.inner.byte_at(0)
             if first == 47:char || first == 92:char { return true } // '/' or '\\'
             if self.inner.len() > 1 {
-                auto second = self.inner.at(1).unwrap()
+                auto second = self.inner.byte_at(1)
                 if second == 58:char { return true } // ':' (e.g. C:)
             }
         }
@@ -45,7 +45,7 @@ impl Path {
     pub fn join(self, sub: string) -> Path {
         auto res# = self.inner.clone()
         if res.len() > 0 {
-            auto last = res.at(res.len() - 1).unwrap()
+            auto last = res.byte_at(res.len() - 1)
             if last != 47:char && last != 92:char { // neither '/' nor '\\'
                 res#.push_char(sys::path_sep())
             }
@@ -53,7 +53,7 @@ impl Path {
         
         auto sub_start#: usize = 0
         if sub.len() > 0 {
-            auto first = sub.at(0).unwrap()
+            auto first = sub.byte_at(0)
             if first == 47:char || first == 92:char {
                 sub_start = 1
             }
@@ -78,7 +78,7 @@ impl Path {
         auto last_dot# = idx as i64
         auto i#: i64 = (idx + 1) as i64
         loop i < self.inner.len() as i64 {
-            if self.inner.at(i as usize).unwrap() == 46:char {
+            if self.inner.byte_at(i as usize) == 46:char {
                 last_dot = i
             }
             i = i + 1
@@ -96,7 +96,7 @@ impl Path {
         auto last_slash#: i64 = -1
         auto i#: usize = 0
         loop i < self.inner.len() {
-            auto c = self.inner.at(i).unwrap()
+            auto c = self.inner.byte_at(i)
             if c == 47:char || c == 92:char { // '/' or '\\'
                 last_slash = i as i64
             }
@@ -119,7 +119,7 @@ impl Path {
         auto last_slash#: i64 = -1
         auto i#: usize = 0
         loop i < self.inner.len() {
-            auto c = self.inner.at(i).unwrap()
+            auto c = self.inner.byte_at(i)
             if c == 47:char || c == 92:char { // '/' or '\\'
                 last_slash = i as i64
             }
@@ -131,7 +131,7 @@ impl Path {
         }
         
         if last_slash == 0 {
-            auto first = self.inner.at(0).unwrap()
+            auto first = self.inner.byte_at(0)
             if first == 92:char {
                 return string::from("\\")
             }
@@ -176,7 +176,7 @@ impl Path {
         
         res#.push_char(46:char)
         auto ext_start# = 0
-        if ext.at(0).unwrap() == 46:char {
+        if ext.byte_at(0) == 46:char {
             ext_start = 1
         }
         

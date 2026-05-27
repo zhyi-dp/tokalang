@@ -60,7 +60,7 @@ fn decode_internal(input: string, plus_as_space: bool) -> Result<string, string>
         auto c_opt = input.as_str().at(i)
         if c_opt.is_none() { break }
         auto c = c_opt.unwrap()
-        if c == '%' {
+        if c as char == '%' {
             if i + 2 >= len {
                 return Result<string, string>::Err(string::from("invalid percent encoding: truncated"))
             }
@@ -69,8 +69,8 @@ fn decode_internal(input: string, plus_as_space: bool) -> Result<string, string>
             if c1_opt.is_none() || c2_opt.is_none() {
                 return Result<string, string>::Err(string::from("invalid percent encoding: truncated"))
             }
-            auto h1 = from_hex_char(c1_opt.unwrap())
-            auto h2 = from_hex_char(c2_opt.unwrap())
+            auto h1 = from_hex_char(c1_opt.unwrap() as char)
+            auto h2 = from_hex_char(c2_opt.unwrap() as char)
             if h1 < 0 || h2 < 0 {
                 return Result<string, string>::Err(string::from("invalid percent encoding: invalid hex characters"))
             }
@@ -78,10 +78,10 @@ fn decode_internal(input: string, plus_as_space: bool) -> Result<string, string>
             res#.push_char(b as char)
             i = i + 3
             continue
-        } else if plus_as_space && c == '+' {
+        } else if plus_as_space && c as char == '+' {
             res#.push_char(' ')
         } else {
-            res#.push_char(c)
+            res#.push_char(c as char)
         }
         i = i + 1
     }
@@ -172,9 +172,7 @@ pub fn parse_url(input: string) -> Result<Url, string> {
         auto i#: usize = 0
         auto plen = port_str.len()
         loop i < plen {
-            auto ch_opt = port_str.as_str().at(i)
-            if ch_opt.is_none() { break }
-            auto ch = ch_opt.unwrap()
+            auto ch = port_str.as_str().byte_at(i)
             if ch >= '0' && ch <= '9' {
                 p = p * 10 + (ch as u8 - '0' as u8) as i32
             } else {

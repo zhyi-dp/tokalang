@@ -123,6 +123,12 @@
 | `shape Box<T>` | 刚性泛型参数 (Rigid) | `T` 泛指实体类型（Soul）。**不可传递任何指针类型**（如 `^i32` 会导致 E0604 错误）。 |
 | `shape Box<'T>` | 形态泛型参数 (Morphic) | `'T` 带有单引号前缀，表示该泛型**允许并保留指针形态**（如 `^`、`~`、`&`）。标准库容器和通道机制（如 `Vec<'T>`）均基于此实现以安全承载指针。 |
 | `fn foo<'T>()` | 泛型函数声明 | 函数同样支持 `'T` 形态泛型推导，可与普通刚性泛型互用。 |
+| **文本与字节双轨物理体系** | | |
+| `auto s = s"Hello"` | 只读文本视图 (`str`) | **Txt & Byte 双轨意图对齐**：`str` (16字节) 为包含 `raw *char` 与 `len` 的 UTF-8 视图。<br>1. **`str.byte_count() -> usize`**：获取底层物理字节数 ($O(1)$)；<br>2. **`str.count() -> usize`**：获取逻辑字符数 ($O(N)$ 遍历)；<br>3. **`str.slice(start: i32, end: i32) -> str`**：安全逻辑字符切片；<br>4. **`str.at(idx: usize) -> Option<Char32>`**：获取逻辑字符 ($O(N)$)；<br>5. **`str.as_bytes() -> bytes`**：0开销降级为二进制物理字节视图；<br>6. **`str.chars() -> Cursor`**：获得正向码点游标。 |
+| `auto b = bytes(...)` | 只读字节视图 (`bytes`) | **物理二进制意图度量**：`bytes` (16字节) 用于承载底层原始字节流。<br>1. **`bytes.size() -> usize`**：物理尺寸 ($O(1)$)；<br>2. **`bytes.slice_bytes(start: usize, end: usize) -> bytes`**：物理切片；<br>3. **`bytes.at(idx: usize) -> Option<byte>`**：获取物理字节；<br>4. **`bytes.try_to_str() -> Result<str, UnicodeError>`**：0拷贝严格文本晋升；<br>5. **`bytes.to_str_lossy() -> string`**：堆分配容错文本晋升。 |
+| `auto s# = string::from("...")` | 拥有型可变文本 (`string`) | **唯一可变文本容器**：`string` (24字节) 在堆上分配，是唯一的动态可变文本容器。<br>1. **`push_str(s: str)`** / **`push_char(c: Char32)`** / **`push_ascii(c: byte)`**：文本与码点追加；<br>2. **`pop_codepoint() -> Option<Char32>`**：栈解耦零别名安全退格；<br>3. **`as_str()`** / **`c_str()`** / **`capacity()`**：视图获取与物理暴露。 |
+| `iter#.next()` / `iter#.rewind(k)` | 消灭反向字符迭代 (`Cursor`) | **物理文本一向性宪法**：UTF-8 是单向图，Toka **彻底禁止** 任何形式的隐式反向字符迭代（废除 `reverse_chars()`）。如果需要回溯，必须使用 `Cursor` 游标并在必要时使用 **`rewind(k)`** 显式回拨游标，将真实物理开销显式交还开发者。 |
+
 
 ## **常见误区与铁律 (AI 必读)**
 
@@ -137,9 +143,9 @@
 | `shape Point { x: i32 }` | `shape Point(x: i32)` | **铁律**：Shape 定义必须使用**圆括号** `()`。 |
 | `auto p = Point{x=1}` | `auto p = Point(x=1)` | **铁律**：初始化也必须使用**圆括号** `()`。 |
 | `println("Hello")` | `import std/io::println`<br>`println("Hello")` | `println` 不是内置关键字，必须从标准库导入。 |
-| `println("x=%d, y=%s", 1, s)` | `println("x={}, y={}", 1, s)` | **铁律**：Toka 格式化输出 (包括 `println`、字符串插值等) 严格使用前沿的 `{}` 占位语法，绝对不要使用 C 语言的 `%d`、`%s` 标志。<br>**零拷贝与格式化新特性**：<br>1. 对于 `string` 和 `view_str`，`println` 已实装真正的**零拷贝特化 (Zero-Copy)**。<br>2. 支持全新的**精细格式化语法 (Mini Formatting Language)**，语法形式为 `{:指令}`。数字支持补零（如 `{:04}`）、十六进制（如 `{:x}`）、浮点精度（如 `{:.2}`，**注意无需冗余类型符 `f`**）。<br>3. 此机制通过标准库的 `@ToFormat` 契约（`to_string_fmt(self, fmt: view_str) -> string`）实现，支持自定义 Shape 自行解析任何控制符（如 `{:json}`）。 |
-| `auto s: view_str = "abc"` | `auto s = s"abc"` | **视角字串铁律**：普通 `"[文本]"` 推导为 `*char`。若需要携带长度的胖形态 **`view_str`**，务必使用 `s"..."` 语法。**新特性**：当函数/方法明确期望接收 `view_str` 时，你可以直接传入 `string` 变量（编译器会自动且零成本地插入 `as_str()` 降级为你投影，也就是 **Auto-Deref**），彻底摆脱手动 `.as_str()` 的繁琐体验。 |
-| `str1 + str2` | `auto s = string::from(s1); s.push_str(s2)` | **禁止隐式堆分配铁律**：Toka **不支持** 使用 `+` 拼接字符串。因为 `+` 会导致隐式的堆内存分配，这违背了 Toka 的核心系统级哲学。请显式使用 `string` 的 `push_str()` (完美兼容传入 `view_str` 或 `string`) 或 `println/print` 进行格式化。 |
+| `println("x=%d, y=%s", 1, s)` | `println("x={}, y={}", 1, s)` | **铁律**：Toka 格式化输出 (包括 `println`、字符串插值等) 严格使用前沿的 `{}` 占位语法，绝对不要使用 C 语言的 `%d`、`%s` 标志。<br>**零拷贝与格式化新特性**：<br>1. 对于 `string` 和 `str`，`println` 已实装真正的**零拷贝特化 (Zero-Copy)**。<br>2. 支持全新的**精细格式化语法 (Mini Formatting Language)**，语法形式为 `{:指令}`。数字支持补零（如 `{:04}`）、十六进制（如 `{:x}`）、浮点精度（如 `{:.2}`，**注意无需冗余类型符 `f`**）。<br>3. 此机制通过标准库的 `@ToFormat` 契约（`to_string_fmt(self, fmt: str) -> string`）实现，支持自定义 Shape 自行解析任何控制符（如 `{:json}`）。 |
+| `auto s: str = "abc"` | `auto s = s"abc"` | **视角字串铁律**：普通 `"[文本]"` 推导为 `*char`。若需要携带长度的胖形态 **`str`**，务必使用 `s"..."` 语法。**新特性**：当函数/方法明确期望接收 `str` 时，你可以直接传入 `string` 变量（编译器会自动且零成本地插入 `as_str()` 降级为视图投影，也就是 **Auto-Deref**），彻底摆脱手动 `.as_str()` 的繁琐体验。 |
+| `str1 + str2` | `auto s = string::from(s1); s.push_str(s2)` | **禁止隐式堆分配铁律**：Toka **不支持** 使用 `+` 拼接字符串。因为 `+` 会导致隐式的堆内存分配，这违背了 Toka 的核心系统级哲学。请显式使用 `string` 的 `push_str()` (完美兼容传入 `str` 或 `string`) 或 `println/print` 进行格式化。 |
 | ~~`auto p = User("Alice", 1)`~~ | `auto p = User(name = "Alice", id = 1)` | **【强制铁律】实例化结构体（Shape）时必须使用具名参数 (Named Parameters) 进行赋值。按位置顺序初始化已彻底废除并强行拦截抛出 `E042A`。** |
 | `x.modify()` (如果定义需要 `self#`) | `x#.modify()` | 修改自身的方法必须在调用者上加 `#`，**哪怕 x 本身是可变的**。 |
 | `*p` (想解引用) | `p` | **铁律 (Hat Principle)**：Toka 中裸名 `p` 即为灵魂 (Soul)，自动解引用。`*p` 是戴帽操作，得到指针本身 (Handle)。与 C++ 相反。 |
@@ -166,5 +172,5 @@
 
 | 待办主题 | 坏味道说明 | 拟重构方案 |
 | :--- | :--- | :--- |
-| **1. 编译器与标准库强耦合解耦 (Smell #3) [已解决]** | `println` / `print` 等低级 LLVM IR 组装过程曾硬性绑定标准库特定名称的 ABI 函数（如 `String_from`、`String_push_str` 等）。 | **已重构解决**：新版 `print` / `println` 采用零开销展开生成（Unrolled Codegen）技术。对于所有基本类型（`i32`, `f64`, `bool`, `char` 等）及 `view_str`，直接编译生成 `toka_print_xxx` / `printf` / `putchar` 调用，**与 `std/string` 彻底解耦且无任何堆分配开销**。仅对实现 `to_string`/`to_string_fmt` 的自定义 Struct 保留轻量 ABI 调用以提取和析构临时 string。 |
+| **1. 编译器与标准库强耦合解耦 (Smell #3) [已解决]** | `println` / `print` 等低级 LLVM IR 组装过程曾硬性绑定标准库特定名称 of ABI 函数（如 `String_from`、`String_push_str` 等）。 | **已重构解决**：新版 `print` / `println` 采用零开销展开生成（Unrolled Codegen）技术。对于所有基本类型（`i32`, `f64`, `bool`, `char` 等）及 `str`，直接编译生成 `toka_print_xxx` / `printf` / `putchar` 调用，**与 `std/string` 彻底解耦且无任何堆分配开销**。仅对实现 `to_string`/`to_string_fmt` 的自定义 Struct 保留轻量 ABI 调用以提取和析构临时 string。 |
 | **2. 基本类型“捕获语义”物理 ABI 澄清 (Smell #5)** | 物理层（Codegen）针对非可变基本类型（如 `i32`）优化为了普通 LLVM Value 传值拷贝，这与 Toka 宣称的“一切皆捕获（隐式引用传递）”的逻辑语义在物理层不一致，存在 FFI 灰色地带。 | 保持现有高效的传值优化，但在文档中明确区分 **逻辑语义（捕获）** 与 **物理 ABI 优化（基本类型传值、聚合类型引用）**，并在 FFI 规范文档中进行严谨的物理层澄清。 |

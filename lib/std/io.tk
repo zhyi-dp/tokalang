@@ -62,7 +62,7 @@ impl File {
     pub fn open(path: string, mode: str) -> File {
         unsafe {
             auto temp_buf# = [0:char; 8]
-            auto mode_len = mode.len()
+            auto mode_len = mode.byte_count()
             if mode_len > 7 {
                 return File(
                     *handle = ADDR0 as *void,
@@ -151,8 +151,9 @@ impl File {
     pub fn write(self, s: str) -> usize {
         unsafe {
             if !self.opened { return 0 as usize }
-            if s.len() == 0 { return 0 as usize }
-            return libc_fwrite(s.raw_ptr() as *void, 1, s.len(), self.*handle)
+            if s.byte_count() == 0 { return 0 as usize }
+            auto *src = s.raw_ptr() as *void
+            return libc_fwrite(*src, 1, s.byte_count(), self.*handle)
         }
     }
     pub fn is_eof(self) -> bool {
@@ -278,7 +279,7 @@ pub fn stderr() -> File {
 
 pub fn print_line(s: string) {
     auto out = get_stdout()
-    out.write(s.as_view())
+    out.write(s.as_str())
     out.write("\n")
 }
 

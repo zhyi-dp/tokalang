@@ -10,7 +10,7 @@ pub fn main() -> i32 {
     // let is deprecated in Toka, use auto
     auto first_char = s.byte_at(0)
     
-    if first_char != 'H' as i32 {
+    if first_char as i32 != 'H' as i32 {
         return 1
     }
     

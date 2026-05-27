@@ -20,8 +20,8 @@ fn test_str(vstr: str) -> i32 {
     // Test 4: Char indexing
     auto c1 = vstr.at(0:usize)
     auto c2 = vstr.at(7:usize)
-    assert(c1.unwrap() == 'h', "FAIL: at 0")
-    assert(c2.unwrap() == 't', "FAIL: at 7")
+    assert(c1.unwrap() as char == 'h', "FAIL: at 0")
+    assert(c2.unwrap() as char == 't', "FAIL: at 7")
 
     // Test 5: index_of
     auto i1 = vstr.index_of('o')
