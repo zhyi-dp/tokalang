@@ -31,6 +31,25 @@ fn main() -> i32 {
     auto h = s.hash()
     if h == 0 { return 4 }
     
+    // Test safe popping of malformed UTF-8 sequence
+    auto malformed# = string::from("")
+    malformed#.push_byte_raw(0x80:u8)
+    malformed#.push_byte_raw(0x80:u8)
+    malformed#.push_byte_raw(0x80:u8)
+    malformed#.push_byte_raw(0x80:u8)
+    malformed#.push_byte_raw(0x80:u8)
+    malformed#.push_byte_raw(0x80:u8)
+    
+    auto popped = malformed#.pop_codepoint()
+    if popped.is_none() {
+        println("Popped malformed failed to return a character")
+        return 5
+    }
+    if malformed.len() != 0 {
+        println("Popped malformed failed to shrink length to 0")
+        return 6
+    }
+    
     println("string Audit Passed")
     return 0
 }

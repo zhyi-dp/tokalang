@@ -15,7 +15,7 @@
 import core/types::{char, byte, usize, Addr, ADDR0, OAddr, Char32}
 import core/traits::{@encap, @Hash, @PartialEq, @PartialOrd}
 import core/str::{str, cstr, libc_strlen, bytes}
-import core/utf8::{Cursor}
+import core/utf8::{Cursor, REPLACEMENT_CHAR}
 import core/internal/runtime::__toka_panic_handler
 
 
@@ -406,15 +406,23 @@ impl string {
                 scan_pos = scan_pos - 1
             }
             auto cp_len = l - scan_pos
+            auto copy_len# = cp_len
+            if copy_len > 4 {
+                copy_len = 4
+            }
             auto stack_buf#: [u8; 4] = [0:u8; 4]
             auto i# = 0:usize
-            loop i < cp_len {
+            loop i < copy_len {
                 stack_buf#[i] = b[scan_pos + i] as u8
                 i = i + 1
             }
             auto &local_char_slice = &(stack_buf[0]) as *[char] as &[char]
-            auto temp_iter# = Cursor(&buf = &local_char_slice, len = cp_len, pos = 0)
-            auto cp = temp_iter#.next().unwrap()
+            auto temp_iter# = Cursor(&buf = &local_char_slice, len = copy_len, pos = 0)
+            auto cp_opt = temp_iter#.next()
+            auto cp# = REPLACEMENT_CHAR
+            if cp_opt.is_some() {
+                cp = cp_opt.unwrap()
+            }
             b[scan_pos] = 0:char
             self.len = scan_pos
             return Option<Char32>::Some(cp)
