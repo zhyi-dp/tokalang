@@ -99,6 +99,22 @@ rm -f tokalsp
 cd "$ROOT_DIR"
 
 echo ""
-echo "✨ Rebuild Successful! 'tokac', 'toka', 'tokafmt', and 'tokalsp' are ready in build/bin."
+echo "====================================="
+echo "5. Building Toka Incremental Engine (forge)"
+echo "====================================="
+cd tools/forge
+echo "   -> Compiling and Linking tools/forge/src/main.tk with internal LLD..."
+tokac -I "$ROOT_DIR/lib" src/main.tk "$ROOT_DIR/lib/sys/toka_rt.o" -o forge
+
+echo "   -> Installing forge to $BIN_DIR/forge..."
+cp forge "$BIN_DIR/forge"
+
+# Clean up build artifacts in tools/forge
+rm -f forge
+
+cd "$ROOT_DIR"
+
+echo ""
+echo "✨ Rebuild Successful! 'tokac', 'toka', 'tokafmt', 'tokalsp', and 'forge' are ready in build/bin."
 echo "Make sure to add $BIN_DIR to your PATH if you haven't already:"
 echo "    export PATH=\"$ROOT_DIR/build/bin:\$PATH\""
