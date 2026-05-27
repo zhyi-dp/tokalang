@@ -1,13 +1,14 @@
 import std/sync::{Mutex, CondVar, MutexLock}
-import std/vec::{Vec}
+import std/ring::{RingCore}
 
 import core/result::{Result}
 import std/error::{Error}
 import core/intrinsics/atomic::*
+import core/option::{Option}
 
 /// The shared state protected by the channel Mutex
 pub shape WaitQueue<'T: @Send>(
-    queue#: Vec<'T>,
+    queue#: RingCore<'T>,
     closed#: bool,
     senders#: i32,
     receivers#: i32,
@@ -36,7 +37,7 @@ impl<'T: @Send> Receiver<'T>@Send {}
 impl<'T: @Send> WaitQueue<'T> {
     pub fn new(capacity: i32) -> WaitQueue<'T> {
         return WaitQueue<'T>(
-            queue = Vec<'T>::new(),
+            queue = RingCore<'T>::new(),
             closed = false,
             senders = 1,
             receivers = 1,
@@ -106,7 +107,7 @@ impl<'T: @Send> Sender<'T> {
             }
         }
         
-        q.queue#.push(cede val)
+        q.queue#.push_back(cede val)
         self.channel.cond_not_empty.notify_one()
         return Result<(), Error>::Ok(())
     }
@@ -132,7 +133,7 @@ impl<'T: @Send> Receiver<'T> {
             self.channel.cond_not_empty.wait_cond(lguard)
         }
         
-        auto item = q.queue#.pop()
+        auto item = q.queue#.pop_front()
         if q.capacity >= 0 {
             self.channel.cond_not_full.notify_one()
         }
@@ -143,7 +144,7 @@ impl<'T: @Send> Receiver<'T> {
         auto lguard = self.channel.state.lock()!
         auto *q = lguard.get_ref()
         if q.queue.len() > 0 {
-            auto item = q.queue#.pop()
+            auto item = q.queue#.pop_front()
             if q.capacity >= 0 {
                 self.channel.cond_not_full.notify_one()
             }
