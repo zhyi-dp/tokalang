@@ -1,6 +1,5 @@
 import core/str::{str}
 import src/token::{Token, TokenKind}
-import src/token as token
 
 pub shape Lexer (
     source: str,
@@ -22,13 +21,13 @@ impl Lexer {
     fn peek(self) -> char {
         auto u_pos = self.pos as usize
         if u_pos >= self.source.len() { return '\0' }
-        return self.source.at(u_pos).unwrap()
+        return self.source.at(u_pos).unwrap() as char
     }
 
     fn advance(self#) -> char {
         auto u_pos = self.pos as usize
         if u_pos >= self.source.len() { return '\0' }
-        auto c = self.source.at(u_pos).unwrap()
+        auto c = self.source.at(u_pos).unwrap() as char
         self.pos = self.pos + 1
         if c == '\n' { // '\n'
             self.line = self.line + 1
@@ -43,7 +42,7 @@ impl Lexer {
         auto next_pos = self.pos + 1
         auto u_next_pos = next_pos as usize
         if u_next_pos >= self.source.len() { return '\0' }
-        return self.source.at(u_next_pos).unwrap()
+        return self.source.at(u_next_pos).unwrap() as char
     }
 
     fn is_alpha(c: char) -> bool {

@@ -4,7 +4,6 @@ import std/io::{File, print, println}
 import src/lexer::{Lexer}
 import src/printer::{Printer}
 import core/str::{str, _internal_str_cast}
-import core/types::{Addr}
 import sys/libc::{libc_memcpy}
 
 pub shape TokenKind(
@@ -42,7 +41,7 @@ impl Token {
 
     pub fn lexeme(self) -> str {
         unsafe {
-            auto ret# = _internal_str_cast("")
+            auto ret = _internal_str_cast("")
             auto ptr_addr = self.lexeme_addr
             libc_memcpy(&ret as *void, &ptr_addr as *void, 8)
             
@@ -75,13 +74,13 @@ impl Lexer {
     fn peek(self) -> char {
         auto u_pos = self.pos as usize
         if u_pos >= self.source.len() { return '\0' }
-        return self.source.at(u_pos).unwrap()
+        return self.source.at(u_pos).unwrap() as char
     }
 
     fn advance(self#) -> char {
         auto u_pos = self.pos as usize
         if u_pos >= self.source.len() { return '\0' }
-        auto c = self.source.at(u_pos).unwrap()
+        auto c = self.source.at(u_pos).unwrap() as char
         self.pos = self.pos + 1
         if c == '\n' { // '\n'
             self.line = self.line + 1
@@ -96,7 +95,7 @@ impl Lexer {
         auto next_pos = self.pos + 1
         auto u_next_pos = next_pos as usize
         if u_next_pos >= self.source.len() { return '\0' }
-        return self.source.at(u_next_pos).unwrap()
+        return self.source.at(u_next_pos).unwrap() as char
     }
 
     fn is_alpha(c: char) -> bool {
@@ -265,7 +264,7 @@ fn _str_cast(s: str) -> str { return s.clone() }
 
 fn rebuild_str(addr: Addr, len: usize) -> str {
     unsafe {
-        auto ret# = _internal_str_cast("")
+        auto ret = _internal_str_cast("")
         libc_memcpy(&ret as *void, &addr as *void, 8)
         auto len_addr = (&ret as Addr) + 8
         libc_memcpy(len_addr as *void, &len as *void, 8)
@@ -329,7 +328,7 @@ impl Printer {
                 auto nl_count# = 0
                 auto i# = 0 as usize
                 loop i < rebuild_str(t.lexeme_addr, t.lexeme_len).len() {
-                    if rebuild_str(t.lexeme_addr, t.lexeme_len).at(i).unwrap() == '\n' {
+                    if rebuild_str(t.lexeme_addr, t.lexeme_len).at(i).unwrap() as char == '\n' {
                         nl_count = nl_count + 1
                     }
                     i = i + 1
@@ -476,7 +475,7 @@ impl Printer {
             }
 
             // Print the lexeme
-            self.output#.push_view_addr(t.lexeme_addr, t.lexeme_len)
+            self.output#.push_buf(t.lexeme_addr as *u8, t.lexeme_len)
             
             // Force space requirements AFTER the token
             if t.kind == TokenKind::Operator() && is_binary_op {
@@ -546,7 +545,7 @@ fn main() -> i32 {
         return 0
     }
 
-    auto lexer# = Lexer::new(content.as_str())
+    auto lexer = Lexer::new(content.as_str())
     auto printer# = Printer::new()
     auto formatted_code = printer#.format(lexer)
     print("{}", formatted_code)

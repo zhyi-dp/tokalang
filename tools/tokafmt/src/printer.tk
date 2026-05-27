@@ -1,14 +1,12 @@
 
 import core/str::{str, _internal_str_cast}
-import core/types::{Addr}
 import sys/libc::{libc_memcpy}
 import src/token::{Token, TokenKind}
-import src/token as token
 import src/lexer::{Lexer}
 
 fn rebuild_str(addr: Addr, len: usize) -> str {
     unsafe {
-        auto ret# = _internal_str_cast("")
+        auto ret = _internal_str_cast("")
         libc_memcpy(&ret as *void, &addr as *void, 8)
         auto len_addr = (&ret as Addr) + 8
         libc_memcpy(len_addr as *void, &len as *void, 8)
@@ -72,7 +70,7 @@ impl Printer {
                 auto nl_count# = 0
                 auto i# = 0 as usize
                 loop i < rebuild_str(t.lexeme_addr, t.lexeme_len).len() {
-                    if rebuild_str(t.lexeme_addr, t.lexeme_len).at(i).unwrap() == '\n' {
+                    if rebuild_str(t.lexeme_addr, t.lexeme_len).at(i).unwrap() as char == '\n' {
                         nl_count = nl_count + 1
                     }
                     i = i + 1
@@ -219,7 +217,7 @@ impl Printer {
             }
 
             // Print the lexeme
-            self.output#.push_view_addr(t.lexeme_addr, t.lexeme_len)
+            self.output#.push_buf(t.lexeme_addr as *u8, t.lexeme_len)
             
             // Force space requirements AFTER the token
             if t.kind == TokenKind::Operator() && is_binary_op {
