@@ -1,0 +1,24 @@
+shape Data(x: i32)
+
+// ❌ 试图强转逃逸 b 的生命周期，但签名谎称只依赖 a。应当引爆 ERR_LIFETIME_UNION_REQUIRED 拦截 b！
+fn cheat(a: &Data, b: &Data) -> &res: Data
+effects: res <- a
+{
+    unsafe {
+        auto *raw_b = &b as *byte
+        return (*raw_b as Addr) as &Data
+    }
+}
+
+// ❌ 无参数安全函数试图强转逃逸引用，应当引爆 ERR_ESCAPE_LOCAL 枪决！
+fn cheat_no_arg() -> &res: Data {
+    auto d = Data(x = 42)
+    unsafe {
+        auto *raw = &d as *byte
+        return (*raw as Addr) as &Data
+    }
+}
+
+fn main() -> i32 {
+    return 0
+}

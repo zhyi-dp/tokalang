@@ -249,8 +249,7 @@ impl str {
         auto byte_len = iter.current_pos() - byte_start
         unsafe {
             auto base_addr = &(self.buf[byte_start]) as Addr
-            auto &c_buf = base_addr as *[char] as &[char]
-            return str(&buf = &c_buf, len = byte_len)
+            return str(&buf = (base_addr as *[char]) as &[char], len = byte_len)
         }
     }
 
@@ -622,7 +621,10 @@ impl cstr@delegate {
 }
 
 impl cstr {
-    pub fn as_str(self) -> str {
+    pub fn as_str(self) -> res: str
+    effects:
+        res.&buf <- self
+    {
         unsafe {
             if self.*buf == null {
                 return str(&buf = null as *[char] as &[char], len = 0)

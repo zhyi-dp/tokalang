@@ -250,134 +250,216 @@ void Sema::checkStmt(Stmt *S) {
       }
 
       // [NEW] Unified Lifetime Check logic
-      std::set<std::string> returnedDeps;
+      std::shared_ptr<toka::Type> expectedRetObj = nullptr;
+      if (CurrentFunction && CurrentFunction->ResolvedReturnType && CurrentFunctionReturnType == CurrentFunction->ReturnType) {
+          expectedRetObj = CurrentFunction->ResolvedReturnType;
+      } else {
+          expectedRetObj = resolveType(toka::Type::fromString(CurrentFunctionReturnType));
+      }
 
-      // Helper to extract path
-      std::function<std::string(Expr *)> getPath = [&](Expr *E) -> std::string {
-          if (!E) return "";
-          if (auto *ve = dynamic_cast<VariableExpr *>(E)) return ve->Name;
-          if (auto *me = dynamic_cast<MemberExpr *>(E)) return getPath(me->Object.get()) + "." + toka::Type::stripMorphology(me->Member);
-          if (auto *ue = dynamic_cast<UnaryExpr *>(E)) return getPath(ue->RHS.get());
-          if (auto *ae = dynamic_cast<AddressOfExpr *>(E)) return getPath(ae->Expression.get());
-          return "";
-      };
-
-      // Helper to collect dependencies from the returned expression
-      std::function<void(Expr *)> collectDeps = [&](Expr *E) {
-        if (!E)
-          return;
-
-        // Case 1: Taking address `&var` or `&var.field`
-        if (auto *Addr = dynamic_cast<UnaryExpr *>(E)) {
-          if (Addr->Op == TokenType::Ampersand) {
-            std::string path = getPath(Addr->RHS.get());
-            if (!path.empty()) {
-                returnedDeps.insert(path);
-            }
-          }
-        }
-        // Case 2: Returning existing reference variable `x`
-        else if (auto *Var = dynamic_cast<VariableExpr *>(E)) {
-          SymbolInfo info;
-          if (CurrentScope->lookup(Var->Name, info)) {
-            if (info.IsReference()) {
-              // It depends on whatever 'info' borrowed from
-              if (!info.BorrowedFrom.empty()) {
-                returnedDeps.insert(info.BorrowedFrom);
+      bool isTrackedRet = false;
+      if (expectedRetObj) {
+          if (expectedRetObj->isReference() || expectedRetObj->isSmartPointer()) {
+              isTrackedRet = true;
+          } else if (expectedRetObj->isShape()) {
+              std::string name = expectedRetObj->getSoulName();
+              if (name == "str" || name == "bytes") {
+                  isTrackedRet = true;
               }
-              // Also merge its transitive dependencies if we track them
-              returnedDeps.insert(info.LifeDependencySet.begin(),
-                                  info.LifeDependencySet.end());
-            }
           }
-        }
-        // Case 4: CallExpr
-        else if (auto *Call = dynamic_cast<CallExpr *>(E)) {
-            for (auto &Arg : Call->Args) {
-                collectDeps(Arg.get());
+      }
+
+      if (isTrackedRet) {
+          std::set<std::string> returnedDeps;
+
+          // Helper to extract path
+          std::function<std::string(Expr *)> getPath = [&](Expr *E) -> std::string {
+              if (!E) return "";
+              if (auto *ve = dynamic_cast<VariableExpr *>(E)) return ve->Name;
+              if (auto *me = dynamic_cast<MemberExpr *>(E)) return getPath(me->Object.get()) + "." + toka::Type::stripMorphology(me->Member);
+              if (auto *ue = dynamic_cast<UnaryExpr *>(E)) return getPath(ue->RHS.get());
+              if (auto *ae = dynamic_cast<AddressOfExpr *>(E)) return getPath(ae->Expression.get());
+              return "";
+          };
+
+          // Helper to collect dependencies from the returned expression
+          std::function<void(Expr *)> collectDeps = [&](Expr *E) {
+            if (!E)
+              return;
+
+            // Case 1: Taking address `&var` or `&var.field` via UnaryExpr
+            if (auto *Addr = dynamic_cast<UnaryExpr *>(E)) {
+              if (Addr->Op == TokenType::Ampersand) {
+                std::string path = getPath(Addr->RHS.get());
+                if (!path.empty()) {
+                    returnedDeps.insert(path);
+                }
+              }
             }
-        }
-        // Case 5: InitStructExpr / AnonymousRecordExpr
-        else if (auto *Init = dynamic_cast<InitStructExpr *>(E)) {
-            for (auto &Mem : Init->Members) {
-                collectDeps(Mem.second.get());
-            }
-        } else if (auto *Anon = dynamic_cast<AnonymousRecordExpr *>(E)) {
-            for (auto &Field : Anon->Fields) {
-                collectDeps(Field.second.get());
-            }
-        }
-        // Case 6: Fallback for BinaryExpr named arg init if kept as CallExpr
-        else if (auto *Bin = dynamic_cast<BinaryExpr *>(E)) {
-            if (Bin->Op == "=") {
-                collectDeps(Bin->RHS.get());
-            }
-        }
-        // Case 7: MemberExpr (e.g., e.&val)
-        else if (auto *Memb = dynamic_cast<MemberExpr *>(E)) {
-            bool isRef = false;
-            bool isAddressOf = Memb->Member.find('&') != std::string::npos;
-            if (isAddressOf || Memb->Member.find('^') != std::string::npos || Memb->Member.find('~') != std::string::npos) {
-                isRef = true;
-            }
-            if (isRef) {
-                std::string path = getPath(Memb);
+            // Case 1b: AddressOfExpr Borrow (implicit/explicit borrow alignment)
+            else if (auto *AddrOf = dynamic_cast<AddressOfExpr *>(E)) {
+                std::string path = getPath(AddrOf->Expression.get());
                 if (!path.empty()) {
                     returnedDeps.insert(path);
                 }
             }
-        }
-      };
+            // Case 2: Returning existing reference variable `x`
+            else if (auto *Var = dynamic_cast<VariableExpr *>(E)) {
+              SymbolInfo info;
+              if (CurrentScope->lookup(Var->Name, info)) {
+                if (info.IsReference()) {
+                  // It depends on whatever 'info' borrowed from
+                  if (!info.BorrowedFrom.empty()) {
+                    returnedDeps.insert(info.BorrowedFrom);
+                  }
+                  // Also merge its transitive dependencies if we track them
+                  returnedDeps.insert(info.LifeDependencySet.begin(),
+                                      info.LifeDependencySet.end());
+                }
+              }
+            }
+            // Case 3: Dependency Transform Operator (CastExpr)
+            else if (auto *Cast = dynamic_cast<CastExpr *>(E)) {
+              auto srcType = Cast->Expression ? Cast->Expression->ResolvedType : nullptr;
+              auto targetType = Cast->ResolvedType;
+              if (srcType && targetType) {
+                bool targetIsTracked = targetType->isReference() || targetType->isSmartPointer();
+                bool srcIsUntraced = srcType->isRawPointer() || srcType->isAddrType() ||
+                                     srcType->toString() == "Addr" || srcType->toString() == "*void" || srcType->toString() == "*byte";
+                
+                if (targetIsTracked && srcIsUntraced) {
+                  // Rule 3: Reinterpret Cast -> Chain Fracture -> Evaporation Event
+                  returnedDeps.insert("__untraced_escape");
+                } else {
+                  // Rule 2: Reference-Preserving Cast -> Continuity Preservation
+                  collectDeps(Cast->Expression.get());
+                }
+              }
+            }
+            // Case 4: CallExpr
+            else if (auto *Call = dynamic_cast<CallExpr *>(E)) {
+                for (auto &Arg : Call->Args) {
+                    collectDeps(Arg.get());
+                }
+            }
+            // Case 5: InitStructExpr / AnonymousRecordExpr
+            else if (auto *Init = dynamic_cast<InitStructExpr *>(E)) {
+                for (auto &Mem : Init->Members) {
+                    collectDeps(Mem.second.get());
+                }
+            } else if (auto *Anon = dynamic_cast<AnonymousRecordExpr *>(E)) {
+                for (auto &Field : Anon->Fields) {
+                    collectDeps(Field.second.get());
+                }
+            }
+            // Case 6: Fallback for BinaryExpr named arg init if kept as CallExpr
+            else if (auto *Bin = dynamic_cast<BinaryExpr *>(E)) {
+                if (Bin->Op == "=") {
+                    collectDeps(Bin->RHS.get());
+                }
+            }
+            // Case 7: MemberExpr (e.g., e.&val)
+            else if (auto *Memb = dynamic_cast<MemberExpr *>(E)) {
+                bool isRef = false;
+                bool isAddressOf = Memb->Member.find('&') != std::string::npos;
+                if (isAddressOf || Memb->Member.find('^') != std::string::npos || Memb->Member.find('~') != std::string::npos) {
+                    isRef = true;
+                }
+                if (isRef) {
+                    std::string path = getPath(Memb);
+                    if (!path.empty()) {
+                        returnedDeps.insert(path);
+                    }
+                }
+            }
+          };
 
-      collectDeps(Ret->ReturnValue.get());
+          collectDeps(Ret->ReturnValue.get());
 
-      // Validate dependencies against declared LifeDependencies
-      if (CurrentFunction) {
-        for (const auto &dep : returnedDeps) {
-          // 1. Is it a parameter that can outlive the function?
-          bool isParam = false;
-          std::string baseDep = dep;
-          size_t dotPos = baseDep.find('.');
-          if (dotPos != std::string::npos) baseDep = baseDep.substr(0, dotPos);
+          // Validate dependencies against declared LifeDependencies
+          if (CurrentFunction) {
+            // [NEW] TCB boundary enforcement for untraced escape signals
+            if (returnedDeps.count("__untraced_escape")) {
+              std::string fnName = CurrentFunction->Name;
+              bool isUnsafeFn = (fnName.rfind("unsafe_", 0) == 0 ||
+                                 fnName.rfind("raw_", 0) == 0 ||
+                                 fnName.rfind("__", 0) == 0);
+              if (!isUnsafeFn) {
+                // Safe TCB boundary: trigger株连 or immediate 枪决
+                if (CurrentFunction->Args.empty()) {
+                  DiagnosticEngine::report(getLoc(Ret), DiagID::ERR_ESCAPE_LOCAL, "untraced unsafe cast");
+                  HasError = true;
+                } else {
+                  for (const auto &Arg : CurrentFunction->Args) {
+                    // Only implicate parameters that can carry lifetimes (i.e. not pure value types)
+                    bool isValueType = false;
+                    if (Arg.ResolvedType && (Arg.ResolvedType->isInteger() || Arg.ResolvedType->isFloatingPoint() || Arg.ResolvedType->isBoolean())) {
+                      isValueType = true;
+                    }
+                    if (!isValueType) {
+                      returnedDeps.insert(Arg.Name);
+                    }
+                  }
+                }
+              }
+              returnedDeps.erase("__untraced_escape");
+            }
 
-          for (const auto &Arg : CurrentFunction->Args) {
-            if (Arg.Name == baseDep) {
-                isParam = true;
-                break;
+            for (const auto &dep : returnedDeps) {
+              // 1. Is it a parameter that can outlive the function?
+              bool isParam = false;
+              std::string baseDep = dep;
+              size_t dotPos = baseDep.find('.');
+              if (dotPos != std::string::npos) baseDep = baseDep.substr(0, dotPos);
+
+              for (const auto &Arg : CurrentFunction->Args) {
+                if (Arg.Name == baseDep) {
+                    isParam = true;
+                    break;
+                }
+              }
+
+              if (!isParam) {
+                DiagnosticEngine::report(getLoc(Ret), DiagID::ERR_ESCAPE_LOCAL, dep);
+                HasError = true;
+                continue;
+              }
+
+              // 2. Is it allowed via effects?
+              bool allowed = false;
+              auto isDepMatch = [](const std::string &d, const std::string &a) -> bool {
+                if (d == a) return true;
+                // a is sub-path of d (e.g., d is self.buf, a is self)
+                if (d.size() > a.size() && d.substr(0, a.size() + 1) == a + ".") return true;
+                // d is sub-path of a (e.g., d is self, a is self.buf)
+                if (a.size() > d.size() && a.substr(0, d.size() + 1) == d + ".") return true;
+                return false;
+              };
+
+              for (const auto &allowedDep : CurrentFunction->LifeDependencies) {
+                if (isDepMatch(dep, allowedDep)) {
+                  allowed = true;
+                  break;
+                }
+              }
+              if (!allowed) {
+                for (const auto &pair : CurrentFunction->MemberDependencies) {
+                   for (const auto &allowedDep : pair.second) {
+                     if (isDepMatch(dep, allowedDep)) {
+                       allowed = true;
+                       break;
+                     }
+                   }
+                   if (allowed) break;
+                }
+              }
+
+              if (!allowed) {
+                DiagnosticEngine::report(getLoc(Ret), DiagID::ERR_LIFETIME_UNION_REQUIRED, dep, dep);
+                HasError = true;
+              }
             }
           }
-
-          if (!isParam) {
-            DiagnosticEngine::report(getLoc(Ret), DiagID::ERR_ESCAPE_LOCAL, dep);
-            HasError = true;
-            continue;
-          }
-
-          // 2. Is it allowed via effects?
-          bool allowed = false;
-          for (const auto &allowedDep : CurrentFunction->LifeDependencies) {
-            if (dep == allowedDep || (dep.size() > allowedDep.size() && dep.substr(0, allowedDep.size() + 1) == allowedDep + ".")) {
-              allowed = true;
-              break;
-            }
-          }
-          if (!allowed) {
-            for (const auto &pair : CurrentFunction->MemberDependencies) {
-               for (const auto &allowedDep : pair.second) {
-                 if (dep == allowedDep || (dep.size() > allowedDep.size() && dep.substr(0, allowedDep.size() + 1) == allowedDep + ".")) {
-                   allowed = true;
-                   break;
-                 }
-               }
-               if (allowed) break;
-            }
-          }
-
-          if (!allowed) {
-            DiagnosticEngine::report(getLoc(Ret), DiagID::ERR_LIFETIME_UNION_REQUIRED, dep, dep);
-            HasError = true;
-          }
-        }
       }
     }
 

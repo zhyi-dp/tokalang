@@ -27,7 +27,10 @@ extern fn libc_snprintf(*dest: char, size: usize, *format: char, ...) -> i32
 extern fn libc_sscanf(*s: char, *format: char, ...) -> i32
 
 impl char {
-    pub fn as_str(*self) -> str {
+    pub fn as_str(*self) -> res: str
+    effects:
+        res.&buf <- self
+    {
         unsafe {
             auto len = libc_strlen(*self)
             return str(&buf = (*self as *[char]) as &[char], len = len)
@@ -274,13 +277,19 @@ impl string {
         return cstr(*buf = self.c_str())
     }
 
-    pub fn as_str(self) -> str {
+    pub fn as_str(self) -> res: str
+    effects:
+        res.&buf <- self.buf
+    {
         unsafe {
             return str(&buf = self.*buf as &[char], len = self.len)
         }
     }
 
-    pub fn as_view(self) -> str {
+    pub fn as_view(self) -> res: str
+    effects:
+        res.&buf <- self.buf
+    {
         return self.as_str()
     }
 
