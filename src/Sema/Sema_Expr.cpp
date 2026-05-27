@@ -357,6 +357,38 @@ std::shared_ptr<toka::Type> Sema::checkExpr(Expr *E) {
       !dynamic_cast<ArrayInitExpr *>(E)) {
     m_LastInitMask = ~0ULL;
   }
+  bool hasRefs = false;
+  if (T) {
+      std::set<std::string> visited;
+      std::function<bool(std::shared_ptr<toka::Type>)> checkType = [&](std::shared_ptr<toka::Type> t) -> bool {
+          if (!t) return false;
+          if (t->isReference()) return true;
+          if (auto *st = dynamic_cast<ShapeType *>(t.get())) {
+              for (const auto &arg : st->GenericArgs) {
+                  if (checkType(arg)) return true;
+              }
+              std::string sName = t->getSoulName();
+              if (visited.count(sName) == 0) {
+                  visited.insert(sName);
+                  if (ShapeMap.count(sName)) {
+                      ShapeDecl *SD = ShapeMap[sName];
+                      for (const auto &m : SD->Members) {
+                          auto mT = toka::Type::fromString(m.Type);
+                          if (checkType(mT)) return true;
+                      }
+                  }
+              }
+          }
+          return false;
+      };
+      hasRefs = checkType(T);
+  }
+
+  if (!hasRefs) {
+      m_LastLifeDependencies.clear();
+      m_LastBorrowSource = "";
+  }
+
   return T;
 }
 
@@ -2300,6 +2332,66 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
         }
 
         auto retType = toka::Type::fromString(MethodMap[soulType][Met->Method]);
+
+        if (FD) {
+            bool hasExplicitDeps = !FD->LifeDependencies.empty();
+            bool hasImplicitDeps = false;
+            
+            std::set<std::string> visited;
+            std::function<bool(std::shared_ptr<toka::Type>)> checkType = [&](std::shared_ptr<toka::Type> t) -> bool {
+                if (!t) return false;
+                if (t->isReference()) return true;
+                if (auto *st = dynamic_cast<ShapeType *>(t.get())) {
+                    for (const auto &arg : st->GenericArgs) {
+                        if (checkType(arg)) return true;
+                    }
+                    std::string sName = t->getSoulName();
+                    if (visited.count(sName) == 0) {
+                        visited.insert(sName);
+                        if (ShapeMap.count(sName)) {
+                            ShapeDecl *SD = ShapeMap[sName];
+                            for (const auto &m : SD->Members) {
+                                auto mT = toka::Type::fromString(m.Type);
+                                if (checkType(mT)) return true;
+                            }
+                        }
+                    }
+                }
+                return false;
+            };
+
+            if (!hasExplicitDeps && retType && checkType(retType)) {
+                hasImplicitDeps = true;
+            }
+
+            auto mapParamToArg = [&](const std::string &paramName) -> std::string {
+               if (paramName == "self") {
+                  return getStringifyPath(Met->Object.get());
+               }
+               for (size_t i = 0; i < FD->Args.size(); ++i) {
+                  if (FD->Args[i].Name == paramName) {
+                     if (i > 0 && (i - 1) < Met->Args.size()) {
+                         if (auto *ve = dynamic_cast<VariableExpr*>(Met->Args[i - 1].get())) return ve->Name;
+                         else if (auto *me = dynamic_cast<MemberExpr*>(Met->Args[i - 1].get())) return me->toString();
+                     }
+                  }
+               }
+               return "";
+            };
+
+            if (hasExplicitDeps) {
+                for (const auto &dep : FD->LifeDependencies) {
+                   std::string argVar = mapParamToArg(dep);
+                   if (!argVar.empty()) m_LastLifeDependencies.insert(argVar);
+                }
+            } else if (hasImplicitDeps) {
+                std::string selfPath = getStringifyPath(Met->Object.get());
+                if (!selfPath.empty()) {
+                    m_LastLifeDependencies.insert(selfPath);
+                }
+            }
+        }
+
         if (FD && FD->Effect == EffectKind::Async) {
             std::string tName = "TaskHandle<" + retType->toString() + ">";
             return toka::Type::fromString(tName);
@@ -2614,9 +2706,10 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       isReceiver = m_ControlFlowStack.back().IsReceiver;
     }
 
+    std::string targetPath = getStringifyPath(me->Target.get());
     for (auto &arm : me->Arms) {
       enterScope();
-      checkPattern(arm->Pat.get(), targetType, false);
+      checkPattern(arm->Pat.get(), targetType, false, targetPath);
       if (arm->Guard) {
         auto guardTypeObj = checkExpr(arm->Guard.get());
         if (!arm->Guard->ResolvedType->isBoolean()) {

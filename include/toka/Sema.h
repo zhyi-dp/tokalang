@@ -362,7 +362,7 @@ private:
   checkIndexExpr(ArrayIndexExpr *Idx);                       // New Object API
   std::shared_ptr<toka::Type> checkCallExpr(CallExpr *Call); // New Object API
   void checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
-                    bool SourceIsMutable);
+                    bool SourceIsMutable, const std::string &TargetPath = "");
 
   // Decoupled Initialization Helpers
   std::shared_ptr<toka::Type> checkShapeInit(InitStructExpr *Init);

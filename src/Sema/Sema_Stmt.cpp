@@ -25,6 +25,28 @@ namespace toka {
 
 static SourceLocation getLoc(ASTNode *Node) { return Node->Loc; }
 
+static std::string getStringifyPath(Expr *E) {
+  if (!E)
+    return "";
+  if (auto *ve = dynamic_cast<VariableExpr *>(E)) {
+    return ve->Name;
+  }
+  if (auto *me = dynamic_cast<MemberExpr *>(E)) {
+    std::string member = toka::Type::stripMorphology(me->Member);
+    return getStringifyPath(me->Object.get()) + "." + member;
+  }
+  if (auto *ue = dynamic_cast<UnaryExpr *>(E)) {
+    return getStringifyPath(ue->RHS.get());
+  }
+  if (auto *ae = dynamic_cast<AddressOfExpr *>(E)) {
+    return getStringifyPath(ae->Expression.get());
+  }
+  if (auto *ae = dynamic_cast<ArrayIndexExpr *>(E)) {
+    return getStringifyPath(ae->Array.get());
+  }
+  return "";
+}
+
 bool Sema::allPathsReturn(Stmt *S) {
   if (!S)
     return false;
@@ -804,25 +826,43 @@ void Sema::checkStmt(Stmt *S) {
       if ((Var->IsPointerNullable || hadNul) && morph.find("nul") == std::string::npos)
         morph = "nul " + morph;
     }
+    if (!m_LastLifeDependencies.empty()) {
+      for (const auto &dep : m_LastLifeDependencies) {
+        Info.LifeDependencySet.insert(dep);
+        SymbolInfo *depInfo = nullptr;
+        if (CurrentScope->findSymbol(dep, depInfo)) {
+            Info.LifeDependencySet.insert(depInfo->LifeDependencySet.begin(), depInfo->LifeDependencySet.end());
+        }
+
+        int srcDepth = getScopeDepth(dep);
+        int myDepth = CurrentScope->Depth;
+        if (myDepth < srcDepth) {
+          DiagnosticEngine::report(getLoc(Var), DiagID::ERR_BORROW_LIFETIME,
+                                   Var->Name, dep);
+          HasError = true;
+        }
+      }
+      m_LastLifeDependencies.clear();
+    }
+
     if (morph == "&" && !m_LastBorrowSource.empty()) {
       Info.BorrowedFrom = m_LastBorrowSource;
       Info.LifeDependencySet.insert(m_LastBorrowSource);
 
-      // [NEW] Lifetime check: Depth(Me) >= Depth(Src)
-      int srcDepth = getScopeDepth(m_LastBorrowSource);
-      int myDepth = CurrentScope->Depth;
-      if (myDepth < srcDepth) {
-        DiagnosticEngine::report(getLoc(Var), DiagID::ERR_BORROW_LIFETIME,
-                                 Var->Name, m_LastBorrowSource);
-        HasError = true;
-      }
-
-      // [Hot Potato] Propagate InitMask from Source to Reference
       SymbolInfo *srcPtr = nullptr;
       if (CurrentScope->findSymbol(m_LastBorrowSource, srcPtr)) {
-        // If source is not fully initialized, mark this reference as holding a
-        // Hot Potato We use the same 'signature' logic as elsewhere to
-        // determine "Full"
+        Info.LifeDependencySet.insert(srcPtr->LifeDependencySet.begin(), srcPtr->LifeDependencySet.end());
+
+        // [NEW] Lifetime check: Depth(Me) >= Depth(Src)
+        int srcDepth = getScopeDepth(m_LastBorrowSource);
+        int myDepth = CurrentScope->Depth;
+        if (myDepth < srcDepth) {
+          DiagnosticEngine::report(getLoc(Var), DiagID::ERR_BORROW_LIFETIME,
+                                   Var->Name, m_LastBorrowSource);
+          HasError = true;
+        }
+
+        // [Hot Potato] Propagate InitMask from Source to Reference
         uint64_t fullMask = ~0ULL;
         if (srcPtr->TypeObj && srcPtr->TypeObj->isShape()) {
           std::string soul = srcPtr->TypeObj->getSoulName();
@@ -847,20 +887,9 @@ void Sema::checkStmt(Stmt *S) {
       if (!m_LastBorrowSource.empty()) {
           PALCheckerState.commitTransient(m_LastBorrowSource);
       }
-    }
-
-    if (!m_LastLifeDependencies.empty()) {
-      for (const auto &dep : m_LastLifeDependencies) {
-        Info.LifeDependencySet.insert(dep);
-        int srcDepth = getScopeDepth(dep);
-        int myDepth = CurrentScope->Depth;
-        if (myDepth < srcDepth) {
-          DiagnosticEngine::report(getLoc(Var), DiagID::ERR_BORROW_LIFETIME,
-                                   Var->Name, dep);
-          HasError = true;
-        }
+      for (const auto &dep : Info.LifeDependencySet) {
+          PALCheckerState.commitTransient(dep);
       }
-      m_LastLifeDependencies.clear();
     }
     
     if (!m_LastFieldDependencies.empty()) {
@@ -1233,8 +1262,9 @@ void Sema::checkStmt(Stmt *S) {
         GuardBind->Target->ExtendLifetime = true;
     }
 
+    std::string targetPath = getStringifyPath(GuardBind->Target.get());
     // Check Pattern and bind variables into CurrentScope
-    checkPattern(GuardBind->Pat.get(), targetType, false);
+    checkPattern(GuardBind->Pat.get(), targetType, false, targetPath);
 
     bool isReceiver = false;
     if (!m_ControlFlowStack.empty()) {

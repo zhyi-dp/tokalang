@@ -1435,6 +1435,36 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
 
   // Inject Caller-Side Effect Dependencies
   if (Fn) {
+      bool hasExplicitDeps = !Fn->LifeDependencies.empty();
+      bool hasImplicitDeps = false;
+
+      std::set<std::string> visited;
+      std::function<bool(std::shared_ptr<toka::Type>)> checkType = [&](std::shared_ptr<toka::Type> t) -> bool {
+          if (!t) return false;
+          if (t->isReference()) return true;
+          if (auto *st = dynamic_cast<ShapeType *>(t.get())) {
+              for (const auto &arg : st->GenericArgs) {
+                  if (checkType(arg)) return true;
+              }
+              std::string sName = t->getSoulName();
+              if (visited.count(sName) == 0) {
+                  visited.insert(sName);
+                  if (ShapeMap.count(sName)) {
+                      ShapeDecl *SD = ShapeMap[sName];
+                      for (const auto &m : SD->Members) {
+                          auto mT = toka::Type::fromString(m.Type);
+                          if (checkType(mT)) return true;
+                      }
+                  }
+              }
+          }
+          return false;
+      };
+
+      if (!hasExplicitDeps && ReturnType && checkType(ReturnType)) {
+          hasImplicitDeps = true;
+      }
+
       auto mapParamToArg = [&](const std::string &paramName) -> std::string {
          for (size_t i = 0; i < Fn->Args.size(); ++i) {
             if (Fn->Args[i].Name == paramName) {
@@ -1447,15 +1477,29 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
          return "";
       };
 
-      for (const auto &dep : Fn->LifeDependencies) {
-         std::string argVar = mapParamToArg(dep);
-         if (!argVar.empty()) m_LastLifeDependencies.insert(argVar);
+      if (hasExplicitDeps) {
+          for (const auto &dep : Fn->LifeDependencies) {
+             std::string argVar = mapParamToArg(dep);
+             if (!argVar.empty()) m_LastLifeDependencies.insert(argVar);
+          }
+      } else if (hasImplicitDeps) {
+          for (size_t i = 0; i < Fn->Args.size(); ++i) {
+              auto argTypeObj = toka::Type::fromString(Fn->Args[i].Type);
+              if (checkType(argTypeObj) && i < Call->Args.size()) {
+                  std::string argVar = getStringifyPath(Call->Args[i].get());
+                  if (!argVar.empty()) {
+                      m_LastLifeDependencies.insert(argVar);
+                      break;
+                  }
+              }
+          }
       }
+
       for (const auto &pair : Fn->MemberDependencies) {
          for (const auto &dep : pair.second) {
              std::string argVar = mapParamToArg(dep);
              if (!argVar.empty()) m_LastFieldDependencies[pair.first].insert(argVar);
-         }
+          }
       }
   }
 

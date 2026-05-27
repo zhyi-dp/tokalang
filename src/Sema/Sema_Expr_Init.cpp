@@ -51,7 +51,7 @@ static std::string getStringifyPath(Expr *E) {
 }
 
 void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
-                        bool SourceIsMutable) {
+                        bool SourceIsMutable, const std::string &TargetPath) {
   if (!Pat)
     return;
 
@@ -70,8 +70,8 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
       error(Pat, DiagID::ERR_GENERIC_SEMA, "Invalid range pattern structure");
       break;
     }
-    checkPattern(Pat->SubPatterns[0].get(), TargetType, SourceIsMutable);
-    checkPattern(Pat->SubPatterns[1].get(), TargetType, SourceIsMutable);
+    checkPattern(Pat->SubPatterns[0].get(), TargetType, SourceIsMutable, TargetPath);
+    checkPattern(Pat->SubPatterns[1].get(), TargetType, SourceIsMutable, TargetPath);
 
     std::string resolvedT = resolveType(T, true);
     auto targetObj = toka::Type::fromString(resolvedT);
@@ -147,7 +147,7 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
     
     for (auto &sub : Pat->SubPatterns) {
       CurrentScope = new Scope(originalScope);
-      checkPattern(sub.get(), TargetType, SourceIsMutable);
+      checkPattern(sub.get(), TargetType, SourceIsMutable, TargetPath);
       branchSymbols.push_back(CurrentScope->Symbols);
       Scope* temp = CurrentScope;
       CurrentScope = originalScope;
@@ -264,6 +264,17 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
                     HasError = true;
                 }
             }
+        }
+    }
+
+    if (Pat->IsReference && !TargetPath.empty()) {
+        Info.BorrowedFrom = TargetPath;
+        Info.LifeDependencySet.insert(TargetPath);
+        
+        // Also inherit any transitive dependencies if the target path is a known symbol
+        SymbolInfo *targetInfo = nullptr;
+        if (CurrentScope->findSymbol(TargetPath, targetInfo)) {
+            Info.LifeDependencySet.insert(targetInfo->LifeDependencySet.begin(), targetInfo->LifeDependencySet.end());
         }
     }
 
@@ -550,7 +561,7 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
                 }
               }
 
-              checkPattern(Pat->SubPatterns[i].get(), SD->Members[memberIndex].Type, SourceIsMutable);
+              checkPattern(Pat->SubPatterns[i].get(), SD->Members[memberIndex].Type, SourceIsMutable, TargetPath);
             }
           }
         }
@@ -596,7 +607,7 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
                     for (size_t i = 0; i < Pat->SubPatterns.size(); ++i) {
                       if (i == elisionIndex) continue;
                       size_t memberIndex = (i < elisionIndex) ? i : (i + elidedFields - 1);
-                      checkPattern(Pat->SubPatterns[i].get(), foundMemb->SubMembers[memberIndex].Type, SourceIsMutable);
+                      checkPattern(Pat->SubPatterns[i].get(), foundMemb->SubMembers[memberIndex].Type, SourceIsMutable, TargetPath);
                     }
                   }
                 } else {
@@ -608,7 +619,7 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
                   } else {
                     for (size_t i = 0; i < Pat->SubPatterns.size(); ++i) {
                       checkPattern(Pat->SubPatterns[i].get(),
-                                   foundMemb->SubMembers[i].Type, SourceIsMutable);
+                                   foundMemb->SubMembers[i].Type, SourceIsMutable, TargetPath);
                     }
                   }
                 }
@@ -636,7 +647,7 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
                     HasError = true;
                   } else {
                     checkPattern(Pat->SubPatterns[0].get(), foundMemb->Type,
-                                 SourceIsMutable);
+                                 SourceIsMutable, TargetPath);
                   }
                 }
               }

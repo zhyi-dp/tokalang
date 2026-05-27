@@ -533,21 +533,41 @@ std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
         std::set<std::string> rhsDeps = m_LastLifeDependencies;
         if (!m_LastBorrowSource.empty())
           rhsDeps.insert(m_LastBorrowSource);
+        
         if (auto *rv = dynamic_cast<VariableExpr *>(Bin->RHS.get())) {
           SymbolInfo *ri = nullptr;
           if (CurrentScope->findSymbol(rv->Name, ri)) {
-            for (const auto &d : ri->LifeDependencySet)
-              rhsDeps.insert(d);
+            rhsDeps.insert(ri->LifeDependencySet.begin(), ri->LifeDependencySet.end());
           }
         }
 
-        int targetDepth = getScopeDepth(targetObjName);
+        std::set<std::string> mergedDeps;
         for (const auto &dep : rhsDeps) {
-          int depDepth = getScopeDepth(dep);
-          if (targetDepth < depDepth) { // outer < inner => error
-            error(Bin, DiagID::ERR_BORROW_LIFETIME, targetObjName, dep);
+            mergedDeps.insert(dep);
+            SymbolInfo *depInfo = nullptr;
+            if (CurrentScope->findSymbol(dep, depInfo)) {
+                mergedDeps.insert(depInfo->LifeDependencySet.begin(), depInfo->LifeDependencySet.end());
+            }
+        }
+
+        int targetDepth = getScopeDepth(targetObjName);
+        for (const auto &dep : mergedDeps) {
+          SymbolInfo *depInfo = nullptr;
+          if (CurrentScope->findSymbol(dep, depInfo) && !depInfo->IsReference()) {
+              for (const auto &transDep : depInfo->LifeDependencySet) {
+                  int depDepth = getScopeDepth(transDep);
+                  if (targetDepth < depDepth) {
+                      error(Bin, DiagID::ERR_BORROW_LIFETIME, targetObjName, transDep);
+                  }
+                  targetInfo->LifeDependencySet.insert(transDep);
+              }
+          } else {
+              int depDepth = getScopeDepth(dep);
+              if (targetDepth < depDepth) {
+                error(Bin, DiagID::ERR_BORROW_LIFETIME, targetObjName, dep);
+              }
+              targetInfo->LifeDependencySet.insert(dep);
           }
-          targetInfo->LifeDependencySet.insert(dep);
         }
       }
     }

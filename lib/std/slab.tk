@@ -120,7 +120,7 @@ impl<'T> Slab<'T> {
         }
     }
 
-    pub fn get(self, id: SlabID) -> Option<&'T> {
+    pub fn get(self, id: SlabID) -> Option<&'T> <- self {
         auto idx = id.index()
         if idx >= self.entries.len() {
             return Option<&'T>::None
@@ -141,7 +141,7 @@ impl<'T> Slab<'T> {
         }
     }
 
-    pub fn get_mut(self#, id: SlabID) -> Option<&#'T> {
+    pub fn get_mut(self#, id: SlabID) -> Option<&#'T> <- self {
         auto idx = id.index()
         if idx >= self.entries.len() {
             return Option<&#'T>::None
