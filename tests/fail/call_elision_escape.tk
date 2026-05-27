@@ -1,0 +1,17 @@
+import std/io::println
+
+// A function with explicit dependency <- a
+fn choose_first(a: i32, b: i32) -> &i32 <- a {
+    return &a
+}
+
+fn main() -> i32 {
+    auto x = 42
+    auto &#res = &x // Declared as mutable reference &#res
+    {
+        auto y = 100
+        &res = choose_first(y, x) // Dependency <- a makes &res depend on y!
+    } // y goes out of scope!
+    println("res = {}", res) // Should fail: y (lived shorter) cannot be borrowed after scope!
+    return 0
+}

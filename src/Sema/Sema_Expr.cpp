@@ -213,7 +213,7 @@ std::unique_ptr<Expr> Sema::foldGenericConstant(std::unique_ptr<Expr> E) {
   if (auto *Var = dynamic_cast<VariableExpr *>(E.get())) {
     SymbolInfo Info;
     // Look up symbol. If explicit Const Generic, substitute.
-    if (CurrentScope->lookup(Var->Name, Info) && Info.HasConstValue) {
+    if (CurrentScope->lookup(Var->Name, Info) && Info.HasConstValue && !Info.IsDeclaredVariable) {
       // Create replacement NumberExpr
       // Note: We use default i32/u64 typing logic or explicit usize?
       // User suggested Type::usize(). Assuming AST supports it or just Value.

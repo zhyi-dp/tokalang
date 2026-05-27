@@ -47,6 +47,9 @@ static std::string getStringifyPath(Expr *E) {
   if (auto *ae = dynamic_cast<ArrayIndexExpr *>(E)) {
     return getStringifyPath(ae->Array.get());
   }
+  if (auto *ce = dynamic_cast<CastExpr *>(E)) {
+    return getStringifyPath(ce->Expression.get());
+  }
   return "";
 }
 
@@ -1469,8 +1472,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
          for (size_t i = 0; i < Fn->Args.size(); ++i) {
             if (Fn->Args[i].Name == paramName) {
                if (i < Call->Args.size()) {
-                   if (auto *ve = dynamic_cast<VariableExpr*>(Call->Args[i].get())) return ve->Name;
-                   else if (auto *me = dynamic_cast<MemberExpr*>(Call->Args[i].get())) return me->toString();
+                   return getStringifyPath(Call->Args[i].get());
                }
             }
          }

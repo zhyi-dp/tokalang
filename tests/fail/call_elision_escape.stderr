@@ -1,0 +1,5 @@
+error[E0456]: Object 'res' (lived longer) cannot depend on 'y' (lived shorter)
+ --> tests/fail/call_elision_escape.tk:13:14
+    |
+ 13 |         &res = choose_first(y, x) // Dependency <- a makes &res depend on y!
+    |              ^

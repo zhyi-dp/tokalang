@@ -1,0 +1,10 @@
+error[E0455]: Returning reference to local variable 'p.x' is unsafe
+ --> tests/fail/slab_uaf_decons.tk:13:13
+    |
+ 13 |             return p.&x  // Should fail because &p is bound to opt (local parameter)
+    |             ^
+error[E0455]: Returning reference to local variable 'default_val' is unsafe
+ --> tests/fail/slab_uaf_decons.tk:16:13
+    |
+ 16 |             return &default_val
+    |             ^
