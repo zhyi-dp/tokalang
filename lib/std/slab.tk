@@ -1,0 +1,143 @@
+import core/types::{usize}
+import core/traits::{@encap}
+import core/option::{Option}
+import std/vec::{Vec}
+
+pub shape SlabID (
+    raw: u64
+)
+
+impl SlabID {
+    pub fn new(index: usize, generation: usize) -> SlabID {
+        auto raw_val = (index as u64) bor ((generation as u64) bshl 32:u64)
+        return SlabID(raw = raw_val)
+    }
+
+    pub fn index(self) -> usize {
+        return (self.raw band 0xFFFFFFFF:u64) as usize
+    }
+
+    pub fn generation(self) -> usize {
+        return (self.raw bshr 32:u64) as usize
+    }
+}
+
+impl SlabID@encap {
+    fn drop(self#) {}
+    pub fn clone(self) -> SlabID {
+        return SlabID(raw = self.raw)
+    }
+}
+
+shape SlabEntry<'T> (
+    val#: Option<'T> = Option<'T>::None,
+    generation#: u32 = 0,
+    next_free#: usize = 0
+)
+
+pub shape Slab<'T> (
+    entries#: Vec<SlabEntry<'T> > = Vec<SlabEntry<'T> >::new(),
+    free_head#: usize = 0xFFFFFFFF:usize,
+    len#: usize = 0
+)
+
+impl<'T> Slab<'T> {
+    pub fn new() -> Slab<'T> {
+        return Slab<'T>(
+            entries = Vec<SlabEntry<'T> >::new(),
+            free_head = 0xFFFFFFFF:usize,
+            len = 0
+        )
+    }
+
+    pub fn len(self) -> usize {
+        return self.len
+    }
+
+    pub fn is_empty(self) -> bool {
+        return self.len == 0
+    }
+
+    pub fn clear(self#) {
+        self.entries#.clear()
+        self.free_head = 0xFFFFFFFF:usize
+        self.len = 0
+    }
+
+    pub fn insert(self#, val: 'T) -> SlabID {
+        auto head = self.free_head
+        auto idx# = 0:usize
+        auto gen# = 0:usize
+        
+        if head == 0xFFFFFFFF:usize {
+            idx = self.entries.len()
+            gen = 1:usize
+            auto entry = SlabEntry<'T>(
+                val = Option<'T>::None,
+                generation = 1:u32,
+                next_free = 0:usize
+            )
+            self.entries#.push(cede entry)
+        } else {
+            idx = head
+            unsafe {
+                auto *#entry# = self.entries.unsafe_get(head)
+                self.free_head = entry.next_free
+                entry.generation = entry.generation + 1:u32
+                gen = entry.generation as usize
+            }
+        }
+        
+        unsafe {
+            auto *#target# = self.entries.unsafe_get(idx)
+            target.val = Option<'T>::Some(cede val)
+        }
+        
+        self.len = self.len + 1
+        return SlabID::new(idx, gen)
+    }
+
+    pub fn remove(self#, id: SlabID) -> Option<'T> {
+        auto idx = id.index()
+        if idx >= self.entries.len() {
+            return Option<'T>::None
+        }
+        unsafe {
+            auto *#entry# = self.entries.unsafe_get(idx)
+            if entry.generation as usize != id.generation() {
+                return Option<'T>::None
+            }
+            if entry.val.is_none() {
+                return Option<'T>::None
+            }
+            
+            auto val = cede entry.val
+            entry.val = Option<'T>::None
+            entry.next_free = self.free_head
+            self.free_head = idx
+            self.len = self.len - 1
+            return cede val
+        }
+    }
+
+    pub fn get(self, id: SlabID) -> Option<'T> {
+        auto idx = id.index()
+        if idx >= self.entries.len() {
+            return Option<'T>::None
+        }
+        unsafe {
+            auto *#entry# = self.entries.unsafe_get(idx)
+            if entry.generation as usize != id.generation() {
+                return Option<'T>::None
+            }
+            return entry.val
+        }
+    }
+}
+
+impl<'T> Slab<'T>@encap {
+    fn drop(self#) {
+        self#.clear()
+    }
+    pub fn clone(self) = delete
+}
