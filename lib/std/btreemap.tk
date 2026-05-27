@@ -10,7 +10,7 @@ pub fn addr_is_not_null(a: Addr) -> bool {
     return (a as u64) != 0:u64
 }
 
-pub shape BTreeNode<'K, 'V> (
+shape BTreeNode<'K, 'V> (
     len#: usize = 0,
     is_leaf#: bool = true,
     keys#: ['K; 5],
@@ -225,7 +225,6 @@ impl<'K: @PartialOrd, 'V> BTreeMap<'K, 'V> {
 }
 
 impl<'K: @PartialOrd, 'V> BTreeMap<'K, 'V>@encap {
-    pub *
     fn drop(self#) { self#.clear() }
     
     pub fn clone(self) = delete

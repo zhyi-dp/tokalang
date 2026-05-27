@@ -521,11 +521,9 @@ std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
     // [FIX] Reference Rebinding Morphology Mirror
     // [NEW] Lifetime Safety Check: Scope(LHS_Object) >=
     // Scope(RHS_Dependency)
-    std::cout << "DEBUG-LIFETIME-OP: op = " << Bin->Op << ", LHS class = " << typeid(*Bin->LHS.get()).name() << std::endl;
     std::string targetObjName = "";
     Expr *lhsObj = Bin->LHS.get();
     while (true) {
-        std::cout << "DEBUG-LHS-ITER: class = " << typeid(*lhsObj).name() << std::endl;
         if (auto *me = dynamic_cast<MemberExpr *>(lhsObj)) {
             lhsObj = me->Object.get();
         } else if (auto *un = dynamic_cast<UnaryExpr *>(lhsObj)) {
@@ -536,9 +534,7 @@ std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
             break;
         }
     }
-    std::cout << "DEBUG-LHS-FINAL: class = " << typeid(*lhsObj).name() << std::endl;
     if (auto *ve = dynamic_cast<VariableExpr *>(lhsObj)) {
-      std::cout << "DEBUG-LHS-NAME: ve->Name = " << ve->Name << std::endl;
       targetObjName = ve->Name;
     }
 
@@ -553,10 +549,6 @@ std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
       }
 
       if (targetInfo) {
-        std::cout << "DEBUG-LHS-DEPS: size = " << m_LastLifeDependencies.size() << std::endl;
-        for (const auto &d : m_LastLifeDependencies) {
-            std::cout << "DEBUG-LHS-DEP-EL: " << d << std::endl;
-        }
         std::set<std::string> rhsDeps = m_LastLifeDependencies;
         if (!m_LastBorrowSource.empty())
           rhsDeps.insert(m_LastBorrowSource);
@@ -592,7 +584,6 @@ std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
         }
 
         int targetDepth = getScopeDepth(lookupName);
-        std::cout << "DEBUG-LIFETIME: target = " << targetObjName << " (depth " << targetDepth << ")" << std::endl;
         std::set<std::string> visited;
         std::function<bool(std::shared_ptr<toka::Type>)> checkType = [&](std::shared_ptr<toka::Type> t) -> bool {
             if (!t) return false;
@@ -618,11 +609,9 @@ std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
 
         for (const auto &dep : mergedDeps) {
           SymbolInfo *depInfo = nullptr;
-          std::cout << "DEBUG-LIFETIME: dep = " << dep << " (depth " << getScopeDepth(dep) << ")" << std::endl;
           if (CurrentScope->findSymbol(dep, depInfo) && !depInfo->IsReference() && checkType(depInfo->TypeObj)) {
               for (const auto &transDep : depInfo->LifeDependencySet) {
                   int depDepth = getScopeDepth(transDep);
-                  std::cout << "DEBUG-LIFETIME: proxy transDep = " << transDep << " (depth " << depDepth << ")" << std::endl;
                   if (targetDepth < depDepth) {
                       error(Bin, DiagID::ERR_BORROW_LIFETIME, targetObjName, transDep);
                   }

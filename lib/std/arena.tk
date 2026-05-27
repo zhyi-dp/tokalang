@@ -7,7 +7,7 @@ import core/traits::{@encap}
 import sys/libc::{libc_malloc, libc_free, libc_memcpy}
 import core/str::{str}
 
-pub shape ArenaChunk (
+shape ArenaChunk (
     data: Addr,
     capacity: usize,
     offset#: usize,
@@ -172,7 +172,6 @@ pub fn alloc_str(arena#: Arena, s: str) -> str {
 
 
 impl Arena@encap {
-    pub *
     fn drop(self#) {
         self#.release()
     }
@@ -181,7 +180,6 @@ impl Arena@encap {
 }
 
 impl ArenaChunk@encap {
-    pub *
     fn drop(self#) {
         // ArenaChunk does not own its memory; the Arena does.
     }

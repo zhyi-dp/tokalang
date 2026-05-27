@@ -42,22 +42,6 @@ alias IoResult = Result<File, string>
 alias IoStringResult = Result<string, string>
 alias IoSizeResult = Result<usize, string>
 
-impl File@encap {
-    pub *
-    fn drop(self#) {
-        unsafe {
-            if self.owned && self.opened && self.*handle != (ADDR0 as *void) {
-                libc_fclose(self.*handle)
-                self.opened = false
-                self.*handle = ADDR0 as *void
-            }
-        }
-    }
-    
-    // Non-owning clone (Weak Reference) to satisfy strict pointer rules
-    pub fn clone(self) = delete
-}
-
 impl File {
     pub fn open(path: string, mode: str) -> File {
         unsafe {
@@ -93,6 +77,21 @@ impl File {
             )
         }
     }
+}
+
+impl File@encap {
+    fn drop(self#) {
+        unsafe {
+            if self.owned && self.opened && self.*handle != (ADDR0 as *void) {
+                libc_fclose(self.*handle)
+                self.opened = false
+                self.*handle = ADDR0 as *void
+            }
+        }
+    }
+    
+    // Non-owning clone (Weak Reference) to satisfy strict pointer rules
+    pub fn clone(self) = delete
 
     pub fn is_valid(self) -> bool {
         return self.opened

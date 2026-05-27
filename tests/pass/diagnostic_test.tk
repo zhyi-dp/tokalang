@@ -7,11 +7,12 @@ fn main() -> i32 {
     auto source1 = string::from("fn main() -> i32 {\n    auto x = paramTys.len\n    return 0\n}")
     auto file1 = SourceFile::new(string::from("src/main.tk"), source1)
     
-    println("source1 len = {}", file1.source.len())
-    println("line_starts size = {}", file1.line_starts.len() as i32)
+    auto starts = file1.line_starts()
+    println("source1 len = {}", file1.source().len())
+    println("line_starts size = {}", starts.len() as i32)
     auto dbg_i# = 0
-    loop dbg_i < file1.line_starts.len() as i32 {
-        println("line_start[{}] = {}", dbg_i, file1.line_starts.get(dbg_i as usize) as i32)
+    loop dbg_i < starts.len() as i32 {
+        println("line_start[{}] = {}", dbg_i, starts.get(dbg_i as usize) as i32)
         dbg_i = dbg_i + 1
     }
     

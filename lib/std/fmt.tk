@@ -174,18 +174,6 @@ pub shape SourceFile (
     line_starts: Vec<usize>
 )
 
-impl SourceFile@encap {
-    pub *
-    fn drop(self#) {}
-    pub fn clone(self) -> SourceFile {
-        return SourceFile(
-            name = self.name.clone(),
-            source = self.source.clone(),
-            line_starts = self.line_starts.clone()
-        )
-    }
-}
-
 impl SourceFile {
     pub fn new(name: string, source: string) -> SourceFile {
         auto line_starts = Vec<usize>::new()
@@ -210,7 +198,26 @@ impl SourceFile {
             line_starts = cede line_starts
         )
     }
-    
+}
+
+impl SourceFile@encap {
+    fn drop(self#) {}
+    pub fn clone(self) -> SourceFile {
+        return SourceFile(
+            name = self.name.clone(),
+            source = self.source.clone(),
+            line_starts = self.line_starts.clone()
+        )
+    }
+    pub fn name(self) -> string {
+        return self.name.clone()
+    }
+    pub fn source(self) -> string {
+        return self.source.clone()
+    }
+    pub fn line_starts(self) -> Vec<usize> {
+        return self.line_starts.clone()
+    }
     pub fn lookup_location(self, offset: usize) -> Location {
         auto size = self.line_starts.len()
         if size == 0 {
@@ -396,7 +403,7 @@ impl Diagnostic {
                 if color { sb#.append(cyan_bold.code.clone()) }
                 sb#.append_str("--> ")
                 if color { sb#.append(AnsiStyle::reset().code.clone()) }
-                sb#.append(file.name.clone())
+                sb#.append(file.name())
                 sb#.append_str(":")
                 sb#.append_i32(loc.line as i32)
                 sb#.append_str(":")
