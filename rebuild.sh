@@ -33,6 +33,11 @@ if ! command -v "$LLVM_CLANG" >/dev/null 2>&1 && [ ! -f "$LLVM_CLANG" ]; then
 fi
 
 echo "====================================="
+echo "0. Generating Diagnostics Definition"
+echo "====================================="
+python3 tools/scripts/gen_diagnostics.py
+
+echo "====================================="
 echo "1. Building Toka Compiler (tokac)"
 echo "====================================="
 make -C build -j8

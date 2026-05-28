@@ -4,8 +4,8 @@ shape UnsafeData (
 )
 
 impl UnsafeData {
-    pub fn drop(&self#) {}
-    pub fn clone(&self) -> ^UnsafeData { return new UnsafeData(value=0, *ptr=self.ptr) }
+    pub fn drop(self#) {}
+    pub fn clone(self) -> ^UnsafeData { return new UnsafeData(value=0, *ptr=self.ptr) }
 }
 
 fn process_send<T: @Send>(val: ^T) {}

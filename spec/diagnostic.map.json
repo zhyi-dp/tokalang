@@ -2,33 +2,708 @@
   "spec_version": "0.9.8-02",
   "compiler_compat": ">=0.9.8-01 <0.9.9",
   "diagnostics": {
+    "E0401": {
+      "id": "ERR_VAR_REDECLARED",
+      "level": "Error",
+      "message": "Variable '{}' is already declared in this scope",
+      "description": "Variable '{}' is already declared in this scope"
+    },
+    "E0462": {
+      "id": "ERR_SYMBOL_REDEFINED",
+      "level": "Error",
+      "message": "Symbol '{}' is already defined in this scope",
+      "description": "Symbol '{}' is already defined in this scope"
+    },
+    "E0402": {
+      "id": "ERR_UNDECLARED",
+      "level": "Error",
+      "message": "Use of undeclared identifier '{}'",
+      "description": "Use of undeclared identifier '{}'"
+    },
+    "E0403": {
+      "id": "ERR_MODULE_NOT_FOUND",
+      "level": "Error",
+      "message": "Module '{}' not found",
+      "description": "Module '{}' not found"
+    },
+    "E0404": {
+      "id": "ERR_SYMBOL_NOT_FOUND",
+      "level": "Error",
+      "message": "Symbol '{}' not found in module '{}'",
+      "description": "Symbol '{}' not found in module '{}'"
+    },
+    "E0405": {
+      "id": "ERR_PRIVATE_TYPE",
+      "level": "Error",
+      "message": "Shape '{}' is private and cannot be accessed from module '{}'",
+      "description": "Shape '{}' is private and cannot be accessed from module '{}'"
+    },
+    "E0463": {
+      "id": "ERR_UNDEFINED_TYPE",
+      "level": "Error",
+      "message": "Type '{}' is undefined",
+      "description": "Type '{}' is undefined"
+    },
+    "N0003": {
+      "id": "NOTE_GENERIC_IMPL_HINT",
+      "level": "Note",
+      "message": "If '{}' is intended to be a generic parameter, declare it in the impl: 'impl<{}> {} ...'",
+      "description": "If '{}' is intended to be a generic parameter, declare it in the impl: 'impl<{}> {} ...'"
+    },
+    "N0004": {
+      "id": "NOTE_IMPLICIT_PRELUDE_CONFLICT",
+      "level": "Note",
+      "message": "Symbol '{}' conflicts with implicit import from Prelude",
+      "description": "Symbol '{}' conflicts with implicit import from Prelude"
+    },
+    "E0406": {
+      "id": "ERR_GENERIC_SEMA",
+      "level": "Error",
+      "message": "{}",
+      "description": "{}"
+    },
+    "E0407": {
+      "id": "ERR_OPERAND_TYPE_MISMATCH",
+      "level": "Error",
+      "message": "Operand of '{}' must be {}, got '{}'",
+      "description": "Operand of '{}' must be {}, got '{}'"
+    },
+    "N0001": {
+      "id": "NOTE_GENERIC",
+      "level": "Note",
+      "message": "{}",
+      "description": "{}"
+    },
+    "E0408": {
+      "id": "ERR_TYPE_MISMATCH",
+      "level": "Error",
+      "message": "Cannot convert type '{}' to '{}'",
+      "description": "Cannot convert type '{}' to '{}'"
+    },
+    "E0469": {
+      "id": "ERR_MISSING_AMPERSAND_RETURN",
+      "level": "Error",
+      "message": "You are trying to return the Soul ({}) of a reference, but a Handle ({}) is required. Did you mean '&{}'?",
+      "description": "You are trying to return the Soul ({}) of a reference, but a Handle ({}) is required. Did you mean '&{}'?"
+    },
+    "E0409": {
+      "id": "ERR_INIT_TYPE_MISMATCH",
+      "level": "Error",
+      "message": "Cannot initialize variable of type '{}' with value of type '{}'",
+      "description": "Cannot initialize variable of type '{}' with value of type '{}'"
+    },
+    "E0410": {
+      "id": "ERR_USE_UNSET",
+      "level": "Error",
+      "message": "Use of unset variable or member '{}'",
+      "description": "Use of unset variable or member '{}'"
+    },
+    "E0411": {
+      "id": "ERR_ESCAPE_UNSET",
+      "level": "Error",
+      "message": "Cannot escape an unset or dirty variable '{}'",
+      "description": "Cannot escape an unset or dirty variable '{}'"
+    },
+    "E0412": {
+      "id": "ERR_DIRTY_REF_ESCAPE",
+      "level": "Error",
+      "message": "Reference '{}' to unset variable '{}' escapes scope without initialization",
+      "description": "Reference '{}' to unset variable '{}' escapes scope without initialization"
+    },
+    "E0413": {
+      "id": "ERR_INVALID_OP",
+      "level": "Error",
+      "message": "Invalid operands for operation '{}': '{}' and '{}'",
+      "description": "Invalid operands for operation '{}': '{}' and '{}'"
+    },
+    "E0414": {
+      "id": "ERR_TYPE_REQUIRED",
+      "level": "Error",
+      "message": "Type annotation required for variable '{}'",
+      "description": "Type annotation required for variable '{}'"
+    },
+    "E0415": {
+      "id": "ERR_INFER_NULLPTR",
+      "level": "Error",
+      "message": "Cannot infer type from 'nullptr'; explicit type annotation required (e.g., 'auto *p: Type = ...')",
+      "description": "Cannot infer type from 'nullptr'; explicit type annotation required (e.g., 'auto *p: Type = ...')"
+    },
+    "E0459": {
+      "id": "ERR_IMPLICIT_BOX_PROHIBITED",
+      "level": "Error",
+      "message": "Implicit heap-boxing via pointer initialization is prohibited. Use explicit allocation like 'new {}(...)' stringently",
+      "description": "Implicit heap-boxing via pointer initialization is prohibited. Use explicit allocation like 'new {}(...)' stringently"
+    },
+    "E0416": {
+      "id": "ERR_UNKNOWN_STRUCT",
+      "level": "Error",
+      "message": "Unknown shape type '{}'",
+      "description": "Unknown shape type '{}'"
+    },
+    "E0417": {
+      "id": "ERR_NO_SUCH_MEMBER",
+      "level": "Error",
+      "message": "Shape '{}' has no member named '{}'",
+      "description": "Shape '{}' has no member named '{}'"
+    },
+    "E0418": {
+      "id": "ERR_MEMBER_PRIVATE",
+      "level": "Error",
+      "message": "Member '{}' of shape '{}' is private",
+      "description": "Member '{}' of shape '{}' is private"
+    },
+    "E0419": {
+      "id": "ERR_MEMBER_NOT_FOUND",
+      "level": "Error",
+      "message": "Member '{}' not found on type '{}'",
+      "description": "Member '{}' not found on type '{}'"
+    },
+    "E0420": {
+      "id": "ERR_TUPLE_INDEX_OOB",
+      "level": "Error",
+      "message": "Tuple index '{}' out of range (size {})",
+      "description": "Tuple index '{}' out of range (size {})"
+    },
+    "E0421": {
+      "id": "ERR_NOT_A_STRUCT",
+      "level": "Error",
+      "message": "Member access '{}' on non-shape type '{}'",
+      "description": "Member access '{}' on non-shape type '{}'"
+    },
+    "E0422": {
+      "id": "ERR_MEMBER_TYPE_MISMATCH",
+      "level": "Error",
+      "message": "Type mismatch for member '{}': expected '{}', but got '{}'",
+      "description": "Type mismatch for member '{}': expected '{}', but got '{}'"
+    },
+    "E0423": {
+      "id": "ERR_MISSING_MEMBER",
+      "level": "Error",
+      "message": "Missing initialization for member '{}' of shape '{}'",
+      "description": "Missing initialization for member '{}' of shape '{}'"
+    },
+    "E0424": {
+      "id": "ERR_DUPLICATE_FIELD",
+      "level": "Error",
+      "message": "Duplicate field '{}' in shape initialization",
+      "description": "Duplicate field '{}' in shape initialization"
+    },
+    "E042A": {
+      "id": "ERR_STRUCT_POSITIONAL_INIT_PROHIBITED",
+      "level": "Error",
+      "message": "Positional initialization is prohibited for shape '{}'. Struct initialization must be strictly named (e.g. 'Point(x = 1, y = 2)').",
+      "description": "Positional initialization is prohibited for shape '{}'. Struct initialization must be strictly named (e.g. 'Point(x = 1, y = 2)')."
+    },
+    "E042B": {
+      "id": "ERR_MULTIPLE_ELISION",
+      "level": "Error",
+      "message": "Multiple elision operators '..' are not allowed in positional initialization.",
+      "description": "Multiple elision operators '..' are not allowed in positional initialization."
+    },
+    "E042C": {
+      "id": "ERR_MISSING_DEFAULT_FOR_ELIDED",
+      "level": "Error",
+      "message": "Elided member '{}' of shape '{}' does not have a default value.",
+      "description": "Elided member '{}' of shape '{}' does not have a default value."
+    },
+    "E042D": {
+      "id": "ERR_ELISION_NOT_AT_END",
+      "level": "Error",
+      "message": "Elision operator '..' in named initialization mode must be placed at the very end of the list.",
+      "description": "Elision operator '..' in named initialization mode must be placed at the very end of the list."
+    },
+    "E042E": {
+      "id": "ERR_REDUNDANT_ELISION",
+      "level": "Error",
+      "message": "Elision operator '..' provided but all arguments/fields are already present.",
+      "description": "Elision operator '..' provided but all arguments/fields are already present."
+    },
+    "E0425": {
+      "id": "ERR_UNION_PARTIAL_INIT",
+      "level": "Error",
+      "message": "Partial initialization of Union '{}': variant '{}' size {} is smaller than Union size {}",
+      "description": "Partial initialization of Union '{}': variant '{}' size {} is smaller than Union size {}"
+    },
+    "E0426": {
+      "id": "ERR_UNION_INVALID_MEMBER",
+      "level": "Error",
+      "message": "Union member '{}' has restricted type '{}' (underlying '{}')",
+      "description": "Union member '{}' has restricted type '{}' (underlying '{}')"
+    },
+    "E0427": {
+      "id": "ERR_UNION_RESOURCE_TYPE",
+      "level": "Error",
+      "message": "Union member '{}' has type '{}' which manages resources (HasDrop); unions must be data-only",
+      "description": "Union member '{}' has type '{}' which manages resources (HasDrop); unions must be data-only"
+    },
+    "N0002": {
+      "id": "NOTE_UNION_RESOURCE_TIP",
+      "level": "Note",
+      "message": "Unions cannot track active variants to drop resources safely; consider using a raw pointer '*{}' or 'ManuallyDrop<T>'",
+      "description": "Unions cannot track active variants to drop resources safely; consider using a raw pointer '*{}' or 'ManuallyDrop<T>'"
+    },
+    "E0470": {
+      "id": "ERR_UNION_DEPRECATED",
+      "level": "Error",
+      "message": "Bare union is deprecated and removed in Toka. Use Tagged Enum or explicit type structure with 'core/mem::bit_cast' instead.",
+      "description": "Bare union is deprecated and removed in Toka. Use Tagged Enum or explicit type structure with 'core/mem::bit_cast' instead."
+    },
+    "E0471": {
+      "id": "ERR_BITCAST_SIZE_MISMATCH",
+      "level": "Error",
+      "message": "bit_cast source and target types must have the same size (sizeof('{}') = {} vs sizeof('{}') = {})",
+      "description": "bit_cast source and target types must have the same size (sizeof('{}') = {} vs sizeof('{}') = {})"
+    },
+    "E0472": {
+      "id": "ERR_TUPLE_DEPRECATED",
+      "level": "Error",
+      "message": "Tuples are abolished. Shape fields must be named struct fields or tagged enum variants.",
+      "description": "Tuples are abolished. Shape fields must be named struct fields or tagged enum variants."
+    },
+    "E0428": {
+      "id": "ERR_SIGNATURE_MISMATCH",
+      "level": "Error",
+      "message": "Method signature mismatch: trait defines '{}' as {}, but implementation is {}",
+      "description": "Method signature mismatch: trait defines '{}' as {}, but implementation is {}"
+    },
+    "E0429": {
+      "id": "ERR_MISSING_IMPL",
+      "level": "Error",
+      "message": "Trait '{}' requires implementation of method '{}'",
+      "description": "Trait '{}' requires implementation of method '{}'"
+    },
+    "E0430": {
+      "id": "ERR_TRAIT_NOT_FOUND",
+      "level": "Error",
+      "message": "Trait '{}' is not implemented for type '{}'",
+      "description": "Trait '{}' is not implemented for type '{}'"
+    },
+    "E0431": {
+      "id": "ERR_CONTROL_REACHES_END",
+      "level": "Error",
+      "message": "Control flow reaches end of non-void function '{}'",
+      "description": "Control flow reaches end of non-void function '{}'"
+    },
+    "E0432": {
+      "id": "ERR_YIELD_VALUE_REQUIRED",
+      "level": "Error",
+      "message": "Yielding {} must pass a value",
+      "description": "Yielding {} must pass a value"
+    },
+    "E0433": {
+      "id": "ERR_YIELD_ELSE_REQUIRED",
+      "level": "Error",
+      "message": "Yielding if expression must have an 'else' block",
+      "description": "Yielding if expression must have an 'else' block"
+    },
+    "E0434": {
+      "id": "ERR_YIELD_OR_REQUIRED",
+      "level": "Error",
+      "message": "Yielding {} loop must have an 'or' block",
+      "description": "Yielding {} loop must have an 'or' block"
+    },
+    "E0435": {
+      "id": "ERR_BRANCH_TYPE_MISMATCH",
+      "level": "Error",
+      "message": "{} branches have incompatible types: '{}' vs '{}'",
+      "description": "{} branches have incompatible types: '{}' vs '{}'"
+    },
+    "E0436": {
+      "id": "ERR_PASS_NO_RECEIVER",
+      "level": "Error",
+      "message": "'pass' used without a receiver; prefix the expression with 'auto x =' or 'alias y ='",
+      "description": "'pass' used without a receiver; prefix the expression with 'auto x =' or 'alias y ='"
+    },
+    "E0437": {
+      "id": "ERR_METHOD_PRIVATE",
+      "level": "Error",
+      "message": "Method '{}' is private to '{}' and cannot be accessed from module '{}'",
+      "description": "Method '{}' is private to '{}' and cannot be accessed from module '{}'"
+    },
+    "E0464": {
+      "id": "ERR_EXPECTED_CEDE_RETURN",
+      "level": "Error",
+      "message": "Function returns 'cede {}', but return expression does not explicitly transfer ownership via 'return cede ...'",
+      "description": "Function returns 'cede {}', but return expression does not explicitly transfer ownership via 'return cede ...'"
+    },
+    "E0465": {
+      "id": "ERR_GUARD_MUST_DIVERGE",
+      "level": "Error",
+      "message": "The 'else' block of a pattern matching guard must diverge (e.g., return, break)",
+      "description": "The 'else' block of a pattern matching guard must diverge (e.g., return, break)"
+    },
+    "E0438": {
+      "id": "ERR_USE_MOVED",
+      "level": "Error",
+      "message": "Use of moved value: '{}'",
+      "description": "Use of moved value: '{}'"
+    },
+    "E0439": {
+      "id": "ERR_MOVE_MEMBER_DROP",
+      "level": "Error",
+      "message": "Cannot move member '{}' out of shape '{}' because it implements 'drop'",
+      "description": "Cannot move member '{}' out of shape '{}' because it implements 'drop'"
+    },
+    "E0440": {
+      "id": "ERR_MOVE_BORROWED",
+      "level": "Error",
+      "message": "Cannot move '{}' while it is borrowed",
+      "description": "Cannot move '{}' while it is borrowed"
+    },
+    "E0441": {
+      "id": "ERR_BORROW_MUT",
+      "level": "Error",
+      "message": "Cannot access '{}' while it is mutably borrowed",
+      "description": "Cannot access '{}' while it is mutably borrowed"
+    },
+    "E0442": {
+      "id": "ERR_BORROW_IMMUT",
+      "level": "Error",
+      "message": "Cannot mutably borrow immutable entity '{}'",
+      "description": "Cannot mutably borrow immutable entity '{}'"
+    },
+    "E0443": {
+      "id": "ERR_IMMUTABLE_MOD",
+      "level": "Error",
+      "message": "Cannot modify immutable entity '{}'",
+      "description": "Cannot modify immutable entity '{}'"
+    },
+    "E0444": {
+      "id": "ERR_SHAPE_NO_DROP",
+      "level": "Error",
+      "message": "Shape '{}' manages resources but does not implement 'drop'",
+      "description": "Shape '{}' manages resources but does not implement 'drop'"
+    },
+    "E0458": {
+      "id": "ERR_SHAPE_NO_CLONE",
+      "level": "Error",
+      "message": "Shape '{}' manages resources (raw pointers) but does not implement 'clone'",
+      "description": "Shape '{}' manages resources (raw pointers) but does not implement 'clone'"
+    },
+    "E0445": {
+      "id": "ERR_UNSAFE_RAW_PTR",
+      "level": "Error",
+      "message": "Shape '{}' manages raw pointers but does not implement 'drop'",
+      "description": "Shape '{}' manages raw pointers but does not implement 'drop'"
+    },
+    "E0451": {
+      "id": "ERR_REDUNDANT_PARAM_BORROW",
+      "level": "Error",
+      "message": "Redundant parameter borrow morphology. Toka implicitly captures arguments by reference, so the '&' morphology is unnecessary unless rebinding.",
+      "description": "Redundant parameter borrow morphology. Toka implicitly captures arguments by reference, so the '&' morphology is unnecessary unless rebinding."
+    },
+    "E0446": {
+      "id": "ERR_RETURN_REBIND_DISCARDED",
+      "level": "Error",
+      "message": "Return value binding '{}' expects a result but void was returned",
+      "description": "Return value binding '{}' expects a result but void was returned"
+    },
+    "E0466": {
+      "id": "ERR_UNSAFE_RESOURCE",
+      "level": "Error",
+      "message": "Shape '{}' contains managed resources but does not implement 'drop'",
+      "description": "Shape '{}' contains managed resources but does not implement 'drop'"
+    },
+    "E0468": {
+      "id": "ERR_IMPLICIT_RESOURCE_COPY",
+      "level": "Error",
+      "message": "Implicit bitwise copy of resource type '{}' during auto-dereference is forbidden. Method '{}' takes 'self' by value, but the receiver is a pointer. Implement and call '.clone()' or change the method receiver to be explicitly mutable (use 'self#')",
+      "description": "Implicit bitwise copy of resource type '{}' during auto-dereference is forbidden. Method '{}' takes 'self' by value, but the receiver is a pointer. Implement and call '.clone()' or change the method receiver to be explicitly mutable (use 'self#')"
+    },
+    "E0447": {
+      "id": "ERR_NULL_ACCESS",
+      "level": "Error",
+      "message": "Accessing member of nullable type '{}' requires explicit 'is' check",
+      "description": "Accessing member of nullable type '{}' requires explicit 'is' check"
+    },
+    "E0448": {
+      "id": "ERR_MORPHOLOGY_MISMATCH",
+      "level": "Error",
+      "message": "Pointer morphology mismatch: expected explicit '{}' (from LHS/Target), found '{}' (from RHS/Source)",
+      "description": "Pointer morphology mismatch: expected explicit '{}' (from LHS/Target), found '{}' (from RHS/Source)"
+    },
+    "E0449": {
+      "id": "ERR_SMART_PTR_FROM_STACK",
+      "level": "Error",
+      "message": "Smart pointer sigil '{}' cannot be applied to stack variable; use 'new' or assign from existing smart pointer",
+      "description": "Smart pointer sigil '{}' cannot be applied to stack variable; use 'new' or assign from existing smart pointer"
+    },
+    "E0450": {
+      "id": "ERR_CAST_MISMATCH",
+      "level": "Error",
+      "message": "Invalid cast: cannot convert '{}' to '{}' via 'as'; only 'Addr' and '*' conversions are supported",
+      "description": "Invalid cast: cannot convert '{}' to '{}' via 'as'; only 'Addr' and '*' conversions are supported"
+    },
+    "E0467": {
+      "id": "ERR_POINTER_SIGIL_MISSING",
+      "level": "Error",
+      "message": "Variable '{}' implies pointer type '{}' but lacks explicit sigil. Use 'auto {}{}' or dereference.",
+      "description": "Variable '{}' implies pointer type '{}' but lacks explicit sigil. Use 'auto {}{}' or dereference."
+    },
+    "E0452": {
+      "id": "ERR_MEMBER_SIGIL_MISMATCH",
+      "level": "Error",
+      "message": "Dot operator '.' cannot be used with explicit pointer sigil. Did you mean '^ptr->member' or 'ptr.member'?",
+      "description": "Dot operator '.' cannot be used with explicit pointer sigil. Did you mean '^ptr->member' or 'ptr.member'?"
+    },
+    "E0453": {
+      "id": "ERR_ARROW_SIGIL_REQUIRED",
+      "level": "Error",
+      "message": "Arrow operator '->' requires explicit pointer sigil on variable. Did you mean '^ptr->member'?",
+      "description": "Arrow operator '->' requires explicit pointer sigil on variable. Did you mean '^ptr->member'?"
+    },
+    "E0454": {
+      "id": "ERR_LIFETIME_UNION_REQUIRED",
+      "level": "Error",
+      "message": "Returning reference to parameter '{}' requires explicit dependency declaration (<- {})",
+      "description": "Returning reference to parameter '{}' requires explicit dependency declaration (<- {})"
+    },
+    "E0455": {
+      "id": "ERR_ESCAPE_LOCAL",
+      "level": "Error",
+      "message": "Returning reference to local variable '{}' is unsafe",
+      "description": "Returning reference to local variable '{}' is unsafe"
+    },
+    "E0456": {
+      "id": "ERR_BORROW_LIFETIME",
+      "level": "Error",
+      "message": "Object '{}' (lived longer) cannot depend on '{}' (lived shorter)",
+      "description": "Object '{}' (lived longer) cannot depend on '{}' (lived shorter)"
+    },
+    "E0457": {
+      "id": "ERR_LIFETIME_UNION_VIOLATION",
+      "level": "Error",
+      "message": "Lifetime union violation: '{}' does not live long enough",
+      "description": "Lifetime union violation: '{}' does not live long enough"
+    },
+    "E0460": {
+      "id": "ERR_REDUNDANT_BLOCK",
+      "level": "Error",
+      "message": "Redundant inherent restriction '$' on '{}'; it is already immutable by default",
+      "description": "Redundant inherent restriction '$' on '{}'; it is already immutable by default"
+    },
+    "E0461": {
+      "id": "ERR_ILLEGAL_MODIFIER_SUFFIX",
+      "level": "Error",
+      "message": "Illegal use of permission suffixes (# or $) in everyday contexts. Modifiers are strictly limited to declarations or explicit mutable method calls.",
+      "description": "Illegal use of permission suffixes (# or $) in everyday contexts. Modifiers are strictly limited to declarations or explicit mutable method calls."
+    },
+    "E0480": {
+      "id": "ERR_EXPOSED_UNSAFE_TYPE",
+      "level": "Error",
+      "message": "Public API '{}' exposes unsafe type '{}' in parameter '{}'. Use 'str' or 'String', or prefix the function name with 'unsafe_'",
+      "description": "Public API '{}' exposes unsafe type '{}' in parameter '{}'. Use 'str' or 'String', or prefix the function name with 'unsafe_'"
+    },
+    "E0481": {
+      "id": "ERR_EXPOSED_UNSAFE_RET",
+      "level": "Error",
+      "message": "Public API '{}' exposes unsafe return type '{}'. Use 'str' or 'String', or prefix the function name with 'unsafe_'",
+      "description": "Public API '{}' exposes unsafe return type '{}'. Use 'str' or 'String', or prefix the function name with 'unsafe_'"
+    },
+    "E0482": {
+      "id": "ERR_EXPOSED_UNSAFE_FIELD",
+      "level": "Error",
+      "message": "Public Shape '{}' exposes unsafe field '{}' of type '{}'. Use 'str' or 'String', or prefix the shape name with 'Unsafe' or 'Raw'",
+      "description": "Public Shape '{}' exposes unsafe field '{}' of type '{}'. Use 'str' or 'String', or prefix the shape name with 'Unsafe' or 'Raw'"
+    },
+    "E0501": {
+      "id": "ERR_UNSAFE_ALLOC_CTX",
+      "level": "Error",
+      "message": "Operation 'alloc' is only allowed in unsafe context",
+      "description": "Operation 'alloc' is only allowed in unsafe context"
+    },
+    "E0502": {
+      "id": "ERR_FREE_SMART",
+      "level": "Error",
+      "message": "Manual 'free' forbidden for smart pointer '{}'; memory is managed automatically",
+      "description": "Manual 'free' forbidden for smart pointer '{}'; memory is managed automatically"
+    },
+    "E0503": {
+      "id": "ERR_FREE_NON_PTR",
+      "level": "Error",
+      "message": "Cannot 'free' value of type '{}'; expected raw pointer",
+      "description": "Cannot 'free' value of type '{}'; expected raw pointer"
+    },
+    "E0550": {
+      "id": "ERR_VARIANT_NO_PAYLOAD",
+      "level": "Error",
+      "message": "Enum variant '{}' does not accept arguments",
+      "description": "Enum variant '{}' does not accept arguments"
+    },
+    "E0551": {
+      "id": "ERR_VARIANT_ARG_MISMATCH",
+      "level": "Error",
+      "message": "Enum variant '{}' expects {} fields, but got {}",
+      "description": "Enum variant '{}' expects {} fields, but got {}"
+    },
+    "E0552": {
+      "id": "ERR_UNKNOWN_SHAPE_IN_PAT",
+      "level": "Error",
+      "message": "Unknown type '{}' in pattern matching",
+      "description": "Unknown type '{}' in pattern matching"
+    },
+    "E0553": {
+      "id": "ERR_MATCH_NOT_EXHAUSTIVE",
+      "level": "Error",
+      "message": "Match is not exhaustive. Missing: {}",
+      "description": "Match is not exhaustive. Missing: {}"
+    },
+    "E0554": {
+      "id": "ERR_ILLEGAL_RESOURCE_COPY",
+      "level": "Error",
+      "message": "Naked destructuring of resource '{}' is strictly forbidden to prevent silent copies and double-frees. You must use an explicit borrow '&' (e.g., '&{}')",
+      "description": "Naked destructuring of resource '{}' is strictly forbidden to prevent silent copies and double-frees. You must use an explicit borrow '&' (e.g., '&{}')"
+    },
+    "E0601": {
+      "id": "ERR_GENERIC_COUNT_MISMATCH",
+      "level": "Error",
+      "message": "Type '{}' expects {} generic arguments, but got {}",
+      "description": "Type '{}' expects {} generic arguments, but got {}"
+    },
+    "E0602": {
+      "id": "ERR_GENERIC_ARITY_MISMATCH",
+      "level": "Error",
+      "message": "Generic mismatch for '{}': expected {} arguments, got {}",
+      "description": "Generic mismatch for '{}': expected {} arguments, got {}"
+    },
+    "E0603": {
+      "id": "ERR_GENERIC_RECURSION_LIMIT",
+      "level": "Error",
+      "message": "Generic instantiation recursion limit reached for '{}'",
+      "description": "Generic instantiation recursion limit reached for '{}'"
+    },
+    "E0604": {
+      "id": "ERR_MORPHIC_CONSTRAINT",
+      "level": "Error",
+      "message": "Cannot pass pointer type to rigid generic parameter '{}', use '{}' with single quote prefix if pointer is expected",
+      "description": "Cannot pass pointer type to rigid generic parameter '{}', use '{}' with single quote prefix if pointer is expected"
+    },
+    "E0607": {
+      "id": "ERR_GENERIC_CODEGEN",
+      "level": "Error",
+      "message": "Generic instantiation failed: {}",
+      "description": "Generic instantiation failed: {}"
+    },
+    "E0701": {
+      "id": "ERR_CODEGEN",
+      "level": "Error",
+      "message": "Code generation failed: {}",
+      "description": "Code generation failed: {}"
+    },
+    "E0702": {
+      "id": "ERR_DANGLING_EFFECT",
+      "level": "Error",
+      "message": "Dangling effect call rejected: '{}' must be consumed by .await, .wait or .start",
+      "description": "Dangling effect call rejected: '{}' must be consumed by .await, .wait or .start"
+    },
+    "E0605": {
+      "id": "ERR_CONST_GENERIC_NAMING",
+      "level": "Error",
+      "message": "Const generic parameter '{}' must end with '_' (e.g., 'N_') to denote compile-time constant.",
+      "description": "Const generic parameter '{}' must end with '_' (e.g., 'N_') to denote compile-time constant."
+    },
+    "E0606": {
+      "id": "ERR_TRAIT_BOUND_UNSATISFIED",
+      "level": "Error",
+      "message": "Type '{}' does not satisfy trait bound '@{}' for generic parameter '{}'",
+      "description": "Type '{}' does not satisfy trait bound '@{}' for generic parameter '{}'"
+    },
+    "E0101": {
+      "id": "ERR_EXPECTED_SEMI",
+      "level": "Error",
+      "message": "Expected ';' or newline after statement",
+      "description": "Expected ';' or newline after statement"
+    },
+    "E0102": {
+      "id": "ERR_EXPECTED_DECL",
+      "level": "Error",
+      "message": "Expected declaration after 'pub' modifier",
+      "description": "Expected declaration after 'pub' modifier"
+    },
+    "E0103": {
+      "id": "ERR_EXTERN_PUB",
+      "level": "Error",
+      "message": "'extern' blocks cannot be declared 'pub'",
+      "description": "'extern' blocks cannot be declared 'pub'"
+    },
+    "E0104": {
+      "id": "ERR_IMPL_PUB",
+      "level": "Error",
+      "message": "'impl' blocks cannot be declared 'pub'",
+      "description": "'impl' blocks cannot be declared 'pub'"
+    },
+    "E0105": {
+      "id": "ERR_GENERIC_PARSE",
+      "level": "Error",
+      "message": "Parse error: {}",
+      "description": "Parse error: {}"
+    },
+    "E0106": {
+      "id": "ERR_ILLEGAL_FIELD_MODIFIER",
+      "level": "Error",
+      "message": "Illegal use of permission suffix '#' or '$' on structural field bindings.",
+      "description": "Illegal use of permission suffix '#' or '$' on structural field bindings."
+    },
+    "E0107": {
+      "id": "ERR_WHILE_ABOLISHED",
+      "level": "Error",
+      "message": "'while' loop is abolished in Toka. Use 'loop {}' or 'loop cond {}' for conditional loops instead. Toka unifies all control flows under the mighty 'loop'!",
+      "description": "'while' loop is abolished in Toka. Use 'loop {}' or 'loop cond {}' for conditional loops instead. Toka unifies all control flows under the mighty 'loop'!"
+    },
+    "E0108": {
+      "id": "ERR_SELF_POINTER_SIGIL",
+      "level": "Error",
+      "message": "Method parameter 'self' cannot carry pointer morphology sigils. Only 'self' or 'self#' is allowed.",
+      "description": "Method parameter 'self' cannot carry pointer morphology sigils. Only 'self' or 'self#' is allowed."
+    },
+    "W0701": {
+      "stage": "Codegen",
+      "domain": "Type",
+      "kind": "Mismatch",
+      "description": "Backend type is unresolved during codegen. Defaulting to i32 fallback.",
+      "id": "WARN_CODEGEN_UNRESOLVED",
+      "level": "Warning",
+      "message": "Unresolved member type for '{}'; defaulting to i32"
+    },
     "W0401": {
       "stage": "Sema",
       "domain": "Ownership",
       "kind": "Unused",
       "auto_fix": "remove_mut_flag",
-      "description": "Variable declared as mutable '#' but never modified. Making it immutable reduces developer cognitive load and enables backend optimizations."
+      "description": "Variable declared as mutable '#' but never modified. Making it immutable reduces developer cognitive load and enables backend optimizations.",
+      "id": "WARN_MUTABLE_VAR_NEVER_MUTATED",
+      "level": "Warning",
+      "message": "Variable '{}' declared as mutable but never mutated"
     },
     "W0402": {
       "stage": "Sema",
       "domain": "Ownership",
       "kind": "Unused",
       "confidence": "Guaranteed",
-      "description": "Variable is declared but never read. Dead variables should be cleaned to reduce code rot."
+      "description": "Variable is declared but never read. Dead variables should be cleaned to reduce code rot.",
+      "id": "WARN_UNUSED_VARIABLE",
+      "level": "Warning",
+      "message": "Variable '{}' is declared but never read"
     },
     "W0403": {
       "stage": "Sema",
       "domain": "Scope",
       "kind": "Unused",
       "confidence": "Guaranteed",
-      "description": "Module import or imported symbol is declared but never used. Redundant imports pollute the dependency DAG graph."
+      "description": "Module import or imported symbol is declared but never used. Redundant imports pollute the dependency DAG graph.",
+      "id": "WARN_UNUSED_IMPORT",
+      "level": "Warning",
+      "message": "Import '{}' is declared but never used"
     },
     "W0406": {
       "stage": "Sema",
       "domain": "Type",
       "kind": "Discarded",
       "confidence": "Guaranteed",
-      "description": "Discarded Result type. Errors should be explicitly handled or bound to '_' to signify intentional ignore."
+      "description": "Discarded Result type. Errors should be explicitly handled or bound to '_' to signify intentional ignore.",
+      "id": "WARN_UNUSED_RESULT",
+      "level": "Warning",
+      "message": "Discarded Result type '{}'; errors should be explicitly handled"
     },
     "S0401": {
       "stage": "Sema",
@@ -36,7 +711,10 @@
       "kind": "DeadCode",
       "severity": "Structural",
       "confidence": "Guaranteed",
-      "description": "Unreachable code detected after an unconditional return/diverging block."
+      "description": "Unreachable code detected after an unconditional return/diverging block.",
+      "id": "WARN_UNREACHABLE_CODE",
+      "level": "Structural",
+      "message": "Unreachable code detected after unconditional return"
     },
     "S0402": {
       "stage": "Sema",
@@ -44,13 +722,22 @@
       "kind": "InfiniteLoop",
       "severity": "Structural",
       "confidence": "Heuristic",
-      "description": "Potential non-progress loop condition. The loop condition variable is never mutated inside the loop body, which might cause an infinite loop unless handled concurrently or via FFI."
+      "description": "Potential non-progress loop condition. The loop condition variable is never mutated inside the loop body, which might cause an infinite loop unless handled concurrently or via FFI.",
+      "id": "WARN_NON_PROGRESS_LOOP",
+      "level": "Structural",
+      "message": "Potential non-progress loop condition: variable '{}' is never mutated inside the loop body"
     },
-    "W0701": {
-      "stage": "Codegen",
-      "domain": "Type",
-      "kind": "Mismatch",
-      "description": "Backend type is unresolved during codegen. Defaulting to i32 fallback."
+    "E0901": {
+      "id": "ERR_FILE_IO",
+      "level": "Error",
+      "message": "File I/O Error: {}",
+      "description": "File I/O Error: {}"
+    },
+    "E0902": {
+      "id": "ERR_CLI_ARG",
+      "level": "Error",
+      "message": "Invalid command line argument: {}",
+      "description": "Invalid command line argument: {}"
     }
   }
 }
