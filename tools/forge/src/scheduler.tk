@@ -23,9 +23,14 @@ pub shape TaskResult (
     size: u64
 )
 
+shape ReceiverBox<'T: @Send> (
+    rx#: Receiver<'T>
+)
+
 pub shape WorkerPool (
     tx_exec#: Sender<TaskExec>,
-    rx_res#: Receiver<TaskResult>
+    rx_res#: Receiver<TaskResult>,
+    ~rx_box#: ReceiverBox<TaskExec>
 )
 
 impl WorkerPool@encap {
@@ -37,9 +42,11 @@ impl WorkerPool {
     pub fn new(num_workers: i32) -> WorkerPool {
         auto exec_chan = channel<TaskExec>()
         auto tx_exec = cede exec_chan.tx
-        auto rx_exec# = cede exec_chan.rx
-        rx_exec = cede rx_exec // Satisfy mutable W0401
-        auto rx_exec_addr = rx_exec#.get_raw_addr()
+        auto rx_exec = cede exec_chan.rx
+        
+        // Heap allocate a box to ensure stable memory address
+        auto ~rx_box = new ReceiverBox<TaskExec>(rx = cede rx_exec)
+        auto rx_exec_addr = (*~rx_box) as Addr
         
         auto res_chan = channel<TaskResult>()
         auto tx_res# = cede res_chan.tx
@@ -48,7 +55,8 @@ impl WorkerPool {
         
         auto pool = WorkerPool(
             tx_exec = cede tx_exec,
-            rx_res = cede rx_res
+            rx_res = cede rx_res,
+            ~rx_box = cede ~rx_box
         )
         
         auto i# = 0
@@ -57,9 +65,9 @@ impl WorkerPool {
             
             auto work_fn: fn() -> i32 = { [cede rx_exec_addr, cede tx_res_clone#] =>
                 unsafe {
-                    auto *#rx_ptr# = rx_exec_addr as *Receiver<TaskExec>
+                    auto *#box_ptr = rx_exec_addr as *#ReceiverBox<TaskExec>
                     loop true {
-                        auto exec_res = rx_ptr#.recv()
+                        auto exec_res = box_ptr.rx#.recv()
                         if exec_res.is_err() {
                             break
                         }
@@ -102,7 +110,6 @@ impl WorkerPool {
         }
         
         // Relinquish remaining channel ends to allow correct EOF propagation
-        auto _drop_rx = cede rx_exec
         auto _drop_tx = cede tx_res
         
         return cede pool
