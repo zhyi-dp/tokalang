@@ -144,6 +144,7 @@ DIAG(ERR_IMPL_PUB,           Error, "E0104", "'impl' blocks cannot be declared '
 DIAG(ERR_GENERIC_PARSE,      Error, "E0105", "Parse error: {}")
 DIAG(ERR_ILLEGAL_FIELD_MODIFIER, Error, "E0106", "Illegal use of permission suffix '#' or '$' on structural field bindings.")
 DIAG(ERR_WHILE_ABOLISHED,      Error, "E0107", "'while' loop is abolished in Toka. Use 'loop {}' or 'loop cond {}' for conditional loops instead. Toka unifies all control flows under the mighty 'loop'!")
+DIAG(ERR_SELF_POINTER_SIGIL,  Error, "E0108", "Method parameter 'self' cannot carry pointer morphology sigils. Only 'self' or 'self#' is allowed.")
 
 // --- Warnings ---
 DIAG(WARN_CODEGEN_UNRESOLVED, Warning, "W0701", "Unresolved member type for '{}'; defaulting to i32")

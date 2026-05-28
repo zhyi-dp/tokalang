@@ -420,7 +420,7 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
       if (arg.Name == "self") {
         if (arg.IsRawPointer || arg.IsReference || arg.IsUnique || 
             arg.IsShared || arg.IsPointerNullable) {
-          error(argName, "Method parameter 'self' cannot carry pointer morphology sigils. Only 'self' or 'self#' is allowed.");
+          error(argName, DiagID::ERR_SELF_POINTER_SIGIL);
           return nullptr;
         }
       }
