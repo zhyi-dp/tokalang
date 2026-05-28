@@ -231,7 +231,7 @@ std::unique_ptr<Stmt> Parser::parseVariableDecl(bool isPub) {
   // Use fullVarName uniformly (e.g. `&x` directly as name)
   auto node = std::make_unique<VariableDecl>(fullVarName, std::move(init));
   node->setLocation(name, m_CurrentFile);
-  node->HasPointer = hasPointer;
+  node->IsRawPointer = hasPointer;
   node->IsUnique = isUnique;
   node->IsShared = isShared;
   node->IsReference = isRef;

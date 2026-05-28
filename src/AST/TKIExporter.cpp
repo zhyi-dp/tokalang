@@ -235,7 +235,7 @@ void TKIExporter::exportShape(const ShapeDecl &decl) {
             const auto &m = decl.Members[i];
             std::string varStr = reconstructVar(
                 m.Name, m.Type,
-                m.HasPointer, m.IsUnique, m.IsShared, m.IsReference,
+                m.IsRawPointer, m.IsUnique, m.IsShared, m.IsReference,
                 m.IsPointerNullable, m.IsRebindable, m.IsRebindBlocked,
                 m.IsExplicitBound, m.IsMorphicExempt, false,
                 m.IsValueMutable, m.IsValueNullable, m.IsValueBlocked
@@ -414,7 +414,7 @@ void TKIExporter::exportExtern(const ExternDecl &decl) {
         const auto &arg = decl.Args[i];
         std::string varStr = reconstructVar(
             arg.Name, arg.Type,
-            arg.HasPointer, arg.IsUnique, arg.IsShared, arg.IsReference,
+            arg.IsRawPointer, arg.IsUnique, arg.IsShared, arg.IsReference,
             arg.IsPointerNullable, arg.IsRebindable, arg.IsRebindBlocked,
             false, arg.IsMorphicExempt, arg.IsCeded,
             arg.IsValueMutable, arg.IsValueNullable, arg.IsValueBlocked
@@ -443,7 +443,7 @@ void TKIExporter::exportGlobal(const Stmt &stmt) {
         m_OS << "pub const ";
         std::string varStr = reconstructVar(
             decl->Name, decl->TypeName,
-            decl->HasPointer, decl->IsUnique, decl->IsShared, decl->IsReference,
+            decl->IsRawPointer, decl->IsUnique, decl->IsShared, decl->IsReference,
             decl->IsPointerNullable, decl->IsRebindable, decl->IsRebindBlocked,
             false, decl->IsMorphicExempt, false,
             decl->IsValueMutable, decl->IsValueNullable, decl->IsValueBlocked
@@ -497,7 +497,7 @@ void TKIExporter::printGenericParams(const std::vector<GenericParam> &params) {
 void TKIExporter::printArg(const FunctionDecl::Arg &arg) {
     std::string varStr = reconstructVar(
         arg.Name, arg.Type,
-        arg.HasPointer, arg.IsUnique, arg.IsShared, arg.IsReference,
+        arg.IsRawPointer, arg.IsUnique, arg.IsShared, arg.IsReference,
         arg.IsPointerNullable, arg.IsRebindable, arg.IsRebindBlocked,
         false, arg.IsMorphicExempt, arg.IsCeded,
         arg.IsValueMutable, arg.IsValueNullable, arg.IsValueBlocked
@@ -532,7 +532,7 @@ void TKIExporter::exportExpr(const Expr *expr, bool stripHats) {
         if (!stripHats) {
             if (var->IsUnique) m_OS << "^";
             else if (var->IsShared) m_OS << "~";
-            else if (var->HasPointer) m_OS << "*";
+            else if (var->IsRawPointer) m_OS << "*";
         }
         m_OS << var->Name;
         if (var->IsValueMutable) m_OS << "#";
@@ -824,7 +824,7 @@ void TKIExporter::exportStmt(const Stmt *stmt, bool indentStmt) {
         }
         std::string varStr = reconstructVar(
             decl->Name, decl->TypeName,
-            decl->HasPointer, decl->IsUnique, decl->IsShared, decl->IsReference,
+            decl->IsRawPointer, decl->IsUnique, decl->IsShared, decl->IsReference,
             decl->IsPointerNullable, decl->IsRebindable, decl->IsRebindBlocked,
             false, decl->IsMorphicExempt, false,
             decl->IsValueMutable, decl->IsValueNullable, decl->IsValueBlocked

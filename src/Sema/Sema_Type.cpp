@@ -638,7 +638,7 @@ Sema::instantiateGenericShape(std::shared_ptr<ShapeType> GenericShape) {
         prefix += "^";
       else if (m.IsReference)
         prefix += "&";
-      else if (m.HasPointer)
+      else if (m.IsRawPointer)
         prefix += "*";
 
       std::string fullTypeStr = m.Type;
@@ -717,7 +717,7 @@ Sema::instantiateGenericShape(std::shared_ptr<ShapeType> GenericShape) {
 
       // 2. Check for Pointer Morphology (&^~*)
       bool isPointer = false;
-      if (memb.IsUnique || memb.IsShared || memb.HasPointer ||
+      if (memb.IsUnique || memb.IsShared || memb.IsRawPointer ||
           memb.IsReference || memb.ResolvedType->isPointer()) {
         isPointer = true;
       }

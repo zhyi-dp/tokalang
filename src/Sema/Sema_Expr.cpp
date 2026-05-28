@@ -765,7 +765,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     // or permissions Check flags because Lexer splits them from the identifier
     // name.
     if (m_InIntermediatePath) {
-      if (ve->HasPointer || ve->IsUnique || ve->IsShared) {
+      if (ve->IsRawPointer || ve->IsUnique || ve->IsShared) {
         // [Rule] Allow pointer morphology if it's a member base (deref access)
         if (!m_IsMemberBase) {
           error(ve, "Morphology symbols (^, *, ~, &) are only allowed at the "
@@ -2258,7 +2258,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
 
         // [Rule] Prevent Implicit Resource Copy during Auto-Deref
         if (!FD->Args.empty() && FD->Args[0].Name == "self") {
-            bool selfIsValue = !FD->Args[0].HasPointer && !FD->Args[0].IsReference && 
+            bool selfIsValue = !FD->Args[0].IsRawPointer && !FD->Args[0].IsReference && 
                                !FD->Args[0].IsUnique && !FD->Args[0].IsShared;
             bool receiverIsIndirection = ObjTypeObj->isPointer() || ObjTypeObj->isReference() || ObjTypeObj->isSmartPointer();
             if (selfIsValue && receiverIsIndirection) {

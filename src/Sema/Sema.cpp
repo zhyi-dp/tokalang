@@ -414,7 +414,7 @@ void Sema::registerGlobals(Module &M) {
           // Import all globals (constants)
           for (auto const &[name, v] : target->Globals) {
             std::string morph = "";
-            if (v->HasPointer)
+            if (v->IsRawPointer)
               morph = "*";
             else if (v->IsUnique)
               morph = "^";
@@ -557,7 +557,7 @@ void Sema::registerGlobals(Module &M) {
           } else if (target->Globals.count(item.Symbol)) {
             auto *v = target->Globals[item.Symbol];
             std::string morph = "";
-            if (v->HasPointer)
+            if (v->IsRawPointer)
               morph = "*";
             else if (v->IsUnique)
               morph = "^";
@@ -848,7 +848,7 @@ void Sema::checkFunction(FunctionDecl *Fn) {
       fullType += "~";
     else if (Arg.IsReference)
       fullType += "&";
-    else if (Arg.HasPointer)
+    else if (Arg.IsRawPointer)
       fullType += "*";
 
     // 2. Identity Attributes (Prefix Zone)
@@ -1052,7 +1052,7 @@ void Sema::checkShapeSovereignty() {
       // Check if Shape manages resources
       for (auto &memb : decl->Members) {
         // 1. Raw Pointers (*T) - Force drop for safety
-        if (memb.HasPointer) {
+        if (memb.IsRawPointer) {
           needsDrop = true;
           break;
         }
@@ -1285,7 +1285,7 @@ void Sema::analyzeShapes(Module &M) {
         bool isResource = false;
         // 1. Check for ANY pointer morphology (&^~*) on the member itself
         // (Rule: no pointer morphology is allowed in the 'as' members of a union)
-        if (memb.IsUnique || memb.IsShared || memb.HasPointer ||
+        if (memb.IsUnique || memb.IsShared || memb.IsRawPointer ||
             memb.IsReference) {
           isResource = true;
         }
@@ -1335,13 +1335,13 @@ void Sema::computeShapeProperties(const std::string &shapeName, Module &M) {
     if (S) {
     for (auto &member : S->Members) {
       std::string typeStr = member.Type;
-      if (member.HasPointer) {
+      if (member.IsRawPointer) {
         props.HasRawPtr = true;
       }
 
       // [NEW] Trait auto-derivation
       auto memberTypeObj = toka::Type::fromString(typeStr);
-      if (member.HasPointer) {
+      if (member.IsRawPointer) {
         props.IsSend = false;
         props.IsSync = false;
       } else {
@@ -1378,7 +1378,7 @@ void Sema::computeShapeProperties(const std::string &shapeName, Module &M) {
             }
           }
         }
-      } else if (!member.HasPointer && !member.IsUnique && !member.IsShared &&
+      } else if (!member.IsRawPointer && !member.IsUnique && !member.IsShared &&
                  !member.IsReference && typeStr.rfind("^", 0) != 0 &&
                  typeStr.rfind("~", 0) != 0) {
         // Value Type T. Check if T is a Shape.

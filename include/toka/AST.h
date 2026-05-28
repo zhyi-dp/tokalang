@@ -185,7 +185,7 @@ public:
 class VariableExpr : public Expr {
 public:
   std::string Name;
-  bool HasPointer = false;
+  bool IsRawPointer = false;
   bool IsUnique = false;
   bool IsShared = false;
   bool IsValueMutable = false;
@@ -197,12 +197,12 @@ public:
 
   VariableExpr(const std::string &name) : Name(name) {}
   std::string toString() const override {
-    return std::string("Var(") + (HasPointer ? "^" : "") + Name +
+    return std::string("Var(") + (IsRawPointer ? "^" : "") + Name +
            (IsValueMutable ? "#" : "") + ")";
   }
   std::unique_ptr<ASTNode> clone() const override {
     auto n = std::make_unique<VariableExpr>(Name);
-    n->HasPointer = HasPointer;
+    n->IsRawPointer = IsRawPointer;
     n->IsUnique = IsUnique;
     n->IsShared = IsShared;
     n->IsValueMutable = IsValueMutable;
@@ -1226,7 +1226,7 @@ public:
   std::string Name;
   std::unique_ptr<Expr> Init;
   std::string TypeName;
-  bool HasPointer = false;
+  bool IsRawPointer = false;
   bool IsUnique = false;
   bool IsShared = false;
   bool IsReference = false;
@@ -1248,7 +1248,7 @@ public:
   std::unique_ptr<ASTNode> clone() const override {
     auto n = std::make_unique<VariableDecl>(Name, cloneNode(Init));
     n->TypeName = TypeName;
-    n->HasPointer = HasPointer;
+    n->IsRawPointer = IsRawPointer;
     n->IsUnique = IsUnique;
     n->IsShared = IsShared;
     n->IsReference = IsReference;
@@ -1317,7 +1317,7 @@ struct ShapeMember {
   std::string Name; // Member or Variant name
   std::string Type;
   int64_t TagValue = -1; // Specific value for Tagged Union variants (= 1)
-  bool HasPointer = false;
+  bool IsRawPointer = false;
   bool IsUnique = false;
   bool IsShared = false;
   bool IsReference = false;
@@ -1346,7 +1346,7 @@ struct ShapeMember {
     Name = other.Name;
     Type = other.Type;
     TagValue = other.TagValue;
-    HasPointer = other.HasPointer;
+    IsRawPointer = other.IsRawPointer;
     IsUnique = other.IsUnique;
     IsShared = other.IsShared;
     IsReference = other.IsReference;
@@ -1373,7 +1373,7 @@ struct ShapeMember {
     Name = other.Name;
     Type = other.Type;
     TagValue = other.TagValue;
-    HasPointer = other.HasPointer;
+    IsRawPointer = other.IsRawPointer;
     IsUnique = other.IsUnique;
     IsShared = other.IsShared;
     IsReference = other.IsReference;
@@ -1491,7 +1491,7 @@ public:
   struct Arg {
     std::string Name;
     std::string Type;
-    bool HasPointer = false;
+    bool IsRawPointer = false;
     bool IsUnique = false;
     bool IsShared = false;
     bool IsReference = false;
@@ -1513,7 +1513,7 @@ public:
       Arg a;
       a.Name = Name;
       a.Type = Type;
-      a.HasPointer = HasPointer;
+      a.IsRawPointer = IsRawPointer;
       a.IsUnique = IsUnique;
       a.IsShared = IsShared;
       a.IsReference = IsReference;
@@ -1647,7 +1647,7 @@ public:
   struct Arg {
     std::string Name;
     std::string Type;
-    bool HasPointer = false;
+    bool IsRawPointer = false;
     bool IsReference = false;
 
     // New Permissions match FunctionDecl
@@ -1669,7 +1669,7 @@ public:
       Arg a;
       a.Name = Name;
       a.Type = Type;
-      a.HasPointer = HasPointer;
+      a.IsRawPointer = IsRawPointer;
       a.IsReference = IsReference;
       a.IsUnique = IsUnique;
       a.IsShared = IsShared;

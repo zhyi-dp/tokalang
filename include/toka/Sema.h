@@ -420,7 +420,7 @@ private:
       Signature += "~";
     } else if (Arg.IsReference) {
       Signature += "&";
-    } else if (Arg.HasPointer) {
+    } else if (Arg.IsRawPointer) {
       Signature += "*";
     }
 
@@ -457,7 +457,7 @@ private:
       Signature += "~";
     else if (Arg.IsReference)
       Signature += "&";
-    else if (Arg.HasPointer)
+    else if (Arg.IsRawPointer)
       Signature += "*";
 
     // 2. Identity Attributes (Prefix Zone)

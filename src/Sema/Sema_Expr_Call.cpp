@@ -383,7 +383,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
           std::shared_ptr<toka::Type> expectedTy = nullptr;
           if (MetAST && i < MetAST->Args.size()) {
               std::string tyStr = MetAST->Args[i].Type;
-              if (MetAST->Args[i].HasPointer) tyStr = "*" + tyStr;
+              if (MetAST->Args[i].IsRawPointer) tyStr = "*" + tyStr;
               else if (MetAST->Args[i].IsUnique) tyStr = "^" + tyStr;
               else if (MetAST->Args[i].IsShared) tyStr = "~" + tyStr;
               else if (MetAST->Args[i].IsReference) tyStr = "&" + tyStr;
@@ -434,7 +434,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
                 std::shared_ptr<toka::Type> expectedTy = nullptr;
                 if (MetAST && i < MetAST->Args.size()) {
                     std::string tyStr = MetAST->Args[i].Type;
-                    if (MetAST->Args[i].HasPointer) tyStr = "*" + tyStr;
+                    if (MetAST->Args[i].IsRawPointer) tyStr = "*" + tyStr;
                     else if (MetAST->Args[i].IsUnique) tyStr = "^" + tyStr;
                     else if (MetAST->Args[i].IsShared) tyStr = "~" + tyStr;
                     else if (MetAST->Args[i].IsReference) tyStr = "&" + tyStr;
@@ -768,7 +768,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
         std::string PType = Param.Type;
         // [FIX] Parse Sigils from PType string (since Parser might
         // leave them in string)
-        bool locHasPointer = Param.HasPointer;
+        bool locIsRawPointer = Param.IsRawPointer;
         bool locIsUnique = Param.IsUnique;
         bool locIsShared = Param.IsShared;
         bool locIsReference = Param.IsReference;
@@ -776,7 +776,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
         while (PType.size() > 1 && (PType[0] == '*' || PType[0] == '^' ||
                                     PType[0] == '~' || PType[0] == '&')) {
           if (PType[0] == '*')
-            locHasPointer = true;
+            locIsRawPointer = true;
           else if (PType[0] == '^')
             locIsUnique = true;
           else if (PType[0] == '~')
@@ -807,7 +807,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
           std::shared_ptr<toka::Type> candidate = argType;
 
           // Strip Param Morphology from Candidate
-          if (locHasPointer) {
+          if (locIsRawPointer) {
             if (candidate->isRawPointer())
               candidate = candidate->getPointeeType();
             else if (candidate->isReference()) // Allow &T -> *T decay

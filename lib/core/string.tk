@@ -27,13 +27,13 @@ extern fn libc_snprintf(*dest: char, size: usize, *format: char, ...) -> i32
 extern fn libc_sscanf(*s: char, *format: char, ...) -> i32
 
 impl char {
-    pub fn as_str(*self) -> res: str
+    pub fn as_str(self) -> res: str
     effects:
         res.&buf <- self
     {
         unsafe {
-            auto len = libc_strlen(*self)
-            return str(&buf = (*self as *[char]) as &[char], len = len)
+            auto len = libc_strlen(&self as *char)
+            return str(&buf = ((&self as *char) as *[char]) as &[char], len = len)
         }
     }
 }

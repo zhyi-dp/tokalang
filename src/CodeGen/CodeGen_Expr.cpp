@@ -4636,7 +4636,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
       bool isArgUnique = arg.IsUnique;
       bool isArgShared = arg.IsShared;
       bool isArgRef = arg.IsReference;
-      bool hasArgPtr = arg.HasPointer;
+      bool hasArgPtr = arg.IsRawPointer;
       if (arg.ResolvedType) {
           isArgUnique = isArgUnique || arg.ResolvedType->isUniquePtr();
           isArgShared = isArgShared || arg.ResolvedType->isSharedPtr();
@@ -4676,7 +4676,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
       }
     } else if (extDecl && i < extDecl->Args.size()) {
       const auto &arg = extDecl->Args[i];
-      if (!arg.HasPointer) {
+      if (!arg.IsRawPointer) {
         llvm::Type *logicalTy = resolveType(arg.Type, false);
         if (logicalTy && (logicalTy->isStructTy() || logicalTy->isArrayTy()))
           isCaptured = true;
@@ -6056,7 +6056,7 @@ PhysEntity CodeGen::genClosureExpr(const ClosureExpr *expr) {
            if (member.ResolvedType) {
                loadTy = getLLVMType(member.ResolvedType);
            } else {
-               loadTy = resolveType(member.Type, member.HasPointer);
+               loadTy = resolveType(member.Type, member.IsRawPointer);
            }
            if (!loadTy) {
                std::cerr << "CodeGen Internal Error: Captured variable '" << member.Name << "' type could not be resolved.\n";

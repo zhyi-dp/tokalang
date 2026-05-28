@@ -675,7 +675,7 @@ void Sema::checkStmt(Stmt *S) {
 
         // If variable declares morphology (auto ^p = ...), strip matching
         // morphology from inferred soul
-        if (Var->HasPointer || Var->IsUnique || Var->IsShared ||
+        if (Var->IsRawPointer || Var->IsUnique || Var->IsShared ||
             Var->IsReference) {
           if (Inferred.find("nul ") == 0) Inferred = Inferred.substr(4);
           if (!Inferred.empty() && (Inferred[0] == '*' || Inferred[0] == '^' ||
@@ -692,7 +692,7 @@ void Sema::checkStmt(Stmt *S) {
                HasError = true;
                Var->TypeName = "unknown";
                return;
-            } else if (Var->HasPointer) {
+            } else if (Var->IsRawPointer) {
                DiagnosticEngine::report(getLoc(Var), DiagID::ERR_INIT_TYPE_MISMATCH, "*(Raw Pointer)", Inferred);
                HasError = true;
                Var->TypeName = "unknown";
@@ -726,7 +726,7 @@ void Sema::checkStmt(Stmt *S) {
       // Compatibility Check
       std::string DeclFullTy = Var->TypeName;
       std::string Morph = "";
-      if (Var->HasPointer)
+      if (Var->IsRawPointer)
         Morph = "*";
       else if (Var->IsUnique)
         Morph = "^";
@@ -779,7 +779,7 @@ void Sema::checkStmt(Stmt *S) {
         lhsMorph = MorphKind::Shared;
       else if (Var->IsReference)
         lhsMorph = MorphKind::Ref;
-      else if (Var->HasPointer)
+      else if (Var->IsRawPointer)
         lhsMorph = MorphKind::Raw;
 
       MorphKind rhsMorph = getSyntacticMorphology(Var->Init.get());
@@ -789,7 +789,7 @@ void Sema::checkStmt(Stmt *S) {
 
     SymbolInfo Info;
     std::string morph = "";
-    if (Var->HasPointer)
+    if (Var->IsRawPointer)
       morph = "*";
     else if (Var->IsUnique)
       morph = "^";

@@ -100,7 +100,7 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
           typeObj = std::make_shared<UniquePointerType>(typeObj);
         } else if (arg.IsShared) {
           typeObj = std::make_shared<SharedPointerType>(typeObj);
-        } else if (arg.HasPointer) {
+        } else if (arg.IsRawPointer) {
           typeObj = std::make_shared<RawPointerType>(typeObj);
         }
       }
@@ -317,7 +317,7 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
         typeObj = std::make_shared<UniquePointerType>(typeObj);
       } else if (argDecl.IsShared) {
         typeObj = std::make_shared<SharedPointerType>(typeObj);
-      } else if (argDecl.HasPointer) {
+      } else if (argDecl.IsRawPointer) {
         typeObj = std::make_shared<RawPointerType>(typeObj);
       }
     }
@@ -523,7 +523,7 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
 
           if (it->IsUnique || it->IsShared) {
             hasDrop = true;
-          } else if (it->HasPointer || it->IsReference) {
+          } else if (it->IsRawPointer || it->IsReference) {
             hasDrop = false; // Raw pointers don't drop
           } else if (!dropFunc.empty()) {
             hasDrop = true;
@@ -643,7 +643,7 @@ llvm::Value *CodeGen::genVariableDecl(const VariableDecl *var) {
       // [Fix] Array-to-Pointer Decay Interception
       // Check if RHS is physically an array type that should decay to a
       // pointer
-      if (var->HasPointer || var->IsReference) {
+      if (var->IsRawPointer || var->IsReference) {
         if (var->Init) {
           if (auto *ue = dynamic_cast<const UnaryExpr *>(var->Init.get())) {
             if (ue->Op == TokenType::Star) {
@@ -708,7 +708,7 @@ llvm::Value *CodeGen::genVariableDecl(const VariableDecl *var) {
 
   if (!type) {
     if (!var->TypeName.empty()) {
-      type = resolveType(var->TypeName, var->HasPointer || var->IsReference ||
+      type = resolveType(var->TypeName, var->IsRawPointer || var->IsReference ||
                                             var->IsUnique || var->IsShared);
     } else if (initVal) {
       type = initVal->getType();
@@ -813,9 +813,9 @@ llvm::Value *CodeGen::genVariableDecl(const VariableDecl *var) {
   // The Form (Identity) is always what resolveType returns for the full name
   if (!type) { // Only try to resolve if type hasn't been determined yet
     if (!var->TypeName.empty()) {
-      type = resolveType(var->TypeName, var->HasPointer || var->IsUnique ||
+      type = resolveType(var->TypeName, var->IsRawPointer || var->IsUnique ||
                                             var->IsShared || var->IsReference);
-    } else if (elemTy && (var->HasPointer || var->IsReference)) {
+    } else if (elemTy && (var->IsRawPointer || var->IsReference)) {
       // [Fix] Auto-deduction with pointer modifiers/decorators
       // If we have 'auto *p = ...', we deduced elemTy from initVal, but we
       // need to ensure 'type' is a pointer to elemTy.
@@ -996,7 +996,7 @@ llvm::Value *CodeGen::genVariableDecl(const VariableDecl *var) {
 
   TokaSymbol sym;
   sym.allocaPtr = alloca;
-  fillSymbolMetadata(sym, var->TypeName, var->HasPointer, var->IsUnique,
+  fillSymbolMetadata(sym, var->TypeName, var->IsRawPointer, var->IsUnique,
                      var->IsShared, var->IsReference, var->IsValueMutable,
                      var->IsValueNullable || var->IsPointerNullable, elemTy);
                      
@@ -1206,7 +1206,7 @@ llvm::Value *CodeGen::genVariableDecl(const VariableDecl *var) {
     // they are NOT auto-dropped unless they own their data.
 
     bool canDrop = !var->IsReference &&
-                   (!var->HasPointer || var->IsUnique || var->IsShared);
+                   (!var->IsRawPointer || var->IsUnique || var->IsShared);
     if (!canDrop) {
       hasDrop = false;
       dropFunc = "";
@@ -1422,7 +1422,7 @@ void CodeGen::genGlobal(const Stmt *stmt) {
       // Try resolving type hint first
       llvm::Type *hintType = nullptr;
       if (!var->TypeName.empty()) {
-        hintType = resolveType(var->TypeName, var->HasPointer);
+        hintType = resolveType(var->TypeName, var->IsRawPointer);
       }
 
       // Try compile-time constant generation first
@@ -1437,7 +1437,7 @@ void CodeGen::genGlobal(const Stmt *stmt) {
 
     llvm::Type *type = nullptr;
     if (!var->TypeName.empty()) {
-      type = resolveType(var->TypeName, var->HasPointer);
+      type = resolveType(var->TypeName, var->IsRawPointer);
     } else if (initVal) {
       type = initVal->getType();
     }
@@ -1486,7 +1486,7 @@ void CodeGen::genGlobal(const Stmt *stmt) {
 
     TokaSymbol sym;
     sym.allocaPtr = globalVar;
-    fillSymbolMetadata(sym, var->TypeName, var->HasPointer, var->IsUnique,
+    fillSymbolMetadata(sym, var->TypeName, var->IsRawPointer, var->IsUnique,
                        var->IsShared, var->IsReference, var->IsValueMutable,
                        var->IsValueNullable || var->IsPointerNullable, type);
     sym.isRebindable = var->IsRebindable;
@@ -1527,7 +1527,7 @@ void CodeGen::genGlobal(const Stmt *stmt) {
 void CodeGen::genExtern(const ExternDecl *ext) {
   std::vector<llvm::Type *> argTypes;
   for (const auto &arg : ext->Args) {
-    llvm::Type *t = resolveType(arg.Type, arg.HasPointer || arg.IsReference);
+    llvm::Type *t = resolveType(arg.Type, arg.IsRawPointer || arg.IsReference);
     if (!t) {
       error(ext, "Unresolved argument type '" + arg.Type + "' in extern function '" + ext->Name + "'");
       return;
@@ -1570,7 +1570,7 @@ void CodeGen::genShape(const ShapeDecl *sh) {
     std::vector<std::string> fieldNames;
     for (const auto &member : sh->Members) {
       if (verboseMode) {
-        std::cerr << "[DEBUG genShape] shape=" << sh->Name << " member=" << member.Name << " Type=" << member.Type << " ResolvedType=" << (member.ResolvedType ? member.ResolvedType->toString() : "NULL") << " HasPointer=" << member.HasPointer << " IsUnique=" << member.IsUnique << " IsShared=" << member.IsShared << " IsReference=" << member.IsReference << std::endl;
+        std::cerr << "[DEBUG genShape] shape=" << sh->Name << " member=" << member.Name << " Type=" << member.Type << " ResolvedType=" << (member.ResolvedType ? member.ResolvedType->toString() : "NULL") << " IsRawPointer=" << member.IsRawPointer << " IsUnique=" << member.IsUnique << " IsShared=" << member.IsShared << " IsReference=" << member.IsReference << std::endl;
       }
       llvm::Type *t = nullptr;
       if (member.ResolvedType) {
@@ -1584,7 +1584,7 @@ void CodeGen::genShape(const ShapeDecl *sh) {
                                    member.Name);
         }
         t = resolveType(member.Type,
-                                   member.HasPointer || member.IsUnique ||
+                                   member.IsRawPointer || member.IsUnique ||
                                        member.IsShared || member.IsReference);
       }
       if (!t) {
@@ -2086,7 +2086,7 @@ PhysEntity toka::CodeGen::genMethodCall(const toka::MethodCallExpr *expr) {
       }
 
       // Capture by Struct/Array value types, or explicit Mutable Value types
-      if (!isCaptured && !arg.HasPointer && !arg.IsReference) {
+      if (!isCaptured && !arg.IsRawPointer && !arg.IsReference) {
         if (arg.IsValueMutable) {
           isCaptured = true;
         } else {

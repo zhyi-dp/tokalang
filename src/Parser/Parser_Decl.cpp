@@ -206,7 +206,7 @@ std::unique_ptr<ShapeDecl> Parser::parseShape(bool isPub) {
           if (isPtrNullable) prefixType += "nul ";
           
           if (match(TokenType::Star)) {
-            m.HasPointer = true;
+            m.IsRawPointer = true;
             m.IsRebindable = previous().IsSwappablePtr;
             m.IsPointerNullable = isPtrNullable;
             m.IsRebindBlocked = previous().IsBlocked;
@@ -325,7 +325,7 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
         arg.IsCeded = isCeded;
         arg.Name = "self";
         arg.Type = "Self"; // Default
-        arg.HasPointer = false;
+        arg.IsRawPointer = false;
         // Capture mutability from token (e.g. self#)
         if (previous().HasWrite) {
           // arg.IsMutable = true; // Deprecated
@@ -394,7 +394,7 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
       arg.IsCeded = isCeded;
       arg.Name = argName.Text;
       arg.Type = argType;
-      arg.HasPointer = hasPointer;
+      arg.IsRawPointer = hasPointer;
       arg.IsReference = isRef;
       arg.IsMorphicExempt = (!arg.Type.empty() && arg.Type[0] == '\'');
       // arg.IsMutable = argName.HasWrite; // Deprecated
@@ -415,6 +415,14 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
         hasSeenDefault = true;
       } else if (hasSeenDefault) {
         error(previous(), "Default parameters must be contiguous and at the end of the parameter list");
+      }
+
+      if (arg.Name == "self") {
+        if (arg.IsRawPointer || arg.IsReference || arg.IsUnique || 
+            arg.IsShared || arg.IsPointerNullable) {
+          error(argName, "Method parameter 'self' cannot carry pointer morphology sigils. Only 'self' or 'self#' is allowed.");
+          return nullptr;
+        }
       }
 
       args.push_back(std::move(arg));
@@ -652,7 +660,7 @@ std::unique_ptr<ExternDecl> Parser::parseExternDecl() {
       arg.IsCeded = isCeded;
       arg.Name = argName.Text;
       arg.Type = argType;
-      arg.HasPointer = hasPointer;
+      arg.IsRawPointer = hasPointer;
       arg.IsPointerNullable = isPtrNullable;
       arg.IsValueMutable = argName.HasWrite;
       arg.IsValueNullable = argName.HasNull;
