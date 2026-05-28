@@ -180,11 +180,6 @@ std::shared_ptr<toka::Type> Sema::checkClosureExpr(ClosureExpr *Clo) {
 
   // Define params in scope
   for (auto &p : closureParams) {
-    if (p.Type.size() > 100) {
-      std::cerr << "TRACE: suspiciously large p.Type: " << p.Type.substr(0, 50) << "...\n";
-    } else {
-      std::cerr << "TRACE: closure param type is " << p.Type << "\n";
-    }
     p.ResolvedType = toka::Type::fromString(p.Type); // Dynamic (fallback to T0 if generic)
     SymbolInfo info;
     info.TypeObj = p.ResolvedType;
@@ -210,12 +205,10 @@ std::shared_ptr<toka::Type> Sema::checkClosureExpr(ClosureExpr *Clo) {
          if (p.Name == varName) { isParam = true; break; }
      }
      if (isParam) {
-         std::cerr << "[TRACE] checkClosureExpr skipped param: " << varName << "\n";
          continue;
      }
 
      if (CurrentScope->findVariableWithDeref(varName, infoPtr, actualName)) {
-         std::cerr << "[TRACE] checkClosureExpr captured: " << varName << " type: " << infoPtr->TypeObj->toString() << "\n";
         
         bool isExplicit = false;
         CaptureMode explicitMode = CaptureMode::ImplicitBorrow;
@@ -306,7 +299,6 @@ std::shared_ptr<toka::Type> Sema::checkClosureExpr(ClosureExpr *Clo) {
   
   // 2. Inject captured variables as perfectly valid locals
   for (auto &memb : SyntheticShape->Members) {
-    std::cerr << "[TRACE] INJECTING CAPTURED MEMB: " << memb.Name << " ResolvedType: " << (memb.ResolvedType ? "YES" : "NO") << " Depth: " << CurrentScope->Depth << "\n";
     if (memb.ResolvedType) {
        SymbolInfo Info;
        Info.TypeObj = memb.ResolvedType; // Pre-resolved!

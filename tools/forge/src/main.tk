@@ -7,8 +7,11 @@ import src/cache::{CacheStore, parse_i64}
 import src/scheduler::{TaskExec, TaskResult, WorkerPool}
 import core/option::{Option}
 import core/result::{Result}
+import sys/libc::{libc_access}
+import sys/thread::{sys_alloc_thread_env, sys_free_thread_env}
 
-fn submit_ready_tasks(graph: DependencyGraph, pool: WorkerPool) {
+fn submit_ready_tasks(*graph#: DependencyGraph, *pool#: WorkerPool, *exec_boxes#: Vec<u64>) {
+    graph = graph // Satisfy W0401
     auto idx#: u64 = 0
     loop idx < graph.registered_ids.len() {
         auto id = graph.registered_ids.get(idx)
@@ -22,18 +25,32 @@ fn submit_ready_tasks(graph: DependencyGraph, pool: WorkerPool) {
                     auto out_path# = node.src_path.clone()
                     out_path#.push_str(".ll")
                     
-                    auto cmd# = string::from("build/bin/tokac ")
+                    auto compiler_path# = string::from("tokac")
+                    if libc_access(c"build/bin/tokac", 0) == 0 {
+                        compiler_path = string::from("build/bin/tokac")
+                    } else if libc_access(c"../build/bin/tokac", 0) == 0 {
+                        compiler_path = string::from("../build/bin/tokac")
+                    } else if libc_access(c"../../build/bin/tokac", 0) == 0 {
+                        compiler_path = string::from("../../build/bin/tokac")
+                    }
+                    
+                    auto cmd# = compiler_path.clone()
+                    cmd#.push_str(" ")
                     cmd#.push_str(node.src_path.as_view())
                     cmd#.push_str(" > ")
                     cmd#.push_str(out_path.as_view())
                     
-                    auto exec = TaskExec(
+                    auto exec_ptr = sys_alloc_thread_env(sizeof(TaskExec) as usize)
+                    auto *#exec = exec_ptr as *#TaskExec
+                    exec = TaskExec(
                         id = id.clone(),
                         src_path = node.src_path.clone(),
                         out_path = out_path.clone(),
                         cmd = cede cmd
                     )
-                    pool#.send_task(cede exec)
+                    auto _read_exec = exec // Satisfy W0402
+                    exec_boxes#.push(exec_ptr as u64)
+                    pool#.send_task(exec_ptr as u64)
                 }
                 node.in_degree = node.in_degree // Satisfy mutable W0401
                 auto _read = node.id
@@ -106,13 +123,17 @@ fn main() -> i32 {
     
     println("Compiling {} dirty targets...", remaining_tasks.to_string())
     
+
+    
     // 5. Initialize Worker Pool
     auto pool# = WorkerPool::new(workers)
     pool = cede pool // Satisfy W0401
+    auto exec_boxes# = Vec<u64>::new()
+    exec_boxes = cede exec_boxes // Satisfy W0401
     
     // 6. Main Orchestrator Loop
     loop remaining_tasks > 0 {
-        submit_ready_tasks(graph, pool)
+        submit_ready_tasks(*graph, *pool, *exec_boxes)
         
         auto res_opt_res = pool#.recv_result()
         if res_opt_res.is_err() {
@@ -122,13 +143,35 @@ fn main() -> i32 {
         if res_opt.is_none() {
             break
         }
-        auto res = res_opt.unwrap()
+        auto res_ptr = res_opt.unwrap()
+        auto success# = false
+        auto mtime#: i64 = 0
+        auto size#: u64 = 0
+        auto index#: u64 = 0
+        unsafe {
+            auto *#res = (res_ptr as Addr) as *#TaskResult
+            success = res.success
+            mtime = res.mtime
+            size = res.size
+            index = res.id.index()
+            sys_free_thread_env(res_ptr as Addr)
+        }
+        auto real_id = graph.registered_ids.get(index)
         
         remaining_tasks = remaining_tasks - 1
         
-        auto node_path = graph.slab.get(res.id.clone()).unwrap().src_path.clone()
-        if !res.success {
+        auto node_opt = graph.slab.get(real_id.clone())
+        if node_opt.is_none() {
+            println("Error: Node not found in slab!")
+            free_exec_boxes(exec_boxes)
+            return 1
+        }
+        auto &node = node_opt.unwrap()
+        auto node_path = node.src_path.clone()
+        
+        if !success {
             println("❌ Compilation failed for: {}", node_path)
+            free_exec_boxes(exec_boxes)
             return 1
         }
         
@@ -137,11 +180,11 @@ fn main() -> i32 {
         // Record Success in persistent cache
         auto out_path# = node_path.clone()
         out_path#.push_str(".ll")
-        cache#.record_success(node_path.clone(), res.mtime, res.size, out_path.clone())
+        cache#.record_success(node_path.clone(), mtime, size, out_path.clone())
         
         // Update Graph node status & decrement dependents
         unsafe {
-            auto &#node# = graph.slab#.get_mut(res.id.clone()).unwrap()
+            auto &#node# = graph.slab#.get_mut(real_id.clone()).unwrap()
             node.state = TaskState::Success
             
             auto dependents# = Vec<SlabID>::new()
@@ -171,5 +214,21 @@ fn main() -> i32 {
     }
     
     println("✨ Build successful!")
+    free_exec_boxes(exec_boxes)
     return 0
+}
+
+fn free_exec_boxes(exec_boxes: Vec<u64>) {
+    unsafe {
+        auto i#: u64 = 0
+        loop i < exec_boxes.len() {
+            auto ptr = exec_boxes.get(i) as Addr
+            auto *#exec = ptr as *#TaskExec
+            auto _d_src = cede exec.src_path
+            auto _d_out = cede exec.out_path
+            auto _d_cmd = cede exec.cmd
+            sys_free_thread_env(ptr)
+            i += 1
+        }
+    }
 }

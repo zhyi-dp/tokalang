@@ -43,14 +43,14 @@ pub fn thread_spawn<'T: @Send>(f: fn() -> cede 'T) -> JoinHandle<'T> {
                 auto closure = captured_box.closure
                 auto self_ptr = captured_box.self_ptr
                 
-                // Free the ClosureBox shell 
-                sys_free_thread_env(self_ptr)
-                
                 // Create native heap box for result matching structural types safely via parenthesis isolating generic templates 
                 auto *ret_ptr# = (sys_alloc_thread_env(sizeof('T) as usize) as *'T)
                 
                 // Write the structural closure evaluation safely to memory by utilizing `cede` keyword for moves!
                 ret_ptr = cede closure()
+                
+                // Free the ClosureBox shell 
+                sys_free_thread_env(self_ptr)
                 
                 return (*ret_ptr) as Addr
             }

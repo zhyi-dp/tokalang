@@ -24,6 +24,7 @@ fn print_help() {
     println("  clean        Clean build artifacts")
     println("\nOptions:")
     println("  -v, --verbose  Enable verbose compiler output")
+    println("  -f, --forge    🚀 Enable forge multi-threaded parallel incremental build engine")
 }
 
 fn generate_project_files(name: string, dest_dir: string, is_lib: bool) {
@@ -233,7 +234,12 @@ fn cmd_add(pkg_url_or_name: string) -> i32 {
     }
 }
 
-fn cmd_build() -> i32 {
+fn cmd_build(use_forge: bool) -> i32 {
+    if use_forge {
+        env::set_var(string::from("TOKA_USE_FORGE"), string::from("1"))
+    } else {
+        env::set_var(string::from("TOKA_USE_FORGE"), string::from("0"))
+    }
     // Phase 4: Implicit fetch before build
     auto fetch_res = cmd_fetch()
     if fetch_res != 0 {
@@ -309,8 +315,8 @@ fn cmd_run_single(file: string) -> i32 {
     }
 }
 
-fn cmd_run() -> i32 {
-    auto res = cmd_build()
+fn cmd_run(use_forge: bool) -> i32 {
+    auto res = cmd_build(use_forge)
     if res != 0 { return res }
     
     unsafe {
@@ -505,14 +511,40 @@ fn main() -> i32 {
     }
     
     if cmd.eq(string::from("build")) {
-        return cmd_build()
+        auto use_forge# = false
+        auto idx#: i32 = (2 + shift) as i32
+        loop idx < argc {
+            auto arg = env::get_arg(idx)
+            if arg.eq(string::from("--forge")) || arg.eq(string::from("-f")) {
+                use_forge = true
+            }
+            idx += 1
+        }
+        return cmd_build(use_forge)
     }
     
     if cmd.eq(string::from("run")) {
-        if argc > 2 + shift {
-            return cmd_run_single(env::get_arg(2 + shift))
+        auto use_forge# = false
+        auto idx#: i32 = (2 + shift) as i32
+        auto single_file# = string::from("")
+        loop idx < argc {
+            auto arg = env::get_arg(idx)
+            if arg.eq(string::from("--forge")) || arg.eq(string::from("-f")) {
+                use_forge = true
+            } else if !arg.starts_with("-") {
+                single_file = arg.clone()
+            }
+            idx += 1
         }
-        return cmd_run()
+        if !single_file.is_empty() {
+            if use_forge {
+                env::set_var(string::from("TOKA_USE_FORGE"), string::from("1"))
+            } else {
+                env::set_var(string::from("TOKA_USE_FORGE"), string::from("0"))
+            }
+            return cmd_run_single(single_file)
+        }
+        return cmd_run(use_forge)
     }
     
     if cmd.eq(string::from("test")) {

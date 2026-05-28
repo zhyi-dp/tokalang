@@ -1,6 +1,7 @@
 
 
 import std/channel::{channel, Sender, Receiver, ChannelPair}
+import std/io::{println}
 import std/thread::{thread_spawn, JoinHandle}
 import std/slab::{Slab, SlabID}
 import std/fs::{metadata}
@@ -27,10 +28,17 @@ shape ReceiverBox<'T: @Send> (
     rx#: Receiver<'T>
 )
 
+shape SenderBox<'T: @Send> (
+    tx#: Sender<'T>
+)
+
 pub shape WorkerPool (
-    tx_exec#: Sender<TaskExec>,
-    rx_res#: Receiver<TaskResult>,
-    ~rx_box#: ReceiverBox<TaskExec>
+    tx_exec_addr: Addr,
+    rx_res_addr: Addr,
+    ~rx_box#: ReceiverBox<u64>,
+    ~tx_box#: SenderBox<u64>,
+    ~tx_exec_box#: SenderBox<u64>,
+    ~rx_res_box#: ReceiverBox<u64>
 )
 
 impl WorkerPool@encap {
@@ -40,32 +48,46 @@ impl WorkerPool@encap {
 
 impl WorkerPool {
     pub fn new(num_workers: i32) -> WorkerPool {
-        auto exec_chan = channel<TaskExec>()
-        auto tx_exec = cede exec_chan.tx
-        auto rx_exec = cede exec_chan.rx
+        auto ~exec_channel = new AsyncChannel<u64>(
+            state = Mutex<WaitQueue<u64> >::new(WaitQueue<u64>::new(-1:i32)),
+            cond_not_empty = CondVar<WaitQueue<u64> >::new(),
+            cond_not_full = CondVar<WaitQueue<u64> >::new()
+        )
+        auto tx_exec = Sender<u64>(~channel = ~exec_channel)
+        auto rx_exec = Receiver<u64>(~channel = cede ~exec_channel)
         
         // Heap allocate a box to ensure stable memory address
-        auto ~rx_box = new ReceiverBox<TaskExec>(rx = cede rx_exec)
-        auto rx_exec_addr = (*~rx_box) as Addr
+        auto ~rx_box = new ReceiverBox<u64>(rx = cede rx_exec)
+        auto rx_exec_addr = ~rx_box as Addr
         
-        auto res_chan = channel<TaskResult>()
-        auto tx_res# = cede res_chan.tx
-        tx_res = cede tx_res // Satisfy mutable W0401
-        auto rx_res = cede res_chan.rx
+        auto ~tx_exec_box = new SenderBox<u64>(tx = cede tx_exec)
+        auto tx_exec_addr = ~tx_exec_box as Addr
         
-        auto pool = WorkerPool(
-            tx_exec = cede tx_exec,
-            rx_res = cede rx_res,
-            ~rx_box = cede ~rx_box
+        auto ~res_channel = new AsyncChannel<u64>(
+            state = Mutex<WaitQueue<u64> >::new(WaitQueue<u64>::new(-1:i32)),
+            cond_not_empty = CondVar<WaitQueue<u64> >::new(),
+            cond_not_full = CondVar<WaitQueue<u64> >::new()
         )
+        auto tx_res = Sender<u64>(~channel = ~res_channel)
+        auto rx_res = Receiver<u64>(~channel = cede ~res_channel)
+        
+        // Heap allocate SenderBox to ensure stable memory address and prevent UAF
+        auto ~tx_box = new SenderBox<u64>(tx = cede tx_res)
+        auto tx_res_addr = ~tx_box as Addr
+        
+        // Heap allocate Receiver for res_channel
+        auto ~rx_res_box = new ReceiverBox<u64>(rx = cede rx_res)
+        auto rx_res_addr = ~rx_res_box as Addr
         
         auto i# = 0
         loop i < num_workers {
-            auto tx_res_clone# = tx_res#.clone()
+            auto rx_addr_val = rx_exec_addr
+            auto tx_addr_val = tx_res_addr
             
-            auto work_fn: fn() -> i32 = { [cede rx_exec_addr, cede tx_res_clone#] =>
+            auto work_fn: fn() -> i32 = { [cede rx_addr_val, cede tx_addr_val] =>
                 unsafe {
-                    auto *#box_ptr = rx_exec_addr as *#ReceiverBox<TaskExec>
+                    auto *#box_ptr = rx_addr_val as *#ReceiverBox<u64>
+                    auto *#tx_ptr = tx_addr_val as *#SenderBox<u64>
                     loop true {
                         auto exec_res = box_ptr.rx#.recv()
                         if exec_res.is_err() {
@@ -75,30 +97,39 @@ impl WorkerPool {
                         if exec_opt.is_none() {
                             break
                         }
-                        auto exec = exec_opt.unwrap()
+                        auto exec_ptr = exec_opt.unwrap()
+                        auto *#exec = (exec_ptr as Addr) as *#TaskExec
                         
                         // 1. Run compiler command
                         auto status = libc_system(exec.cmd.c_str())
                         auto success = (status == 0)
+                        if !success {
+                            println("libc_system failed for command: {}, status: {}", exec.cmd.as_view(), status.to_string())
+                        }
                         
                         // 2. Query output metadata
                         auto mtime#: i64 = 0
                         auto size#: u64 = 0
-                        auto meta_res = metadata(exec.out_path.clone())
-                        if meta_res.is_ok() {
-                            auto m = meta_res.unwrap()
-                            mtime = m.modified()
-                            size = m.len()
+                        if success {
+                            auto meta_res = metadata(exec.out_path.clone())
+                            if meta_res.is_ok() {
+                                auto m = meta_res.unwrap()
+                                mtime = m.modified()
+                                size = m.len()
+                            }
                         }
                         
                         // 3. Send result back
-                        auto res = TaskResult(
+                        auto res_ptr = sys_alloc_thread_env(sizeof(TaskResult) as usize)
+                        auto *#res = res_ptr as *#TaskResult
+                        res = TaskResult(
                             id = exec.id,
                             success = success,
                             mtime = mtime,
                             size = size
                         )
-                        tx_res_clone#.send(cede res)
+                        auto _read_res = res // Satisfy W0402
+                        tx_ptr.tx#.send(res_ptr as u64)
                     }
                     return 0
                 }
@@ -109,17 +140,31 @@ impl WorkerPool {
             i += 1
         }
         
-        // Relinquish remaining channel ends to allow correct EOF propagation
-        auto _drop_tx = cede tx_res
+        auto pool = WorkerPool(
+            tx_exec_addr = tx_exec_addr,
+            rx_res_addr = rx_res_addr,
+            ~rx_box = cede ~rx_box,
+            ~tx_box = cede ~tx_box,
+            ~tx_exec_box = cede ~tx_exec_box,
+            ~rx_res_box = cede ~rx_res_box
+        )
         
         return cede pool
     }
 
-    pub fn send_task(self#, exec: TaskExec) {
-        self.tx_exec#.send(cede exec)
+    pub fn send_task(self#, exec_ptr: u64) {
+        unsafe {
+            auto *#tx_ptr = self.tx_exec_addr as *#SenderBox<u64>
+            auto &#tx_ref# = &(tx_ptr.tx)
+            tx_ref#.send(exec_ptr)
+        }
     }
 
-    pub fn recv_result(self#) -> Result<Option<TaskResult>, Error> {
-        return self.rx_res#.recv()
+    pub fn recv_result(self#) -> Result<Option<u64>, Error> {
+        unsafe {
+            auto *#rx_ptr = self.rx_res_addr as *#ReceiverBox<u64>
+            auto &#rx_ref# = &(rx_ptr.rx)
+            return rx_ref#.recv()
+        }
     }
 }

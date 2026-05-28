@@ -2,7 +2,6 @@ import std/io::{get_stdin, get_stdout, File, print_line}
 
 import core/str::{str}
 import sys/libc::{libc_malloc, libc_free}
-import core/types::{usize, char, ADDR0}
 import stdx/serde/json::{JsonNode, to_json, JsonRes, @FromJson}
 import sys/libc::{libc_popen, libc_pclose, libc_fread, libc_getenv}
 
@@ -72,7 +71,7 @@ fn execute_command(cmd: string) -> string {
         if *p == (ADDR0 as *void) { return string::from("") }
         
         auto res# = string::from("")
-        auto buf# = [0:char; 1024]
+        auto buf = [0:char; 1024]
         loop true {
             auto bytes_read = libc_fread(&buf[0] as *void, 1, 1024, *p)
             if bytes_read == 0 { break }
@@ -261,7 +260,7 @@ fn process_message(body: string) {
                                                                 if line < 0 { line = 0 }
                                                                 if col < 0 { col = 0 }
                                                                 
-                                                                auto new_diag# = string::fmt("{\"range\":{\"start\":{\"line\":{},\"character\":{}},\"end\":{\"line\":{},\"character\":{}}},\"severity\":1,\"message\":\"{}\"}", line, col, line, col + 1, msg.c_str().as_str())
+                                                                auto new_diag = string::fmt("{\"range\":{\"start\":{\"line\":{},\"character\":{}},\"end\":{\"line\":{},\"character\":{}}},\"severity\":1,\"message\":\"{}\"}", line, col, line, col + 1, msg.c_str().as_str())
                                                                 diag_json#.push_view(new_diag.as_view())
                                                             }
                                                             _ => {}

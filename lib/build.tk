@@ -126,6 +126,47 @@ pub fn run_build(proj: Executable) -> i32 {
             libc_system(c"mkdir -p target/debug")
         }
 
+        auto use_forge# = false
+        auto forge_path# = string::from("")
+        auto forge_env = libc_getenv(c"TOKA_USE_FORGE") as Addr
+        if forge_env != 0:Addr {
+            auto forge_env_str = string::from_cstr(forge_env as *char)
+            if forge_env_str == string::from("1") {
+                if libc_access(c"build/bin/forge", 0) == 0 {
+                    use_forge = true
+                    forge_path = string::from("build/bin/forge")
+                } else if libc_access(c"../build/bin/forge", 0) == 0 {
+                    use_forge = true
+                    forge_path = string::from("../build/bin/forge")
+                } else if libc_access(c"../../build/bin/forge", 0) == 0 {
+                    use_forge = true
+                    forge_path = string::from("../../build/bin/forge")
+                } else if libc_access(c"../../../build/bin/forge", 0) == 0 {
+                    use_forge = true
+                    forge_path = string::from("../../../build/bin/forge")
+                } else if libc_access(c"/usr/local/bin/forge", 0) == 0 {
+                    use_forge = true
+                    forge_path = string::from("/usr/local/bin/forge")
+                } else {
+                    println("warning: forge engine not found. Falling back to single-threaded compilation. Please run ./rebuild.sh first.")
+                }
+            }
+        }
+
+        if use_forge {
+            auto forge_cmd# = forge_path.clone()
+            forge_cmd#.push_str(" ")
+            forge_cmd#.push_cstr(&s)
+            forge_cmd#.push_str(" -j 4 -c .forge_cache")
+            
+            auto forge_res = libc_system(forge_cmd.c_str())
+            if forge_res != 0 {
+                auto name_str = string::from_cstr(*n)
+                println("\x1b[1;31m       Error\x1b[0m forge incremental compilation failed for {} with exit code: {}", name_str, forge_res.to_string())
+                return 1
+            }
+        }
+
         // Build tokac string: "tokac src_path > target/debug/main.ll"
         auto cmd1# = string::from("")
         if is_windows {

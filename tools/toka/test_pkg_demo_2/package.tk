@@ -1,10 +1,5 @@
 pub const PACKAGE = (
     name = "test_pkg_demo_2",
     version = "0.1.0",
-    dependencies = (
-        newpkg = "github.com/user/newpkg:v1.0.0",
-        tokamq = "1.0.0",
-        utils = "../utils",
-        router = "github.com/lumicore/router:v1.2.0"
-    )
+    dependencies = ()
 )
