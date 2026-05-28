@@ -1,0 +1,223 @@
+import std/io::{println, File}
+import std/slab::{Slab, SlabID}
+import std/vec::{Vec}
+import std/btreemap::{BTreeMap}
+import core/option::{Option}
+import src/cache::{CacheStore}
+
+pub shape TaskState (
+    Pending = 0 |
+    Running = 1 |
+    Cached = 2 |
+    Success = 3 |
+    Failed = 4
+)
+
+pub shape TaskNode (
+    id: SlabID,
+    name: string,
+    src_path: string,
+    out_path: string,
+    dependencies#: Vec<SlabID> = Vec<SlabID>::new(),
+    dependents#: Vec<SlabID> = Vec<SlabID>::new(),
+    state#: TaskState = TaskState::Pending,
+    in_degree#: i32 = 0
+)
+
+pub shape DependencyGraph (
+    slab#: Slab<TaskNode> = Slab<TaskNode>::new(),
+    path_to_id#: BTreeMap<string, SlabID> = BTreeMap<string, SlabID>::new(),
+    registered_ids#: Vec<SlabID> = Vec<SlabID>::new()
+)
+
+pub fn parse_import_line(line: string) -> Option<string> {
+    auto s = line.clone()
+    auto trimmed = s.trim()
+    if !trimmed.starts_with("import ") {
+        return Option<string>::None
+    }
+    
+    auto sub = trimmed.substring(7, trimmed.len() as i32)
+    auto sub_trimmed# = sub.trim()
+    
+    auto first_space = sub_trimmed.find_str(" ")
+    if first_space != -1 {
+        sub_trimmed = sub_trimmed.substring(0, first_space)
+    }
+    auto first_brace = sub_trimmed.find_str("{")
+    if first_brace != -1 {
+        sub_trimmed = sub_trimmed.substring(0, first_brace)
+    }
+    auto first_colon = sub_trimmed.find_str("::")
+    if first_colon != -1 {
+        sub_trimmed = sub_trimmed.substring(0, first_colon)
+    }
+    
+    auto final_sub = sub_trimmed.trim()
+    if final_sub.is_empty() {
+        return Option<string>::None
+    }
+    
+    if final_sub.starts_with("std/") || final_sub.starts_with("core/") || final_sub.starts_with("sys/") {
+        return Option<string>::None
+    }
+    
+    auto file_path# = final_sub.clone()
+    file_path#.push_str(".tk")
+    return Option<string>::Some(cede file_path)
+}
+
+impl DependencyGraph {
+    pub fn new() -> DependencyGraph {
+        return DependencyGraph(
+            slab = Slab<TaskNode>::new(),
+            path_to_id = BTreeMap<string, SlabID>::new(),
+            registered_ids = Vec<SlabID>::new()
+        )
+    }
+
+    pub fn get_node(self, id: SlabID) -> Option<&TaskNode> <- self {
+        return self.slab.get(id)
+    }
+
+    pub fn get_node_mut(self#, id: SlabID) -> Option<&#TaskNode> <- self {
+        return self.slab#.get_mut(id)
+    }
+
+    pub fn register_file(self#, path: string) -> SlabID {
+        auto id_opt = self.path_to_id.get(path.clone())
+        if id_opt.is_some() {
+            return id_opt.unwrap()
+        }
+
+        auto dummy_id = SlabID::new(0, 0)
+        auto node = TaskNode(
+            id = dummy_id,
+            name = path.clone(),
+            src_path = path.clone(),
+            out_path = string::from(""),
+            dependencies = Vec<SlabID>::new(),
+            dependents = Vec<SlabID>::new(),
+            state = TaskState::Pending,
+            in_degree = 0
+        )
+        
+        auto real_id = self.slab#.insert(cede node)
+        self.registered_ids#.push(real_id.clone())
+        
+        unsafe {
+            auto &#n# = self.slab#.get_mut(real_id.clone()).unwrap()
+            n.id = real_id.clone()
+            n.in_degree = n.in_degree
+            auto _read = n.id
+        }
+        
+        self.path_to_id#.insert(path.clone(), real_id.clone())
+
+        // 2. Scan file imports to establish edges
+        auto file# = File::open(path.clone(), "r")
+        auto deps# = Vec<SlabID>::new()
+        
+        if file.is_valid() {
+            loop !file.is_eof() {
+                auto line_res = file#.read_line()
+                if line_res.is_err() {
+                    break
+                }
+                auto line = line_res.unwrap()
+                auto imp_opt = parse_import_line(line)
+                if imp_opt.is_some() {
+                    auto imp_path = imp_opt.unwrap()
+                    auto dep_id = self#.register_file(imp_path)
+                    deps#.push(dep_id.clone())
+                    
+                    unsafe {
+                        auto &#child_node# = self.slab#.get_mut(dep_id).unwrap()
+                        child_node.dependents#.push(real_id.clone())
+                        child_node.in_degree = child_node.in_degree
+                        auto _read = child_node.id
+                    }
+                }
+            }
+            file#.close()
+        }
+
+        // 3. Finalize in_degree and dependencies
+        unsafe {
+            auto &#n# = self.slab#.get_mut(real_id.clone()).unwrap()
+            n.in_degree = deps.len() as i32
+            n.dependencies = cede deps
+            n.in_degree = n.in_degree
+            auto _read = n.in_degree
+        }
+
+        return real_id
+    }
+
+    pub fn resolve_clean_nodes(self#, cache: CacheStore) {
+        auto ready# = Vec<SlabID>::new()
+        
+        // 1. Find initial clean nodes with in_degree == 0
+        auto idx#: u64 = 0
+        loop idx < self.registered_ids.len() {
+            auto id = self.registered_ids.get(idx)
+            auto node_opt = self.slab.get(id.clone())
+            if node_opt.is_some() {
+                auto &node = node_opt.unwrap()
+                if node.in_degree == 0 && node.state == TaskState::Pending {
+                    if !cache.is_dirty(node.src_path.clone()) {
+                        ready#.push(id.clone())
+                    }
+                }
+            }
+            idx += 1
+        }
+        
+        // 2. Process ready clean nodes
+        loop ready.len() > 0 {
+            auto curr_id = ready#.pop().unwrap()
+            
+            // Mark as Success
+            unsafe {
+                auto &#curr_node# = self.slab#.get_mut(curr_id.clone()).unwrap()
+                curr_node.state = TaskState::Success
+                curr_node.in_degree = curr_node.in_degree
+                auto _read = curr_node.id
+            }
+            
+            // Decrement dependents
+            auto dependents# = Vec<SlabID>::new()
+            unsafe {
+                auto &#curr_node# = self.slab#.get_mut(curr_id.clone()).unwrap()
+                auto iter# = curr_node.dependents.iter()
+                loop true {
+                    match iter#.next() {
+                        auto Option<SlabID>::Some(&dep_id) => {
+                            dependents#.push(dep_id.clone())
+                        }
+                        _ => break
+                    }
+                }
+                curr_node.in_degree = curr_node.in_degree
+                auto _read = curr_node.id
+            }
+            
+            auto d_idx#: u64 = 0
+            loop d_idx < dependents.len() {
+                auto dep_id = dependents.get(d_idx)
+                unsafe {
+                    auto &#dep_node# = self.slab#.get_mut(dep_id.clone()).unwrap()
+                    dep_node.in_degree = dep_node.in_degree - 1
+                    if dep_node.in_degree == 0 && dep_node.state == TaskState::Pending {
+                        if !cache.is_dirty(dep_node.src_path.clone()) {
+                            ready#.push(dep_id.clone())
+                        }
+                    }
+                    dep_node.in_degree = dep_node.in_degree
+                    auto _read_dep = dep_node.id
+                }
+                d_idx += 1
+            }
+        }
+    }
+}

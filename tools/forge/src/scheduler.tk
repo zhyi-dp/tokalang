@@ -1,0 +1,118 @@
+
+
+import std/channel::{channel, Sender, Receiver, ChannelPair}
+import std/thread::{thread_spawn, JoinHandle}
+import std/slab::{Slab, SlabID}
+import std/fs::{metadata}
+import sys/libc::{libc_system}
+import core/option::{Option}
+import core/result::{Result}
+import std/error::{Error}
+
+pub shape TaskExec (
+    id: SlabID,
+    src_path: string,
+    out_path: string,
+    cmd: string
+)
+
+pub shape TaskResult (
+    id: SlabID,
+    success: bool,
+    mtime: i64,
+    size: u64
+)
+
+pub shape WorkerPool (
+    tx_exec#: Sender<TaskExec>,
+    rx_res#: Receiver<TaskResult>
+)
+
+impl WorkerPool@encap {
+    fn drop(self#) {}
+    pub fn clone(self) = delete
+}
+
+impl WorkerPool {
+    pub fn new(num_workers: i32) -> WorkerPool {
+        auto exec_chan = channel<TaskExec>()
+        auto tx_exec = cede exec_chan.tx
+        auto rx_exec# = cede exec_chan.rx
+        rx_exec = cede rx_exec // Satisfy mutable W0401
+        auto rx_exec_addr = rx_exec#.get_raw_addr()
+        
+        auto res_chan = channel<TaskResult>()
+        auto tx_res# = cede res_chan.tx
+        tx_res = cede tx_res // Satisfy mutable W0401
+        auto rx_res = cede res_chan.rx
+        
+        auto pool = WorkerPool(
+            tx_exec = cede tx_exec,
+            rx_res = cede rx_res
+        )
+        
+        auto i# = 0
+        loop i < num_workers {
+            auto tx_res_clone# = tx_res#.clone()
+            
+            auto work_fn: fn() -> i32 = { [cede rx_exec_addr, cede tx_res_clone#] =>
+                unsafe {
+                    auto *#rx_ptr# = rx_exec_addr as *Receiver<TaskExec>
+                    loop true {
+                        auto exec_res = rx_ptr#.recv()
+                        if exec_res.is_err() {
+                            break
+                        }
+                        auto exec_opt = exec_res.unwrap()
+                        if exec_opt.is_none() {
+                            break
+                        }
+                        auto exec = exec_opt.unwrap()
+                        
+                        // 1. Run compiler command
+                        auto status = libc_system(exec.cmd.c_str())
+                        auto success = (status == 0)
+                        
+                        // 2. Query output metadata
+                        auto mtime#: i64 = 0
+                        auto size#: u64 = 0
+                        auto meta_res = metadata(exec.out_path.clone())
+                        if meta_res.is_ok() {
+                            auto m = meta_res.unwrap()
+                            mtime = m.modified()
+                            size = m.len()
+                        }
+                        
+                        // 3. Send result back
+                        auto res = TaskResult(
+                            id = exec.id,
+                            success = success,
+                            mtime = mtime,
+                            size = size
+                        )
+                        tx_res_clone#.send(cede res)
+                    }
+                    return 0
+                }
+            }
+            
+            auto handle# = thread_spawn<i32>(cede work_fn)
+            handle#.detach()
+            i += 1
+        }
+        
+        // Relinquish remaining channel ends to allow correct EOF propagation
+        auto _drop_rx = cede rx_exec
+        auto _drop_tx = cede tx_res
+        
+        return cede pool
+    }
+
+    pub fn send_task(self#, exec: TaskExec) {
+        self.tx_exec#.send(cede exec)
+    }
+
+    pub fn recv_result(self#) -> Result<Option<TaskResult>, Error> {
+        return self.rx_res#.recv()
+    }
+}

@@ -1,0 +1,171 @@
+import std/io::{println, File}
+import std/fs::{Metadata, metadata}
+import std/btreemap::{BTreeMap}
+import core/option::{Option}
+
+pub shape FileInfo (
+    mtime: i64,
+    size: u64
+)
+
+pub fn get_file_info(path: string) -> Option<FileInfo> {
+    auto meta_res = metadata(path)
+    if meta_res.is_err() {
+        return Option<FileInfo>::None
+    }
+    auto m = meta_res.unwrap()
+    return Option<FileInfo>::Some(FileInfo(
+        mtime = m.modified(),
+        size = m.len()
+    ))
+}
+
+pub fn parse_i64(s: string) -> i64 {
+    unsafe {
+        auto val#: i64 = 0
+        auto *b = s.c_str() as *[char]
+        if *b == null { return 0:i64 }
+        auto i#: usize = 0
+        auto neg# = false
+        if b[0] == 45:char { // '-'
+            neg = true
+            i = 1
+        }
+        loop i < s.len() {
+            auto c = b[i] as i32
+            if c >= 48 && c <= 57 {
+                val = (val * 10:i64) + (c - 48) as i64
+            }
+            i += 1
+        }
+        if neg {
+            return -val
+        }
+        return val
+    }
+}
+
+pub fn parse_u64(s: string) -> u64 {
+    unsafe {
+        auto val#: u64 = 0
+        auto *b = s.c_str() as *[char]
+        if *b == null { return 0:u64 }
+        auto i#: usize = 0
+        loop i < s.len() {
+            auto c = b[i] as i32
+            if c >= 48 && c <= 57 {
+                val = (val * 10:u64) + (c - 48) as u64
+            }
+            i += 1
+        }
+        return val
+    }
+}
+
+pub shape FileState (
+    path: string,
+    mtime: i64,
+    size: u64,
+    artifact_path: string
+)
+
+pub shape CacheStore (
+    states#: BTreeMap<string, FileState> = BTreeMap<string, FileState>::new(),
+    cache_path: string
+)
+
+impl CacheStore {
+    pub fn load(cache_path: string) -> CacheStore {
+        auto store = CacheStore(
+            states = BTreeMap<string, FileState>::new(),
+            cache_path = cache_path.clone()
+        )
+        
+        auto file# = File::open(cache_path, "r")
+        if !file.is_valid() {
+            return cede store
+        }
+        
+        loop !file.is_eof() {
+            auto line_res = file#.read_line()
+            if line_res.is_err() {
+                break
+            }
+            auto line = line_res.unwrap()
+            auto trimmed = line.trim()
+            if trimmed.is_empty() {
+                continue
+            }
+            
+            auto iter# = trimmed.split(124) // '|' as i32
+            if !iter.is_done() {
+                auto path = iter#.next()
+                auto mtime_str = iter#.next()
+                auto size_str = iter#.next()
+                auto artifact = iter#.next()
+                
+                if !path.is_empty() {
+                    auto state = FileState(
+                        path = path.clone(),
+                        mtime = parse_i64(mtime_str),
+                        size = parse_u64(size_str),
+                        artifact_path = artifact
+                    )
+                    store.states#.insert(path, cede state)
+                }
+            }
+        }
+        file#.close()
+        return cede store
+    }
+
+    pub fn record_success(self#, path: string, mtime: i64, size: u64, artifact_path: string) {
+        auto state = FileState(
+            path = path.clone(),
+            mtime = mtime,
+            size = size,
+            artifact_path = artifact_path.clone()
+        )
+        self.states#.insert(path.clone(), cede state)
+        
+        auto file# = File::open(self.cache_path.clone(), "a")
+        if file.is_valid() {
+            auto line# = string::from("")
+            line#.push_str(path.as_view())
+            line#.push_str("|")
+            line#.push_str(mtime.to_string().as_view())
+            line#.push_str("|")
+            line#.push_str(size.to_string().as_view())
+            line#.push_str("|")
+            line#.push_str(artifact_path.as_view())
+            line#.push_str("\n")
+            
+            file.write(line.as_str())
+            file#.close()
+        }
+    }
+
+    pub fn is_dirty(self, path: string) -> bool {
+        auto info_opt = get_file_info(path.clone())
+        if info_opt.is_none() {
+            return true
+        }
+        auto info = info_opt.unwrap()
+        
+        auto state_opt = self.states.get(path)
+        if state_opt.is_none() {
+            return true
+        }
+        auto state = state_opt.unwrap()
+        
+        return info.mtime != state.mtime || info.size != state.size
+    }
+
+    pub fn get_artifact(self, path: string) -> string {
+        auto state_opt = self.states.get(path)
+        if state_opt.is_none() {
+            return string::from("")
+        }
+        return state_opt.unwrap().artifact_path.clone()
+    }
+}

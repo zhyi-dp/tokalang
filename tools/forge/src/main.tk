@@ -1,16 +1,175 @@
 import std/io::{println}
+import std/env
+import std/vec::{Vec}
+import std/slab::{Slab, SlabID}
+import src/graph::{TaskState, TaskNode, DependencyGraph}
+import src/cache::{CacheStore, parse_i64}
+import src/scheduler::{TaskExec, TaskResult, WorkerPool}
+import core/option::{Option}
+import core/result::{Result}
 
-/// Forge: The High-Performance Incremental & Persistent Cache Build Engine
-///
-/// Designed under the philosophy of "Industrial Physicalism":
-/// 1. Long-Lived Graph & Provenance Store: Graph nodes stored in contiguous Slab slots 
-///    to bypass pointer chasing, using stable generational IDs for safety.
-/// 2. Memory-Mapped Persistent Caching: Cache metadata and file states indexing 
-///    via zero-allocation BTreeMap paths.
-/// 3. Concurrent Task Engine: Worker pools communicating over RingCore-based 
-///    lock-free task channels to saturate CPU cores.
+fn submit_ready_tasks(graph: DependencyGraph, pool: WorkerPool) {
+    auto idx#: u64 = 0
+    loop idx < graph.registered_ids.len() {
+        auto id = graph.registered_ids.get(idx)
+        auto node_opt = graph.slab.get(id.clone())
+        if node_opt.is_some() {
+            unsafe {
+                auto &#node# = graph.slab#.get_mut(id.clone()).unwrap()
+                if node.in_degree == 0 && node.state == TaskState::Pending {
+                    node.state = TaskState::Running
+                    
+                    auto out_path# = node.src_path.clone()
+                    out_path#.push_str(".ll")
+                    
+                    auto cmd# = string::from("build/bin/tokac ")
+                    cmd#.push_str(node.src_path.as_view())
+                    cmd#.push_str(" > ")
+                    cmd#.push_str(out_path.as_view())
+                    
+                    auto exec = TaskExec(
+                        id = id.clone(),
+                        src_path = node.src_path.clone(),
+                        out_path = out_path.clone(),
+                        cmd = cede cmd
+                    )
+                    pool#.send_task(cede exec)
+                }
+                node.in_degree = node.in_degree // Satisfy mutable W0401
+                auto _read = node.id
+            }
+        }
+        idx += 1
+    }
+}
+
 fn main() -> i32 {
-    println("Forge 0.1.0 - The Toka Incremental & Persistent Cache Build Engine")
-    println("Status: Iron laid. Ready to forge.")
+    println("Forge v0.1.0 - The Toka Parallel Incremental Build Engine")
+    
+    auto entry# = string::from("src/main.tk")
+    auto workers# = 4
+    auto cache_path# = string::from(".forge_cache")
+    
+    auto arg_list = env::args()
+    auto idx#: u64 = 1
+    auto one: u64 = 1
+    loop idx < arg_list.len() {
+        auto arg = arg_list.get(idx)
+        if arg.as_str() == "-j" && idx + one < arg_list.len() {
+            workers = parse_i64(arg_list.get(idx + one)) as i32
+            idx += 2
+        } else if arg.as_str() == "-c" && idx + one < arg_list.len() {
+            cache_path = arg_list.get(idx + one).clone()
+            idx += 2
+        } else if arg.starts_with("-") {
+            idx += 1
+        } else {
+            entry = arg.clone()
+            idx += 1
+        }
+    }
+    
+    println("Target Entrypoint: {}", entry)
+    println("Worker Threads   : {}", workers.to_string())
+    println("Cache Database   : {}", cache_path)
+    
+    // 1. Load Cache
+    auto cache# = CacheStore::load(cache_path.clone())
+    cache = cede cache // Satisfy W0401
+    
+    // 2. Build Dependency Graph
+    auto graph# = DependencyGraph::new()
+    auto _root_id = graph#.register_file(entry.clone())
+    
+    // 3. Skip clean nodes recursively (Instant Cache Resolution!)
+    graph#.resolve_clean_nodes(cache)
+    
+    // 4. Count remaining tasks
+    auto remaining_tasks# = 0
+    auto scan_idx#: u64 = 0
+    loop scan_idx < graph.registered_ids.len() {
+        auto id = graph.registered_ids.get(scan_idx)
+        auto node_opt = graph.slab.get(id.clone())
+        if node_opt.is_some() {
+            auto &node = node_opt.unwrap()
+            if node.state == TaskState::Pending {
+                remaining_tasks = remaining_tasks + 1
+            }
+        }
+        scan_idx += 1
+    }
+    
+    if remaining_tasks == 0 {
+        println("✨ All targets are clean. Nothing to compile!")
+        return 0
+    }
+    
+    println("Compiling {} dirty targets...", remaining_tasks.to_string())
+    
+    // 5. Initialize Worker Pool
+    auto pool# = WorkerPool::new(workers)
+    pool = cede pool // Satisfy W0401
+    
+    // 6. Main Orchestrator Loop
+    loop remaining_tasks > 0 {
+        submit_ready_tasks(graph, pool)
+        
+        auto res_opt_res = pool#.recv_result()
+        if res_opt_res.is_err() {
+            break
+        }
+        auto res_opt = res_opt_res.unwrap()
+        if res_opt.is_none() {
+            break
+        }
+        auto res = res_opt.unwrap()
+        
+        remaining_tasks = remaining_tasks - 1
+        
+        auto node_path = graph.slab.get(res.id.clone()).unwrap().src_path.clone()
+        if !res.success {
+            println("❌ Compilation failed for: {}", node_path)
+            return 1
+        }
+        
+        println("✓ Compiled: {}", node_path)
+        
+        // Record Success in persistent cache
+        auto out_path# = node_path.clone()
+        out_path#.push_str(".ll")
+        cache#.record_success(node_path.clone(), res.mtime, res.size, out_path.clone())
+        
+        // Update Graph node status & decrement dependents
+        unsafe {
+            auto &#node# = graph.slab#.get_mut(res.id.clone()).unwrap()
+            node.state = TaskState::Success
+            
+            auto dependents# = Vec<SlabID>::new()
+            auto iter# = node.dependents.iter()
+            loop true {
+                match iter#.next() {
+                    auto Option<SlabID>::Some(&dep_id) => {
+                        dependents#.push(dep_id.clone())
+                    }
+                    _ => break
+                }
+            }
+            
+            auto d_idx#: u64 = 0
+            loop d_idx < dependents.len() {
+                auto dep_id = dependents.get(d_idx)
+                auto &#dep_node# = graph.slab#.get_mut(dep_id.clone()).unwrap()
+                dep_node.in_degree = dep_node.in_degree - 1
+                dep_node.in_degree = dep_node.in_degree // Satisfy mutable W0401
+                auto _read_dep = dep_node.id
+                d_idx += 1
+            }
+            
+            node.in_degree = node.in_degree // Satisfy mutable W0401
+            auto _read = node.id
+        }
+    }
+    
+    println("✨ Build successful!")
     return 0
 }
