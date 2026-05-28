@@ -282,7 +282,7 @@ DIAG(ERR_SEMA_PERMISSION_SYMBOLS_ARE_ONLY_ALLOWED_AT_TH, Error, "E04478", "Permi
 DIAG(ERR_SEMA_OPERAND_OF_MUST_BE_BOOL_GOT, Error, "E04479", "operand of '!' must be bool, got '{}'")
 DIAG(ERR_SEMA_OPERAND_OF_MUST_BE_NUMERIC_GOT, Error, "E04480", "operand of '-' must be numeric, got '{}'")
 DIAG(ERR_SEMA_POINTER_MORPHOLOGY_AND_PERMISSION_SYMBOLS, Error, "E04481", "Pointer morphology and permission symbols are only allowed at the terminal of an access chain, got '{}'")
-DIAG(ERR_SEMA_IDENTITY_ASSERTION_CAN_ONLY_BE_APPLIED_TO, Error, "E04482", "Identity assertion '??' can only be applied to pointers, got '{}'")
+DIAG(ERR_SEMA_IDENTITY_ASSERTION_CAN_ONLY_BE_APPLIED_TO, Error, "E04482", "Identity assertion '\?\?' can only be applied to pointers, got '{}'")
 DIAG(ERR_SEMA_ARRAY_INDEX_MUST_BE_INTEGER_GOT, Error, "E04483", "array index must be integer, got '{}'")
 DIAG(ERR_SEMA_ERROR_E0490_SUBSCRIPT_INDEXING_IS_DISABLE, Error, "E04484", "error[E0490]: Subscript indexing is disabled for UTF-8 '{}'. Use 's.chars()' for sequential traversal, or 's.bytes()' for raw O(1) hardware indexing.")
 DIAG(ERR_SEMA_RAW_POINTER_INDEXING_REQUIRES_UNSAFE_CONT, Error, "E04485", "raw pointer indexing requires unsafe context")

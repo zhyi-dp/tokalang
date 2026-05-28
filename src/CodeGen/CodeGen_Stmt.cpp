@@ -84,15 +84,12 @@ llvm::Value *CodeGen::genReturnStmt(const ReturnStmt *ret) {
             m_Builder.CreateCondBr(refNN, doIncBB, contBB);
             m_Builder.SetInsertPoint(doIncBB);
 
-            bool isAtomic = false;
-            if (sym.soulTypeObj) {
-                if (auto st = std::dynamic_pointer_cast<ShapeType>(sym.soulTypeObj->getSoulType())) {
-                    isAtomic = st->IsSync;
-                }
-            }
+            // Option A: All shared pointer refcount operations are atomic by default (@arc)
+            bool isAtomic = true;
 
             if (isAtomic) {
-                m_Builder.CreateAtomicRMW(llvm::AtomicRMWInst::Add, refPtr, m_Builder.getInt32(1), llvm::MaybeAlign(4), llvm::AtomicOrdering::SequentiallyConsistent);
+                // Retain/Inc uses Monotonic (Relaxed) memory ordering for maximal throughput
+                m_Builder.CreateAtomicRMW(llvm::AtomicRMWInst::Add, refPtr, m_Builder.getInt32(1), llvm::MaybeAlign(4), llvm::AtomicOrdering::Monotonic);
             } else {
                 llvm::Value *cnt = m_Builder.CreateLoad(llvm::Type::getInt32Ty(m_Context), refPtr);
                 llvm::Value *inc = m_Builder.CreateAdd(
@@ -286,22 +283,13 @@ void CodeGen::executeScopeUnwinding(size_t targetDepth) {
             m_Builder.CreateCondBr(refIsNotNull, decBB, afterDecBB);
             m_Builder.SetInsertPoint(decBB);
 
-            bool isAtomic = false;
-            if (m_Symbols.count(it->Name)) {
-              if (auto typeObj = m_Symbols[it->Name].soulTypeObj) {
-                if (auto st = std::dynamic_pointer_cast<ShapeType>(typeObj->getSoulType())) {
-                  isAtomic = st->IsSync;
-                } else {
-                }
-              } else {
-              }
-            } else {
-            }
+            // Option A: All shared pointer refcount operations are atomic by default (@arc)
+            bool isAtomic = true;
 
-            
             llvm::Value *isZero = nullptr;
             if (isAtomic) {
-              llvm::Value *oldCnt = m_Builder.CreateAtomicRMW(llvm::AtomicRMWInst::Sub, refPtr, m_Builder.getInt32(1), llvm::MaybeAlign(4), llvm::AtomicOrdering::SequentiallyConsistent);
+              // Release/Dec uses AcquireRelease memory ordering to sync prior writes before dropping
+              llvm::Value *oldCnt = m_Builder.CreateAtomicRMW(llvm::AtomicRMWInst::Sub, refPtr, m_Builder.getInt32(1), llvm::MaybeAlign(4), llvm::AtomicOrdering::AcquireRelease);
               isZero = m_Builder.CreateICmpEQ(oldCnt, llvm::ConstantInt::get(llvm::Type::getInt32Ty(m_Context), 1));
             } else {
               llvm::Value *count = m_Builder.CreateLoad(

@@ -1528,7 +1528,7 @@
     "E04482": {
       "id": "ERR_SEMA_IDENTITY_ASSERTION_CAN_ONLY_BE_APPLIED_TO",
       "level": "Error",
-      "message": "Identity assertion '??' can only be applied to pointers, got '{}'",
+      "message": "Identity assertion '\\?\\?' can only be applied to pointers, got '{}'",
       "description": "Identity assertion '??' can only be applied to pointers, got '{}'"
     },
     "E04483": {

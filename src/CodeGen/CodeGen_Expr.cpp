@@ -34,11 +34,11 @@ void CodeGen::emitAcquire(llvm::Value *sharedHandle, std::shared_ptr<Type> point
   if (ST->getNumElements() < 2)
     return;
 
-  bool isAtomic = false;
+  // Option A: All shared pointer refcount operations are atomic by default (@arc)
+  bool isAtomic = true;
   std::string pName = "null";
   if (pointeeType) {
     if (auto shapeTy = std::dynamic_pointer_cast<ShapeType>(pointeeType->getSoulType())) {
-      isAtomic = shapeTy->IsSync;
       pName = shapeTy->Name;
     } else {
       pName = pointeeType->toString();
@@ -60,7 +60,8 @@ void CodeGen::emitAcquire(llvm::Value *sharedHandle, std::shared_ptr<Type> point
   m_Builder.SetInsertPoint(incBB);
   
   if (isAtomic) {
-    m_Builder.CreateAtomicRMW(llvm::AtomicRMWInst::Add, refPtr, m_Builder.getInt32(1), llvm::MaybeAlign(4), llvm::AtomicOrdering::SequentiallyConsistent);
+    // Retain/Inc uses Monotonic (Relaxed) memory ordering for maximal throughput
+    m_Builder.CreateAtomicRMW(llvm::AtomicRMWInst::Add, refPtr, m_Builder.getInt32(1), llvm::MaybeAlign(4), llvm::AtomicOrdering::Monotonic);
   } else {
     llvm::Value *cnt =
         m_Builder.CreateLoad(llvm::Type::getInt32Ty(m_Context), refPtr);
@@ -78,12 +79,8 @@ void CodeGen::emitRelease(llvm::Value *sharedHandle, const TokaSymbol &sym, std:
   if (!sharedHandle || !sharedHandle->getType()->isStructTy())
     return;
     
-  bool isAtomic = false;
-  if (pointeeType) {
-    if (auto shapeTy = std::dynamic_pointer_cast<ShapeType>(pointeeType->getSoulType())) {
-      isAtomic = shapeTy->IsSync;
-    }
-  }
+  // Option A: All shared pointer refcount operations are atomic by default (@arc)
+  bool isAtomic = true;
 
   llvm::Value *refPtr =
       m_Builder.CreateExtractValue(sharedHandle, 1, "sh.rel_ref_ptr");
@@ -100,7 +97,8 @@ void CodeGen::emitRelease(llvm::Value *sharedHandle, const TokaSymbol &sym, std:
   
   llvm::Value *isZero = nullptr;
   if (isAtomic) {
-    llvm::Value *oldCnt = m_Builder.CreateAtomicRMW(llvm::AtomicRMWInst::Sub, refPtr, m_Builder.getInt32(1), llvm::MaybeAlign(4), llvm::AtomicOrdering::SequentiallyConsistent);
+    // Release/Dec uses AcquireRelease memory ordering to sync prior writes before dropping
+    llvm::Value *oldCnt = m_Builder.CreateAtomicRMW(llvm::AtomicRMWInst::Sub, refPtr, m_Builder.getInt32(1), llvm::MaybeAlign(4), llvm::AtomicOrdering::AcquireRelease);
     isZero = m_Builder.CreateICmpEQ(oldCnt, llvm::ConstantInt::get(llvm::Type::getInt32Ty(m_Context), 1));
   } else {
     llvm::Value *cnt =
@@ -3293,16 +3291,12 @@ void CodeGen::genPatternBinding(const MatchArm::Pattern *pat,
           m_Builder.CreateCondBr(refNN, doIncBB, contBB);
           m_Builder.SetInsertPoint(doIncBB);
 
-          bool isAtomic = false;
-          if (targetTypeObj) {
-              auto st = std::dynamic_pointer_cast<ShapeType>(targetTypeObj->getSoulType());
-              if (st) {
-                  isAtomic = st->IsSync;
-              }
-          }
+          // Option A: All shared pointer refcount operations are atomic by default (@arc)
+          bool isAtomic = true;
 
           if (isAtomic) {
-              m_Builder.CreateAtomicRMW(llvm::AtomicRMWInst::Add, refPtr, m_Builder.getInt32(1), llvm::MaybeAlign(4), llvm::AtomicOrdering::SequentiallyConsistent);
+              // Retain/Inc uses Monotonic (Relaxed) memory ordering for maximal throughput
+              m_Builder.CreateAtomicRMW(llvm::AtomicRMWInst::Add, refPtr, m_Builder.getInt32(1), llvm::MaybeAlign(4), llvm::AtomicOrdering::Monotonic);
           } else {
               llvm::Value *cnt = m_Builder.CreateLoad(llvm::Type::getInt32Ty(m_Context), refPtr);
               llvm::Value *inc = m_Builder.CreateAdd(cnt, m_Builder.getInt32(1));
