@@ -738,6 +738,1668 @@
       "level": "Error",
       "message": "Invalid command line argument: {}",
       "description": "Invalid command line argument: {}"
+    },
+    "E01109": {
+      "id": "ERR_EXPECTED_IDENTIFIER",
+      "level": "Error",
+      "message": "Expected identifier",
+      "description": "Expected identifier"
+    },
+    "E01110": {
+      "id": "ERR_PARSER_EXPECTED_IDENTIFIER_AFTER",
+      "level": "Error",
+      "message": "Expected identifier after '-'",
+      "description": "Expected identifier after '-'"
+    },
+    "E01111": {
+      "id": "ERR_PARSER_UNEXPECTED_TOP_LEVEL_TOKEN",
+      "level": "Error",
+      "message": "Unexpected Top Level Token: {}",
+      "description": "Unexpected Top Level Token: {}"
+    },
+    "E01112": {
+      "id": "ERR_PARSER_DEPRECATED_KEYWORD_LET_USE_AUTO_FOR_VAR",
+      "level": "Error",
+      "message": "Deprecated keyword 'let'; use 'auto' for variable declarations.",
+      "description": "Deprecated keyword 'let'; use 'auto' for variable declarations."
+    },
+    "E01113": {
+      "id": "ERR_PARSER_BORROWED_POINTERS_CANNOT_BE_NULLABLE",
+      "level": "Error",
+      "message": "Borrowed pointers (&) cannot be nullable",
+      "description": "Borrowed pointers (&) cannot be nullable"
+    },
+    "E01114": {
+      "id": "ERR_PARSER_EXPECTED_FOR_DESTRUCTURING",
+      "level": "Error",
+      "message": "Expected '(' for destructuring",
+      "description": "Expected '(' for destructuring"
+    },
+    "E01115": {
+      "id": "ERR_PARSER_EXPECTED_VARIABLE_NAME_OR",
+      "level": "Error",
+      "message": "Expected variable name or '_'",
+      "description": "Expected variable name or '_'"
+    },
+    "E01116": {
+      "id": "ERR_PARSER_EXPECTED_AFTER_VARIABLE_NAME",
+      "level": "Error",
+      "message": "Expected '=' after variable name",
+      "description": "Expected '=' after variable name"
+    },
+    "E01117": {
+      "id": "ERR_PARSER_EXPECTED_AFTER_IN_NAMED_DESTRUCTURING",
+      "level": "Error",
+      "message": "Expected '.' after '=' in named destructuring",
+      "description": "Expected '.' after '=' in named destructuring"
+    },
+    "E01118": {
+      "id": "ERR_PARSER_EXPECTED_FIELD_NAME",
+      "level": "Error",
+      "message": "Expected field name",
+      "description": "Expected field name"
+    },
+    "E01119": {
+      "id": "ERR_PARSER_CANNOT_MIX_POSITIONAL_AND_NAMED_FIELDS",
+      "level": "Error",
+      "message": "Cannot mix positional and named fields in destructuring",
+      "description": "Cannot mix positional and named fields in destructuring"
+    },
+    "E01120": {
+      "id": "ERR_PARSER_EXPECTED_AFTER_DESTRUCTURING",
+      "level": "Error",
+      "message": "Expected ')' after destructuring",
+      "description": "Expected ')' after destructuring"
+    },
+    "E01121": {
+      "id": "ERR_PARSER_EXPECTED_FOR_DESTRUCTURING_2",
+      "level": "Error",
+      "message": "Expected '=' for destructuring",
+      "description": "Expected '=' for destructuring"
+    },
+    "E01122": {
+      "id": "ERR_PARSER_EXPECTED_VARIABLE_NAME",
+      "level": "Error",
+      "message": "Expected variable name",
+      "description": "Expected variable name"
+    },
+    "E01123": {
+      "id": "ERR_PARSER_EXPECTED_GUARD",
+      "level": "Error",
+      "message": "Expected 'guard'",
+      "description": "Expected 'guard'"
+    },
+    "E01124": {
+      "id": "ERR_PARSER_EXPECTED_AUTO_AFTER_GUARD",
+      "level": "Error",
+      "message": "Expected 'auto' after 'guard'",
+      "description": "Expected 'auto' after 'guard'"
+    },
+    "E01125": {
+      "id": "ERR_PARSER_EXPECTED_IN_GUARD_AUTO_STATEMENT",
+      "level": "Error",
+      "message": "Expected '=' in guard auto statement",
+      "description": "Expected '=' in guard auto statement"
+    },
+    "E01126": {
+      "id": "ERR_PARSER_EXPECTED_ELSE_AFTER_GUARD_TARGET_EXPRES",
+      "level": "Error",
+      "message": "Expected 'else' after guard target expression",
+      "description": "Expected 'else' after guard target expression"
+    },
+    "E01127": {
+      "id": "ERR_EXPECTED_LBRACE",
+      "level": "Error",
+      "message": "Expected '{'",
+      "description": "Expected '{'"
+    },
+    "E01128": {
+      "id": "ERR_EXPECTED_RBRACE",
+      "level": "Error",
+      "message": "Expected '}'",
+      "description": "Expected '}'"
+    },
+    "E01129": {
+      "id": "ERR_PARSER_EXPECTED_RETURN",
+      "level": "Error",
+      "message": "Expected 'return'",
+      "description": "Expected 'return'"
+    },
+    "E01130": {
+      "id": "ERR_PARSER_EXPECTED_DEL_OR_DELETE",
+      "level": "Error",
+      "message": "Expected 'del' or 'delete'",
+      "description": "Expected 'del' or 'delete'"
+    },
+    "E01131": {
+      "id": "ERR_PARSER_EXPECTED_UNSAFE",
+      "level": "Error",
+      "message": "Expected 'unsafe'",
+      "description": "Expected 'unsafe'"
+    },
+    "E01132": {
+      "id": "ERR_PARSER_EXPECTED_FREE",
+      "level": "Error",
+      "message": "Expected 'free'",
+      "description": "Expected 'free'"
+    },
+    "E01133": {
+      "id": "ERR_EXPECTED_RBRACKET",
+      "level": "Error",
+      "message": "Expected ']'",
+      "description": "Expected ']'"
+    },
+    "E01134": {
+      "id": "ERR_PARSER_EXPECTED_UNREACHABLE",
+      "level": "Error",
+      "message": "Expected 'unreachable'",
+      "description": "Expected 'unreachable'"
+    },
+    "E01135": {
+      "id": "ERR_PARSER_EXPECTED_LPAREN",
+      "level": "Error",
+      "message": "Expected 'LParen'",
+      "description": "Expected 'LParen'"
+    },
+    "E01136": {
+      "id": "ERR_PARSER_EXPECTED_AFTER_SUBPATTERNS",
+      "level": "Error",
+      "message": "Expected ')' after subpatterns",
+      "description": "Expected ')' after subpatterns"
+    },
+    "E01137": {
+      "id": "ERR_PARSER_RANGE_PATTERN_START_MUST_BE_AN_INTEGER",
+      "level": "Error",
+      "message": "Range pattern start must be an integer or character literal",
+      "description": "Range pattern start must be an integer or character literal"
+    },
+    "E01138": {
+      "id": "ERR_PARSER_RANGE_OPERATORS_AND_MUST_BE_SURROUNDED",
+      "level": "Error",
+      "message": "Range operators '..<' and '..=' must be surrounded by spaces",
+      "description": "Range operators '..<' and '..=' must be surrounded by spaces"
+    },
+    "E01139": {
+      "id": "ERR_PARSER_EXPECTED_INTEGER_OR_CHARACTER_LITERAL_F",
+      "level": "Error",
+      "message": "Expected integer or character literal for the range end pattern",
+      "description": "Expected integer or character literal for the range end pattern"
+    },
+    "E01140": {
+      "id": "ERR_EXPECTED_GREATER",
+      "level": "Error",
+      "message": "Expected '>'",
+      "description": "Expected '>'"
+    },
+    "E01141": {
+      "id": "ERR_PARSER_EXPECTED_COLON",
+      "level": "Error",
+      "message": "Expected 'Colon'",
+      "description": "Expected 'Colon'"
+    },
+    "E01142": {
+      "id": "ERR_PARSER_EXPECTED_VARIANT_NAME",
+      "level": "Error",
+      "message": "Expected variant name",
+      "description": "Expected variant name"
+    },
+    "E01143": {
+      "id": "ERR_PARSER_EXPECTED_AFTER_PATTERN",
+      "level": "Error",
+      "message": "Expected '=' after pattern",
+      "description": "Expected '=' after pattern"
+    },
+    "E01144": {
+      "id": "ERR_PARSER_EXPECTED_AFTER_IN_NAMED_PATTERN",
+      "level": "Error",
+      "message": "Expected '.' after '=' in named pattern",
+      "description": "Expected '.' after '=' in named pattern"
+    },
+    "E01145": {
+      "id": "ERR_PARSER_CANNOT_MIX_POSITIONAL_AND_NAMED_FIELD_2",
+      "level": "Error",
+      "message": "Cannot mix positional and named fields in pattern",
+      "description": "Cannot mix positional and named fields in pattern"
+    },
+    "E01146": {
+      "id": "ERR_PARSER_EXPECTED_PATTERN",
+      "level": "Error",
+      "message": "Expected pattern",
+      "description": "Expected pattern"
+    },
+    "E01147": {
+      "id": "ERR_PARSER_EXPECTED_AFTER_MATCH_EXPRESSION",
+      "level": "Error",
+      "message": "Expected '{' after match expression",
+      "description": "Expected '{' after match expression"
+    },
+    "E01148": {
+      "id": "ERR_PARSER_EXPECTED",
+      "level": "Error",
+      "message": "Expected '=>'",
+      "description": "Expected '=>'"
+    },
+    "E01149": {
+      "id": "ERR_PARSER_EXPECTED_AFTER_MATCH_ARMS",
+      "level": "Error",
+      "message": "Expected '}' after match arms",
+      "description": "Expected '}' after match arms"
+    },
+    "E01150": {
+      "id": "ERR_PARSER_USE_OF_UNARY_ON_AN_ACCESS_CHAIN_WITHOUT",
+      "level": "Error",
+      "message": "Use of unary '&' on an access chain without parentheses is visually ambiguous. Either wrap in parentheses '&(a.b)' or use hat-terminal morphology 'a.&b'.",
+      "description": "Use of unary '&' on an access chain without parentheses is visually ambiguous. Either wrap in parentheses '&(a.b)' or use hat-terminal morphology 'a.&b'."
+    },
+    "E01151": {
+      "id": "ERR_EXPECTED_RPAREN",
+      "level": "Error",
+      "message": "Expected ')'",
+      "description": "Expected ')'"
+    },
+    "E01152": {
+      "id": "ERR_PARSER_EXPECTED_AFTER_SIZEOF",
+      "level": "Error",
+      "message": "Expected '(' after sizeof",
+      "description": "Expected '(' after sizeof"
+    },
+    "E01153": {
+      "id": "ERR_PARSER_EXPECTED_AFTER_SIZEOF_TYPE_STRING",
+      "level": "Error",
+      "message": "Expected ')' after sizeof type string",
+      "description": "Expected ')' after sizeof type string"
+    },
+    "E01154": {
+      "id": "ERR_PARSER_EXPECTED_AFTER_ARRAY_SIZE",
+      "level": "Error",
+      "message": "Expected ']' after array size",
+      "description": "Expected ']' after array size"
+    },
+    "E01155": {
+      "id": "ERR_PARSER_EXPECTED_IDENTIFIER_AFTER_2",
+      "level": "Error",
+      "message": "Expected identifier after ::",
+      "description": "Expected identifier after ::"
+    },
+    "E01156": {
+      "id": "ERR_PARSER_EXPECTED_TYPE_AFTER_NEW",
+      "level": "Error",
+      "message": "Expected type after 'new'",
+      "description": "Expected type after 'new'"
+    },
+    "E01157": {
+      "id": "ERR_PARSER_EXPECTED_NAMED_ARGUMENT_KEY_VALUE_OR_EL",
+      "level": "Error",
+      "message": "Expected named argument 'key = value' or elision '..'",
+      "description": "Expected named argument 'key = value' or elision '..'"
+    },
+    "E01158": {
+      "id": "ERR_PARSER_EXPECTED_AFTER_FIELD_NAME",
+      "level": "Error",
+      "message": "Expected '=' after field name",
+      "description": "Expected '=' after field name"
+    },
+    "E01159": {
+      "id": "ERR_EXPECTED_LPAREN",
+      "level": "Error",
+      "message": "Expected '('",
+      "description": "Expected '('"
+    },
+    "E01160": {
+      "id": "ERR_PARSER_EXPECTED_OR_INITIALIZER_FOR_NEW_EXPRESS",
+      "level": "Error",
+      "message": "Expected '{' or '(' initializer for new expression",
+      "description": "Expected '{' or '(' initializer for new expression"
+    },
+    "E01161": {
+      "id": "ERR_PARSER_EXPECTED_AFTER_REPEAT_COUNT",
+      "level": "Error",
+      "message": "Expected ']' after repeat count",
+      "description": "Expected ']' after repeat count"
+    },
+    "E01162": {
+      "id": "ERR_PARSER_EXPECTED_AFTER_ARRAY_ELEMENTS",
+      "level": "Error",
+      "message": "Expected ']' after array elements",
+      "description": "Expected ']' after array elements"
+    },
+    "E01163": {
+      "id": "ERR_EXPECTED_EQUAL",
+      "level": "Error",
+      "message": "Expected '='",
+      "description": "Expected '='"
+    },
+    "E01164": {
+      "id": "ERR_PARSER_EXPECTED_INITIALIZER_FOR_ARRAY_INIT_EXP",
+      "level": "Error",
+      "message": "Expected '(' initializer for Array Init expression",
+      "description": "Expected '(' initializer for Array Init expression"
+    },
+    "E01165": {
+      "id": "ERR_PARSER_EXPECTED_OR",
+      "level": "Error",
+      "message": "Expected ',' or ')'",
+      "description": "Expected ',' or ')'"
+    },
+    "E01166": {
+      "id": "ERR_PARSER_SPREAD_OPERATOR_MUST_STRICTLY_BE_THE_LA",
+      "level": "Error",
+      "message": "Spread operator '.*' must strictly be the last argument",
+      "description": "Spread operator '.*' must strictly be the last argument"
+    },
+    "E01167": {
+      "id": "ERR_PARSER_EXPECTED_AFTER_ARGUMENTS",
+      "level": "Error",
+      "message": "Expected ')' after arguments",
+      "description": "Expected ')' after arguments"
+    },
+    "E01168": {
+      "id": "ERR_PARSER_EXPECTED_MEMBER_AFTER",
+      "level": "Error",
+      "message": "Expected member after ::",
+      "description": "Expected member after ::"
+    },
+    "E01169": {
+      "id": "ERR_PARSER_EXPECTED_MEMBER_IDENTIFIER_OR_NEW_AFTER",
+      "level": "Error",
+      "message": "Expected member identifier or 'new' after ::",
+      "description": "Expected member identifier or 'new' after ::"
+    },
+    "E01170": {
+      "id": "ERR_PARSER_EXPECTED_IMPLICIT_PARAMETER_NAME_A_Z",
+      "level": "Error",
+      "message": "Expected implicit parameter name 'a'-'z'",
+      "description": "Expected implicit parameter name 'a'-'z'"
+    },
+    "E01171": {
+      "id": "ERR_PARSER_INVALID_IMPLICIT_PARAMETER_EXPECTED_A_T",
+      "level": "Error",
+      "message": "Invalid implicit parameter. Expected '.a' to '.z'",
+      "description": "Invalid implicit parameter. Expected '.a' to '.z'"
+    },
+    "E01172": {
+      "id": "ERR_PARSER_EXPECTED_EXPRESSION",
+      "level": "Error",
+      "message": "Expected expression",
+      "description": "Expected expression"
+    },
+    "E01173": {
+      "id": "ERR_PARSER_EXPECTED_STAR",
+      "level": "Error",
+      "message": "Expected 'Star'",
+      "description": "Expected 'Star'"
+    },
+    "E01174": {
+      "id": "ERR_PARSER_EXPECTED_AFTER_METHOD_ARGUMENTS",
+      "level": "Error",
+      "message": "Expected ')' after method arguments",
+      "description": "Expected ')' after method arguments"
+    },
+    "E01175": {
+      "id": "ERR_PARSER_EXPECTED_MEMBER_NAME_OR_INDEX_AFTER",
+      "level": "Error",
+      "message": "Expected member name or index after '.'",
+      "description": "Expected member name or index after '.'"
+    },
+    "E01176": {
+      "id": "ERR_PARSER_ARROW_MEMBER_ACCESS_IS_ABOLISHED_USE_DO",
+      "level": "Error",
+      "message": "Arrow '->' member access is abolished. Use dot '.' instead.",
+      "description": "Arrow '->' member access is abolished. Use dot '.' instead."
+    },
+    "E01177": {
+      "id": "ERR_PARSER_EXPECTED_AFTER_INDEX",
+      "level": "Error",
+      "message": "Expected ']' after index",
+      "description": "Expected ']' after index"
+    },
+    "E01178": {
+      "id": "ERR_PARSER_TRAILING_CLOSURE_APPLIED_TO_INVALID_EXP",
+      "level": "Error",
+      "message": "Trailing closure applied to invalid expression type",
+      "description": "Trailing closure applied to invalid expression type"
+    },
+    "E01179": {
+      "id": "ERR_PARSER_EXPECTED_IF",
+      "level": "Error",
+      "message": "Expected 'if'",
+      "description": "Expected 'if'"
+    },
+    "E01180": {
+      "id": "ERR_PARSER_EXPECTED_LOOP",
+      "level": "Error",
+      "message": "Expected 'loop'",
+      "description": "Expected 'loop'"
+    },
+    "E01181": {
+      "id": "ERR_PARSER_EXPECTED_FOR",
+      "level": "Error",
+      "message": "Expected 'for'",
+      "description": "Expected 'for'"
+    },
+    "E01182": {
+      "id": "ERR_PARSER_EXPECTED_AUTO_OR_LET_DECLARATION_IN_FOR",
+      "level": "Error",
+      "message": "Expected 'auto' or 'let' declaration in for loop",
+      "description": "Expected 'auto' or 'let' declaration in for loop"
+    },
+    "E01183": {
+      "id": "ERR_PARSER_EXPECTED_VARIABLE_NAME_IN_FOR",
+      "level": "Error",
+      "message": "Expected variable name in for",
+      "description": "Expected variable name in for"
+    },
+    "E01184": {
+      "id": "ERR_PARSER_EXPECTED_IN_IN_FOR_LOOP",
+      "level": "Error",
+      "message": "Expected 'in' in for loop",
+      "description": "Expected 'in' in for loop"
+    },
+    "E01185": {
+      "id": "ERR_PARSER_EXPECTED_LABEL_AFTER_TO",
+      "level": "Error",
+      "message": "Expected label after 'to'",
+      "description": "Expected label after 'to'"
+    },
+    "E01186": {
+      "id": "ERR_PARSER_EXPECTED_FOR_CLOSURE_BODY",
+      "level": "Error",
+      "message": "Expected '{' for closure body",
+      "description": "Expected '{' for closure body"
+    },
+    "E01187": {
+      "id": "ERR_PARSER_EXPECTED_CEDE_OR_COPY_MODIFIER_IN_CLOSU",
+      "level": "Error",
+      "message": "Expected 'cede' or 'copy' modifier in closure capture list. Implicit variables do not need to be declared.",
+      "description": "Expected 'cede' or 'copy' modifier in closure capture list. Implicit variables do not need to be declared."
+    },
+    "E01188": {
+      "id": "ERR_PARSER_EXPECTED_VARIABLE_NAME_TO_CAPTURE",
+      "level": "Error",
+      "message": "Expected variable name to capture",
+      "description": "Expected variable name to capture"
+    },
+    "E01189": {
+      "id": "ERR_PARSER_EXPECTED_IN_CAPTURE_LIST",
+      "level": "Error",
+      "message": "Expected ',' in capture list",
+      "description": "Expected ',' in capture list"
+    },
+    "E01190": {
+      "id": "ERR_PARSER_EXPECTED_TO_END_CAPTURE_LIST",
+      "level": "Error",
+      "message": "Expected ']' to end capture list",
+      "description": "Expected ']' to end capture list"
+    },
+    "E01191": {
+      "id": "ERR_PARSER_EXPECTED_PARAMETER_NAME",
+      "level": "Error",
+      "message": "Expected parameter name",
+      "description": "Expected parameter name"
+    },
+    "E01192": {
+      "id": "ERR_PARSER_EXPECTED_BETWEEN_PARAMETER_NAMES",
+      "level": "Error",
+      "message": "Expected ',' between parameter names",
+      "description": "Expected ',' between parameter names"
+    },
+    "E01193": {
+      "id": "ERR_PARSER_EXPECTED_AFTER_CLOSURE_PARAMETERS",
+      "level": "Error",
+      "message": "Expected '=>' after closure parameters",
+      "description": "Expected '=>' after closure parameters"
+    },
+    "E01194": {
+      "id": "ERR_PARSER_EXPECTED_AFTER_CLOSURE_CAPTURE_LIST",
+      "level": "Error",
+      "message": "Expected '=>' after closure capture list",
+      "description": "Expected '=>' after closure capture list"
+    },
+    "E01195": {
+      "id": "ERR_PARSER_ZERO_ARGUMENT_CLOSURES_MUST_USE_TO_DISA",
+      "level": "Error",
+      "message": "Zero-argument closures must use '{ => ... }' to disambiguate from code blocks",
+      "description": "Zero-argument closures must use '{ => ... }' to disambiguate from code blocks"
+    },
+    "E01196": {
+      "id": "ERR_PARSER_EXPECTED_GENERIC_PARAMETER_NAME",
+      "level": "Error",
+      "message": "Expected generic parameter name",
+      "description": "Expected generic parameter name"
+    },
+    "E01197": {
+      "id": "ERR_PARSER_EXPECTED_TRAIT_NAME_IN_CONSTRAINT",
+      "level": "Error",
+      "message": "Expected trait name in constraint",
+      "description": "Expected trait name in constraint"
+    },
+    "E01198": {
+      "id": "ERR_PARSER_EXPECTED_CLOSING_TRAIT_BOUNDS",
+      "level": "Error",
+      "message": "Expected '}' closing trait bounds",
+      "description": "Expected '}' closing trait bounds"
+    },
+    "E01199": {
+      "id": "ERR_PARSER_EXPECTED_TO_CLOSE_GENERIC_PARAMETERS",
+      "level": "Error",
+      "message": "Expected '>' to close generic parameters",
+      "description": "Expected '>' to close generic parameters"
+    },
+    "E01200": {
+      "id": "ERR_PARSER_EXPECTED_SHAPE_AFTER_PACKED",
+      "level": "Error",
+      "message": "Expected 'shape' after 'packed'",
+      "description": "Expected 'shape' after 'packed'"
+    },
+    "E01201": {
+      "id": "ERR_PARSER_EXPECTED_SHAPE_NAME",
+      "level": "Error",
+      "message": "Expected shape name",
+      "description": "Expected shape name"
+    },
+    "E01202": {
+      "id": "ERR_PARSER_EXPECTED_DEPENDENCY_IDENTIFIER",
+      "level": "Error",
+      "message": "Expected dependency identifier",
+      "description": "Expected dependency identifier"
+    },
+    "E01203": {
+      "id": "ERR_PARSER_EXPECTED_2",
+      "level": "Error",
+      "message": "Expected ';'",
+      "description": "Expected ';'"
+    },
+    "E01204": {
+      "id": "ERR_PARSER_EXPECTED_SIZE",
+      "level": "Error",
+      "message": "Expected size",
+      "description": "Expected size"
+    },
+    "E01205": {
+      "id": "ERR_PARSER_EXPECTED_VARIANT",
+      "level": "Error",
+      "message": "Expected variant",
+      "description": "Expected variant"
+    },
+    "E01206": {
+      "id": "ERR_PARSER_EXPECTED_TAG",
+      "level": "Error",
+      "message": "Expected tag",
+      "description": "Expected tag"
+    },
+    "E01207": {
+      "id": "ERR_PARSER_NUL_CAN_ONLY_BE_APPLIED_TO_POINTER_TYPE",
+      "level": "Error",
+      "message": "nul can only be applied to pointer types",
+      "description": "nul can only be applied to pointer types"
+    },
+    "E01208": {
+      "id": "ERR_EXPECTED_COLON",
+      "level": "Error",
+      "message": "Expected ':'",
+      "description": "Expected ':'"
+    },
+    "E01209": {
+      "id": "ERR_PARSER_EXPECTED_OR_AFTER_SHAPE_NAME",
+      "level": "Error",
+      "message": "Expected '(' or '[' after shape name",
+      "description": "Expected '(' or '[' after shape name"
+    },
+    "E01210": {
+      "id": "ERR_PARSER_EXPECTED_FN",
+      "level": "Error",
+      "message": "Expected 'fn'",
+      "description": "Expected 'fn'"
+    },
+    "E01211": {
+      "id": "ERR_PARSER_EXPECTED_FUNCTION_NAME",
+      "level": "Error",
+      "message": "Expected function name",
+      "description": "Expected function name"
+    },
+    "E01212": {
+      "id": "ERR_PARSER_EXPECTED_ARGUMENT_NAME",
+      "level": "Error",
+      "message": "Expected argument name",
+      "description": "Expected argument name"
+    },
+    "E01213": {
+      "id": "ERR_PARSER_DEFAULT_PARAMETERS_MUST_BE_CONTIGUOUS_A",
+      "level": "Error",
+      "message": "Default parameters must be contiguous and at the end of the parameter list",
+      "description": "Default parameters must be contiguous and at the end of the parameter list"
+    },
+    "E01214": {
+      "id": "ERR_PARSER_EXPECTED_RETURN_NAME",
+      "level": "Error",
+      "message": "Expected return name",
+      "description": "Expected return name"
+    },
+    "E01215": {
+      "id": "ERR_PARSER_EXPECTED_AFTER_LHS_IN_EFFECTS_BLOCK",
+      "level": "Error",
+      "message": "Expected '<-' after LHS in effects block",
+      "description": "Expected '<-' after LHS in effects block"
+    },
+    "E01216": {
+      "id": "ERR_PARSER_EXPECTED_IDENTIFIER_OR_INTEGER_AFTER_IN",
+      "level": "Error",
+      "message": "Expected identifier or integer after '.' in dependency path",
+      "description": "Expected identifier or integer after '.' in dependency path"
+    },
+    "E01217": {
+      "id": "ERR_PARSER_ONLY_RETURN_OR_NAMED_RETURN_LHS_IS_CURR",
+      "level": "Error",
+      "message": "Only 'return <- ...' or named return LHS is currently supported in effects block",
+      "description": "Only 'return <- ...' or named return LHS is currently supported in effects block"
+    },
+    "E01218": {
+      "id": "ERR_PARSER_EXPECTED_DELETE_AFTER_FOR_DELETED_FUNCT",
+      "level": "Error",
+      "message": "Expected 'delete' after '=' for deleted function",
+      "description": "Expected 'delete' after '=' for deleted function"
+    },
+    "E01219": {
+      "id": "ERR_PARSER_EXPECTED_EXTERN",
+      "level": "Error",
+      "message": "Expected 'extern'",
+      "description": "Expected 'extern'"
+    },
+    "E01220": {
+      "id": "ERR_PARSER_EXPECTED_EXTERNAL_FUNCTION_NAME",
+      "level": "Error",
+      "message": "Expected external function name",
+      "description": "Expected external function name"
+    },
+    "E01221": {
+      "id": "ERR_PARSER_EXPECTED_IMPORT",
+      "level": "Error",
+      "message": "Expected 'import'",
+      "description": "Expected 'import'"
+    },
+    "E01222": {
+      "id": "ERR_PARSER_EXPECTED_SYMBOL_NAME",
+      "level": "Error",
+      "message": "Expected symbol name",
+      "description": "Expected symbol name"
+    },
+    "E01223": {
+      "id": "ERR_PARSER_EXPECTED_ALIAS",
+      "level": "Error",
+      "message": "Expected alias",
+      "description": "Expected alias"
+    },
+    "E01224": {
+      "id": "ERR_PARSER_EXPECTED_MODULE_ALIAS",
+      "level": "Error",
+      "message": "Expected module alias",
+      "description": "Expected module alias"
+    },
+    "E01225": {
+      "id": "ERR_PARSER_EXPECTED_IDENTIFIER_AFTER_IN_MODULE_ALI",
+      "level": "Error",
+      "message": "Expected identifier after '-' in module alias",
+      "description": "Expected identifier after '-' in module alias"
+    },
+    "E01226": {
+      "id": "ERR_PARSER_EXPECTED_ALIAS_OR_TYPE",
+      "level": "Error",
+      "message": "Expected 'alias' or 'type'",
+      "description": "Expected 'alias' or 'type'"
+    },
+    "E01227": {
+      "id": "ERR_PARSER_EXPECTED_TYPE_ALIAS_NAME",
+      "level": "Error",
+      "message": "Expected type alias name",
+      "description": "Expected type alias name"
+    },
+    "E01228": {
+      "id": "ERR_PARSER_EXPECTED_IMPL",
+      "level": "Error",
+      "message": "Expected 'impl'",
+      "description": "Expected 'impl'"
+    },
+    "E01229": {
+      "id": "ERR_PARSER_EXPECTED_PUB_OR_FN_INSIDE_ENCAP_BLOCK",
+      "level": "Error",
+      "message": "Expected 'pub' or 'fn' inside @encap block",
+      "description": "Expected 'pub' or 'fn' inside @encap block"
+    },
+    "E01230": {
+      "id": "ERR_PARSER_EXPECTED_METHOD_IN_IMPL_BLOCK",
+      "level": "Error",
+      "message": "Expected method in impl block",
+      "description": "Expected method in impl block"
+    },
+    "E01231": {
+      "id": "ERR_PARSER_EXPECTED_TRAIT",
+      "level": "Error",
+      "message": "Expected 'trait'",
+      "description": "Expected 'trait'"
+    },
+    "E01232": {
+      "id": "ERR_PARSER_EXPECTED_TRAIT_NAME",
+      "level": "Error",
+      "message": "Expected trait name",
+      "description": "Expected trait name"
+    },
+    "E01233": {
+      "id": "ERR_PARSER_EXPECTED_METHOD_PROTOTYPE_IN_TRAIT",
+      "level": "Error",
+      "message": "Expected method prototype in trait",
+      "description": "Expected method prototype in trait"
+    },
+    "E04476": {
+      "id": "ERR_SEMA_MORPHOLOGY_SYMBOLS_CANNOT_PREFIX_A_MEMBER",
+      "level": "Error",
+      "message": "Morphology symbols (^, *, ~) cannot prefix a member access expression. To get the pointer handle of a member, the sigil must be placed directly before the member name (e.g., use 'm.~a' instead of '~m.a')",
+      "description": "Morphology symbols (^, *, ~) cannot prefix a member access expression. To get the pointer handle of a member, the sigil must be placed directly before the member name (e.g., use 'm.~a' instead of '~m.a')"
+    },
+    "E04477": {
+      "id": "ERR_SEMA_MORPHOLOGY_SYMBOLS_ARE_ONLY_ALLOWED_AT_TH",
+      "level": "Error",
+      "message": "Morphology symbols (^, *, ~, &) are only allowed at the terminal of an access chain",
+      "description": "Morphology symbols (^, *, ~, &) are only allowed at the terminal of an access chain"
+    },
+    "E04478": {
+      "id": "ERR_SEMA_PERMISSION_SYMBOLS_ARE_ONLY_ALLOWED_AT_TH",
+      "level": "Error",
+      "message": "Permission symbols (#, ?) are only allowed at the terminal of an access chain",
+      "description": "Permission symbols (#, ?) are only allowed at the terminal of an access chain"
+    },
+    "E04479": {
+      "id": "ERR_SEMA_OPERAND_OF_MUST_BE_BOOL_GOT",
+      "level": "Error",
+      "message": "operand of '!' must be bool, got '{}'",
+      "description": "operand of '!' must be bool, got '{}'"
+    },
+    "E04480": {
+      "id": "ERR_SEMA_OPERAND_OF_MUST_BE_NUMERIC_GOT",
+      "level": "Error",
+      "message": "operand of '-' must be numeric, got '{}'",
+      "description": "operand of '-' must be numeric, got '{}'"
+    },
+    "E04481": {
+      "id": "ERR_SEMA_POINTER_MORPHOLOGY_AND_PERMISSION_SYMBOLS",
+      "level": "Error",
+      "message": "Pointer morphology and permission symbols are only allowed at the terminal of an access chain, got '{}'",
+      "description": "Pointer morphology and permission symbols are only allowed at the terminal of an access chain, got '{}'"
+    },
+    "E04482": {
+      "id": "ERR_SEMA_IDENTITY_ASSERTION_CAN_ONLY_BE_APPLIED_TO",
+      "level": "Error",
+      "message": "Identity assertion '??' can only be applied to pointers, got '{}'",
+      "description": "Identity assertion '??' can only be applied to pointers, got '{}'"
+    },
+    "E04483": {
+      "id": "ERR_SEMA_ARRAY_INDEX_MUST_BE_INTEGER_GOT",
+      "level": "Error",
+      "message": "array index must be integer, got '{}'",
+      "description": "array index must be integer, got '{}'"
+    },
+    "E04484": {
+      "id": "ERR_SEMA_ERROR_E0490_SUBSCRIPT_INDEXING_IS_DISABLE",
+      "level": "Error",
+      "message": "error[E0490]: Subscript indexing is disabled for UTF-8 '{}'. Use 's.chars()' for sequential traversal, or 's.bytes()' for raw O(1) hardware indexing.",
+      "description": "error[E0490]: Subscript indexing is disabled for UTF-8 '{}'. Use 's.chars()' for sequential traversal, or 's.bytes()' for raw O(1) hardware indexing."
+    },
+    "E04485": {
+      "id": "ERR_SEMA_RAW_POINTER_INDEXING_REQUIRES_UNSAFE_CONT",
+      "level": "Error",
+      "message": "raw pointer indexing requires unsafe context",
+      "description": "raw pointer indexing requires unsafe context"
+    },
+    "E04486": {
+      "id": "ERR_SEMA_POINTER_HANDLE_INDEXING_SUPPORTS_ONLY_ONE",
+      "level": "Error",
+      "message": "pointer handle indexing supports only one index",
+      "description": "pointer handle indexing supports only one index"
+    },
+    "E04487": {
+      "id": "ERR_SEMA_CANNOT_SAFELY_SUBSCRIPT_INTO_AN_UNINITIAL",
+      "level": "Error",
+      "message": "Cannot safely subscript into an uninitialized slice. Wrap in unsafe block if initialized via external mechanisms.",
+      "description": "Cannot safely subscript into an uninitialized slice. Wrap in unsafe block if initialized via external mechanisms."
+    },
+    "E04488": {
+      "id": "ERR_SEMA_ARRAY_INDEXING_IS_ONLY_PERMITTED_ON_ARRAY",
+      "level": "Error",
+      "message": "Array indexing '[]' is only permitted on arrays '[T; N]' or slices '*[T]'. Cannot index single-element pointer '{}'.",
+      "description": "Array indexing '[]' is only permitted on arrays '[T; N]' or slices '*[T]'. Cannot index single-element pointer '{}'."
+    },
+    "E04489": {
+      "id": "ERR_SEMA_TYPE_IS_NOT_INDEXABLE",
+      "level": "Error",
+      "message": "type '{}' is not indexable",
+      "description": "type '{}' is not indexable"
+    },
+    "E04490": {
+      "id": "ERR_SEMA_MORPHOLOGY_SYMBOLS_ARE_ONLY_ALLOWED_AT__2",
+      "level": "Error",
+      "message": "Morphology symbols (^, *, ~, &) are only allowed at the terminal of an access chain, got '{}'",
+      "description": "Morphology symbols (^, *, ~, &) are only allowed at the terminal of an access chain, got '{}'"
+    },
+    "E04491": {
+      "id": "ERR_SEMA_PERMISSION_SYMBOLS_ARE_ONLY_ALLOWED_AT__2",
+      "level": "Error",
+      "message": "Permission symbols (#, ?, $) are only allowed at the terminal of an access chain, got '{}{}'",
+      "description": "Permission symbols (#, ?, $) are only allowed at the terminal of an access chain, got '{}{}'"
+    },
+    "E04492": {
+      "id": "ERR_SEMA_IDENTITY_INTRUSION_MANAGED_MEMORY_CANNOT",
+      "level": "Error",
+      "message": "Identity Intrusion: Managed memory ('{}') cannot be degraded to raw pointer ('{}'). Violation of Allocation Sourcing.",
+      "description": "Identity Intrusion: Managed memory ('{}') cannot be degraded to raw pointer ('{}'). Violation of Allocation Sourcing."
+    },
+    "E04493": {
+      "id": "ERR_SEMA_GUARD_CONDITION_MUST_BE_A_VARIABLE",
+      "level": "Error",
+      "message": "guard condition must be a variable",
+      "description": "guard condition must be a variable"
+    },
+    "E04494": {
+      "id": "ERR_SEMA_GUARD_CONDITION_MUST_BE_A_NULLABLE_TYPE",
+      "level": "Error",
+      "message": "guard condition must be a nullable type",
+      "description": "guard condition must be a nullable type"
+    },
+    "E04495": {
+      "id": "ERR_SEMA_TOKA_1_0_DOES_NOT_SUPPORT_YIELDING_VALUES",
+      "level": "Error",
+      "message": "Toka 1.0 does not support yielding values from loops. Loops cannot be used as expressions.",
+      "description": "Toka 1.0 does not support yielding values from loops. Loops cannot be used as expressions."
+    },
+    "E04496": {
+      "id": "ERR_SEMA_CANNOT_REFLECT_UNINSTANTIATED_OR_PRIMITIV",
+      "level": "Error",
+      "message": "Cannot reflect uninstantiated or primitive shape: {}",
+      "description": "Cannot reflect uninstantiated or primitive shape: {}"
+    },
+    "E04497": {
+      "id": "ERR_SEMA_TYPE_DOES_NOT_IMPLEMENT_ITERATOR_PROTOCOL",
+      "level": "Error",
+      "message": "Type '{}' does not implement iterator protocol (.iter())",
+      "description": "Type '{}' does not implement iterator protocol (.iter())"
+    },
+    "E04498": {
+      "id": "ERR_SEMA_ITERATOR_PROTOCOL_REQUIRES_NEXT_TO_RETURN",
+      "level": "Error",
+      "message": "Iterator protocol requires next to return Option<T>",
+      "description": "Iterator protocol requires next to return Option<T>"
+    },
+    "E04499": {
+      "id": "ERR_SEMA_ITERATOR_FOR_DOES_NOT_SUPPORT",
+      "level": "Error",
+      "message": "Iterator for '{}' does not support {}",
+      "description": "Iterator for '{}' does not support {}"
+    },
+    "E04500": {
+      "id": "ERR_SEMA_ITERATOR_PROTOCOL_REQUIRES_TO_RETURN_OPTI",
+      "level": "Error",
+      "message": "Iterator protocol requires {} to return Option<T>",
+      "description": "Iterator protocol requires {} to return Option<T>"
+    },
+    "E04501": {
+      "id": "ERR_SEMA_CANNOT_CEDE_MOVE_VALUE_INSIDE_A_LOOP_BECA",
+      "level": "Error",
+      "message": "Cannot cede/move value '{}' inside a loop because it is defined outside the loop",
+      "description": "Cannot cede/move value '{}' inside a loop because it is defined outside the loop"
+    },
+    "E04502": {
+      "id": "ERR_SEMA_PREFIX_PASS_EXPECTS_A_VALUE_YIELDING_EXPR",
+      "level": "Error",
+      "message": "Prefix 'pass' expects a value-yielding expression",
+      "description": "Prefix 'pass' expects a value-yielding expression"
+    },
+    "E04503": {
+      "id": "ERR_SEMA_TOKA_1_0_DOES_NOT_SUPPORT_YIELDING_VALU_2",
+      "level": "Error",
+      "message": "Toka 1.0 does not support yielding values from loops via 'break'. 'break' must not carry a return value.",
+      "description": "Toka 1.0 does not support yielding values from loops via 'break'. 'break' must not carry a return value."
+    },
+    "E04504": {
+      "id": "ERR_SEMA_CANNOT_AWAIT_A_NON_TASKHANDLE_TYPE",
+      "level": "Error",
+      "message": "Cannot await a non-TaskHandle type: {}",
+      "description": "Cannot await a non-TaskHandle type: {}"
+    },
+    "E04505": {
+      "id": "ERR_SEMA_CANNOT_WAIT_ON_A_NON_TASKHANDLE_TYPE",
+      "level": "Error",
+      "message": "Cannot wait on a non-TaskHandle type: {}",
+      "description": "Cannot wait on a non-TaskHandle type: {}"
+    },
+    "E04506": {
+      "id": "ERR_SEMA_CANNOT_IMPLICITLY_COPY_VALUE_OF_TYPE_BECA",
+      "level": "Error",
+      "message": "Cannot implicitly copy value of type '{}' because its 'clone' method is explicitly deleted (= delete)",
+      "description": "Cannot implicitly copy value of type '{}' because its 'clone' method is explicitly deleted (= delete)"
+    },
+    "E04507": {
+      "id": "ERR_SEMA_CANNOT_CALL_EXPLICITLY_DELETED_METHOD_ON",
+      "level": "Error",
+      "message": "Cannot call explicitly deleted method '{}' on type '{}'",
+      "description": "Cannot call explicitly deleted method '{}' on type '{}'"
+    },
+    "E04508": {
+      "id": "ERR_SEMA_METHOD_EXPECTS_AT_LEAST_ARGUMENTS_GOT",
+      "level": "Error",
+      "message": "Method '{}' expects at least {} arguments, got {}",
+      "description": "Method '{}' expects at least {} arguments, got {}"
+    },
+    "E04509": {
+      "id": "ERR_SEMA_ARGUMENT_MUST_BE_EXPLICITLY_PASSED_WITH_C",
+      "level": "Error",
+      "message": "Argument must be explicitly passed with 'cede' because the method consumes it",
+      "description": "Argument must be explicitly passed with 'cede' because the method consumes it"
+    },
+    "E04510": {
+      "id": "ERR_SEMA_TYPE_MISMATCH_IN_METHOD_ARGUMENT_EXPECTED",
+      "level": "Error",
+      "message": "Type mismatch in method argument {}: expected {}, got {}",
+      "description": "Type mismatch in method argument {}: expected {}, got {}"
+    },
+    "E04511": {
+      "id": "ERR_SEMA_UNWRAP_OPERATOR_REQUIRES_A_RESULT_OR_OPTI",
+      "level": "Error",
+      "message": "Unwrap operator '!' requires a Result or Option shape",
+      "description": "Unwrap operator '!' requires a Result or Option shape"
+    },
+    "E04512": {
+      "id": "ERR_SEMA_UNWRAP_OPERATOR_REQUIRES_RESULT_T_E_OR_OP",
+      "level": "Error",
+      "message": "Unwrap operator '!' requires Result<T, E> or Option<T> but got: {}",
+      "description": "Unwrap operator '!' requires Result<T, E> or Option<T> but got: {}"
+    },
+    "E04513": {
+      "id": "ERR_SEMA_UNWRAP_OPERATOR_REQUIRES_A_PAYLOAD_TYPE_I",
+      "level": "Error",
+      "message": "Unwrap operator '!' requires a payload type in {}",
+      "description": "Unwrap operator '!' requires a payload type in {}"
+    },
+    "E04514": {
+      "id": "ERR_SEMA_UNWRAP_OPERATOR_MUST_BE_USED_INSIDE_A_FUN",
+      "level": "Error",
+      "message": "Unwrap operator '!' must be used inside a function",
+      "description": "Unwrap operator '!' must be used inside a function"
+    },
+    "E04515": {
+      "id": "ERR_SEMA_CANNOT_DETERMINE_FUNCTION_RETURN_TYPE_FOR",
+      "level": "Error",
+      "message": "Cannot determine function return type for unwrap operator",
+      "description": "Cannot determine function return type for unwrap operator"
+    },
+    "E04516": {
+      "id": "ERR_SEMA_FUNCTION_MUST_RETURN_RESULT_WHEN_UNWRAPPI",
+      "level": "Error",
+      "message": "Function must return Result when unwrapping a Result with '!'",
+      "description": "Function must return Result when unwrapping a Result with '!'"
+    },
+    "E04517": {
+      "id": "ERR_SEMA_RESULT_TYPES_MUST_HAVE_ERR_VARIANT",
+      "level": "Error",
+      "message": "Result types must have Err variant",
+      "description": "Result types must have Err variant"
+    },
+    "E04518": {
+      "id": "ERR_SEMA_FUNCTION_ERROR_RETURN_TYPE_IS_INCOMPATIBL",
+      "level": "Error",
+      "message": "Function error return type '{}' is incompatible with unwrapped error type '{}'",
+      "description": "Function error return type '{}' is incompatible with unwrapped error type '{}'"
+    },
+    "E04519": {
+      "id": "ERR_SEMA_FUNCTION_MUST_RETURN_OPTION_WHEN_UNWRAPPI",
+      "level": "Error",
+      "message": "Function must return Option when unwrapping an Option with '!'",
+      "description": "Function must return Option when unwrapping an Option with '!'"
+    },
+    "E04520": {
+      "id": "ERR_SEMA_ARRAY_REPEAT_COUNT_MUST_BE_A_NUMERIC_LITE",
+      "level": "Error",
+      "message": "Array repeat count must be a numeric literal or const generic parameter",
+      "description": "Array repeat count must be a numeric literal or const generic parameter"
+    },
+    "E04521": {
+      "id": "ERR_SEMA_POSITIONAL_PLACEHOLDER_IS_NOT_ALLOWED_IN",
+      "level": "Error",
+      "message": "Positional placeholder '_' is not allowed in struct destructuring. Use 'field = _' or '..' instead.",
+      "description": "Positional placeholder '_' is not allowed in struct destructuring. Use 'field = _' or '..' instead."
+    },
+    "E04522": {
+      "id": "ERR_SEMA_MISMATCHED_MORPHOLOGY_IN_NAMED_DESTRUCTUR",
+      "level": "Error",
+      "message": "Mismatched morphology in named destructuring: left-hand variable '{}' has morphology '{}', but right-hand field '{}' has morphology '{}'. Under Hat Rule, they must be perfectly symmetric (e.g. &s = .&v1).",
+      "description": "Mismatched morphology in named destructuring: left-hand variable '{}' has morphology '{}', but right-hand field '{}' has morphology '{}'. Under Hat Rule, they must be perfectly symmetric (e.g. &s = .&v1)."
+    },
+    "E04523": {
+      "id": "ERR_SEMA_CANNOT_BIND_REFERENCE_MEMBER_TO_A_NON_REF",
+      "level": "Error",
+      "message": "Cannot bind reference member '{}' to a non-reference variable '{}'. The variable name must explicitly carry the reference sigil '&'.",
+      "description": "Cannot bind reference member '{}' to a non-reference variable '{}'. The variable name must explicitly carry the reference sigil '&'."
+    },
+    "E04524": {
+      "id": "ERR_SEMA_INVALID_RANGE_PATTERN_STRUCTURE",
+      "level": "Error",
+      "message": "Invalid range pattern structure",
+      "description": "Invalid range pattern structure"
+    },
+    "E04525": {
+      "id": "ERR_SEMA_RANGE_PATTERN_IS_ONLY_ALLOWED_FOR_INTEGER",
+      "level": "Error",
+      "message": "Range pattern is only allowed for integer or character types, got '{}'",
+      "description": "Range pattern is only allowed for integer or character types, got '{}'"
+    },
+    "E04526": {
+      "id": "ERR_SEMA_RANGE_START_VALUE_CANNOT_BE_GREATER_THAN",
+      "level": "Error",
+      "message": "Range start value ({}) cannot be greater than end value ({})",
+      "description": "Range start value ({}) cannot be greater than end value ({})"
+    },
+    "E04527": {
+      "id": "ERR_SEMA_EXCLUSIVE_RANGE_START_VALUE_CANNOT_BE_EQU",
+      "level": "Error",
+      "message": "Exclusive range start value ({}) cannot be equal to end value ({})",
+      "description": "Exclusive range start value ({}) cannot be equal to end value ({})"
+    },
+    "E04528": {
+      "id": "ERR_SEMA_ALL_BRANCHES_OF_AN_OR_PATTERN_MUST_BIND_T",
+      "level": "Error",
+      "message": "All branches of an Or-pattern must bind the exact same set of variables with consistent types and modifiers.",
+      "description": "All branches of an Or-pattern must bind the exact same set of variables with consistent types and modifiers."
+    },
+    "E04529": {
+      "id": "ERR_SEMA_CANNOT_BIND_REFERENCE_MEMBER_TO_A_NON_R_2",
+      "level": "Error",
+      "message": "Cannot bind reference member to a non-reference variable '{}'. The variable name must explicitly carry the reference sigil '&'.",
+      "description": "Cannot bind reference member to a non-reference variable '{}'. The variable name must explicitly carry the reference sigil '&'."
+    },
+    "E04530": {
+      "id": "ERR_SEMA_POSITIONAL_DESTRUCTURING_ELEMENT_IS_PROHI",
+      "level": "Error",
+      "message": "Positional destructuring element is prohibited for struct '{}'. Use explicitly named binding (e.g. 'x = .x') or homonymous elision (e.g. 'x').",
+      "description": "Positional destructuring element is prohibited for struct '{}'. Use explicitly named binding (e.g. 'x = .x') or homonymous elision (e.g. 'x')."
+    },
+    "E04531": {
+      "id": "ERR_SEMA_MISMATCHED_MORPHOLOGY_IN_NAMED_PATTERN_MA",
+      "level": "Error",
+      "message": "Mismatched morphology in named pattern matching: left-hand pattern '{}' has morphology '{}', but right-hand field '{}' has morphology '{}'. Under Hat Rule, they must be perfectly symmetric (e.g. &s = .&v1).",
+      "description": "Mismatched morphology in named pattern matching: left-hand pattern '{}' has morphology '{}', but right-hand field '{}' has morphology '{}'. Under Hat Rule, they must be perfectly symmetric (e.g. &s = .&v1)."
+    },
+    "E04532": {
+      "id": "ERR_SEMA_MULTIPLE_SPREAD_OPERATORS_ARE_NOT_ALLOWED",
+      "level": "Error",
+      "message": "Multiple spread operators are not allowed",
+      "description": "Multiple spread operators are not allowed"
+    },
+    "E04533": {
+      "id": "ERR_SEMA_INVALID_SPREAD_OPERATOR",
+      "level": "Error",
+      "message": "Invalid spread operator",
+      "description": "Invalid spread operator"
+    },
+    "E04534": {
+      "id": "ERR_SEMA_TYPE_MISMATCH_FOR_SPREAD_NOMINAL_TYPE_OF",
+      "level": "Error",
+      "message": "Type mismatch for spread: nominal type of base '{}' does not match target shape type '{}'",
+      "description": "Type mismatch for spread: nominal type of base '{}' does not match target shape type '{}'"
+    },
+    "E04535": {
+      "id": "ERR_SEMA_FIELD_OF_TYPE_IS_NON_COPYABLE_YOU_MUST_EX",
+      "level": "Error",
+      "message": "Field '{}' of type '{}' is non-Copyable. You must explicitly use 'cede base.*' or 'base.clone().*' to initialize.",
+      "description": "Field '{}' of type '{}' is non-Copyable. You must explicitly use 'cede base.*' or 'base.clone().*' to initialize."
+    },
+    "E04536": {
+      "id": "ERR_SEMA_MISSING_FIELD_IN_CONSTRUCTOR_FOR_USE_TO_E",
+      "level": "Error",
+      "message": "Missing field '{}' in constructor for '{}'. Use '..' to explicitly fallback to default values.",
+      "description": "Missing field '{}' in constructor for '{}'. Use '..' to explicitly fallback to default values."
+    },
+    "E04537": {
+      "id": "ERR_SEMA_MISSING_FIELD_IN_CONSTRUCTOR_FOR_NO_DEFAU",
+      "level": "Error",
+      "message": "Missing field '{}' in constructor for '{}' (no default value)",
+      "description": "Missing field '{}' in constructor for '{}' (no default value)"
+    },
+    "E04538": {
+      "id": "ERR_SEMA_UNION_INITIALIZATION_MUST_SPECIFY_EXACTLY",
+      "level": "Error",
+      "message": "Union '{}' initialization must specify exactly one variant, but {} were provided.",
+      "description": "Union '{}' initialization must specify exactly one variant, but {} were provided."
+    },
+    "E04539": {
+      "id": "ERR_SEMA_COMPILE_TIME_ERROR",
+      "level": "Error",
+      "message": "Compile-time error: {}",
+      "description": "Compile-time error: {}"
+    },
+    "E04540": {
+      "id": "ERR_SEMA_COMPILE_ERROR_REQUIRES_A_STRING_LITERAL",
+      "level": "Error",
+      "message": "compile_error requires a string literal",
+      "description": "compile_error requires a string literal"
+    },
+    "E04541": {
+      "id": "ERR_SEMA_BIT_CAST_REQUIRES_EXACTLY_1_ARGUMENT",
+      "level": "Error",
+      "message": "bit_cast requires exactly 1 argument",
+      "description": "bit_cast requires exactly 1 argument"
+    },
+    "E04542": {
+      "id": "ERR_SEMA_BIT_CAST_REQUIRES_THE_TARGET_TYPE_AS_A_GE",
+      "level": "Error",
+      "message": "bit_cast requires the target type as a generic argument, e.g., bit_cast<To>(val)",
+      "description": "bit_cast requires the target type as a generic argument, e.g., bit_cast<To>(val)"
+    },
+    "E04543": {
+      "id": "ERR_SEMA_UNKNOWN_TARGET_TYPE_IN_BIT_CAST",
+      "level": "Error",
+      "message": "Unknown target type '{}' in bit_cast",
+      "description": "Unknown target type '{}' in bit_cast"
+    },
+    "E04544": {
+      "id": "ERR_SEMA_REQUIRES_AT_LEAST_A_FORMAT_STRING_ARGUMEN",
+      "level": "Error",
+      "message": "{} requires at least a format string argument.",
+      "description": "{} requires at least a format string argument."
+    },
+    "E04545": {
+      "id": "ERR_SEMA_FORMAT_ARGUMENT_MUST_BE_A_STRING_LITERAL",
+      "level": "Error",
+      "message": "{} format argument must be a string literal",
+      "description": "{} format argument must be a string literal"
+    },
+    "E04546": {
+      "id": "ERR_SEMA_FORMAT_STRING_PLACEHOLDER_COUNT_DOES_NOT",
+      "level": "Error",
+      "message": "Format string placeholder count ({}) does not match provided arguments count ({})",
+      "description": "Format string placeholder count ({}) does not match provided arguments count ({})"
+    },
+    "E04547": {
+      "id": "ERR_SEMA_FORMATTED_PRINTING_IS_NOT_YET_SUPPORTED_F",
+      "level": "Error",
+      "message": "Formatted printing is not yet supported for String/str. Use plain {}.",
+      "description": "Formatted printing is not yet supported for String/str. Use plain {}."
+    },
+    "E04548": {
+      "id": "ERR_SEMA_TYPE_DOES_NOT_IMPLEMENT_TRAIT_OR_METHOD",
+      "level": "Error",
+      "message": "Type '{}' does not implement {} trait or {} method.",
+      "description": "Type '{}' does not implement {} trait or {} method."
+    },
+    "E04549": {
+      "id": "ERR_SEMA_REQUIRES_AT_LEAST_A_FORMAT_STRING",
+      "level": "Error",
+      "message": "{} requires at least a format string",
+      "description": "{} requires at least a format string"
+    },
+    "E04550": {
+      "id": "ERR_SEMA_STATIC_METHOD_EXPECTS_AT_LEAST_ARGUMENTS",
+      "level": "Error",
+      "message": "Static method '{}' expects at least {} arguments, got {}",
+      "description": "Static method '{}' expects at least {} arguments, got {}"
+    },
+    "E04551": {
+      "id": "ERR_SEMA_STATIC_METHOD_OR_VARIANT_NOT_FOUND_IN_SHA",
+      "level": "Error",
+      "message": "static method or variant '{}' not found in shape '{}'",
+      "description": "static method or variant '{}' not found in shape '{}'"
+    },
+    "E04552": {
+      "id": "ERR_SEMA_MODULE_NOT_FOUND_OR_NOT_IMPORTED",
+      "level": "Error",
+      "message": "Module '{}' not found or not imported",
+      "description": "Module '{}' not found or not imported"
+    },
+    "E04553": {
+      "id": "ERR_SEMA_CLOSURE_EXPECTS_ARGUMENTS_BUT_GOT",
+      "level": "Error",
+      "message": "Closure expects {} arguments, but got {}",
+      "description": "Closure expects {} arguments, but got {}"
+    },
+    "E04554": {
+      "id": "ERR_SEMA_TYPE_DEDUCTION_CONFLICT_FOR_VS",
+      "level": "Error",
+      "message": "Type deduction conflict for '{}': '{}' vs '{}'",
+      "description": "Type deduction conflict for '{}': '{}' vs '{}'"
+    },
+    "E04555": {
+      "id": "ERR_SEMA_FAILED_TO_DEDUCE_TYPE_FOR_GENERIC_PARAMET",
+      "level": "Error",
+      "message": "Failed to deduce type for generic parameter '{}'",
+      "description": "Failed to deduce type for generic parameter '{}'"
+    },
+    "E04556": {
+      "id": "ERR_SEMA_CANNOT_CALL_EXPLICITLY_DELETED_FUNCTION",
+      "level": "Error",
+      "message": "Cannot call explicitly deleted function '{}'",
+      "description": "Cannot call explicitly deleted function '{}'"
+    },
+    "E04557": {
+      "id": "ERR_SEMA_TOO_MANY_ARGUMENTS_PROVIDED_CANNOT_ELIDE",
+      "level": "Error",
+      "message": "Too many arguments provided, cannot elide",
+      "description": "Too many arguments provided, cannot elide"
+    },
+    "E04558": {
+      "id": "ERR_SEMA_TOO_MANY_ARGUMENTS_FOR_STRUCT",
+      "level": "Error",
+      "message": "Too many arguments for struct '{}'",
+      "description": "Too many arguments for struct '{}'"
+    },
+    "E04559": {
+      "id": "ERR_SEMA_TYPE_MISMATCH_FOR_FIELD_EXPECTED_GOT",
+      "level": "Error",
+      "message": "Type mismatch for field '{}': expected {}, got {}",
+      "description": "Type mismatch for field '{}': expected {}, got {}"
+    },
+    "E04560": {
+      "id": "ERR_SEMA_UNION_REQUIRES_EXACTLY_ONE_ARGUMENT",
+      "level": "Error",
+      "message": "Union '{}' requires exactly one argument",
+      "description": "Union '{}' requires exactly one argument"
+    },
+    "E04561": {
+      "id": "ERR_SEMA_UNION_HAS_NO_VARIANT_NAMED",
+      "level": "Error",
+      "message": "Union '{}' has no variant named '{}'",
+      "description": "Union '{}' has no variant named '{}'"
+    },
+    "E04562": {
+      "id": "ERR_SEMA_TYPE_MISMATCH_FOR_UNION_VARIANT_EXPECTED",
+      "level": "Error",
+      "message": "Type mismatch for Union variant '{}': expected {}, got {}",
+      "description": "Type mismatch for Union variant '{}': expected {}, got {}"
+    },
+    "E04563": {
+      "id": "ERR_SEMA_AMBIGUOUS_UNION_CONSTRUCTOR_MULTIPLE_EXAC",
+      "level": "Error",
+      "message": "Ambiguous Union constructor: multiple exact matches found for type {}",
+      "description": "Ambiguous Union constructor: multiple exact matches found for type {}"
+    },
+    "E04564": {
+      "id": "ERR_SEMA_AMBIGUOUS_UNION_CONSTRUCTOR_MULTIPLE_SAFE",
+      "level": "Error",
+      "message": "Ambiguous Union constructor: multiple safe-fit matches found for type {}. Use explicit cast.",
+      "description": "Ambiguous Union constructor: multiple safe-fit matches found for type {}. Use explicit cast."
+    },
+    "E04565": {
+      "id": "ERR_SEMA_NO_MATCHING_MEMBER_FOUND_IN_UNION_FOR_TYP",
+      "level": "Error",
+      "message": "No matching member found in Union '{}' for type {}",
+      "description": "No matching member found in Union '{}' for type {}"
+    },
+    "E04566": {
+      "id": "ERR_SEMA_FUNCTION_CALL_ELISION_MUST_STRICTLY_BE_TH",
+      "level": "Error",
+      "message": "Function call elision '..' must strictly be the last argument",
+      "description": "Function call elision '..' must strictly be the last argument"
+    },
+    "E04567": {
+      "id": "ERR_SEMA_ELISION_PROVIDED_BUT_NO_DEFAULT_ARGUMENTS",
+      "level": "Error",
+      "message": "Elision '..' provided but no default arguments are missing for function '{}'",
+      "description": "Elision '..' provided but no default arguments are missing for function '{}'"
+    },
+    "E04568": {
+      "id": "ERR_SEMA_MISSING_ARGUMENT_IN_FUNCTION_CALL_USE_TO",
+      "level": "Error",
+      "message": "Missing argument {} in function call '{}'. Use '..' to explicitly fallback to default values.",
+      "description": "Missing argument {} in function call '{}'. Use '..' to explicitly fallback to default values."
+    },
+    "E04569": {
+      "id": "ERR_SEMA_ARGUMENT_COUNT_MISMATCH_FOR_EXPECTED_GOT",
+      "level": "Error",
+      "message": "Argument count mismatch for '{}': expected {}, got {}",
+      "description": "Argument count mismatch for '{}': expected {}, got {}"
+    },
+    "E04570": {
+      "id": "ERR_SEMA_ARGUMENT_MUST_BE_EXPLICITLY_PASSED_WITH_2",
+      "level": "Error",
+      "message": "Argument must be explicitly passed with 'cede' because the function consumes it",
+      "description": "Argument must be explicitly passed with 'cede' because the function consumes it"
+    },
+    "E04571": {
+      "id": "ERR_SEMA_TYPE_MISMATCH_FOR_ARGUMENT_EXPECTED_GOT",
+      "level": "Error",
+      "message": "Type mismatch for argument {}: expected {}, got {}",
+      "description": "Type mismatch for argument {}: expected {}, got {}"
+    },
+    "E04572": {
+      "id": "ERR_SEMA_CANNOT_ASSIGN_TO_IMMUTABLE_ENTITY_MISSING",
+      "level": "Error",
+      "message": "Cannot assign to immutable entity. Missing writable token '#' or '!'.",
+      "description": "Cannot assign to immutable entity. Missing writable token '#' or '!'."
+    },
+    "E04573": {
+      "id": "ERR_SEMA_COVENANT_VIOLATION_CANNOT_ELEVATE_WRITE_P",
+      "level": "Error",
+      "message": "Covenant Violation: Cannot elevate write permission from ReadOnly soul to Writable container.",
+      "description": "Covenant Violation: Cannot elevate write permission from ReadOnly soul to Writable container."
+    },
+    "E04574": {
+      "id": "ERR_SEMA_COMPARISON_OPERANDS_MUST_HAVE_EXACT_SAME",
+      "level": "Error",
+      "message": "comparison operands must have exact same type ('{}' vs '{}')",
+      "description": "comparison operands must have exact same type ('{}' vs '{}')"
+    },
+    "E04575": {
+      "id": "ERR_SEMA_OPERAND_OF_MUST_BE_INTEGER_GOT_FLOAT",
+      "level": "Error",
+      "message": "operand of '%' must be integer, got float",
+      "description": "operand of '%' must be integer, got float"
+    },
+    "E04576": {
+      "id": "ERR_SEMA_OPERANDS_OF_MUST_BE_NUMERIC_GOT",
+      "level": "Error",
+      "message": "operands of '{}' must be numeric, got '{}'",
+      "description": "operands of '{}' must be numeric, got '{}'"
+    },
+    "E04577": {
+      "id": "ERR_SEMA_OPERANDS_OF_MUST_BE_INTEGERS",
+      "level": "Error",
+      "message": "operands of '{}' must be integers",
+      "description": "operands of '{}' must be integers"
+    },
+    "E04578": {
+      "id": "ERR_SEMA_IS_A_SHAPE_NOT_A_VALID_PATTERN_FOR_IS",
+      "level": "Error",
+      "message": "'{}' is a shape, not a valid pattern for 'is'",
+      "description": "'{}' is a shape, not a valid pattern for 'is'"
+    },
+    "E0710": {
+      "id": "ERR_CODEGEN_TYPE_MISMATCH_IN_COMPOUND_ASSIGNMENT",
+      "level": "Error",
+      "message": "Type mismatch in compound assignment",
+      "description": "Type mismatch in compound assignment"
+    },
+    "E0711": {
+      "id": "ERR_CODEGEN_TYPE_MISMATCH_IN_BINARY_EXPRESSION_VS",
+      "level": "Error",
+      "message": "Type mismatch in binary expression: {} vs {}",
+      "description": "Type mismatch in binary expression: {} vs {}"
+    },
+    "E0712": {
+      "id": "ERR_CODEGEN_INVALID_TYPE_FOR_COMPARISON_COMPARISON",
+      "level": "Error",
+      "message": "Invalid type for comparison: {}. Comparisons are only allowed for scalars (integers/pointers).",
+      "description": "Invalid type for comparison: {}. Comparisons are only allowed for scalars (integers/pointers)."
+    },
+    "E0713": {
+      "id": "ERR_CODEGEN_ITERATOR_SETUP_FAILED_FUNCTION_NOT_FOU",
+      "level": "Error",
+      "message": "Iterator setup failed: function '{}' not found in IR module (stripped name: {})",
+      "description": "Iterator setup failed: function '{}' not found in IR module (stripped name: {})"
+    },
+    "E0714": {
+      "id": "ERR_CODEGEN_ITERATOR_PROTOCOL_FAILED_NEXT_FUNCTION",
+      "level": "Error",
+      "message": "Iterator protocol failed: next function '{}' not found in IR module (iterTyName: {})",
+      "description": "Iterator protocol failed: next function '{}' not found in IR module (iterTyName: {})"
+    },
+    "E0715": {
+      "id": "ERR_CODEGEN_AWAIT_CAN_ONLY_BE_USED_INSIDE_AN_ASYNC",
+      "level": "Error",
+      "message": "await can only be used inside an async function",
+      "description": "await can only be used inside an async function"
+    },
+    "E0716": {
+      "id": "ERR_CODEGEN_BUILTIN_CORO_CURRENT_HANDLE_CAN_ONLY_B",
+      "level": "Error",
+      "message": "__builtin_coro_current_handle can only be used inside an async function",
+      "description": "__builtin_coro_current_handle can only be used inside an async function"
+    },
+    "E0717": {
+      "id": "ERR_CODEGEN_BUILTIN_CORO_SUSPEND_CAN_ONLY_BE_USED",
+      "level": "Error",
+      "message": "__builtin_coro_suspend can only be used inside an async function",
+      "description": "__builtin_coro_suspend can only be used inside an async function"
+    },
+    "E0718": {
+      "id": "ERR_CODEGEN_INTRINSIC_REQUIRES_A_STRING_LITERAL_AS",
+      "level": "Error",
+      "message": "{} intrinsic requires a string literal as first argument.",
+      "description": "{} intrinsic requires a string literal as first argument."
+    },
+    "E0719": {
+      "id": "ERR_CODEGEN_TYPE_DOES_NOT_IMPLEMENT_TO_STRING_OR_T",
+      "level": "Error",
+      "message": "Type '{}' does not implement to_string or to_string_fmt.",
+      "description": "Type '{}' does not implement to_string or to_string_fmt."
+    },
+    "E0720": {
+      "id": "ERR_CODEGEN_STRING_FORMATTING_INTRINSIC_REQUIRES_S",
+      "level": "Error",
+      "message": "String formatting intrinsic requires std/string. Please import std/string::String.",
+      "description": "String formatting intrinsic requires std/string. Please import std/string::String."
+    },
+    "E0721": {
+      "id": "ERR_CODEGEN_CANNOT_RESOLVE_FUNCTION",
+      "level": "Error",
+      "message": "Cannot resolve function '{}'",
+      "description": "Cannot resolve function '{}'"
+    },
+    "E0722": {
+      "id": "ERR_CODEGEN_FAILED_TO_GENERATE_ARGUMENT_FOR",
+      "level": "Error",
+      "message": "Failed to generate argument {} for {}",
+      "description": "Failed to generate argument {} for {}"
+    },
+    "E0723": {
+      "id": "ERR_CODEGEN_UNSAFE_IMPLICIT_CAST_CANNOT_AUTOMATICA",
+      "level": "Error",
+      "message": "Unsafe implicit cast: cannot automatically elevate a dynamic '*char' to a boundary-checked 'str'. Only string literals are permitted.",
+      "description": "Unsafe implicit cast: cannot automatically elevate a dynamic '*char' to a boundary-checked 'str'. Only string literals are permitted."
+    },
+    "E0724": {
+      "id": "ERR_CODEGEN_CLOSURE_INVOKE_FUNCTION_NOT_GENERATED",
+      "level": "Error",
+      "message": "Closure invoke function not generated before Use: {}",
+      "description": "Closure invoke function not generated before Use: {}"
+    },
+    "E0725": {
+      "id": "ERR_CODEGEN_INTERNAL_CODEGEN_ERROR_ASYNC_CALL_MISS",
+      "level": "Error",
+      "message": "Internal CodeGen Error: Async call missing ResolvedType.",
+      "description": "Internal CodeGen Error: Async call missing ResolvedType."
+    },
+    "E0726": {
+      "id": "ERR_CODEGEN_PROPAGATION_EXPRESSION_LACKS_RESOLVED",
+      "level": "Error",
+      "message": "Propagation expression lacks resolved type",
+      "description": "Propagation expression lacks resolved type"
+    },
+    "E0727": {
+      "id": "ERR_CODEGEN_INVALID_REPRESENTATION_FOR",
+      "level": "Error",
+      "message": "Invalid representation for {}",
+      "description": "Invalid representation for {}"
+    },
+    "E0728": {
+      "id": "ERR_CODEGEN_UNKNOWN_STRUCT_TYPE",
+      "level": "Error",
+      "message": "Unknown struct type {}",
+      "description": "Unknown struct type {}"
+    },
+    "E0729": {
+      "id": "ERR_CODEGEN_UNKNOWN_FIELD",
+      "level": "Error",
+      "message": "Unknown field {}",
+      "description": "Unknown field {}"
+    },
+    "E0730": {
+      "id": "ERR_CODEGEN_ANONYMOUS_RECORD_MISSING_TYPE_NAME",
+      "level": "Error",
+      "message": "Anonymous record missing type name",
+      "description": "Anonymous record missing type name"
+    },
+    "E0731": {
+      "id": "ERR_CODEGEN_ANONYMOUS_RECORD_TYPE_NOT_FOUND",
+      "level": "Error",
+      "message": "Anonymous record type '{}' not found",
+      "description": "Anonymous record type '{}' not found"
+    },
+    "E0732": {
+      "id": "ERR_CODEGEN_REPEAT_COUNT_VARIABLE_MUST_BE_A_COMPIL",
+      "level": "Error",
+      "message": "Repeat count variable must be a compile-time constant",
+      "description": "Repeat count variable must be a compile-time constant"
+    },
+    "E0733": {
+      "id": "ERR_CODEGEN_REPEAT_COUNT_MUST_BE_A_NUMERIC_LITERAL",
+      "level": "Error",
+      "message": "Repeat count must be a numeric literal or const generic parameter",
+      "description": "Repeat count must be a numeric literal or const generic parameter"
+    },
+    "E0734": {
+      "id": "ERR_CODEGEN_TYPEINFO_SHAPE_NOT_DEFINED_OR_OPAQUE_I",
+      "level": "Error",
+      "message": "TypeInfo shape not defined or opaque in current module.",
+      "description": "TypeInfo shape not defined or opaque in current module."
+    },
+    "E0735": {
+      "id": "ERR_CODEGEN_CANNOT_REFLECT_UNINSTANTIATED_OR_PRIMI",
+      "level": "Error",
+      "message": "Cannot reflect uninstantiated or primitive shape in CodeGen: {}",
+      "description": "Cannot reflect uninstantiated or primitive shape in CodeGen: {}"
+    },
+    "E0736": {
+      "id": "ERR_CODEGEN_FIELDINFO_SHAPE_NOT_DEFINED_OR_OPAQUE",
+      "level": "Error",
+      "message": "FieldInfo shape not defined or opaque.",
+      "description": "FieldInfo shape not defined or opaque."
+    },
+    "E0737": {
+      "id": "ERR_CODEGEN_UNRESOLVED_ARGUMENT_TYPE_FOR_IN_FUNCTI",
+      "level": "Error",
+      "message": "Unresolved argument type for '{}' in function '{}'",
+      "description": "Unresolved argument type for '{}' in function '{}'"
+    },
+    "E0738": {
+      "id": "ERR_CODEGEN_UNRESOLVED_RETURN_TYPE_FOR_FUNCTION",
+      "level": "Error",
+      "message": "Unresolved return type for function '{}'",
+      "description": "Unresolved return type for function '{}'"
+    },
+    "E0739": {
+      "id": "ERR_CODEGEN_CANNOT_INFER_TYPE_FOR_VARIABLE",
+      "level": "Error",
+      "message": "Cannot infer type for variable '{}'",
+      "description": "Cannot infer type for variable '{}'"
+    },
+    "E0740": {
+      "id": "ERR_CODEGEN_INTERNAL_ERROR_TYPE_MISMATCH_IN_VARIAB",
+      "level": "Error",
+      "message": "Internal Error: Type mismatch in VariableDecl despite Sema: Expected {}, Got {}",
+      "description": "Internal Error: Type mismatch in VariableDecl despite Sema: Expected {}, Got {}"
+    },
+    "E0741": {
+      "id": "ERR_CODEGEN_POSITIONAL_DESTRUCTURING_REQUIRES_A_ST",
+      "level": "Error",
+      "message": "Positional destructuring requires a struct or tuple type",
+      "description": "Positional destructuring requires a struct or tuple type"
+    },
+    "E0742": {
+      "id": "ERR_CODEGEN_INVALID_MEMBER_IN_DESTRUCTURING_OF",
+      "level": "Error",
+      "message": "Invalid member '{}' in destructuring of {}",
+      "description": "Invalid member '{}' in destructuring of {}"
+    },
+    "E0743": {
+      "id": "ERR_CODEGEN_CANNOT_TAKE_REFERENCE_OF_A_TEMPORARY_V",
+      "level": "Error",
+      "message": "Cannot take reference of a temporary value in destructuring",
+      "description": "Cannot take reference of a temporary value in destructuring"
+    },
+    "E0744": {
+      "id": "ERR_CODEGEN_GLOBAL_DESTRUCTURING_NOT_YET_SUPPORTED",
+      "level": "Error",
+      "message": "Global destructuring not yet supported",
+      "description": "Global destructuring not yet supported"
+    },
+    "E0745": {
+      "id": "ERR_CODEGEN_UNRESOLVED_ARGUMENT_TYPE_IN_EXTERN_FUN",
+      "level": "Error",
+      "message": "Unresolved argument type '{}' in extern function '{}'",
+      "description": "Unresolved argument type '{}' in extern function '{}'"
+    },
+    "E0746": {
+      "id": "ERR_CODEGEN_UNRESOLVED_RETURN_TYPE_IN_EXTERN_FUNCT",
+      "level": "Error",
+      "message": "Unresolved return type '{}' in extern function '{}'",
+      "description": "Unresolved return type '{}' in extern function '{}'"
+    },
+    "E0747": {
+      "id": "ERR_CODEGEN_UNRESOLVED_MEMBER_TYPE_IN_SHAPE",
+      "level": "Error",
+      "message": "Unresolved member type '{}' in shape '{}'",
+      "description": "Unresolved member type '{}' in shape '{}'"
+    },
+    "E0748": {
+      "id": "ERR_CODEGEN_UNRESOLVED_ARRAY_ELEMENT_TYPE_IN_SHAPE",
+      "level": "Error",
+      "message": "Unresolved array element type '{}' in shape '{}'",
+      "description": "Unresolved array element type '{}' in shape '{}'"
+    },
+    "E0749": {
+      "id": "ERR_CODEGEN_UNRESOLVED_UNION_MEMBER_TYPE_IN_SHAPE",
+      "level": "Error",
+      "message": "Unresolved union member type '{}' in shape '{}'",
+      "description": "Unresolved union member type '{}' in shape '{}'"
+    },
+    "E0750": {
+      "id": "ERR_CODEGEN_UNRESOLVED_VARIANT_FIELD_TYPE_IN_ENUM",
+      "level": "Error",
+      "message": "Unresolved variant field type '{}' in enum '{}'",
+      "description": "Unresolved variant field type '{}' in enum '{}'"
+    },
+    "E0751": {
+      "id": "ERR_CODEGEN_UNRESOLVED_VARIANT_PAYLOAD_TYPE_IN_ENU",
+      "level": "Error",
+      "message": "Unresolved variant payload type '{}' in enum '{}'",
+      "description": "Unresolved variant payload type '{}' in enum '{}'"
+    },
+    "E0752": {
+      "id": "ERR_CODEGEN_MISSING_IMPLEMENTATION_FOR_METHOD_OF_T",
+      "level": "Error",
+      "message": "Missing implementation for method '{}' of trait '{}'",
+      "description": "Missing implementation for method '{}' of trait '{}'"
+    },
+    "E0753": {
+      "id": "ERR_CODEGEN_TRAIT_NOT_FOUND",
+      "level": "Error",
+      "message": "Trait '{}' not found",
+      "description": "Trait '{}' not found"
+    },
+    "E0754": {
+      "id": "ERR_CODEGEN_CANNOT_DETERMINE_TYPE_FOR_METHOD_CALL",
+      "level": "Error",
+      "message": "Cannot determine type for method call '{}'",
+      "description": "Cannot determine type for method call '{}'"
+    },
+    "E0755": {
+      "id": "ERR_CODEGEN_METHOD_NOT_FOUND_FOR_TYPE_MANGLED",
+      "level": "Error",
+      "message": "Method '{}' not found for type '{}' (Mangled: {})",
+      "description": "Method '{}' not found for type '{}' (Mangled: {})"
+    },
+    "E0756": {
+      "id": "ERR_CODEGEN_FAILED_TO_RESOLVE_MEMBER_IN",
+      "level": "Error",
+      "message": "Failed to resolve member '{}' in {}",
+      "description": "Failed to resolve member '{}' in {}"
+    },
+    "E0757": {
+      "id": "ERR_CODEGEN_CANNOT_DETERMINE_SIZE_OF_INCOMPLETE_TY",
+      "level": "Error",
+      "message": "Cannot determine size of incomplete type: {}",
+      "description": "Cannot determine size of incomplete type: {}"
+    },
+    "E0758": {
+      "id": "ERR_CODEGEN_COMPILE_TIME_FIELD_ITERATION_VARIABLES",
+      "level": "Error",
+      "message": "Compile-time field iteration variables cannot be used contextually where runtime values are expected (must be folded statically).",
+      "description": "Compile-time field iteration variables cannot be used contextually where runtime values are expected (must be folded statically)."
     }
   }
 }

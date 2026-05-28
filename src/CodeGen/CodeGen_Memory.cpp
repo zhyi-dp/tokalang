@@ -731,7 +731,7 @@ PhysEntity CodeGen::genMemberExpr(const MemberExpr *mem) {
   if (idx == -1) {
     std::string typeDesc = stName.empty() ? "anonymous struct or tuple"
                                           : ("struct '" + stName + "'");
-    error(mem, "Failed to resolve member '" + mem->Member + "' in " + typeDesc);
+    error(mem, DiagID::ERR_CODEGEN_FAILED_TO_RESOLVE_MEMBER_IN, mem->Member, typeDesc);
     return nullptr;
   }
 

@@ -61,9 +61,7 @@ std::shared_ptr<toka::Type> Sema::checkUnaryExpr(UnaryExpr *Unary) {
   if (Unary->Op == TokenType::Caret || Unary->Op == TokenType::Tilde) {
 
     if (dynamic_cast<MemberExpr *>(Unary->RHS.get())) {
-      error(Unary, "Morphology symbols (^, *, ~) cannot prefix a member access expression. "
-                   "To get the pointer handle of a member, the sigil must be placed "
-                   "directly before the member name (e.g., use 'm.~a' instead of '~m.a')");
+      error(Unary, DiagID::ERR_SEMA_MORPHOLOGY_SYMBOLS_CANNOT_PREFIX_A_MEMBER);
       return toka::Type::fromString("unknown");
     }
   }
@@ -73,15 +71,11 @@ std::shared_ptr<toka::Type> Sema::checkUnaryExpr(UnaryExpr *Unary) {
   if (m_InIntermediatePath) {
     if (Unary->Op == TokenType::Star || Unary->Op == TokenType::Caret ||
         Unary->Op == TokenType::Tilde || Unary->Op == TokenType::Ampersand) {
-      error(Unary, "Morphology symbols (^, *, ~, &) are only allowed at "
-                   "the terminal "
-                   "of an access chain");
+      error(Unary, DiagID::ERR_SEMA_MORPHOLOGY_SYMBOLS_ARE_ONLY_ALLOWED_AT_TH);
     }
     if (Unary->IsRebindable || Unary->HasNull) {
       if (!m_IsMemberBase) {
-        error(Unary, "Permission symbols (#, ?) are only allowed at "
-                     "the terminal "
-                     "of an access chain");
+        error(Unary, DiagID::ERR_SEMA_PERMISSION_SYMBOLS_ARE_ONLY_ALLOWED_AT_TH);
       }
     }
   }
@@ -117,13 +111,13 @@ std::shared_ptr<toka::Type> Sema::checkUnaryExpr(UnaryExpr *Unary) {
 
   if (Unary->Op == TokenType::Bang) {
     if (!rhsType->isBoolean()) {
-      error(Unary, "operand of '!' must be bool, got '" + rhsInfo + "'");
+      error(Unary, DiagID::ERR_SEMA_OPERAND_OF_MUST_BE_BOOL_GOT, rhsInfo);
     }
     return toka::Type::fromString("bool");
   } else if (Unary->Op == TokenType::Minus) {
     bool isNum = rhsType->isInteger() || rhsType->isFloatingPoint();
     if (!isNum) {
-      error(Unary, "operand of '-' must be numeric, got '" + rhsInfo + "'");
+      error(Unary, DiagID::ERR_SEMA_OPERAND_OF_MUST_BE_NUMERIC_GOT, rhsInfo);
     }
     return rhsType; // Return object directly
   }

@@ -322,7 +322,7 @@ private:
   // Path Narrowing
   std::set<std::string> m_NarrowedPaths;
 
-  void error(ASTNode *Node, const std::string &Msg);
+
 
   template <typename... Args>
   void error(ASTNode *Node, DiagID ID, Args &&...args) {

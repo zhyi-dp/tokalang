@@ -1,4 +1,4 @@
-error[E0406]: Cannot cede/move value 'p' inside a loop because it is defined outside the loop
+error[E04501]: Cannot cede/move value 'p' inside a loop because it is defined outside the loop
  --> tests/fail/move_in_loop.tk:8:20
    |
  8 |         auto ^p2 = cede ^p

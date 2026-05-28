@@ -96,22 +96,22 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
               hasStr = true;
           }
           if (hasStr) {
-              error(Call, "Compile-time error: " + errStr);
+              error(Call, DiagID::ERR_SEMA_COMPILE_TIME_ERROR, errStr);
               return toka::Type::fromString("void");
           }
       }
-      error(Call, "compile_error requires a string literal");
+      error(Call, DiagID::ERR_SEMA_COMPILE_ERROR_REQUIRES_A_STRING_LITERAL);
       return toka::Type::fromString("void");
   }
 
   // 1c. core/mem::bit_cast intrinsic
   if (CallName == "core/mem::bit_cast" || CallName == "bit_cast") {
       if (Call->Args.size() != 1) {
-          error(Call, "bit_cast requires exactly 1 argument");
+          error(Call, DiagID::ERR_SEMA_BIT_CAST_REQUIRES_EXACTLY_1_ARGUMENT);
           return toka::Type::fromString("unknown");
       }
       if (Call->GenericArgs.empty()) {
-          error(Call, "bit_cast requires the target type as a generic argument, e.g., bit_cast<To>(val)");
+          error(Call, DiagID::ERR_SEMA_BIT_CAST_REQUIRES_THE_TARGET_TYPE_AS_A_GE);
           return toka::Type::fromString("unknown");
       }
       
@@ -123,7 +123,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
       std::string toStr = Call->GenericArgs[0];
       auto toTy = resolveType(toka::Type::fromString(toStr));
       if (!toTy || toTy->isUnknown()) {
-          error(Call, "Unknown target type '" + toStr + "' in bit_cast");
+          error(Call, DiagID::ERR_SEMA_UNKNOWN_TARGET_TYPE_IN_BIT_CAST, toStr);
           return toka::Type::fromString("unknown");
       }
       
@@ -168,7 +168,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
       }
 
       if (Call->Args.empty()) {
-          error(Call, CallName + " requires at least a format string argument.");
+          error(Call, DiagID::ERR_SEMA_REQUIRES_AT_LEAST_A_FORMAT_STRING_ARGUMEN, CallName);
           return toka::Type::fromString("void");
       }
 
@@ -181,7 +181,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
       } else if (auto *VSE = dynamic_cast<ViewStringExpr*>(Call->Args[0].get())) {
           fmt = VSE->Value;
       } else {
-          error(Call->Args[0].get(), CallName + " format argument must be a string literal");
+          error(Call->Args[0].get(), DiagID::ERR_SEMA_FORMAT_ARGUMENT_MUST_BE_A_STRING_LITERAL, CallName);
           return toka::Type::fromString("void");
       }
 
@@ -205,8 +205,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
       size_t expectedArgs = formatSpecifiers.size();
       size_t providedArgs = Call->Args.size() - 1;
       if (expectedArgs != providedArgs) {
-          error(Call, "Format string placeholder count (" + std::to_string(expectedArgs) + 
-                      ") does not match provided arguments count (" + std::to_string(providedArgs) + ")");
+          error(Call, DiagID::ERR_SEMA_FORMAT_STRING_PLACEHOLDER_COUNT_DOES_NOT, std::to_string(expectedArgs), std::to_string(providedArgs));
           return toka::Type::fromString("void");
       }
 
@@ -231,7 +230,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
 
           if (soulTy == "String" || soulTy == "string" || soulTy == "str") {
               if (isFmt) {
-                  error(Call->Args[i].get(), "Formatted printing is not yet supported for String/str. Use plain {}.");
+                  error(Call->Args[i].get(), DiagID::ERR_SEMA_FORMATTED_PRINTING_IS_NOT_YET_SUPPORTED_F);
               }
               continue;
           }
@@ -245,7 +244,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
           std::string requiredTrait = isFmt ? "@ToFormat" : "@ToString";
 
           if (!MethodMap.count(soulTy) || !MethodMap[soulTy].count(requiredMethod)) {
-              error(Call->Args[i].get(), "Type '" + soulTy + "' does not implement " + requiredTrait + " trait or " + requiredMethod + " method.");
+              error(Call->Args[i].get(), DiagID::ERR_SEMA_TYPE_DOES_NOT_IMPLEMENT_TRAIT_OR_METHOD, soulTy, requiredTrait, requiredMethod);
               return toka::Type::fromString("void");
           }
       }
@@ -278,7 +277,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
       }
     }
     if (!visible) {
-      error(Call, CallName + " requires at least a format string");
+      error(Call, DiagID::ERR_SEMA_REQUIRES_AT_LEAST_A_FORMAT_STRING, CallName);
       return toka::Type::fromString("void");
     }
     for (auto &Arg : Call->Args) {
@@ -320,7 +319,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
         // [P3] Zero-copy println: Bypass to_string check for string types
         if (soulTy == "String" || soulTy == "string" || soulTy == "str") {
             if (isFmt) {
-                error(Call->Args[i].get(), "Formatted printing is not yet supported for String/str. Use plain {}.");
+                error(Call->Args[i].get(), DiagID::ERR_SEMA_FORMATTED_PRINTING_IS_NOT_YET_SUPPORTED_F);
             }
             continue;
         }
@@ -329,7 +328,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
         std::string requiredTrait = isFmt ? "@ToFormat" : "@ToString";
 
         if (!MethodMap.count(soulTy) || !MethodMap[soulTy].count(requiredMethod)) {
-            error(Call->Args[i].get(), "Type '" + soulTy + "' does not implement " + requiredTrait + " trait or " + requiredMethod + " method.");
+            error(Call->Args[i].get(), DiagID::ERR_SEMA_TYPE_DOES_NOT_IMPLEMENT_TRAIT_OR_METHOD, soulTy, requiredTrait, requiredMethod);
             return toka::Type::fromString("void");
         }
       }
@@ -372,7 +371,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
             size_t expectedArgs = MetAST->Args.size();
             if (Call->Args.size() != expectedArgs && !MetAST->IsVariadic) {
                 if (Call->Args.size() < expectedArgs) {
-                    DiagnosticEngine::report(getLoc(Call), DiagID::ERR_GENERIC_PARSE, "Static method '" + MetAST->Name + "' expects at least " + std::to_string(expectedArgs) + " arguments, got " + std::to_string(Call->Args.size()));
+                    DiagnosticEngine::report(getLoc(Call), DiagID::ERR_SEMA_STATIC_METHOD_EXPECTS_AT_LEAST_ARGUMENTS, MetAST->Name, std::to_string(expectedArgs), std::to_string(Call->Args.size()));
                     HasError = true;
                 }
             }
@@ -481,8 +480,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
       }
       // If we are here, it means we found the Shape but not the
       // Method/Variant
-      error(Call, "static method or variant '" + VariantName +
-                      "' not found in shape '" + ShapeName + "'");
+      error(Call, DiagID::ERR_SEMA_STATIC_METHOD_OR_VARIANT_NOT_FOUND_IN_SHA, VariantName, ShapeName);
       return toka::Type::fromString("unknown");
     }
   }
@@ -552,11 +550,11 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
           // No debug prints
         }
       } else {
-        error(Call, "Module '" + ModName + "' not found or not imported");
+        error(Call, DiagID::ERR_SEMA_MODULE_NOT_FOUND_OR_NOT_IMPORTED, ModName);
         return toka::Type::fromString("unknown");
       }
     } else {
-      error(Call, "Module '" + ModName + "' not found or not imported");
+      error(Call, DiagID::ERR_SEMA_MODULE_NOT_FOUND_OR_NOT_IMPORTED, ModName);
       return toka::Type::fromString("unknown");
     }
   } else if (!Sh) {
@@ -635,8 +633,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
           FunctionDecl *invokeFn = (FunctionDecl*)MethodDecls[shapeName]["__invoke"];
           
           if (Call->Args.size() != invokeFn->Args.size() - 1) {
-             error(Call, "Closure expects " + std::to_string(invokeFn->Args.size() - 1) +
-                         " arguments, but got " + std::to_string(Call->Args.size()));
+             error(Call, DiagID::ERR_SEMA_CLOSURE_EXPECTS_ARGUMENTS_BUT_GOT, std::to_string(invokeFn->Args.size() - 1), std::to_string(Call->Args.size()));
           } else {
              for (size_t i = 0; i < Call->Args.size(); ++i) {
                 Call->Args[i] = foldGenericConstant(std::move(Call->Args[i]));
@@ -682,8 +679,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
     if (sym.TypeObj && sym.TypeObj->typeKind == toka::Type::Function) {
       auto fnTy = std::dynamic_pointer_cast<toka::FunctionType>(sym.TypeObj);
       if (Call->Args.size() != fnTy->ParamTypes.size()) {
-         error(Call, "Closure expects " + std::to_string(fnTy->ParamTypes.size()) +
-                     " arguments, but got " + std::to_string(Call->Args.size()));
+         error(Call, DiagID::ERR_SEMA_CLOSURE_EXPECTS_ARGUMENTS_BUT_GOT, std::to_string(fnTy->ParamTypes.size()), std::to_string(Call->Args.size()));
       } else {
          for (size_t i = 0; i < Call->Args.size(); ++i) {
             Call->Args[i] = foldGenericConstant(std::move(Call->Args[i]));
@@ -700,8 +696,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
     } else if (sym.TypeObj && sym.TypeObj->typeKind == toka::Type::DynFn) {
       auto fnTy = std::dynamic_pointer_cast<toka::DynFnType>(sym.TypeObj);
       if (Call->Args.size() != fnTy->ParamTypes.size()) {
-         error(Call, "Closure expects " + std::to_string(fnTy->ParamTypes.size()) +
-                     " arguments, but got " + std::to_string(Call->Args.size()));
+         error(Call, DiagID::ERR_SEMA_CLOSURE_EXPECTS_ARGUMENTS_BUT_GOT, std::to_string(fnTy->ParamTypes.size()), std::to_string(Call->Args.size()));
       } else {
          for (size_t i = 0; i < Call->Args.size(); ++i) {
             Call->Args[i] = foldGenericConstant(std::move(Call->Args[i]));
@@ -738,9 +733,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
     if (!Call->GenericArgs.empty()) {
       // Explicit Instantiation
       if (Call->GenericArgs.size() != Fn->GenericParams.size()) {
-        DiagnosticEngine::report(
-            getLoc(Call), DiagID::ERR_GENERIC_ARITY_MISMATCH, Fn->Name,
-            Fn->GenericParams.size(), Call->GenericArgs.size());
+        DiagnosticEngine::report(getLoc(Call), DiagID::NOTE_GENERIC, Fn->Name, Fn->GenericParams.size(), Call->GenericArgs.size());
         HasError = true;
         return toka::Type::fromString("unknown");
       }
@@ -839,9 +832,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
           // Deduce
           if (Deduced.count(PType)) {
             if (!Deduced[PType]->equals(*candidate)) {
-              error(Call, "Type deduction conflict for '" + PType + "': '" +
-                              Deduced[PType]->toString() + "' vs '" +
-                              candidate->toString() + "'");
+              error(Call, DiagID::ERR_SEMA_TYPE_DEDUCTION_CONFLICT_FOR_VS, PType, Deduced[PType]->toString(), candidate->toString());
               deductionFailed = true;
             }
           } else {
@@ -853,8 +844,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
       if (!deductionFailed) {
         for (const auto &gp : Fn->GenericParams) {
           if (!Deduced.count(gp.Name)) {
-            error(Call, "Failed to deduce type for generic parameter '" +
-                            gp.Name + "'");
+            error(Call, DiagID::ERR_SEMA_FAILED_TO_DEDUCE_TYPE_FOR_GENERIC_PARAMET, gp.Name);
             deductionFailed = true;
           } else {
             TypeArgs.push_back(Deduced[gp.Name]);
@@ -880,7 +870,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
 
   if (Fn) {
     if (Fn->IsDeleted) {
-      error(Call, "Cannot call explicitly deleted function '" + Fn->Name + "'");
+      error(Call, DiagID::ERR_SEMA_CANNOT_CALL_EXPLICITLY_DELETED_FUNCTION, Fn->Name);
       HasError = true;
       return toka::Type::fromString("unknown");
     }
@@ -1019,13 +1009,13 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
       if (elisionIndex != -1) {
         elisionSkipCount = (int)Sh->Members.size() - normalArgsCount;
         if (elisionSkipCount < 0) {
-          error(Call->Args[elisionIndex].get(), "Too many arguments provided, cannot elide");
+          error(Call->Args[elisionIndex].get(), DiagID::ERR_SEMA_TOO_MANY_ARGUMENTS_PROVIDED_CANNOT_ELIDE);
         } else if (elisionSkipCount == 0) {
           error(Call->Args[elisionIndex].get(), DiagID::ERR_REDUNDANT_ELISION);
         }
       } else {
         if (normalArgsCount > (int)Sh->Members.size()) {
-          error(Call, "Too many arguments for struct '" + Sh->Name + "'");
+          error(Call, DiagID::ERR_SEMA_TOO_MANY_ARGUMENTS_FOR_STRUCT, Sh->Name);
         }
       }
 
@@ -1050,8 +1040,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
           auto expectedType = M.ResolvedType ? M.ResolvedType : toka::Type::fromString(M.Type);
           auto valType = checkExpr(arg.get());
           if (!isTypeCompatible(expectedType, valType)) {
-            error(arg.get(), "Type mismatch for field '" + M.Name + "': expected " +
-                             expectedType->toString() + ", got " + valType->toString());
+            error(arg.get(), DiagID::ERR_SEMA_TYPE_MISMATCH_FOR_FIELD_EXPECTED_GOT, M.Name, expectedType->toString(), valType->toString());
           }
           memberIdx++;
         }
@@ -1089,7 +1078,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
             resolvedArgs.push_back(std::move(bin));
           } else {
             if (elisionIndex == -1) {
-              error(Call, "Missing field '" + M.Name + "' in constructor for '" + Sh->Name + "'. Use '..' to explicitly fallback to default values.");
+              error(Call, DiagID::ERR_SEMA_MISSING_FIELD_IN_CONSTRUCTOR_FOR_USE_TO_E, M.Name, Sh->Name);
             }
           }
         } else {
@@ -1127,7 +1116,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
     } else if (Sh->Kind == ShapeKind::Union) {
 
       if (Call->Args.size() != 1) {
-        error(Call, "Union '" + CallName + "' requires exactly one argument");
+        error(Call, DiagID::ERR_SEMA_UNION_REQUIRES_EXACTLY_ONE_ARGUMENT, CallName);
         return toka::Type::fromString("void");
       }
       Expr *argExpr = Call->Args[0].get();
@@ -1157,8 +1146,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
           }
         }
         if (matchedIdx == -1) {
-          error(argExpr, "Union '" + Sh->Name + "' has no variant named '" +
-                             fieldName + "'");
+          error(argExpr, DiagID::ERR_SEMA_UNION_HAS_NO_VARIANT_NAMED, Sh->Name, fieldName);
           return toka::Type::fromString("unknown");
         }
 
@@ -1167,9 +1155,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
                            : toka::Type::fromString(
                                  resolveType(Sh->Members[matchedIdx].Type));
         if (!isTypeCompatible(memType, argType)) {
-          error(valExpr, "Type mismatch for Union variant '" + fieldName +
-                             "': expected " + memType->toString() + ", got " +
-                             argType->toString());
+          error(valExpr, DiagID::ERR_SEMA_TYPE_MISMATCH_FOR_UNION_VARIANT_EXPECTED, fieldName, memType->toString(), argType->toString());
         }
 
         // 1. Calculate Union Size
@@ -1223,27 +1209,17 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
         if (exactMatchCount == 1) {
           Call->MatchedMemberIdx = exactMatchIdx;
         } else if (exactMatchCount > 1) {
-          error(Call, DiagID::ERR_GENERIC_PARSE,
-                "Ambiguous Union constructor: multiple "
-                "exact matches found for "
-                "type " +
-                    argType->toString());
+          error(Call, DiagID::ERR_SEMA_AMBIGUOUS_UNION_CONSTRUCTOR_MULTIPLE_EXAC, argType->toString());
           HasError = true;
           return toka::Type::fromString("unknown");
         } else if (fitMatchCount == 1) {
           Call->MatchedMemberIdx = fitMatchIdx;
         } else if (fitMatchCount > 1) {
-          error(Call, DiagID::ERR_GENERIC_PARSE,
-                "Ambiguous Union constructor: multiple "
-                "safe-fit matches found for "
-                "type " +
-                    argType->toString() + ". Use explicit cast.");
+          error(Call, DiagID::ERR_SEMA_AMBIGUOUS_UNION_CONSTRUCTOR_MULTIPLE_SAFE, argType->toString());
           HasError = true;
           return toka::Type::fromString("unknown");
         } else {
-          error(Call, DiagID::ERR_GENERIC_PARSE,
-                "No matching member found in Union '" + Sh->Name +
-                    "' for type " + argType->toString());
+          error(Call, DiagID::ERR_SEMA_NO_MATCHING_MEMBER_FOUND_IN_UNION_FOR_TYP, Sh->Name, argType->toString());
           HasError = true;
           return toka::Type::fromString("unknown");
         }
@@ -1269,7 +1245,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
       // Check for illegal elisions in the middle
       for (const auto &arg : Call->Args) {
           if (dynamic_cast<ElisionExpr*>(arg.get())) {
-              error(arg.get(), "Function call elision '..' must strictly be the last argument");
+              error(arg.get(), DiagID::ERR_SEMA_FUNCTION_CALL_ELISION_MUST_STRICTLY_BE_TH);
           }
       }
   }
@@ -1278,12 +1254,12 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
   size_t paramCount = ParamTypes.size();
 
   if (hasFunctionElision && providedCount >= paramCount) {
-      error(Call, "Elision '..' provided but no default arguments are missing for function '" + CallName + "'");
+      error(Call, DiagID::ERR_SEMA_ELISION_PROVIDED_BUT_NO_DEFAULT_ARGUMENTS, CallName);
   }
 
   if (providedCount < paramCount) {
     if (!hasFunctionElision && !IsVariadic) {
-        error(Call, "Missing argument " + std::to_string(providedCount + 1) + " in function call '" + CallName + "'. Use '..' to explicitly fallback to default values.");
+        error(Call, DiagID::ERR_SEMA_MISSING_ARGUMENT_IN_FUNCTION_CALL_USE_TO, std::to_string(providedCount + 1), CallName);
     }
     for (size_t i = providedCount; i < paramCount; ++i) {
       std::unique_ptr<Expr> injected = nullptr;
@@ -1323,17 +1299,13 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
         Call->Args.push_back(std::move(injected));
       } else {
         if (!IsVariadic) {
-          error(Call, "Argument count mismatch for '" + CallName +
-                          "': expected " + std::to_string(paramCount) +
-                          ", got " + std::to_string(providedCount));
+          error(Call, DiagID::ERR_SEMA_ARGUMENT_COUNT_MISMATCH_FOR_EXPECTED_GOT, CallName, std::to_string(paramCount), std::to_string(providedCount));
           return ReturnType;
         }
       }
     }
   } else if (!IsVariadic && providedCount > paramCount) {
-    error(Call, "Argument count mismatch for '" + CallName + "': expected " +
-                    std::to_string(paramCount) + ", got " +
-                    std::to_string(providedCount));
+    error(Call, DiagID::ERR_SEMA_ARGUMENT_COUNT_MISMATCH_FOR_EXPECTED_GOT, CallName, std::to_string(paramCount), std::to_string(providedCount));
     return ReturnType;
   }
 
@@ -1383,7 +1355,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
     if (isCededParam) {
         bool isCallerCeded = dynamic_cast<CedeExpr*>(Call->Args[i].get()) != nullptr;
         if (!isCallerCeded) {
-            error(Call->Args[i].get(), "Argument must be explicitly passed with 'cede' because the function consumes it");
+            error(Call->Args[i].get(), DiagID::ERR_SEMA_ARGUMENT_MUST_BE_EXPLICITLY_PASSED_WITH_2);
         }
     }
 
@@ -1415,10 +1387,7 @@ std::shared_ptr<toka::Type> Sema::checkCallExpr(CallExpr *Call) {
     }
 
     if (!bypassNull && !isTypeCompatible(paramType, argType)) {
-      error(Call->Args[i].get(), "Type mismatch for argument " +
-                                     std::to_string(i + 1) + ": expected " +
-                                     paramType->toString() + ", got " +
-                                     argType->toString());
+      error(Call->Args[i].get(), DiagID::ERR_SEMA_TYPE_MISMATCH_FOR_ARGUMENT_EXPECTED_GOT, std::to_string(i + 1), paramType->toString(), argType->toString());
     } else if (paramType && argType && paramType->isShape() && argType->isRawPointer()) {
       auto shp = std::static_pointer_cast<toka::ShapeType>(paramType);
       if (shp->Name == "str") {

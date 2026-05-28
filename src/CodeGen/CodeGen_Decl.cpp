@@ -108,7 +108,7 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
       // Determine LLVM Type
       llvm::Type *t = getLLVMType(typeObj);
       if (!t) {
-        error(func, "Unresolved argument type for '" + arg.Name + "' in function '" + funcName + "'");
+        error(func, DiagID::ERR_CODEGEN_UNRESOLVED_ARGUMENT_TYPE_FOR_IN_FUNCTI, arg.Name, funcName);
         return nullptr;
       }
 
@@ -160,7 +160,7 @@ llvm::Function *CodeGen::genFunction(const FunctionDecl *func,
 
     llvm::Type *retType = getLLVMType(retTypeObj);
     if (!retType) {
-      error(func, "Unresolved return type for function '" + funcName + "'");
+      error(func, DiagID::ERR_CODEGEN_UNRESOLVED_RETURN_TYPE_FOR_FUNCTION, funcName);
       return nullptr;
     }
 
@@ -855,7 +855,7 @@ llvm::Value *CodeGen::genVariableDecl(const VariableDecl *var) {
   }
 
   if (!type) {
-    error(var, "Cannot infer type for variable '" + varName + "'");
+    error(var, DiagID::ERR_CODEGEN_CANNOT_INFER_TYPE_FOR_VARIABLE, varName);
     return nullptr;
   }
 
@@ -1132,9 +1132,7 @@ llvm::Value *CodeGen::genVariableDecl(const VariableDecl *var) {
       initVal->getType()->print(os2);
     }
 
-    error(var, "Internal Error: Type mismatch in VariableDecl despite "
-               "Sema: Expected " +
-                   s1 + ", Got " + s2);
+    error(var, DiagID::ERR_CODEGEN_INTERNAL_ERROR_TYPE_MISMATCH_IN_VARIAB, s1, s2);
     return nullptr;
   }
 
@@ -1253,7 +1251,7 @@ llvm::Value *CodeGen::genDestructuringDecl(const DestructuringDecl *dest) {
   }
 
   if (!srcTy || !srcTy->isStructTy()) {
-    error(dest, "Positional destructuring requires a struct or tuple type");
+    error(dest, DiagID::ERR_CODEGEN_POSITIONAL_DESTRUCTURING_REQUIRES_A_ST);
     return nullptr;
   }
 
@@ -1330,7 +1328,7 @@ llvm::Value *CodeGen::genDestructuringDecl(const DestructuringDecl *dest) {
     }
 
     if (memberIndex >= expectedSize || memberIndex == (size_t)-1) {
-      error(dest, "Invalid member '" + v.FieldName + "' in destructuring of " + shapeName);
+      error(dest, DiagID::ERR_CODEGEN_INVALID_MEMBER_IN_DESTRUCTURING_OF, v.FieldName, shapeName);
       break;
     }
 
@@ -1347,8 +1345,7 @@ llvm::Value *CodeGen::genDestructuringDecl(const DestructuringDecl *dest) {
     llvm::Value *finalVal = nullptr;
     if (v.IsReference) {
       if (!initEnt.isAddress) {
-        error(dest,
-              "Cannot take reference of a temporary value in destructuring");
+        error(dest, DiagID::ERR_CODEGEN_CANNOT_TAKE_REFERENCE_OF_A_TEMPORARY_V);
         return nullptr;
       }
       // [L-Value Destructuring] GEP to get address of member
@@ -1519,8 +1516,7 @@ void CodeGen::genGlobal(const Stmt *stmt) {
   } else {
     // We could support global destructuring here, but for now just skip or
     // error
-    error(dynamic_cast<const ASTNode *>(stmt),
-          "Global destructuring not yet supported");
+    error(dynamic_cast<const ASTNode *>(stmt), DiagID::ERR_CODEGEN_GLOBAL_DESTRUCTURING_NOT_YET_SUPPORTED);
   }
 }
 
@@ -1529,14 +1525,14 @@ void CodeGen::genExtern(const ExternDecl *ext) {
   for (const auto &arg : ext->Args) {
     llvm::Type *t = resolveType(arg.Type, arg.IsRawPointer || arg.IsReference);
     if (!t) {
-      error(ext, "Unresolved argument type '" + arg.Type + "' in extern function '" + ext->Name + "'");
+      error(ext, DiagID::ERR_CODEGEN_UNRESOLVED_ARGUMENT_TYPE_IN_EXTERN_FUN, arg.Type, ext->Name);
       return;
     }
     argTypes.push_back(t);
   }
   llvm::Type *retType = resolveType(ext->ReturnType, false);
   if (!retType) {
-    error(ext, "Unresolved return type '" + ext->ReturnType + "' in extern function '" + ext->Name + "'");
+    error(ext, DiagID::ERR_CODEGEN_UNRESOLVED_RETURN_TYPE_IN_EXTERN_FUNCT, ext->ReturnType, ext->Name);
     return;
   }
   llvm::FunctionType *ft =
@@ -1588,7 +1584,7 @@ void CodeGen::genShape(const ShapeDecl *sh) {
                                        member.IsShared || member.IsReference);
       }
       if (!t) {
-        error(sh, "Unresolved member type '" + member.Type + "' in shape '" + sh->Name + "'");
+        error(sh, DiagID::ERR_CODEGEN_UNRESOLVED_MEMBER_TYPE_IN_SHAPE, member.Type, sh->Name);
         return;
       }
       body.push_back(t);
@@ -1604,7 +1600,7 @@ void CodeGen::genShape(const ShapeDecl *sh) {
       elemTy = resolveType(sh->Members[0].Type, false);
     }
     if (!elemTy) {
-      error(sh, "Unresolved array element type '" + sh->Members[0].Type + "' in shape '" + sh->Name + "'");
+      error(sh, DiagID::ERR_CODEGEN_UNRESOLVED_ARRAY_ELEMENT_TYPE_IN_SHAPE, sh->Members[0].Type, sh->Name);
       return;
     }
     llvm::Type *arrTy = llvm::ArrayType::get(elemTy, sh->ArraySize);
@@ -1622,7 +1618,7 @@ void CodeGen::genShape(const ShapeDecl *sh) {
         t = resolveType(member.Type, false);
       }
       if (!t) {
-        error(sh, "Unresolved union member type '" + member.Type + "' in shape '" + sh->Name + "'");
+        error(sh, DiagID::ERR_CODEGEN_UNRESOLVED_UNION_MEMBER_TYPE_IN_SHAPE, member.Type, sh->Name);
         return;
       }
       if (!t->isVoidTy()) {
@@ -1661,7 +1657,7 @@ void CodeGen::genShape(const ShapeDecl *sh) {
             t = resolveType(field.Type, false);
           }
           if (!t) {
-            error(sh, "Unresolved variant field type '" + field.Type + "' in enum '" + sh->Name + "'");
+            error(sh, DiagID::ERR_CODEGEN_UNRESOLVED_VARIANT_FIELD_TYPE_IN_ENUM, field.Type, sh->Name);
             return;
           }
           fieldTypes.push_back(t);
@@ -1678,7 +1674,7 @@ void CodeGen::genShape(const ShapeDecl *sh) {
           t = resolveType(variant.Type, false);
         }
         if (!t) {
-          error(sh, "Unresolved variant payload type '" + variant.Type + "' in enum '" + sh->Name + "'");
+          error(sh, DiagID::ERR_CODEGEN_UNRESOLVED_VARIANT_PAYLOAD_TYPE_IN_ENU, variant.Type, sh->Name);
           return;
         }
         if (!t->isVoidTy()) {
@@ -1746,12 +1742,11 @@ void toka::CodeGen::genImpl(const toka::ImplDecl *decl, bool declOnly) {
           genFunction(method.get(), mangledName, declOnly);
         } else {
 
-          error(decl, "Missing implementation for method '" + method->Name +
-                          "' of trait '" + decl->TraitName + "'");
+          error(decl, DiagID::ERR_CODEGEN_MISSING_IMPLEMENTATION_FOR_METHOD_OF_T, method->Name, decl->TraitName);
         }
       }
     } else {
-      error(decl, "Trait '" + decl->TraitName + "' not found");
+      error(decl, DiagID::ERR_CODEGEN_TRAIT_NOT_FOUND, decl->TraitName);
     }
 
     // Generate VTable
@@ -1973,7 +1968,7 @@ PhysEntity toka::CodeGen::genMethodCall(const toka::MethodCallExpr *expr) {
   }
 
   if (typeName.empty()) {
-    error(expr, "Cannot determine type for method call '" + expr->Method + "'");
+    error(expr, DiagID::ERR_CODEGEN_CANNOT_DETERMINE_TYPE_FOR_METHOD_CALL, expr->Method);
     return nullptr;
   }
 
@@ -2001,8 +1996,7 @@ PhysEntity toka::CodeGen::genMethodCall(const toka::MethodCallExpr *expr) {
   }
 
   if (!callee) {
-    error(expr, "Method '" + expr->Method + "' not found for type '" +
-                    typeName + "' (Mangled: " + funcName + ")");
+    error(expr, DiagID::ERR_CODEGEN_METHOD_NOT_FOUND_FOR_TYPE_MANGLED, expr->Method, typeName, funcName);
     return nullptr;
   }
 

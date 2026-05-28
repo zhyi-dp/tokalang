@@ -196,9 +196,7 @@ std::shared_ptr<toka::Type> Sema::checkMemberExpr(MemberExpr *Memb) {
     // [Ch 5] Single Hat & Terminal Audit: Except for ?? assertion
     if (m_InIntermediatePath && !requestedPrefix.empty() &&
         requestedPrefix != "??") {
-      error(Memb, "Pointer morphology and permission symbols are only allowed "
-                  "at the terminal of an access chain, got '" +
-                      requestedPrefix + "'");
+      error(Memb, DiagID::ERR_SEMA_POINTER_MORPHOLOGY_AND_PERMISSION_SYMBOLS, requestedPrefix);
     }
 
     for (int i = 0; i < (int)SD->Members.size(); ++i) {
@@ -398,9 +396,7 @@ std::shared_ptr<toka::Type> Sema::checkMemberExpr(MemberExpr *Memb) {
           if (requestedPrefix == "??") {
             // Identity Assertion (Ch 6.1)
             if (!fieldType->isPointer() && !fieldType->isSmartPointer()) {
-              error(Memb, "Identity assertion '??" "' can only be applied to "
-                          "pointers, got '" +
-                              fieldType->toString() + "'");
+              error(Memb, DiagID::ERR_SEMA_IDENTITY_ASSERTION_CAN_ONLY_BE_APPLIED_TO, fieldType->toString());
             }
             result = fieldType->withAttributes(fieldType->IsWritable, false);
           }
@@ -442,8 +438,7 @@ std::shared_ptr<toka::Type> Sema::checkIndexExpr(ArrayIndexExpr *Idx) {
     idxExpr = foldGenericConstant(std::move(idxExpr)); // [FIX]
     auto idxType = checkExpr(idxExpr.get());
     if (!idxType->isInteger()) {
-      error(Idx,
-            "array index must be integer, got '" + idxType->toString() + "'");
+      error(Idx, DiagID::ERR_SEMA_ARRAY_INDEX_MUST_BE_INTEGER_GOT, idxType->toString());
     }
   }
 
@@ -481,7 +476,7 @@ std::shared_ptr<toka::Type> Sema::checkIndexExpr(ArrayIndexExpr *Idx) {
 
   std::string typeStr = toka::Type::stripMorphology(baseType->toString());
   if (typeStr == "str" || typeStr == "String" || typeStr == "string") {
-    error(Idx, "error[E0490]: Subscript indexing is disabled for UTF-8 '" + typeStr + "'. Use 's.chars()' for sequential traversal, or 's.bytes()' for raw O(1) hardware indexing.");
+    error(Idx, DiagID::ERR_SEMA_ERROR_E0490_SUBSCRIPT_INDEXING_IS_DISABLE, typeStr);
     return toka::Type::fromString("unknown");
   }
 
@@ -506,7 +501,7 @@ std::shared_ptr<toka::Type> Sema::checkIndexExpr(ArrayIndexExpr *Idx) {
     }
 
     if (!m_InUnsafeContext && !isSafeSlice) {
-      error(Idx, "raw pointer indexing requires unsafe context");
+      error(Idx, DiagID::ERR_SEMA_RAW_POINTER_INDEXING_REQUIRES_UNSAFE_CONT);
     }
 
     MorphKind morph = getSyntacticMorphology(Idx->Array.get());
@@ -516,7 +511,7 @@ std::shared_ptr<toka::Type> Sema::checkIndexExpr(ArrayIndexExpr *Idx) {
     if (isHatted) {
       // [Fix] Handle Indexing (Pointer Arithmetic)
       if (Idx->Indices.size() != 1) {
-        error(Idx, "pointer handle indexing supports only one index");
+        error(Idx, DiagID::ERR_SEMA_POINTER_HANDLE_INDEXING_SUPPORTS_ONLY_ONE);
       }
       resultType = baseType;
     } else {
@@ -527,20 +522,20 @@ std::shared_ptr<toka::Type> Sema::checkIndexExpr(ArrayIndexExpr *Idx) {
         if (auto slice = std::dynamic_pointer_cast<toka::SliceType>(resolvedPointee)) {
           // [Safety Pillar 3] Uninit subscript ban
           if (slice->ElementType->isUninit() && !m_InUnsafeContext) {
-             error(Idx, "Cannot safely subscript into an uninitialized slice. Wrap in unsafe block if initialized via external mechanisms.");
+             error(Idx, DiagID::ERR_SEMA_CANNOT_SAFELY_SUBSCRIPT_INTO_AN_UNINITIAL);
           }
           resultType = slice->ElementType->withAttributes(baseType->IsWritable || slice->IsWritable || slice->ElementType->IsWritable, slice->ElementType->IsNullable);
         } else if (auto arr = std::dynamic_pointer_cast<toka::ArrayType>(resolvedPointee)) {
           resultType = arr->ElementType->withAttributes(baseType->IsWritable || arr->IsWritable || arr->ElementType->IsWritable, arr->ElementType->IsNullable);
         } else {
-          error(Idx, "Array indexing '[]' is only permitted on arrays '[T; N]' or slices '*[T]'. Cannot index single-element pointer '" + baseType->toString() + "'.");
+          error(Idx, DiagID::ERR_SEMA_ARRAY_INDEXING_IS_ONLY_PERMITTED_ON_ARRAY, baseType->toString());
           std::cerr << "DEBUG: E0406 generated for node type " << Idx->toString() << "\n";
           resultType = pointee;
         }
       }
     }
   } else {
-    error(Idx, "type '" + baseType->toString() + "' is not indexable");
+    error(Idx, DiagID::ERR_SEMA_TYPE_IS_NOT_INDEXABLE, baseType->toString());
     return toka::Type::fromString("unknown");
   }
 

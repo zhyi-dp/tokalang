@@ -1,4 +1,4 @@
-error[E0406]: Range start value (10) cannot be greater than end value (0)
+error[E04526]: Range start value (10) cannot be greater than end value (0)
  --> tests/fail/match_range_invalid_bound.tk:4:9
    |
  4 |         10 ..= 0 => {

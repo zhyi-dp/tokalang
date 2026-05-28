@@ -82,14 +82,14 @@ std::unique_ptr<MatchArm::Pattern> Parser::parseSinglePattern() {
 
   if (check(TokenType::LParen)) {
     Token lpTok = peek();
-    consume(TokenType::LParen, "");
+    consume(TokenType::LParen, DiagID::ERR_PARSER_EXPECTED_LPAREN);
     std::vector<std::unique_ptr<MatchArm::Pattern>> subs;
     while (!check(TokenType::RParen) && !check(TokenType::EndOfFile)) {
       subs.push_back(parsePattern());
       if (!check(TokenType::RParen))
         match(TokenType::Comma);
     }
-    consume(TokenType::RParen, "Expected ')' after subpatterns");
+    consume(TokenType::RParen, DiagID::ERR_PARSER_EXPECTED_AFTER_SUBPATTERNS);
     auto p = std::make_unique<MatchArm::Pattern>(MatchArm::Pattern::Decons);
     p->Loc = lpTok.Loc;
     p->Name = "";
@@ -128,17 +128,17 @@ std::unique_ptr<MatchArm::Pattern> Parser::parseSinglePattern() {
     // Support Range patterns: start ..< end or start ..= end
     if (check(TokenType::DotDotLess) || check(TokenType::DotDotEqual)) {
       if (t.Kind != TokenType::Integer && t.Kind != TokenType::CharLiteral) {
-        error(peek(), "Range pattern start must be an integer or character literal");
+        error(peek(), DiagID::ERR_PARSER_RANGE_PATTERN_START_MUST_BE_AN_INTEGER);
       }
       Token opTok = peek();
       if (!opTok.HasSpacesAround) {
-        error(opTok, "Range operators '..<' and '..=' must be surrounded by spaces");
+        error(opTok, DiagID::ERR_PARSER_RANGE_OPERATORS_AND_MUST_BE_SURROUNDED);
       }
       bool isInclusive = (opTok.Kind == TokenType::DotDotEqual);
       advance(); // consume the operator
 
       if (!check(TokenType::Integer) && !check(TokenType::CharLiteral)) {
-        error(peek(), "Expected integer or character literal for the range end pattern");
+        error(peek(), DiagID::ERR_PARSER_EXPECTED_INTEGER_OR_CHARACTER_LITERAL_F);
       }
       
       auto endPat = std::make_unique<MatchArm::Pattern>(MatchArm::Pattern::Literal);
@@ -193,16 +193,16 @@ std::unique_ptr<MatchArm::Pattern> Parser::parseSinglePattern() {
           break;
         }
       }
-      consume(TokenType::Greater, "Expected '>'");
+      consume(TokenType::Greater, DiagID::ERR_EXPECTED_GREATER);
       name += ">";
     }
 
     // Handle Path::Variant
     if (check(TokenType::Colon) && checkAt(1, TokenType::Colon)) {
-      consume(TokenType::Colon, "");
-      consume(TokenType::Colon, "");
+      consume(TokenType::Colon, DiagID::ERR_PARSER_EXPECTED_COLON);
+      consume(TokenType::Colon, DiagID::ERR_PARSER_EXPECTED_COLON);
       name +=
-          "::" + consume(TokenType::Identifier, "Expected variant name").Text;
+          "::" + consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_VARIANT_NAME).Text;
     }
 
     if (match(TokenType::LParen)) {
@@ -218,8 +218,8 @@ std::unique_ptr<MatchArm::Pattern> Parser::parseSinglePattern() {
           if (isNextNamedField(0)) {
             hasNamed = true;
             auto pat = parsePattern();
-            consume(TokenType::Equal, "Expected '=' after pattern");
-            consume(TokenType::Dot, "Expected '.' after '=' in named pattern");
+            consume(TokenType::Equal, DiagID::ERR_PARSER_EXPECTED_AFTER_PATTERN);
+            consume(TokenType::Dot, DiagID::ERR_PARSER_EXPECTED_AFTER_IN_NAMED_PATTERN);
 
             std::string fieldPrefix = "";
             if (match(TokenType::Star))
@@ -236,11 +236,11 @@ std::unique_ptr<MatchArm::Pattern> Parser::parseSinglePattern() {
             if (match(TokenType::TokenWrite))
               fieldPrefix += "#";
 
-            Token fieldNameTok = consume(TokenType::Identifier, "Expected field name");
+            Token fieldNameTok = consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_FIELD_NAME);
             std::string fieldName = fieldPrefix + fieldNameTok.Text;
             while (match(TokenType::Minus)) {
               fieldName += "-";
-              fieldName += consume(TokenType::Identifier, "Expected identifier after '-'").Text;
+              fieldName += consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_IDENTIFIER_AFTER).Text;
             }
             if (fieldNameTok.HasWrite || fieldNameTok.IsBlocked)
               error(fieldNameTok, DiagID::ERR_ILLEGAL_FIELD_MODIFIER);
@@ -256,9 +256,9 @@ std::unique_ptr<MatchArm::Pattern> Parser::parseSinglePattern() {
         if (!check(TokenType::RParen))
           match(TokenType::Comma);
       }
-      consume(TokenType::RParen, "Expected ')' after subpatterns");
+      consume(TokenType::RParen, DiagID::ERR_PARSER_EXPECTED_AFTER_SUBPATTERNS);
       if (hasNamed && hasPositional) {
-        error(peek(), "Cannot mix positional and named fields in pattern");
+        error(peek(), DiagID::ERR_PARSER_CANNOT_MIX_POSITIONAL_AND_NAMED_FIELD_2);
       }
       auto p = std::make_unique<MatchArm::Pattern>(MatchArm::Pattern::Decons);
       p->Loc = nameTok.Loc;
@@ -282,14 +282,14 @@ std::unique_ptr<MatchArm::Pattern> Parser::parseSinglePattern() {
     return std::make_unique<MatchArm::Pattern>(MatchArm::Pattern::Wildcard);
   }
 
-  error(peek(), "Expected pattern");
+  error(peek(), DiagID::ERR_PARSER_EXPECTED_PATTERN);
   return nullptr;
 }
 
 std::unique_ptr<Expr> Parser::parseMatchExpr() {
   Token matchTok = previous(); // KwMatch or peek()
   auto target = parseExpr(0, false);
-  consume(TokenType::LBrace, "Expected '{' after match expression");
+  consume(TokenType::LBrace, DiagID::ERR_PARSER_EXPECTED_AFTER_MATCH_EXPRESSION);
 
   std::vector<std::unique_ptr<MatchArm>> arms;
   while (!check(TokenType::RBrace) && !check(TokenType::EndOfFile)) {
@@ -302,12 +302,12 @@ std::unique_ptr<Expr> Parser::parseMatchExpr() {
     if (match(TokenType::KwIf)) {
       guard = parseExpr();
     }
-    consume(TokenType::FatArrow, "Expected '=>'");
+    consume(TokenType::FatArrow, DiagID::ERR_PARSER_EXPECTED);
     auto body = parseStmt();
     arms.push_back(std::make_unique<MatchArm>(std::move(pat), std::move(guard),
                                               std::move(body)));
   }
-  consume(TokenType::RBrace, "Expected '}' after match arms");
+  consume(TokenType::RBrace, DiagID::ERR_PARSER_EXPECTED_AFTER_MATCH_ARMS);
   auto matched =
       std::make_unique<MatchExpr>(std::move(target), std::move(arms));
   matched->setLocation(matchTok, m_CurrentFile);
@@ -433,7 +433,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
     // [NEW] Enforce Hat Principle for references on member chains
     if (op == TokenType::Ampersand) {
       if (dynamic_cast<MemberExpr*>(node->RHS.get()) && !node->RHS->HasParens) {
-        error(tok, "Use of unary '&' on an access chain without parentheses is visually ambiguous. Either wrap in parentheses '&(a.b)' or use hat-terminal morphology 'a.&b'.");
+        error(tok, DiagID::ERR_PARSER_USE_OF_UNARY_ON_AN_ACCESS_CHAIN_WITHOUT);
         return nullptr;
       }
     }
@@ -519,7 +519,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
     bool hasParen = match(TokenType::LParen);
     auto cond = parseExpr(0, false);
     if (hasParen)
-      consume(TokenType::RParen, "Expected ')'");
+      consume(TokenType::RParen, DiagID::ERR_EXPECTED_RPAREN);
     auto body = parseStmt();
     auto node = std::make_unique<LoopExpr>(std::move(cond), std::move(body));
     node->setLocation(whileTok, m_CurrentFile);
@@ -552,12 +552,12 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
   } else if (match(TokenType::KwSizeof)) {
     Token tok = previous();
     if (!match(TokenType::LParen)) {
-      error(tok, "Expected '(' after sizeof");
+      error(tok, DiagID::ERR_PARSER_EXPECTED_AFTER_SIZEOF);
       return nullptr;
     }
     auto typeStr = parseTypeString();
     if (!match(TokenType::RParen)) {
-      error(previous(), "Expected ')' after sizeof type string");
+      error(previous(), DiagID::ERR_PARSER_EXPECTED_AFTER_SIZEOF_TYPE_STRING);
       return nullptr;
     }
     auto node = std::make_unique<SizeOfExpr>(typeStr);
@@ -587,7 +587,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
       } else {
         // new []T ? Empty length might be inferred later.
       }
-      consume(TokenType::RBracket, "Expected ']' after array size");
+      consume(TokenType::RBracket, DiagID::ERR_PARSER_EXPECTED_AFTER_ARRAY_SIZE);
     }
 
     std::string typeStr = "";
@@ -614,10 +614,10 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
         advance(); // ::
         typeStr += "::";
         typeStr +=
-            consume(TokenType::Identifier, "Expected identifier after ::").Text;
+            consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_IDENTIFIER_AFTER_2).Text;
       }
     } else {
-      error(peek(), "Expected type after 'new'");
+      error(peek(), DiagID::ERR_PARSER_EXPECTED_TYPE_AFTER_NEW);
       return nullptr;
     }
 
@@ -631,7 +631,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
             if (dynamic_cast<ElisionExpr*>(expr.get())) {
                 fields.push_back({"..", std::move(expr)});
             } else {
-                error(peek(), "Expected named argument 'key = value' or elision '..'");
+                error(peek(), DiagID::ERR_PARSER_EXPECTED_NAMED_ARGUMENT_KEY_VALUE_OR_EL);
             }
             if (!check(TokenType::RBrace)) match(TokenType::Comma);
             continue;
@@ -647,23 +647,23 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
         else if (match(TokenType::Ampersand))
           prefix = "&";
 
-        Token fieldNameTok = consume(TokenType::Identifier, "Expected field name");
+        Token fieldNameTok = consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_FIELD_NAME);
         std::string fieldName = fieldNameTok.Text;
         while (match(TokenType::Minus)) {
           fieldName += "-";
-          fieldName += consume(TokenType::Identifier, "Expected identifier after '-'").Text;
+          fieldName += consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_IDENTIFIER_AFTER).Text;
         }
         if (fieldNameTok.HasWrite || fieldNameTok.IsBlocked) error(fieldNameTok, DiagID::ERR_ILLEGAL_FIELD_MODIFIER);
-        consume(TokenType::Equal, "Expected '=' after field name");
+        consume(TokenType::Equal, DiagID::ERR_PARSER_EXPECTED_AFTER_FIELD_NAME);
         fields.push_back({prefix + fieldName, parseExpr()});
         match(TokenType::Comma);
       }
-      consume(TokenType::RBrace, "Expected '}'");
+      consume(TokenType::RBrace, DiagID::ERR_EXPECTED_RBRACE);
       auto node = std::make_unique<InitStructExpr>(typeStr, std::move(fields));
       node->setLocation(startTok, m_CurrentFile);
       init = std::move(node);
     } else if (check(TokenType::LParen)) {
-      consume(TokenType::LParen, "Expected '('");
+      consume(TokenType::LParen, DiagID::ERR_EXPECTED_LPAREN);
 
       // Check for named initializer syntax: Type(field = val)
       bool isNamedInit = isNamedInitList();
@@ -676,7 +676,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
               if (dynamic_cast<ElisionExpr*>(expr.get())) {
                   fields.push_back({"..", std::move(expr)});
               } else {
-                  error(peek(), "Expected named argument 'key = value' or elision '..'");
+                  error(peek(), DiagID::ERR_PARSER_EXPECTED_NAMED_ARGUMENT_KEY_VALUE_OR_EL);
               }
               if (!check(TokenType::RParen)) match(TokenType::Comma);
               continue;
@@ -697,19 +697,19 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
           if (match(TokenType::TokenWrite))
             prefix += "#";
 
-          Token fieldNameTok = consume(TokenType::Identifier, "Expected field name");
+          Token fieldNameTok = consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_FIELD_NAME);
           std::string fieldName = fieldNameTok.Text;
           while (match(TokenType::Minus)) {
             fieldName += "-";
-            fieldName += consume(TokenType::Identifier, "Expected identifier after '-'").Text;
+            fieldName += consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_IDENTIFIER_AFTER).Text;
           }
           if (fieldNameTok.HasWrite || fieldNameTok.IsBlocked) error(fieldNameTok, DiagID::ERR_ILLEGAL_FIELD_MODIFIER);
-          consume(TokenType::Equal, "Expected '=' after field name");
+          consume(TokenType::Equal, DiagID::ERR_PARSER_EXPECTED_AFTER_FIELD_NAME);
           fields.push_back({prefix + fieldName, parseExpr()});
           if (!check(TokenType::RParen))
             match(TokenType::Comma);
         }
-        consume(TokenType::RParen, "Expected ')'");
+        consume(TokenType::RParen, DiagID::ERR_EXPECTED_RPAREN);
         auto node =
             std::make_unique<InitStructExpr>(typeStr, std::move(fields));
         node->setLocation(startTok, m_CurrentFile);
@@ -728,13 +728,13 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
             }
           } while (match(TokenType::Comma));
         }
-        consume(TokenType::RParen, "Expected ')'");
+        consume(TokenType::RParen, DiagID::ERR_EXPECTED_RPAREN);
         auto node = std::make_unique<CallExpr>(typeStr, std::move(args));
         node->setLocation(startTok, m_CurrentFile);
         init = std::move(node);
       }
     } else {
-      error(kw, "Expected '{' or '(' initializer for new expression");
+      error(kw, DiagID::ERR_PARSER_EXPECTED_OR_INITIALIZER_FOR_NEW_EXPRESS);
       return nullptr;
     }
     auto node = std::make_unique<NewExpr>(typeStr, std::move(init), std::move(arraySize));
@@ -747,7 +747,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
       elements.push_back(parseExpr());
       if (match(TokenType::Semicolon)) {
         auto count = parseExpr();
-        consume(TokenType::RBracket, "Expected ']' after repeat count");
+        consume(TokenType::RBracket, DiagID::ERR_PARSER_EXPECTED_AFTER_REPEAT_COUNT);
         auto node = std::make_unique<RepeatedArrayExpr>(std::move(elements[0]),
                                                         std::move(count));
         node->setLocation(m_Tokens[m_Pos - 1], m_CurrentFile);
@@ -758,7 +758,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
         elements.push_back(parseExpr());
       }
     }
-    consume(TokenType::RBracket, "Expected ']' after array elements");
+    consume(TokenType::RBracket, DiagID::ERR_PARSER_EXPECTED_AFTER_ARRAY_ELEMENTS);
     if (elements.size() == 1 && check(TokenType::Identifier)) {
       std::unique_ptr<Expr> arraySize = std::move(elements[0]);
       std::string typeStr = parseNamespaceOrIdentifier();
@@ -774,12 +774,12 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
       while (check(TokenType::Colon) && checkAt(1, TokenType::Colon)) {
         advance(); advance();
         typeStr += "::";
-        typeStr += consume(TokenType::Identifier, "Expected identifier after ::").Text;
+        typeStr += consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_IDENTIFIER_AFTER_2).Text;
       }
       
       std::unique_ptr<Expr> init = nullptr;
       if (check(TokenType::LParen)) {
-        consume(TokenType::LParen, "Expected '('");
+        consume(TokenType::LParen, DiagID::ERR_EXPECTED_LPAREN);
         bool isNamedInit = isNamedInitList();
         if (isNamedInit) {
           std::vector<std::pair<std::string, std::unique_ptr<Expr>>> fields;
@@ -789,7 +789,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
                 if (dynamic_cast<ElisionExpr*>(expr.get())) {
                     fields.push_back({"..", std::move(expr)});
                 } else {
-                    error(peek(), "Expected named argument 'key = value' or elision '..'");
+                    error(peek(), DiagID::ERR_PARSER_EXPECTED_NAMED_ARGUMENT_KEY_VALUE_OR_EL);
                 }
                 if (!check(TokenType::RParen)) match(TokenType::Comma);
                 continue;
@@ -804,18 +804,18 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
             if (match(TokenType::TokenNull)) prefix += "?";
             if (match(TokenType::TokenWrite)) prefix += "#";
             
-            Token fieldNameTok = consume(TokenType::Identifier, "Expected field name");
+            Token fieldNameTok = consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_FIELD_NAME);
             std::string fieldName = fieldNameTok.Text;
             while (match(TokenType::Minus)) {
               fieldName += "-";
-              fieldName += consume(TokenType::Identifier, "Expected identifier after '-'").Text;
+              fieldName += consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_IDENTIFIER_AFTER).Text;
             }
             if (fieldNameTok.HasWrite || fieldNameTok.IsBlocked) error(fieldNameTok, DiagID::ERR_ILLEGAL_FIELD_MODIFIER);
-            consume(TokenType::Equal, "Expected '='");
+            consume(TokenType::Equal, DiagID::ERR_EXPECTED_EQUAL);
             fields.push_back({prefix + fieldName, parseExpr()});
             if (!check(TokenType::RParen)) match(TokenType::Comma);
           }
-          consume(TokenType::RParen, "Expected ')'");
+          consume(TokenType::RParen, DiagID::ERR_EXPECTED_RPAREN);
           auto node = std::make_unique<InitStructExpr>(typeStr, std::move(fields));
           node->setLocation(m_Tokens[m_Pos-1], m_CurrentFile);
           init = std::move(node);
@@ -826,13 +826,13 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
               args.push_back(parseExpr());
             } while (match(TokenType::Comma));
           }
-          consume(TokenType::RParen, "Expected ')'");
+          consume(TokenType::RParen, DiagID::ERR_EXPECTED_RPAREN);
           auto node = std::make_unique<CallExpr>(typeStr, std::move(args));
           node->setLocation(m_Tokens[m_Pos-1], m_CurrentFile);
           init = std::move(node);
         }
       } else {
-        error(peek(), "Expected '(' initializer for Array Init expression");
+        error(peek(), DiagID::ERR_PARSER_EXPECTED_INITIALIZER_FOR_ARRAY_INIT_EXP);
       }
       auto node = std::make_unique<ArrayInitExpr>(typeStr, std::move(init), std::move(arraySize));
       node->setLocation(m_Tokens[m_Pos-1], m_CurrentFile);
@@ -846,25 +846,25 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
     // Anonymous Record Detection: ( key = val ... )
     bool isAnonRecord = isNextNamedField(1);
 
-    consume(TokenType::LParen, "Expected '('");
+    consume(TokenType::LParen, DiagID::ERR_EXPECTED_LPAREN);
 
     if (isAnonRecord) {
       std::vector<std::pair<std::string, std::unique_ptr<Expr>>> fields;
       while (!check(TokenType::RParen) && !check(TokenType::EndOfFile)) {
-        Token keyTok = consume(TokenType::Identifier, "Expected field name");
+        Token keyTok = consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_FIELD_NAME);
         std::string key = keyTok.Text;
         while (match(TokenType::Minus)) {
           key += "-";
-          key += consume(TokenType::Identifier, "Expected identifier after '-'").Text;
+          key += consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_IDENTIFIER_AFTER).Text;
         }
-        consume(TokenType::Equal, "Expected '='");
+        consume(TokenType::Equal, DiagID::ERR_EXPECTED_EQUAL);
         auto val = parseExpr();
         fields.push_back({key, std::move(val)});
         if (!check(TokenType::RParen)) {
-          consume(TokenType::Comma, "Expected ',' or ')'");
+          consume(TokenType::Comma, DiagID::ERR_PARSER_EXPECTED_OR);
         }
       }
-      consume(TokenType::RParen, "Expected ')'");
+      consume(TokenType::RParen, DiagID::ERR_EXPECTED_RPAREN);
       auto node = std::make_unique<AnonymousRecordExpr>(std::move(fields));
       node->setLocation(tok, m_CurrentFile);
       expr = std::move(node);
@@ -882,7 +882,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
           }
         }
       }
-      consume(TokenType::RParen, "Expected ')'");
+      consume(TokenType::RParen, DiagID::ERR_EXPECTED_RPAREN);
       if (isTuple) {
         error(tok, DiagID::ERR_TUPLE_DEPRECATED);
         return nullptr;
@@ -920,7 +920,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
           genericSuffix += ", ";
         }
       } while (match(TokenType::Comma));
-      consume(TokenType::Greater, "Expected '>'");
+      consume(TokenType::Greater, DiagID::ERR_EXPECTED_GREATER);
       genericSuffix += ">";
     }
 
@@ -938,20 +938,20 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
               } else if (dynamic_cast<SpreadExpr*>(expr.get())) {
                   // Check if it's the last element (allowing trailing comma)
                   if (!check(TokenType::RParen) && !(check(TokenType::Comma) && checkAt(1, TokenType::RParen))) {
-                      error(peek(), "Spread operator '.*' must strictly be the last argument");
+                      error(peek(), DiagID::ERR_PARSER_SPREAD_OPERATOR_MUST_STRICTLY_BE_THE_LA);
                   }
                   fields.push_back({"*", std::move(expr)});
               } else if (auto* cedeE = dynamic_cast<CedeExpr*>(expr.get())) {
                   if (dynamic_cast<SpreadExpr*>(cedeE->Value.get())) {
                       if (!check(TokenType::RParen) && !(check(TokenType::Comma) && checkAt(1, TokenType::RParen))) {
-                          error(peek(), "Spread operator '.*' must strictly be the last argument");
+                          error(peek(), DiagID::ERR_PARSER_SPREAD_OPERATOR_MUST_STRICTLY_BE_THE_LA);
                       }
                       fields.push_back({"*", std::move(expr)});
                   } else {
-                      error(peek(), "Expected named argument 'key = value' or elision '..'");
+                      error(peek(), DiagID::ERR_PARSER_EXPECTED_NAMED_ARGUMENT_KEY_VALUE_OR_EL);
                   }
               } else {
-                  error(peek(), "Expected named argument 'key = value' or elision '..'");
+                  error(peek(), DiagID::ERR_PARSER_EXPECTED_NAMED_ARGUMENT_KEY_VALUE_OR_EL);
               }
               if (!check(TokenType::RParen)) match(TokenType::Comma);
               continue;
@@ -967,19 +967,19 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
           else if (match(TokenType::Ampersand))
             prefix = "&";
 
-          Token fieldNameTok = consume(TokenType::Identifier, "Expected field name");
+          Token fieldNameTok = consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_FIELD_NAME);
           std::string fieldName = fieldNameTok.Text;
           while (match(TokenType::Minus)) {
             fieldName += "-";
-            fieldName += consume(TokenType::Identifier, "Expected identifier after '-'").Text;
+            fieldName += consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_IDENTIFIER_AFTER).Text;
           }
           if (fieldNameTok.HasWrite || fieldNameTok.IsBlocked) error(fieldNameTok, DiagID::ERR_ILLEGAL_FIELD_MODIFIER);
-          consume(TokenType::Equal, "Expected '=' after field name");
+          consume(TokenType::Equal, DiagID::ERR_PARSER_EXPECTED_AFTER_FIELD_NAME);
           fields.push_back({prefix + fieldName, parseExpr()});
           if (!check(TokenType::RParen))
             match(TokenType::Comma);
         }
-        consume(TokenType::RParen, "Expected ')' after arguments");
+        consume(TokenType::RParen, DiagID::ERR_PARSER_EXPECTED_AFTER_ARGUMENTS);
         expr = std::make_unique<InitStructExpr>(name.Text + genericSuffix,
                                                 std::move(fields));
         expr->setLocation(name, m_CurrentFile);
@@ -990,7 +990,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
             args.push_back(parseExpr());
           } while (match(TokenType::Comma));
         }
-        consume(TokenType::RParen, "Expected ')' after arguments");
+        consume(TokenType::RParen, DiagID::ERR_PARSER_EXPECTED_AFTER_ARGUMENTS);
         auto node =
             std::make_unique<CallExpr>(name.Text, std::move(args), genericArgs);
         node->setLocation(name, m_CurrentFile);
@@ -999,18 +999,18 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
     } else {
       // Check for Scope Resolution (State::On)
       if (check(TokenType::Colon) && checkAt(1, TokenType::Colon)) {
-        consume(TokenType::Colon, "");
-        consume(TokenType::Colon, "");
+        consume(TokenType::Colon, DiagID::ERR_PARSER_EXPECTED_COLON);
+        consume(TokenType::Colon, DiagID::ERR_PARSER_EXPECTED_COLON);
 
         Token member;
         if (check(TokenType::Identifier)) {
-          member = consume(TokenType::Identifier, "Expected member after ::");
+          member = consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_MEMBER_AFTER);
         } else if (check(TokenType::KwNew)) {
           member = advance();
           member.Kind = TokenType::Identifier; // Treat as identifier
         } else {
           // Fallback for other potential keywords?
-          error(peek(), "Expected member identifier or 'new' after ::");
+          error(peek(), DiagID::ERR_PARSER_EXPECTED_MEMBER_IDENTIFIER_OR_NEW_AFTER);
           return nullptr;
         }
 
@@ -1024,7 +1024,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
               args.push_back(parseExpr());
             } while (match(TokenType::Comma));
           }
-          consume(TokenType::RParen, "Expected ')' after arguments");
+          consume(TokenType::RParen, DiagID::ERR_PARSER_EXPECTED_AFTER_ARGUMENTS);
           
           auto node = std::make_unique<CallExpr>(fullCallee, std::move(args));
           node->setLocation(name, m_CurrentFile);
@@ -1048,7 +1048,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
   } else if (match(TokenType::Dot)) {
     // Check if it's .a to .z for implicit closure parameter
     if (!check(TokenType::Identifier)) {
-        error(peek(), "Expected implicit parameter name 'a'-'z'");
+        error(peek(), DiagID::ERR_PARSER_EXPECTED_IMPLICIT_PARAMETER_NAME_A_Z);
         return nullptr;
     }
     Token member = advance();
@@ -1058,11 +1058,11 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
         expr = std::make_unique<VariableExpr>("_arg" + std::to_string(index));
         expr->setLocation(member, m_CurrentFile);
     } else {
-        error(member, "Invalid implicit parameter. Expected '.a' to '.z'");
+        error(member, DiagID::ERR_PARSER_INVALID_IMPLICIT_PARAMETER_EXPECTED_A_T);
         return nullptr;
     }
   } else {
-    error(peek(), "Expected expression");
+    error(peek(), DiagID::ERR_PARSER_EXPECTED_EXPRESSION);
     return nullptr;
   }
 
@@ -1080,7 +1080,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
           !checkAt(1, TokenType::KwUnset) &&
           !checkAt(1, TokenType::KwNull) &&
           !checkAt(1, TokenType::KwSelf)) {
-        consume(TokenType::Star, ""); // Safely consume the Star
+        consume(TokenType::Star, DiagID::ERR_PARSER_EXPECTED_STAR); // Safely consume the Star
         auto node = std::make_unique<SpreadExpr>(std::move(expr));
         node->setLocation(dotTok, m_CurrentFile);
         expr = std::move(node);
@@ -1116,7 +1116,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
               args.push_back(parseExpr());
             } while (match(TokenType::Comma));
           }
-          consume(TokenType::RParen, "Expected ')' after method arguments");
+          consume(TokenType::RParen, DiagID::ERR_PARSER_EXPECTED_AFTER_METHOD_ARGUMENTS);
           auto node = std::make_unique<MethodCallExpr>(
               std::move(expr), memberName, std::move(args));
           node->setLocation(dotTok, m_CurrentFile);
@@ -1160,13 +1160,12 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
         node->setLocation(dotTok, m_CurrentFile);
         expr = std::move(node);
       } else {
-        error(peek(), "Expected member name or index after '.'");
+        error(peek(), DiagID::ERR_PARSER_EXPECTED_MEMBER_NAME_OR_INDEX_AFTER);
       }
     } else if (match(TokenType::Arrow)) {
       // [Abolished] Arrow syntax for member access is removed.
       // Use implicit dereference via dot (.) instead.
-      error(previous(),
-            "Arrow '->' member access is abolished. Use dot '.' instead.");
+      error(previous(), DiagID::ERR_PARSER_ARROW_MEMBER_ACCESS_IS_ABOLISHED_USE_DO);
       return nullptr;
     } else if (match(TokenType::LBracket)) {
       std::vector<std::unique_ptr<Expr>> indices;
@@ -1175,7 +1174,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
           indices.push_back(parseExpr());
         } while (match(TokenType::Comma));
       }
-      consume(TokenType::RBracket, "Expected ']' after index");
+      consume(TokenType::RBracket, DiagID::ERR_PARSER_EXPECTED_AFTER_INDEX);
       expr =
           std::make_unique<ArrayIndexExpr>(std::move(expr), std::move(indices));
     } else if (match(TokenType::PlusPlus)) {
@@ -1233,7 +1232,7 @@ std::unique_ptr<Expr> Parser::parsePrimary(bool allowTrailingClosure) {
           newCall->Loc = var->Loc;
           expr = std::move(newCall);
       } else {
-          error(peek(), "Trailing closure applied to invalid expression type");
+          error(peek(), DiagID::ERR_PARSER_TRAILING_CLOSURE_APPLIED_TO_INVALID_EXP);
           return nullptr;
       }
     } else {
@@ -1260,7 +1259,7 @@ std::unique_ptr<Expr> Parser::parseAllocExpr() {
   if (match(TokenType::LBracket)) {
     isArray = true;
     arraySize = parseExpr();
-    consume(TokenType::RBracket, "Expected ']'");
+    consume(TokenType::RBracket, DiagID::ERR_EXPECTED_RBRACKET);
   }
 
   Token typeTok = peek();
@@ -1293,7 +1292,7 @@ std::unique_ptr<Expr> Parser::parseAllocExpr() {
             if (dynamic_cast<ElisionExpr*>(expr.get())) {
                 fields.push_back({"..", std::move(expr)});
             } else {
-                error(peek(), "Expected named argument 'key = value' or elision '..'");
+                error(peek(), DiagID::ERR_PARSER_EXPECTED_NAMED_ARGUMENT_KEY_VALUE_OR_EL);
             }
             if (!check(TokenType::RParen)) match(TokenType::Comma);
             continue;
@@ -1309,14 +1308,14 @@ std::unique_ptr<Expr> Parser::parseAllocExpr() {
         else if (match(TokenType::Ampersand))
           prefix = "&";
 
-        Token fieldNameTok = consume(TokenType::Identifier, "Expected field name");
+        Token fieldNameTok = consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_FIELD_NAME);
         std::string fieldName = fieldNameTok.Text;
         while (match(TokenType::Minus)) {
           fieldName += "-";
-          fieldName += consume(TokenType::Identifier, "Expected identifier after '-'").Text;
+          fieldName += consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_IDENTIFIER_AFTER).Text;
         }
         if (fieldNameTok.HasWrite || fieldNameTok.IsBlocked) error(fieldNameTok, DiagID::ERR_ILLEGAL_FIELD_MODIFIER);
-        consume(TokenType::Equal, "Expected '=' after field name");
+        consume(TokenType::Equal, DiagID::ERR_PARSER_EXPECTED_AFTER_FIELD_NAME);
         fields.push_back({prefix + fieldName, parseExpr()});
         match(TokenType::Comma);
       }
@@ -1329,7 +1328,7 @@ std::unique_ptr<Expr> Parser::parseAllocExpr() {
       } while (match(TokenType::Comma));
       init = std::make_unique<CallExpr>(typeName, std::move(args));
     }
-    consume(TokenType::RParen, "Expected ')'");
+    consume(TokenType::RParen, DiagID::ERR_EXPECTED_RPAREN);
   }
 
   auto node = std::make_unique<AllocExpr>(typeName, std::move(init), isArray,
@@ -1341,11 +1340,11 @@ std::unique_ptr<Expr> Parser::parseAllocExpr() {
 std::unique_ptr<Expr> Parser::parseIf() {
   Token tok = previous(); // consumed by match(KwIf)
   if (tok.Kind != TokenType::KwIf)
-    tok = consume(TokenType::KwIf, "Expected 'if'");
+    tok = consume(TokenType::KwIf, DiagID::ERR_PARSER_EXPECTED_IF);
   bool hasParen = match(TokenType::LParen);
   auto cond = parseExpr(0, false);
   if (hasParen)
-    consume(TokenType::RParen, "Expected ')'");
+    consume(TokenType::RParen, DiagID::ERR_EXPECTED_RPAREN);
   auto thenStmt = parseStmt();
   std::unique_ptr<Stmt> elseStmt;
   if (match(TokenType::KwElse)) {
@@ -1360,7 +1359,7 @@ std::unique_ptr<Expr> Parser::parseIf() {
 std::unique_ptr<Expr> Parser::parseGuard() {
   Token tok = previous(); // consumed by match(KwGuard)
   if (tok.Kind != TokenType::KwGuard)
-    tok = consume(TokenType::KwGuard, "Expected 'guard'");
+    tok = consume(TokenType::KwGuard, DiagID::ERR_PARSER_EXPECTED_GUARD);
   auto cond = parseExpr(0, false);
   
   auto thenStmt = parseBlock();
@@ -1383,7 +1382,7 @@ std::unique_ptr<Expr> Parser::parseGuard() {
 std::unique_ptr<Expr> Parser::parseLoop() {
   Token tok = previous();
   if (tok.Kind != TokenType::KwLoop)
-    tok = consume(TokenType::KwLoop, "Expected 'loop'");
+    tok = consume(TokenType::KwLoop, DiagID::ERR_PARSER_EXPECTED_LOOP);
 
   if (check(TokenType::LBrace)) {
     auto body = parseStmt();
@@ -1395,7 +1394,7 @@ std::unique_ptr<Expr> Parser::parseLoop() {
   bool hasParen = match(TokenType::LParen);
   auto cond = parseExpr(0, false);
   if (hasParen)
-    consume(TokenType::RParen, "Expected ')'");
+    consume(TokenType::RParen, DiagID::ERR_EXPECTED_RPAREN);
   auto body = parseStmt();
   auto node = std::make_unique<LoopExpr>(std::move(cond), std::move(body));
   node->setLocation(tok, m_CurrentFile);
@@ -1405,14 +1404,14 @@ std::unique_ptr<Expr> Parser::parseLoop() {
 std::unique_ptr<Expr> Parser::parseForExpr() {
   Token tok = previous();
   if (tok.Kind != TokenType::KwFor)
-    tok = consume(TokenType::KwFor, "Expected 'for'");
+    tok = consume(TokenType::KwFor, DiagID::ERR_PARSER_EXPECTED_FOR);
 
   bool isMut = match(TokenType::KwLet);
   bool isAuto = false;
   if (!isMut)
     isAuto = match(TokenType::KwAuto);
   if (!isMut && !isAuto) {
-    consume(TokenType::KwAuto, "Expected 'auto' or 'let' declaration in for loop");
+    consume(TokenType::KwAuto, DiagID::ERR_PARSER_EXPECTED_AUTO_OR_LET_DECLARATION_IN_FOR);
   }
   std::string morphologyPrefix = "";
   bool isRef = false;
@@ -1434,8 +1433,8 @@ std::unique_ptr<Expr> Parser::parseForExpr() {
     }
   }
   Token varName =
-      consume(TokenType::Identifier, "Expected variable name in for");
-  consume(TokenType::KwIn, "Expected 'in' in for loop");
+      consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_VARIABLE_NAME_IN_FOR);
+  consume(TokenType::KwIn, DiagID::ERR_PARSER_EXPECTED_IN_IN_FOR_LOOP);
   auto collection = parseExpr(0, false);
   auto body = parseStmt();
   std::unique_ptr<Stmt> elseBody;
@@ -1454,7 +1453,7 @@ std::unique_ptr<Expr> Parser::parseBreak() {
   Token tok = previous();
   std::string label = "";
   if (match(TokenType::KwTo)) {
-    label = consume(TokenType::Identifier, "Expected label after 'to'").Text;
+    label = consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_LABEL_AFTER_TO).Text;
   }
   std::unique_ptr<Expr> val;
   if (!isEndOfStatement() && !check(TokenType::RBrace)) {
@@ -1469,7 +1468,7 @@ std::unique_ptr<Expr> Parser::parseContinue() {
   Token tok = previous();
   std::string label = "";
   if (match(TokenType::KwTo)) {
-    label = consume(TokenType::Identifier, "Expected label after 'to'").Text;
+    label = consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_LABEL_AFTER_TO).Text;
   }
   auto node = std::make_unique<ContinueExpr>(label);
   node->setLocation(tok, m_CurrentFile);
@@ -1494,7 +1493,7 @@ std::unique_ptr<Expr> Parser::parseClosureExpr() {
   auto expr = std::make_unique<ClosureExpr>();
   expr->setLocation(peek(), m_CurrentFile);
 
-  Token braceTok = consume(TokenType::LBrace, "Expected '{' for closure body");
+  Token braceTok = consume(TokenType::LBrace, DiagID::ERR_PARSER_EXPECTED_FOR_CLOSURE_BODY);
   expr->Body = std::make_unique<BlockStmt>();
   expr->Body->setLocation(braceTok, m_CurrentFile);
   expr->ReturnType = "unknown";
@@ -1532,7 +1531,7 @@ std::unique_ptr<Expr> Parser::parseClosureExpr() {
          cap.Loc = peek().Loc;
          if (match(TokenType::KwCede)) cap.Mode = CaptureMode::ExplicitCede;
          else if (match(TokenType::KwCopy)) cap.Mode = CaptureMode::ExplicitCopy;
-         else { error(peek(), "Expected 'cede' or 'copy' modifier in closure capture list. Implicit variables do not need to be declared."); return nullptr; }
+         else { error(peek(), DiagID::ERR_PARSER_EXPECTED_CEDE_OR_COPY_MODIFIER_IN_CLOSU); return nullptr; }
          
          std::string prefix = "";
          if (match(TokenType::Tilde)) prefix = "~";
@@ -1543,12 +1542,12 @@ std::unique_ptr<Expr> Parser::parseClosureExpr() {
          if (match(TokenType::TokenNull)) prefix += "?";
          if (match(TokenType::TokenWrite)) prefix += "#";
 
-         cap.Name = prefix + consume(TokenType::Identifier, "Expected variable name to capture").Text;
+         cap.Name = prefix + consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_VARIABLE_NAME_TO_CAPTURE).Text;
          
          expr->ExplicitCaptures.push_back(cap);
-         if (!check(TokenType::RBracket)) consume(TokenType::Comma, "Expected ',' in capture list");
+         if (!check(TokenType::RBracket)) consume(TokenType::Comma, DiagID::ERR_PARSER_EXPECTED_IN_CAPTURE_LIST);
       }
-      consume(TokenType::RBracket, "Expected ']' to end capture list");
+      consume(TokenType::RBracket, DiagID::ERR_PARSER_EXPECTED_TO_END_CAPTURE_LIST);
     }
 
     // 2. Explicit typed parameters
@@ -1557,17 +1556,17 @@ std::unique_ptr<Expr> Parser::parseClosureExpr() {
       match(TokenType::Caret); match(TokenType::Tilde); match(TokenType::Star); match(TokenType::Ampersand);
       match(TokenType::TokenNull); match(TokenType::TokenWrite);
       if (check(TokenType::FatArrow)) break; // handle zero explicit args `{ [cede x] => ... }`
-      Token name = consume(TokenType::Identifier, "Expected parameter name");
+      Token name = consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_PARAMETER_NAME);
       expr->ArgNames.push_back(name.Text);
       if (!check(TokenType::FatArrow)) {
-        consume(TokenType::Comma, "Expected ',' between parameter names");
+        consume(TokenType::Comma, DiagID::ERR_PARSER_EXPECTED_BETWEEN_PARAMETER_NAMES);
       }
     }
-    consume(TokenType::FatArrow, "Expected '=>' after closure parameters");
+    consume(TokenType::FatArrow, DiagID::ERR_PARSER_EXPECTED_AFTER_CLOSURE_PARAMETERS);
   }
 
   if (!hasArrow && check(TokenType::LBracket) && (checkAt(1, TokenType::KwCede) || checkAt(1, TokenType::KwCopy))) {
-      error(peek(), "Expected '=>' after closure capture list");
+      error(peek(), DiagID::ERR_PARSER_EXPECTED_AFTER_CLOSURE_CAPTURE_LIST);
       return nullptr;
   }
 
@@ -1583,10 +1582,10 @@ std::unique_ptr<Expr> Parser::parseClosureExpr() {
       advance();
     }
   }
-  consume(TokenType::RBrace, "Expected '}'");
+  consume(TokenType::RBrace, DiagID::ERR_EXPECTED_RBRACE);
 
   if (!hasArrow && m_CurrentClosureMaxImplicitArg == -1) {
-      error(braceTok, "Zero-argument closures must use '{ => ... }' to disambiguate from code blocks");
+      error(braceTok, DiagID::ERR_PARSER_ZERO_ARGUMENT_CLOSURES_MUST_USE_TO_DISA);
   }
 
   if (!expr->ArgNames.empty()) {

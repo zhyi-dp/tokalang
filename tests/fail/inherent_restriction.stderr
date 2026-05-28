@@ -3,7 +3,7 @@ error[E0460]: Redundant inherent restriction '$' on 'a'; it is already immutable
    |
  6 | fn foo(a$: i32) { // EXPECT: error[E0406]:
    |    ^
-error[E0406]: Morphology symbols (^, *, ~, &) are only allowed at the terminal of an access chain
+error[E04477]: Morphology symbols (^, *, ~, &) are only allowed at the terminal of an access chain
  --> tests/fail/inherent_restriction.tk:11:15
     |
  11 |     auto v = (^d#).x // EXPECT: error[E0406]:
@@ -13,7 +13,7 @@ error[E0461]: Illegal use of permission suffixes (# or $) in everyday contexts. 
     |
  11 |     auto v = (^d#).x // EXPECT: error[E0406]:
     |                ^
-error[E0406]: Permission symbols (#, ?, $) are only allowed at the terminal of an access chain, got 'd#'
+error[E04491]: Permission symbols (#, ?, $) are only allowed at the terminal of an access chain, got 'd#'
  --> tests/fail/inherent_restriction.tk:11:16
     |
  11 |     auto v = (^d#).x // EXPECT: error[E0406]:
@@ -23,7 +23,7 @@ error[E0461]: Illegal use of permission suffixes (# or $) in everyday contexts. 
     |
  12 |     d#.y = 20 // EXPECT: error[E0443]:
     |     ^
-error[E0406]: Permission symbols (#, ?, $) are only allowed at the terminal of an access chain, got 'd#'
+error[E04491]: Permission symbols (#, ?, $) are only allowed at the terminal of an access chain, got 'd#'
  --> tests/fail/inherent_restriction.tk:12:5
     |
  12 |     d#.y = 20 // EXPECT: error[E0443]:

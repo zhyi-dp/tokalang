@@ -14,6 +14,7 @@
 #pragma once
 
 #include "toka/AST.h"
+#include "toka/DiagnosticEngine.h"
 #include "toka/Type.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LLVMContext.h"
@@ -114,7 +115,15 @@ public:
 
 private:
   int m_ErrorCount = 0;
-  void error(const ASTNode *node, const std::string &message);
+  template <typename... Args>
+  void error(const ASTNode *node, DiagID id, Args &&...args) {
+    m_ErrorCount++;
+    if (node) {
+      DiagnosticEngine::report(node->Loc, id, std::forward<Args>(args)...);
+    } else {
+      DiagnosticEngine::report(SourceLocation{}, id, std::forward<Args>(args)...);
+    }
+  }
   llvm::LLVMContext &m_Context;
   llvm::IRBuilder<> m_Builder;
   std::unique_ptr<llvm::Module> m_Module;

@@ -3,7 +3,7 @@ error[E0461]: Illegal use of permission suffixes (# or $) in everyday contexts. 
    |
  6 |         self#.x = val // EXPECT: error[E0406]: 
    |         ^
-error[E0406]: Permission symbols (#, ?, $) are only allowed at the terminal of an access chain, got 'self#'
+error[E04491]: Permission symbols (#, ?, $) are only allowed at the terminal of an access chain, got 'self#'
  --> tests/fail/intermediate_symbol.tk:6:9
    |
  6 |         self#.x = val // EXPECT: error[E0406]: 

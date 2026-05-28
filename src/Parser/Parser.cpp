@@ -57,10 +57,10 @@ bool Parser::match(TokenType type) {
   return false;
 }
 
-Token Parser::consume(TokenType type, const std::string &message) {
+Token Parser::consume(TokenType type, DiagID id) {
   if (check(type))
     return advance();
-  error(peek(), message);
+  error(peek(), id);
   return peek();
 }
 
@@ -125,12 +125,7 @@ bool Parser::isEndOfStatement() {
   return false;
 }
 
-void Parser::error(const Token &tok, const std::string &message) {
-  if (PanicMode) { return; }
-  PanicMode = true;
-  HasError = true;
-  DiagnosticEngine::report(tok.Loc, DiagID::ERR_GENERIC_PARSE, message);
-}
+
 
 void Parser::error(const Token &tok, DiagID id) {
   if (PanicMode) { return; }
@@ -291,7 +286,7 @@ bool Parser::isNamedInitList() const {
 }
 
 std::string Parser::parseNamespaceOrIdentifier() {
-  Token nameTok = consume(TokenType::Identifier, "Expected identifier");
+  Token nameTok = consume(TokenType::Identifier, DiagID::ERR_EXPECTED_IDENTIFIER);
   std::string name = nameTok.Text;
   
   bool isNamespace = false;
@@ -305,7 +300,7 @@ std::string Parser::parseNamespaceOrIdentifier() {
   if (isNamespace) {
     while (match(TokenType::Minus)) {
       name += "-";
-      name += consume(TokenType::Identifier, "Expected identifier after '-'").Text;
+      name += consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_IDENTIFIER_AFTER).Text;
     }
   }
   return name;
@@ -379,7 +374,7 @@ std::unique_ptr<Module> Parser::parseModule() {
       if (isPub) {
         error(peek(), DiagID::ERR_EXPECTED_DECL);
       } else {
-        error(peek(), "Unexpected Top Level Token: " + peek().toString());
+        error(peek(), DiagID::ERR_PARSER_UNEXPECTED_TOP_LEVEL_TOKEN, peek().toString());
       }
       advance();
     }

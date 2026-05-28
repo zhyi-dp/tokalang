@@ -1,4 +1,4 @@
-error[E0406]: Exclusive range start value (5) cannot be equal to end value (5)
+error[E04527]: Exclusive range start value (5) cannot be equal to end value (5)
  --> tests/fail/match_range_invalid_excl.tk:4:9
    |
  4 |         5 ..< 5 => {

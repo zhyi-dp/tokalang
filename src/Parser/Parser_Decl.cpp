@@ -28,7 +28,7 @@ std::vector<GenericParam> Parser::parseGenericParams() {
       if (match(TokenType::KwConst)) {
         gp.IsConst = true;
       }
-      gp.Name = consume(TokenType::Identifier, "Expected generic parameter name").Text;
+      gp.Name = consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_GENERIC_PARAMETER_NAME).Text;
       if (!gp.Name.empty() && gp.Name[0] == '\'') {
         gp.IsMorphic = true;
         // gp.Name = gp.Name.substr(1); // Leave quote attached to parameter name!
@@ -40,10 +40,10 @@ std::vector<GenericParam> Parser::parseGenericParams() {
           bool unionBraces = match(TokenType::LBrace);
           do {
             match(TokenType::At); // optional @ prefix inside the trait bound
-            gp.TraitBounds.push_back(consume(TokenType::Identifier, "Expected trait name in constraint").Text);
+            gp.TraitBounds.push_back(consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_TRAIT_NAME_IN_CONSTRAINT).Text);
           } while (unionBraces && match(TokenType::Comma));
           if (unionBraces) {
-            consume(TokenType::RBrace, "Expected '}' closing trait bounds");
+            consume(TokenType::RBrace, DiagID::ERR_PARSER_EXPECTED_CLOSING_TRAIT_BOUNDS);
           }
         } else {
           // Const generic type
@@ -53,7 +53,7 @@ std::vector<GenericParam> Parser::parseGenericParams() {
       }
       genericParams.push_back(gp);
     } while (match(TokenType::Comma));
-    consume(TokenType::Greater, "Expected '>' to close generic parameters");
+    consume(TokenType::Greater, DiagID::ERR_PARSER_EXPECTED_TO_CLOSE_GENERIC_PARAMETERS);
   }
   return genericParams;
 }
@@ -70,9 +70,9 @@ std::unique_ptr<ShapeDecl> Parser::parseShape(bool isPub) {
 
   bool packed = !isUnion && previous().Kind == TokenType::KwPacked;
   if (packed)
-    consume(TokenType::KwShape, "Expected 'shape' after 'packed'");
+    consume(TokenType::KwShape, DiagID::ERR_PARSER_EXPECTED_SHAPE_AFTER_PACKED);
 
-  Token name = consume(TokenType::Identifier, "Expected shape name");
+  Token name = consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_SHAPE_NAME);
 
   // Parse Generic Parameters: Name<T, U> or Name<T, N_: usize>
   std::vector<GenericParam> genericParams = parseGenericParams();
@@ -84,7 +84,7 @@ std::unique_ptr<ShapeDecl> Parser::parseShape(bool isPub) {
           check(TokenType::KwUpperSelf)) {
         lifeDeps.push_back(advance().Text);
       } else {
-        error(peek(), "Expected dependency identifier");
+        error(peek(), DiagID::ERR_PARSER_EXPECTED_DEPENDENCY_IDENTIFIER);
         return nullptr;
       }
     } while (match(TokenType::Pipe) || match(TokenType::Comma));
@@ -99,10 +99,10 @@ std::unique_ptr<ShapeDecl> Parser::parseShape(bool isPub) {
   if (match(TokenType::LBracket)) {
     kind = ShapeKind::Array;
     std::string elemTy = advance().Text;
-    consume(TokenType::Semicolon, "Expected ';'");
-    arraySize = std::stoull(consume(TokenType::Integer, "Expected size").Text,
+    consume(TokenType::Semicolon, DiagID::ERR_PARSER_EXPECTED_2);
+    arraySize = std::stoull(consume(TokenType::Integer, DiagID::ERR_PARSER_EXPECTED_SIZE).Text,
                             nullptr, 0);
-    consume(TokenType::RBracket, "Expected ']'");
+    consume(TokenType::RBracket, DiagID::ERR_EXPECTED_RBRACKET);
     ShapeMember m;
     m.Name = "0";
     m.Type = elemTy;
@@ -149,7 +149,7 @@ std::unique_ptr<ShapeDecl> Parser::parseShape(bool isPub) {
       kind = ShapeKind::Enum;
       while (!check(TokenType::RParen) && !check(TokenType::EndOfFile)) {
         ShapeMember v;
-        v.Name = consume(TokenType::Identifier, "Expected variant").Text;
+        v.Name = consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_VARIANT).Text;
         if (match(TokenType::LParen)) {
           v.SubKind = ShapeKind::Tuple;
           while (!check(TokenType::RParen) && !check(TokenType::EndOfFile)) {
@@ -159,11 +159,11 @@ std::unique_ptr<ShapeDecl> Parser::parseShape(bool isPub) {
             if (!check(TokenType::RParen))
               match(TokenType::Comma);
           }
-          consume(TokenType::RParen, "Expected ')'");
+          consume(TokenType::RParen, DiagID::ERR_EXPECTED_RPAREN);
         }
         if (match(TokenType::Equal)) {
           v.TagValue = std::stoull(
-              consume(TokenType::Integer, "Expected tag").Text, nullptr, 0);
+              consume(TokenType::Integer, DiagID::ERR_PARSER_EXPECTED_TAG).Text, nullptr, 0);
         }
         members.push_back(std::move(v));
         if (!check(TokenType::RParen))
@@ -233,14 +233,14 @@ std::unique_ptr<ShapeDecl> Parser::parseShape(bool isPub) {
             m.IsRebindBlocked = previous().IsBlocked;
             prefixType += "&";
             if (isPtrNullable) {
-              error(previous(), "Borrowed pointers (&) cannot be nullable");
+              error(previous(), DiagID::ERR_PARSER_BORROWED_POINTERS_CANNOT_BE_NULLABLE);
             }
             if (previous().IsSwappablePtr) prefixType += "#";
           } else if (isPtrNullable) {
-            error(previous(), "nul can only be applied to pointer types");
+            error(previous(), DiagID::ERR_PARSER_NUL_CAN_ONLY_BE_APPLIED_TO_POINTER_TYPE);
           }
 
-          Token nameTok = consume(TokenType::Identifier, "Expected field name");
+          Token nameTok = consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_FIELD_NAME);
           m.Name = nameTok.Text;
           if (!m.Name.empty() && m.Name[0] == '\'') {
               m.IsMorphicExempt = true;
@@ -249,7 +249,7 @@ std::unique_ptr<ShapeDecl> Parser::parseShape(bool isPub) {
           m.IsValueMutable = nameTok.HasWrite;
           m.IsValueNullable = nameTok.HasNull;
           m.IsValueBlocked = nameTok.IsBlocked;
-          consume(TokenType::Colon, "Expected ':'");
+          consume(TokenType::Colon, DiagID::ERR_EXPECTED_COLON);
 
           m.Type = prefixType; // Start with prefix
         } else {
@@ -273,7 +273,7 @@ std::unique_ptr<ShapeDecl> Parser::parseShape(bool isPub) {
     }
     match(TokenType::RParen);
   } else {
-    error(peek(), "Expected '(' or '[' after shape name");
+    error(peek(), DiagID::ERR_PARSER_EXPECTED_OR_AFTER_SHAPE_NAME);
   }
 
   auto decl = std::make_unique<ShapeDecl>(isPub, name.Text, genericParams, kind,
@@ -288,7 +288,7 @@ std::unique_ptr<ShapeDecl> Parser::parseShape(bool isPub) {
 std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
   if (match(TokenType::KwPub))
     isPub = true;
-  consume(TokenType::KwFn, "Expected 'fn'");
+  consume(TokenType::KwFn, DiagID::ERR_PARSER_EXPECTED_FN);
   Token name;
   if (check(TokenType::KwMain)) {
     name = advance();
@@ -301,14 +301,14 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
              check(TokenType::KwAlloc)) {
     name = advance();
   } else {
-    error(peek(), "Expected function name");
+    error(peek(), DiagID::ERR_PARSER_EXPECTED_FUNCTION_NAME);
     return nullptr;
   }
 
   // Parse Generic Parameters: <T, N_: usize>
   std::vector<GenericParam> genericParams = parseGenericParams();
 
-  consume(TokenType::LParen, "Expected '('");
+  consume(TokenType::LParen, DiagID::ERR_EXPECTED_LPAREN);
   std::vector<FunctionDecl::Arg> args;
   bool isVariadic = false;
   bool firstArg = true;
@@ -360,7 +360,7 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
         isRebindable = t.IsSwappablePtr;
         isRebindBlocked = t.IsBlocked;
         if (isPtrNullable) {
-          error(t, "Borrowed pointers (&) cannot be nullable");
+          error(t, DiagID::ERR_PARSER_BORROWED_POINTERS_CANNOT_BE_NULLABLE);
         }
       } else if (match(TokenType::Caret)) {
         isUnique = true;
@@ -383,7 +383,7 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
           check(TokenType::KwUpperSelf)) {
         argName = advance();
       } else {
-        error(peek(), "Expected argument name");
+        error(peek(), DiagID::ERR_PARSER_EXPECTED_ARGUMENT_NAME);
         return nullptr;
       }
       std::string argType = "i64"; // fallback
@@ -414,7 +414,7 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
         arg.DefaultValue = parseExpr();
         hasSeenDefault = true;
       } else if (hasSeenDefault) {
-        error(previous(), "Default parameters must be contiguous and at the end of the parameter list");
+        error(previous(), DiagID::ERR_PARSER_DEFAULT_PARAMETERS_MUST_BE_CONTIGUOUS_A);
       }
 
       if (arg.Name == "self") {
@@ -431,7 +431,7 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
   if (match(TokenType::DotDotDot)) {
     isVariadic = true;
   }
-  consume(TokenType::RParen, "Expected ')'");
+  consume(TokenType::RParen, DiagID::ERR_EXPECTED_RPAREN);
 
   // Return Type
   std::string retType = "void"; // default
@@ -458,9 +458,9 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
         else if (match(TokenType::Tilde)) prefix += "~";
         if (match(TokenType::TokenWrite)) prefix += "#";
 
-        Token nameTok = consume(TokenType::Identifier, "Expected return name");
+        Token nameTok = consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_RETURN_NAME);
         retName = nameTok.Text;
-        consume(TokenType::Colon, "Expected ':'");
+        consume(TokenType::Colon, DiagID::ERR_EXPECTED_COLON);
         retType = prefix + parseTypeString();
       } else {
         retType = parseTypeString();
@@ -514,7 +514,7 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
         if (!exists)
           lifeDeps.push_back(dep);
       } else {
-        error(peek(), "Expected dependency identifier");
+        error(peek(), DiagID::ERR_PARSER_EXPECTED_DEPENDENCY_IDENTIFIER);
         return nullptr;
       }
     } while (match(TokenType::Pipe) || match(TokenType::Comma));
@@ -568,7 +568,7 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
       }
 
       if (isReturnAlias) {
-        consume(TokenType::Dependency, "Expected '<-' after LHS in effects block");
+        consume(TokenType::Dependency, DiagID::ERR_PARSER_EXPECTED_AFTER_LHS_IN_EFFECTS_BLOCK);
         do {
           match(TokenType::Ampersand); // Optional & prefix
           if (check(TokenType::Identifier) || check(TokenType::KwSelf) ||
@@ -578,7 +578,7 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
                 if (check(TokenType::Identifier) || check(TokenType::Integer)) {
                     dep += "." + advance().Text;
                 } else {
-                    error(peek(), "Expected identifier or integer after '.' in dependency path");
+                    error(peek(), DiagID::ERR_PARSER_EXPECTED_IDENTIFIER_OR_INTEGER_AFTER_IN);
                     return nullptr;
                 }
             }
@@ -598,12 +598,12 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
                 memberDeps[targetMember].push_back(dep);
             }
           } else {
-            error(peek(), "Expected dependency identifier");
+            error(peek(), DiagID::ERR_PARSER_EXPECTED_DEPENDENCY_IDENTIFIER);
             return nullptr;
           }
         } while (match(TokenType::Pipe) || match(TokenType::Comma));
       } else {
-        error(peek(), "Only 'return <- ...' or named return LHS is currently supported in effects block");
+        error(peek(), DiagID::ERR_PARSER_ONLY_RETURN_OR_NAMED_RETURN_LHS_IS_CURR);
         return nullptr;
       }
     }
@@ -612,7 +612,7 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
   bool isDeleted = false; // [NEW] Track = delete
   std::unique_ptr<BlockStmt> body = nullptr;
   if (match(TokenType::Equal)) {
-    consume(TokenType::KwDelete, "Expected 'delete' after '=' for deleted function");
+    consume(TokenType::KwDelete, DiagID::ERR_PARSER_EXPECTED_DELETE_AFTER_FOR_DELETED_FUNCT);
     isDeleted = true;
     expectEndOfStatement();
   } else if (check(TokenType::LBrace)) {
@@ -631,17 +631,17 @@ std::unique_ptr<FunctionDecl> Parser::parseFunctionDecl(bool isPub) {
 }
 
 std::unique_ptr<ExternDecl> Parser::parseExternDecl() {
-  consume(TokenType::KwExtern, "Expected 'extern'");
-  consume(TokenType::KwFn, "Expected 'fn'");
+  consume(TokenType::KwExtern, DiagID::ERR_PARSER_EXPECTED_EXTERN);
+  consume(TokenType::KwFn, DiagID::ERR_PARSER_EXPECTED_FN);
   Token name;
   if (check(TokenType::Identifier) || check(TokenType::KwFree) ||
       check(TokenType::KwAlloc)) {
     name = advance();
   } else {
-    error(peek(), "Expected external function name");
+    error(peek(), DiagID::ERR_PARSER_EXPECTED_EXTERNAL_FUNCTION_NAME);
     return nullptr;
   }
-  consume(TokenType::LParen, "Expected '('");
+  consume(TokenType::LParen, DiagID::ERR_EXPECTED_LPAREN);
   std::vector<ExternDecl::Arg> args;
   bool isVariadic = false;
   if (!check(TokenType::RParen)) {
@@ -651,7 +651,7 @@ std::unique_ptr<ExternDecl> Parser::parseExternDecl() {
       bool isCeded = match(TokenType::KwCede);
       bool isPtrNullable = match(TokenType::KwNul);
       bool hasPointer = match(TokenType::Caret) || match(TokenType::Star);
-      Token argName = consume(TokenType::Identifier, "Expected argument name");
+      Token argName = consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_ARGUMENT_NAME);
       std::string argType = "i64";
       if (match(TokenType::Colon)) {
         argType = parseTypeString();
@@ -674,7 +674,7 @@ std::unique_ptr<ExternDecl> Parser::parseExternDecl() {
   if (match(TokenType::DotDotDot)) {
     isVariadic = true;
   }
-  consume(TokenType::RParen, "Expected ')'");
+  consume(TokenType::RParen, DiagID::ERR_EXPECTED_RPAREN);
 
   std::string retType = "void";
   EffectKind effect = EffectKind::None;
@@ -695,7 +695,7 @@ std::unique_ptr<ExternDecl> Parser::parseExternDecl() {
 }
 
 std::unique_ptr<ImportDecl> Parser::parseImport(bool isPub) {
-  Token importTok = consume(TokenType::KwImport, "Expected 'import'");
+  Token importTok = consume(TokenType::KwImport, DiagID::ERR_PARSER_EXPECTED_IMPORT);
   std::string physicalPath;
 
   // 1. Parse Physical Path (Segments)
@@ -764,25 +764,25 @@ std::unique_ptr<ImportDecl> Parser::parseImport(bool isPub) {
         if (match(TokenType::At)) {
           // Consume @ but don't include in name for lookup
         }
-        symName += consume(TokenType::Identifier, "Expected symbol name").Text;
+        symName += consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_SYMBOL_NAME).Text;
         std::string alias;
         if (match(TokenType::KwAs)) {
-          alias = consume(TokenType::Identifier, "Expected alias").Text;
+          alias = consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_ALIAS).Text;
         }
         items.push_back({symName, alias});
         if (!match(TokenType::Comma))
           break;
       }
-      consume(TokenType::RBrace, "Expected '}'");
+      consume(TokenType::RBrace, DiagID::ERR_EXPECTED_RBRACE);
     } else {
       std::string symName;
       if (match(TokenType::At)) {
         // Consume @ but don't include in name for lookup
       }
-      symName += consume(TokenType::Identifier, "Expected symbol name").Text;
+      symName += consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_SYMBOL_NAME).Text;
       std::string alias;
       if (match(TokenType::KwAs)) {
-        alias = consume(TokenType::Identifier, "Expected alias").Text;
+        alias = consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_ALIAS).Text;
       }
       items.push_back({symName, alias});
     }
@@ -790,11 +790,11 @@ std::unique_ptr<ImportDecl> Parser::parseImport(bool isPub) {
     // 3. Optional Module Alias (only if no logical items were parsed)
     if (match(TokenType::KwAs)) {
       moduleAlias =
-          consume(TokenType::Identifier, "Expected module alias").Text;
+          consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_MODULE_ALIAS).Text;
       while (match(TokenType::Minus)) {
         moduleAlias += "-";
         moduleAlias +=
-            consume(TokenType::Identifier, "Expected identifier after '-' in module alias").Text;
+            consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_IDENTIFIER_AFTER_IN_MODULE_ALI).Text;
       }
     }
   }
@@ -820,14 +820,14 @@ std::unique_ptr<TypeAliasDecl> Parser::parseTypeAliasDecl(bool isPub) {
   if (match(TokenType::KwType)) {
     isStrong = true;
   } else {
-    consume(TokenType::KwAlias, "Expected 'alias' or 'type'");
+    consume(TokenType::KwAlias, DiagID::ERR_PARSER_EXPECTED_ALIAS_OR_TYPE);
   }
-  Token name = consume(TokenType::Identifier, "Expected type alias name");
+  Token name = consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_TYPE_ALIAS_NAME);
 
   // Parse Generic Parameters: <T, U>
   std::vector<GenericParam> genericParams = parseGenericParams();
 
-  consume(TokenType::Equal, "Expected '='");
+  consume(TokenType::Equal, DiagID::ERR_EXPECTED_EQUAL);
 
   std::string targetType = parseTypeString();
 
@@ -840,7 +840,7 @@ std::unique_ptr<TypeAliasDecl> Parser::parseTypeAliasDecl(bool isPub) {
 }
 
 std::unique_ptr<ImplDecl> Parser::parseImpl() {
-  Token startTok = consume(TokenType::KwImpl, "Expected 'impl'");
+  Token startTok = consume(TokenType::KwImpl, DiagID::ERR_PARSER_EXPECTED_IMPL);
 
   // 1. [NEW] Parse Generic Parameters <T, U>
   std::vector<GenericParam> genericParams = parseGenericParams();
@@ -874,7 +874,7 @@ std::unique_ptr<ImplDecl> Parser::parseImpl() {
     traitName = traitName.substr(1);
   }
 
-  consume(TokenType::LBrace, "Expected '{'");
+  consume(TokenType::LBrace, DiagID::ERR_EXPECTED_LBRACE);
 
   std::vector<std::unique_ptr<FunctionDecl>> methods;
   std::vector<EncapEntry> encapEntries;
@@ -910,7 +910,7 @@ std::unique_ptr<ImplDecl> Parser::parseImpl() {
               }
             }
           }
-          consume(TokenType::RParen, "Expected ')'");
+          consume(TokenType::RParen, DiagID::ERR_EXPECTED_RPAREN);
         }
 
         if (match(TokenType::Star)) {
@@ -934,7 +934,7 @@ std::unique_ptr<ImplDecl> Parser::parseImpl() {
         // Non-pub function (private to trait impl?)
         methods.push_back(parseFunctionDecl(false));
       } else {
-        error(peek(), "Expected 'pub' or 'fn' inside @encap block");
+        error(peek(), DiagID::ERR_PARSER_EXPECTED_PUB_OR_FN_INSIDE_ENCAP_BLOCK);
         advance();
       }
     }
@@ -948,12 +948,12 @@ std::unique_ptr<ImplDecl> Parser::parseImpl() {
       if (check(TokenType::KwFn)) {
         methods.push_back(parseFunctionDecl(isPub));
       } else {
-        error(peek(), "Expected method in impl block");
+        error(peek(), DiagID::ERR_PARSER_EXPECTED_METHOD_IN_IMPL_BLOCK);
         advance();
       }
     }
   }
-  consume(TokenType::RBrace, "Expected '}'");
+  consume(TokenType::RBrace, DiagID::ERR_EXPECTED_RBRACE);
 
   auto decl = std::make_unique<ImplDecl>(typeName, std::move(methods),
                                          traitName, genericParams);
@@ -963,13 +963,13 @@ std::unique_ptr<ImplDecl> Parser::parseImpl() {
 }
 
 std::unique_ptr<TraitDecl> Parser::parseTrait(bool isPub) {
-  consume(TokenType::KwTrait, "Expected 'trait'");
+  consume(TokenType::KwTrait, DiagID::ERR_PARSER_EXPECTED_TRAIT);
   if (match(TokenType::At)) {
     // Optional @ prefix
   }
-  Token name = consume(TokenType::Identifier, "Expected trait name");
+  Token name = consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_TRAIT_NAME);
   std::vector<GenericParam> genericParams = parseGenericParams();
-  consume(TokenType::LBrace, "Expected '{'");
+  consume(TokenType::LBrace, DiagID::ERR_EXPECTED_LBRACE);
 
   std::vector<std::unique_ptr<FunctionDecl>> methods;
   while (!check(TokenType::RBrace) && !check(TokenType::EndOfFile)) {
@@ -980,10 +980,10 @@ std::unique_ptr<TraitDecl> Parser::parseTrait(bool isPub) {
     if (check(TokenType::KwFn)) {
       methods.push_back(parseFunctionDecl(isPub));
     } else {
-      error(peek(), "Expected method prototype in trait");
+      error(peek(), DiagID::ERR_PARSER_EXPECTED_METHOD_PROTOTYPE_IN_TRAIT);
     }
   }
-  consume(TokenType::RBrace, "Expected '}'");
+  consume(TokenType::RBrace, DiagID::ERR_EXPECTED_RBRACE);
   return std::make_unique<TraitDecl>(isPub, name.Text, std::move(methods), std::move(genericParams));
 }
 

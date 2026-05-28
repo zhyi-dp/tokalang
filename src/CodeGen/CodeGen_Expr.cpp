@@ -533,7 +533,7 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
       } else if (lhsTy->isFloatingPointTy() && rhsTy->isFloatingPointTy()) {
         rhsVal = m_Builder.CreateFPCast(rhsVal, lhsTy);
       } else {
-        error(bin, "Type mismatch in compound assignment");
+        error(bin, DiagID::ERR_CODEGEN_TYPE_MISMATCH_IN_COMPOUND_ASSIGNMENT);
         return nullptr;
       }
     }
@@ -943,7 +943,7 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
         llvm::raw_string_ostream los(ls), ros(rs);
         lhsType->print(los);
         rhsType->print(ros);
-        error(bin, "Type mismatch in binary expression: " + ls + " vs " + rs);
+        error(bin, DiagID::ERR_CODEGEN_TYPE_MISMATCH_IN_BINARY_EXPRESSION_VS, ls, rs);
         return nullptr;
       }
     }
@@ -966,9 +966,7 @@ PhysEntity CodeGen::genBinaryExpr(const BinaryExpr *expr) {
     std::string s;
     llvm::raw_string_ostream os(s);
     lhsType->print(os);
-    error(bin, "Invalid type for comparison: " + os.str() +
-                   ". Comparisons are only allowed for scalars "
-                   "(integers/pointers).");
+    error(bin, DiagID::ERR_CODEGEN_INVALID_TYPE_FOR_COMPARISON_COMPARISON, os.str());
     return nullptr;
   }
 
@@ -2946,7 +2944,7 @@ PhysEntity CodeGen::genForExpr(const ForExpr *fe) {
         iterFn = m_Module->getFunction(iterMangled);
     }
     if (!iterFn) {
-        error(fe, "Iterator setup failed: function '" + iterMangled + "' not found in IR module (stripped name: " + stripName + ")");
+        error(fe, DiagID::ERR_CODEGEN_ITERATOR_SETUP_FAILED_FUNCTION_NOT_FOU, iterMangled, stripName);
         return nullptr;
     }
 
@@ -3051,7 +3049,7 @@ PhysEntity CodeGen::genForExpr(const ForExpr *fe) {
         nextFn = m_Module->getFunction(nextFnName);
     }
     if (!nextFn) {
-        error(fe, "Iterator protocol failed: next function '" + nextFnName + "' not found in IR module (iterTyName: " + iterTyName + ")");
+        error(fe, DiagID::ERR_CODEGEN_ITERATOR_PROTOCOL_FAILED_NEXT_FUNCTION, nextFnName, iterTyName);
         return nullptr;
     }
 
@@ -3633,7 +3631,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
 
   if (call->Callee == "__builtin_await") {
       if (!m_CurrentCoroHandle) {
-          error(call, "await can only be used inside an async function");
+          error(call, DiagID::ERR_CODEGEN_AWAIT_CAN_ONLY_BE_USED_INSIDE_AN_ASYNC);
           return {};
       }
       llvm::Function *saveFn = llvm::Intrinsic::getOrInsertDeclaration(m_Module.get(), llvm::Intrinsic::coro_save);
@@ -3685,7 +3683,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
 
   if (call->Callee == "__builtin_coro_current_handle") {
       if (!m_CurrentCoroHandle) {
-          error(call, "__builtin_coro_current_handle can only be used inside an async function");
+          error(call, DiagID::ERR_CODEGEN_BUILTIN_CORO_CURRENT_HANDLE_CAN_ONLY_B);
           return {};
       }
       return PhysEntity(m_CurrentCoroHandle, "*void", m_Builder.getPtrTy(), false);
@@ -3693,7 +3691,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
 
   if (call->Callee == "__builtin_coro_suspend") {
       if (!m_CurrentCoroHandle) {
-          error(call, "__builtin_coro_suspend can only be used inside an async function");
+          error(call, DiagID::ERR_CODEGEN_BUILTIN_CORO_SUSPEND_CAN_ONLY_BE_USED);
           return {};
       }
 
@@ -3893,7 +3891,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
       } else if (auto *vfmtExpr = dynamic_cast<const ViewStringExpr *>(call->Args[0].get())) {
           fmt = vfmtExpr->Value;
       } else {
-          error(call, call->Callee + " intrinsic requires a string literal as first argument.");
+          error(call, DiagID::ERR_CODEGEN_INTRINSIC_REQUIRES_A_STRING_LITERAL_AS, call->Callee);
           return nullptr;
       }
 
@@ -4120,7 +4118,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
                           }
                       }
                   } else {
-                      error(call, "Type '" + soulTy + "' does not implement to_string or to_string_fmt.");
+                      error(call, DiagID::ERR_CODEGEN_TYPE_DOES_NOT_IMPLEMENT_TO_STRING_OR_T, soulTy);
                   }
               }
               }
@@ -4154,7 +4152,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
     } else if (auto *vfmtExpr = dynamic_cast<const ViewStringExpr *>(call->Args[0].get())) {
         fmt = vfmtExpr->Value;
     } else {
-        error(call, call->Callee + " intrinsic requires a string literal as first argument.");
+        error(call, DiagID::ERR_CODEGEN_INTRINSIC_REQUIRES_A_STRING_LITERAL_AS, call->Callee);
         return nullptr;
     }
 
@@ -4178,7 +4176,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
     if (!dropFn) dropFn = m_Module->getFunction("encap_string_drop");
 
     if (!fromFn || !pushStrFn || !cStrFn) {
-        error(call, "String formatting intrinsic requires std/string. Please import std/string::String.");
+        error(call, DiagID::ERR_CODEGEN_STRING_FORMATTING_INTRINSIC_REQUIRES_S);
         return nullptr;
     }
 
@@ -4591,7 +4589,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
 
   // Double check callee because we might have skipped it
   if (!callee) {
-    error(call, "Cannot resolve function '" + calleeName + "'");
+    error(call, DiagID::ERR_CODEGEN_CANNOT_RESOLVE_FUNCTION, calleeName);
     return nullptr;
   }
 
@@ -4751,8 +4749,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
     }
 
     if (!val) {
-      error(call, "Failed to generate argument " + std::to_string(i) + " for " +
-                      call->Callee);
+      error(call, DiagID::ERR_CODEGEN_FAILED_TO_GENERATE_ARGUMENT_FOR, std::to_string(i), call->Callee);
       return nullptr;
     }
 
@@ -4782,7 +4779,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
                
                if (isNakedCString && !strExpr) {
                    // User requested Safety Mode B: Do not allow dynamic *char implicitly!
-                   error(call->Args[i].get(), "Unsafe implicit cast: cannot automatically elevate a dynamic '*char' to a boundary-checked 'str'. Only string literals are permitted.");
+                   error(call->Args[i].get(), DiagID::ERR_CODEGEN_UNSAFE_IMPLICIT_CAST_CANNOT_AUTOMATICA);
                    return nullptr;
                }
            }
@@ -4844,7 +4841,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
            std::string invokeName = shp->Name + "___invoke";
            llvm::Function *invokeFn = m_Module->getFunction(invokeName);
            if (!invokeFn) {
-              error(call, "Closure invoke function not generated before Use: " + invokeName);
+              error(call, DiagID::ERR_CODEGEN_CLOSURE_INVOKE_FUNCTION_NOT_GENERATED, invokeName);
               return nullptr;
            }
            llvm::Value *opaqueFunc = m_Builder.CreatePointerCast(invokeFn, llvm::PointerType::getUnqual(m_Context));
@@ -5163,7 +5160,7 @@ PhysEntity CodeGen::genCallExpr(const CallExpr *call) {
 
   if (isAsync) {
       if (!call->ResolvedType) {
-          error(call, "Internal CodeGen Error: Async call missing ResolvedType.");
+          error(call, DiagID::ERR_CODEGEN_INTERNAL_CODEGEN_ERROR_ASYNC_CALL_MISS);
           return nullptr;
       }
       std::string tName = call->ResolvedType->toString();
@@ -5185,14 +5182,14 @@ PhysEntity CodeGen::genUnwrapPropagationExpr(const UnwrapPropagationExpr *expr) 
   if (!baseVal) return nullptr;
 
   if (!expr->Base->ResolvedType) {
-    error(expr, "Propagation expression lacks resolved type");
+    error(expr, DiagID::ERR_CODEGEN_PROPAGATION_EXPRESSION_LACKS_RESOLVED);
     return nullptr;
   }
   std::string soul = expr->Base->ResolvedType->getSoulName();
 
   llvm::StructType *baseStructTy = llvm::dyn_cast<llvm::StructType>(baseVal->getType());
   if (!baseStructTy || baseStructTy->getNumElements() < 2) {
-    error(expr, "Invalid representation for " + soul);
+    error(expr, DiagID::ERR_CODEGEN_INVALID_REPRESENTATION_FOR, soul);
     return nullptr;
   }
 
@@ -5540,7 +5537,7 @@ PhysEntity CodeGen::genInitStructExpr(const InitStructExpr *init) {
 
   llvm::StructType *st = m_StructTypes[shapeName];
   if (!st) {
-    error(init, "Unknown struct type " + shapeName);
+    error(init, DiagID::ERR_CODEGEN_UNKNOWN_STRUCT_TYPE, shapeName);
     return nullptr;
   }
 
@@ -5582,7 +5579,7 @@ PhysEntity CodeGen::genInitStructExpr(const InitStructExpr *init) {
       }
     }
     if (idx == -1) {
-      error(init, "Unknown field " + f.first);
+      error(init, DiagID::ERR_CODEGEN_UNKNOWN_FIELD, f.first);
       return nullptr;
     }
 
@@ -5843,7 +5840,7 @@ PhysEntity CodeGen::genArrayExpr(const ArrayExpr *expr) {
 PhysEntity CodeGen::genAnonymousRecordExpr(const AnonymousRecordExpr *expr) {
   std::string uniqueName = expr->AssignedTypeName;
   if (uniqueName.empty()) {
-    error(expr, "Anonymous record missing type name");
+    error(expr, DiagID::ERR_CODEGEN_ANONYMOUS_RECORD_MISSING_TYPE_NAME);
     return nullptr;
   }
 
@@ -5858,7 +5855,7 @@ PhysEntity CodeGen::genAnonymousRecordExpr(const AnonymousRecordExpr *expr) {
   }
 
   if (!recType) {
-    error(expr, "Anonymous record type '" + uniqueName + "' not found");
+    error(expr, DiagID::ERR_CODEGEN_ANONYMOUS_RECORD_TYPE_NOT_FOUND, uniqueName);
     return nullptr;
   }
 
@@ -5983,12 +5980,11 @@ PhysEntity CodeGen::genRepeatedArrayExpr(const RepeatedArrayExpr *expr) {
     if (var->HasConstantValue) {
       count = var->ConstantValue;
     } else {
-      error(expr, "Repeat count variable must be a compile-time constant");
+      error(expr, DiagID::ERR_CODEGEN_REPEAT_COUNT_VARIABLE_MUST_BE_A_COMPIL);
       return nullptr;
     }
   } else {
-    error(expr, "Repeat count must be a numeric literal or const generic "
-                "parameter");
+    error(expr, DiagID::ERR_CODEGEN_REPEAT_COUNT_MUST_BE_A_NUMERIC_LITERAL);
     return nullptr;
   }
   llvm::Type *elemTy = val->getType();
@@ -6114,7 +6110,7 @@ PhysEntity CodeGen::genArrayInitExpr(const ArrayInitExpr *expr) {
 }
 PhysEntity CodeGen::genAwaitExpr(const AwaitExpr *awaitExpr) {
     if (!m_CurrentCoroPromiseType) {
-        error(awaitExpr, "await can only be used inside an async function");
+        error(awaitExpr, DiagID::ERR_CODEGEN_AWAIT_CAN_ONLY_BE_USED_INSIDE_AN_ASYNC);
         return {};
     }
     
@@ -6228,19 +6224,19 @@ PhysEntity CodeGen::genComptimeReflectExpr(const ComptimeReflectExpr *expr) {
 
   llvm::Type *typeInfoTy = getLLVMType(toka::Type::fromString("TypeInfo"));
   if (!typeInfoTy || !typeInfoTy->isSized()) {
-      error(expr, "TypeInfo shape not defined or opaque in current module.");
+      error(expr, DiagID::ERR_CODEGEN_TYPEINFO_SHAPE_NOT_DEFINED_OR_OPAQUE_I);
       return {};
   }
   
   if (m_Shapes.count(targetSoul) == 0) {
-      error(expr, "Cannot reflect uninstantiated or primitive shape in CodeGen: " + targetSoul);
+      error(expr, DiagID::ERR_CODEGEN_CANNOT_REFLECT_UNINSTANTIATED_OR_PRIMI, targetSoul);
       return {};
   }
   auto *SD = m_Shapes[targetSoul];
 
   llvm::Type *fieldInfoTy = getLLVMType(toka::Type::fromString("FieldInfo"));
   if (!fieldInfoTy || !fieldInfoTy->isSized()) {
-      error(expr, "FieldInfo shape not defined or opaque.");
+      error(expr, DiagID::ERR_CODEGEN_FIELDINFO_SHAPE_NOT_DEFINED_OR_OPAQUE);
       return {};
   }
   llvm::ArrayType *fieldArrayTy = llvm::ArrayType::get(fieldInfoTy, SD->Members.size());

@@ -1085,7 +1085,7 @@ void Sema::checkStmt(Stmt *S) {
         for (const auto &v : Destruct->Variables) {
           if (v.Name == "..") continue;
           if (v.FieldName == "_") {
-            error(Destruct, DiagID::ERR_GENERIC_SEMA, "Positional placeholder '_' is not allowed in struct destructuring. Use 'field = _' or '..' instead.");
+            error(Destruct, DiagID::ERR_SEMA_POSITIONAL_PLACEHOLDER_IS_NOT_ALLOWED_IN);
             continue;
           }
           std::string cleanField = toka::Type::stripMorphology(v.FieldName);
@@ -1183,12 +1183,7 @@ void Sema::checkStmt(Stmt *S) {
                       default: return "unknown";
                     }
                   };
-                  DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_GENERIC_SEMA,
-                                           "Mismatched morphology in named destructuring: left-hand variable '" +
-                                           Destruct->Variables[i].Name + "' has morphology '" + morphToString(varMorph) +
-                                           "', but right-hand field '" + Destruct->Variables[i].FieldName +
-                                           "' has morphology '" + morphToString(fieldMorph) +
-                                           "'. Under Hat Rule, they must be perfectly symmetric (e.g. &s = .&v1).");
+                  DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_SEMA_MISMATCHED_MORPHOLOGY_IN_NAMED_DESTRUCTUR, Destruct->Variables[i].Name, morphToString(varMorph), Destruct->Variables[i].FieldName, morphToString(fieldMorph));
                   HasError = true;
                 }
               }
@@ -1203,10 +1198,7 @@ void Sema::checkStmt(Stmt *S) {
             auto memberTypeObj = toka::Type::fromString(SD->Members[memberIndex].Type);
             bool isMorphicExempt = (!Destruct->Variables[i].Name.empty() && Destruct->Variables[i].Name[0] == '\'');
             if (memberTypeObj->isReference() && !Destruct->Variables[i].IsReference && !isMorphicExempt) {
-              DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_GENERIC_SEMA,
-                                       "Cannot bind reference member '" + SD->Members[memberIndex].Name +
-                                       "' to a non-reference variable '" + Destruct->Variables[i].Name +
-                                       "'. The variable name must explicitly carry the reference sigil '&'.");
+              DiagnosticEngine::report(getLoc(Destruct), DiagID::ERR_SEMA_CANNOT_BIND_REFERENCE_MEMBER_TO_A_NON_REF, SD->Members[memberIndex].Name, Destruct->Variables[i].Name);
               HasError = true;
             }
           }

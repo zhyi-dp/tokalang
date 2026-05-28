@@ -120,12 +120,7 @@ bool Sema::checkModule(Module &M) {
 
 static SourceLocation getLoc(ASTNode *Node) { return Node->Loc; }
 
-void Sema::error(ASTNode *Node, const std::string &Msg) {
-  if (m_IsPrecomputingCaptures) return;
-  HasError = true;
-  // Fallback for not-yet-migrated errors
-  DiagnosticEngine::report(getLoc(Node), DiagID::ERR_GENERIC_SEMA, Msg);
-}
+
 
 void Sema::enterScope() { 
   CurrentScope = new Scope(CurrentScope); 
@@ -1461,9 +1456,7 @@ FunctionDecl *Sema::instantiateGenericFunction(
     const std::vector<std::shared_ptr<toka::Type>> &Args, CallExpr *CallSite) {
 
   if (Template->GenericParams.size() != Args.size()) {
-    DiagnosticEngine::report(getLoc(CallSite),
-                             DiagID::ERR_GENERIC_ARITY_MISMATCH, Template->Name,
-                             Template->GenericParams.size(), Args.size());
+    DiagnosticEngine::report(getLoc(CallSite), DiagID::NOTE_GENERIC, Template->Name, Template->GenericParams.size(), Args.size());
     HasError = true;
     return nullptr;
   }
@@ -1495,8 +1488,7 @@ FunctionDecl *Sema::instantiateGenericFunction(
 
   // Recursion Guard
   if (RecursionDepth > 100) {
-    DiagnosticEngine::report(
-        getLoc(CallSite), DiagID::ERR_GENERIC_RECURSION_LIMIT, Template->Name);
+    DiagnosticEngine::report(getLoc(CallSite), DiagID::NOTE_GENERIC, Template->Name);
     HasError = true;
     return nullptr;
   }

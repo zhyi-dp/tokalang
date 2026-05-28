@@ -24,8 +24,7 @@ std::unique_ptr<Stmt> Parser::parseVariableDecl(bool isPub) {
   bool isConst = match(TokenType::KwConst);
   if (!isConst) {
     if (match(TokenType::KwLet)) {
-      error(previous(),
-            "Deprecated keyword 'let'; use 'auto' for variable declarations.");
+      error(previous(), DiagID::ERR_PARSER_DEPRECATED_KEYWORD_LET_USE_AUTO_FOR_VAR);
     } else if (previous().Kind != TokenType::KwAuto) {
       match(TokenType::KwAuto);
     }
@@ -49,7 +48,7 @@ std::unique_ptr<Stmt> Parser::parseVariableDecl(bool isPub) {
       isPtrNullable = isPtrNullable || tok.HasNull;
       isRebindBlocked = tok.IsBlocked;
       if (isPtrNullable) {
-        error(tok, "Borrowed pointers (&) cannot be nullable");
+        error(tok, DiagID::ERR_PARSER_BORROWED_POINTERS_CANNOT_BE_NULLABLE);
       }
     } else if (match(TokenType::And)) {
       isRef = true;
@@ -59,7 +58,7 @@ std::unique_ptr<Stmt> Parser::parseVariableDecl(bool isPub) {
       isPtrNullable = isPtrNullable || tok.HasNull;
       isRebindBlocked = tok.IsBlocked;
       if (isPtrNullable) {
-        error(tok, "Borrowed pointers (&) cannot be nullable");
+        error(tok, DiagID::ERR_PARSER_BORROWED_POINTERS_CANNOT_BE_NULLABLE);
       }
     } else if (match(TokenType::Caret)) {
       isUnique = true;
@@ -95,7 +94,7 @@ std::unique_ptr<Stmt> Parser::parseVariableDecl(bool isPub) {
     if (check(TokenType::Identifier)) {
       typeName = advance().Text;
     }
-    consume(TokenType::LParen, "Expected '(' for destructuring");
+    consume(TokenType::LParen, DiagID::ERR_PARSER_EXPECTED_FOR_DESTRUCTURING);
     std::vector<DestructuredVar> vars;
     bool hasNamed = false;
     bool hasPositional = false;
@@ -121,11 +120,11 @@ std::unique_ptr<Stmt> Parser::parseVariableDecl(bool isPub) {
             varPrefix = "*";
           }
 
-          Token varTok = consume(TokenType::Identifier, "Expected variable name or '_'");
+          Token varTok = consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_VARIABLE_NAME_OR);
           std::string fullVarName = varPrefix + varTok.Text;
 
-          consume(TokenType::Equal, "Expected '=' after variable name");
-          consume(TokenType::Dot, "Expected '.' after '=' in named destructuring");
+          consume(TokenType::Equal, DiagID::ERR_PARSER_EXPECTED_AFTER_VARIABLE_NAME);
+          consume(TokenType::Dot, DiagID::ERR_PARSER_EXPECTED_AFTER_IN_NAMED_DESTRUCTURING);
 
           std::string fieldPrefix = "";
           if (match(TokenType::Star))
@@ -142,11 +141,11 @@ std::unique_ptr<Stmt> Parser::parseVariableDecl(bool isPub) {
           if (match(TokenType::TokenWrite))
             fieldPrefix += "#";
 
-          Token fieldNameTok = consume(TokenType::Identifier, "Expected field name");
+          Token fieldNameTok = consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_FIELD_NAME);
           std::string fieldName = fieldPrefix + fieldNameTok.Text;
           while (match(TokenType::Minus)) {
             fieldName += "-";
-            fieldName += consume(TokenType::Identifier, "Expected identifier after '-'").Text;
+            fieldName += consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_IDENTIFIER_AFTER).Text;
           }
           if (fieldNameTok.HasWrite || fieldNameTok.IsBlocked)
             error(fieldNameTok, DiagID::ERR_ILLEGAL_FIELD_MODIFIER);
@@ -174,7 +173,7 @@ std::unique_ptr<Stmt> Parser::parseVariableDecl(bool isPub) {
           } else if (match(TokenType::Star)) {
             varPrefix = "*";
           }
-          Token varTok = consume(TokenType::Identifier, "Expected variable name or '_'");
+          Token varTok = consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_VARIABLE_NAME_OR);
           std::string fullVarName = varPrefix + varTok.Text;
           
           DestructuredVar v;
@@ -192,10 +191,10 @@ std::unique_ptr<Stmt> Parser::parseVariableDecl(bool isPub) {
         break;
     }
     if (hasNamed && hasPositional) {
-      error(peek(), "Cannot mix positional and named fields in destructuring");
+      error(peek(), DiagID::ERR_PARSER_CANNOT_MIX_POSITIONAL_AND_NAMED_FIELDS);
     }
-    consume(TokenType::RParen, "Expected ')' after destructuring");
-    consume(TokenType::Equal, "Expected '=' for destructuring");
+    consume(TokenType::RParen, DiagID::ERR_PARSER_EXPECTED_AFTER_DESTRUCTURING);
+    consume(TokenType::Equal, DiagID::ERR_PARSER_EXPECTED_FOR_DESTRUCTURING_2);
     auto init = parseExpr();
     expectEndOfStatement();
     auto node = std::make_unique<DestructuringDecl>(typeName, std::move(vars),
@@ -207,7 +206,7 @@ std::unique_ptr<Stmt> Parser::parseVariableDecl(bool isPub) {
   }
 
   bool isMorphicExempt = false;
-  Token name = consume(TokenType::Identifier, "Expected variable name");
+  Token name = consume(TokenType::Identifier, DiagID::ERR_PARSER_EXPECTED_VARIABLE_NAME);
   if (!name.Text.empty() && name.Text[0] == '\'') {
       isMorphicExempt = true;
       // Do not strip the quote from the name to keep it consistent with
@@ -254,12 +253,12 @@ std::unique_ptr<Stmt> Parser::parseVariableDecl(bool isPub) {
 }
 
 std::unique_ptr<GuardBindStmt> Parser::parseGuardBindStmt() {
-  Token tok = consume(TokenType::KwGuard, "Expected 'guard'");
-  consume(TokenType::KwAuto, "Expected 'auto' after 'guard'");
+  Token tok = consume(TokenType::KwGuard, DiagID::ERR_PARSER_EXPECTED_GUARD);
+  consume(TokenType::KwAuto, DiagID::ERR_PARSER_EXPECTED_AUTO_AFTER_GUARD);
   auto pat = parsePattern();
-  consume(TokenType::Equal, "Expected '=' in guard auto statement");
+  consume(TokenType::Equal, DiagID::ERR_PARSER_EXPECTED_IN_GUARD_AUTO_STATEMENT);
   auto target = parseExpr();
-  consume(TokenType::KwElse, "Expected 'else' after guard target expression");
+  consume(TokenType::KwElse, DiagID::ERR_PARSER_EXPECTED_ELSE_AFTER_GUARD_TARGET_EXPRES);
   
   std::unique_ptr<Stmt> elseBody;
   if (check(TokenType::LBrace)) {
@@ -311,7 +310,7 @@ std::unique_ptr<Stmt> Parser::parseStmt() {
 }
 
 std::unique_ptr<BlockStmt> Parser::parseBlock() {
-  Token tok = consume(TokenType::LBrace, "Expected '{'");
+  Token tok = consume(TokenType::LBrace, DiagID::ERR_EXPECTED_LBRACE);
   auto block = std::make_unique<BlockStmt>();
   block->setLocation(tok, m_CurrentFile);
 
@@ -327,12 +326,12 @@ std::unique_ptr<BlockStmt> Parser::parseBlock() {
     }
   }
 
-  consume(TokenType::RBrace, "Expected '}'");
+  consume(TokenType::RBrace, DiagID::ERR_EXPECTED_RBRACE);
   return block;
 }
 
 std::unique_ptr<ReturnStmt> Parser::parseReturn() {
-  Token tok = consume(TokenType::KwReturn, "Expected 'return'");
+  Token tok = consume(TokenType::KwReturn, DiagID::ERR_PARSER_EXPECTED_RETURN);
   std::unique_ptr<Expr> val;
   if (!isEndOfStatement()) {
     val = parseExpr();
@@ -344,7 +343,7 @@ std::unique_ptr<ReturnStmt> Parser::parseReturn() {
 }
 
 std::unique_ptr<Stmt> Parser::parseDeleteStmt() {
-  Token kw = consume(TokenType::KwDelete, "Expected 'del' or 'delete'");
+  Token kw = consume(TokenType::KwDelete, DiagID::ERR_PARSER_EXPECTED_DEL_OR_DELETE);
   auto expr = parseExpr();
   expectEndOfStatement();
   auto node = std::make_unique<DeleteStmt>(std::move(expr));
@@ -353,7 +352,7 @@ std::unique_ptr<Stmt> Parser::parseDeleteStmt() {
 }
 
 std::unique_ptr<Stmt> Parser::parseUnsafeStmt() {
-  Token tok = consume(TokenType::KwUnsafe, "Expected 'unsafe'");
+  Token tok = consume(TokenType::KwUnsafe, DiagID::ERR_PARSER_EXPECTED_UNSAFE);
   if (check(TokenType::LBrace)) {
     auto block = parseBlock();
     auto node = std::make_unique<UnsafeStmt>(std::move(block));
@@ -374,11 +373,11 @@ std::unique_ptr<Stmt> Parser::parseUnsafeStmt() {
 }
 
 std::unique_ptr<Stmt> Parser::parseFreeStmt() {
-  Token tok = consume(TokenType::KwFree, "Expected 'free'");
+  Token tok = consume(TokenType::KwFree, DiagID::ERR_PARSER_EXPECTED_FREE);
   std::unique_ptr<Expr> count = nullptr;
   if (match(TokenType::LBracket)) {
     count = parseExpr();
-    consume(TokenType::RBracket, "Expected ']'");
+    consume(TokenType::RBracket, DiagID::ERR_EXPECTED_RBRACKET);
   }
   auto expr = parseExpr();
   expectEndOfStatement();
@@ -387,7 +386,7 @@ std::unique_ptr<Stmt> Parser::parseFreeStmt() {
   return node;
 }
 std::unique_ptr<Stmt> Parser::parseUnreachableStmt() {
-  Token tok = consume(TokenType::KwUnreachable, "Expected 'unreachable'");
+  Token tok = consume(TokenType::KwUnreachable, DiagID::ERR_PARSER_EXPECTED_UNREACHABLE);
   expectEndOfStatement();
   auto node = std::make_unique<UnreachableStmt>();
   node->setLocation(tok, m_CurrentFile);

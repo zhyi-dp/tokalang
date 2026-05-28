@@ -44,11 +44,25 @@ private:
   bool check(TokenType type) const;
   bool checkAt(int offset, TokenType type) const;
   bool match(TokenType type);
-  Token consume(TokenType type, const std::string &message);
+  Token consume(TokenType type, DiagID id);
+  template <typename... Args>
+  Token consume(TokenType type, DiagID id, Args &&...args) {
+    if (check(type))
+      return advance();
+    error(peek(), id, std::forward<Args>(args)...);
+    return peek();
+  }
   void expectEndOfStatement();
   bool isEndOfStatement();
-  void error(const Token &tok, const std::string &message);
+
   void error(const Token &tok, DiagID id);
+  template <typename... Args>
+  void error(const Token &tok, DiagID id, Args &&...args) {
+    if (PanicMode) { return; }
+    PanicMode = true;
+    HasError = true;
+    DiagnosticEngine::report(tok.Loc, id, std::forward<Args>(args)...);
+  }
   void synchronize();
 
   bool HasError = false;

@@ -67,7 +67,7 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
 
   case MatchArm::Pattern::Range: {
     if (Pat->SubPatterns.size() != 2) {
-      error(Pat, DiagID::ERR_GENERIC_SEMA, "Invalid range pattern structure");
+      error(Pat, DiagID::ERR_SEMA_INVALID_RANGE_PATTERN_STRUCTURE);
       break;
     }
     checkPattern(Pat->SubPatterns[0].get(), TargetType, SourceIsMutable, TargetPath);
@@ -76,16 +76,16 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
     std::string resolvedT = resolveType(T, true);
     auto targetObj = toka::Type::fromString(resolvedT);
     if (!targetObj || !targetObj->isInteger()) {
-      error(Pat, DiagID::ERR_GENERIC_SEMA, "Range pattern is only allowed for integer or character types, got '" + T + "'");
+      error(Pat, DiagID::ERR_SEMA_RANGE_PATTERN_IS_ONLY_ALLOWED_FOR_INTEGER, T);
       break;
     }
 
     uint64_t startVal = Pat->SubPatterns[0]->LiteralVal;
     uint64_t endVal = Pat->SubPatterns[1]->LiteralVal;
     if (startVal > endVal) {
-      error(Pat, DiagID::ERR_GENERIC_SEMA, "Range start value (" + std::to_string(startVal) + ") cannot be greater than end value (" + std::to_string(endVal) + ")");
+      error(Pat, DiagID::ERR_SEMA_RANGE_START_VALUE_CANNOT_BE_GREATER_THAN, std::to_string(startVal), std::to_string(endVal));
     } else if (!Pat->IsInclusive && startVal == endVal) {
-      error(Pat, DiagID::ERR_GENERIC_SEMA, "Exclusive range start value (" + std::to_string(startVal) + ") cannot be equal to end value (" + std::to_string(endVal) + ")");
+      error(Pat, DiagID::ERR_SEMA_EXCLUSIVE_RANGE_START_VALUE_CANNOT_BE_EQU, std::to_string(startVal), std::to_string(endVal));
     }
     break;
   }
@@ -182,7 +182,7 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
     }
     
     if (!matches) {
-      error(Pat, "All branches of an Or-pattern must bind the exact same set of variables with consistent types and modifiers.");
+      error(Pat, DiagID::ERR_SEMA_ALL_BRANCHES_OF_AN_OR_PATTERN_MUST_BIND_T);
       break;
     }
     
@@ -229,9 +229,7 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
     auto expectedTypeObj = toka::Type::fromString(T);
     bool isMorphicExempt = (!Pat->Name.empty() && Pat->Name[0] == '\'');
     if (expectedTypeObj->isReference() && !Pat->IsReference && !isMorphicExempt) {
-        DiagnosticEngine::report(getLoc(Pat), DiagID::ERR_GENERIC_SEMA,
-                                 "Cannot bind reference member to a non-reference variable '" + Pat->Name +
-                                 "'. The variable name must explicitly carry the reference sigil '&'.");
+        DiagnosticEngine::report(getLoc(Pat), DiagID::ERR_SEMA_CANNOT_BIND_REFERENCE_MEMBER_TO_A_NON_R_2, Pat->Name);
         HasError = true;
     }
 
@@ -370,9 +368,7 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
                   }
                   Pat->SubPatternNames[i] = inferredName;
                 } else {
-                  DiagnosticEngine::report(getLoc(Pat), DiagID::ERR_GENERIC_SEMA,
-                                           "Positional destructuring element is prohibited for struct '" + SD->Name +
-                                           "'. Use explicitly named binding (e.g. 'x = .x') or homonymous elision (e.g. 'x').");
+                  DiagnosticEngine::report(getLoc(Pat), DiagID::ERR_SEMA_POSITIONAL_DESTRUCTURING_ELEMENT_IS_PROHI, SD->Name);
                   HasError = true;
                 }
               }
@@ -545,12 +541,7 @@ void Sema::checkPattern(MatchArm::Pattern *Pat, const std::string &TargetType,
                       };
                       std::string subName = Pat->SubPatterns[i]->Name;
                       if (subName.empty()) subName = "_";
-                      DiagnosticEngine::report(getLoc(Pat), DiagID::ERR_GENERIC_SEMA,
-                                               "Mismatched morphology in named pattern matching: left-hand pattern '" +
-                                               subName + "' has morphology '" + morphToString(subMorph) +
-                                               "', but right-hand field '" + Pat->SubPatternNames[i] +
-                                               "' has morphology '" + morphToString(fieldMorph) +
-                                               "'. Under Hat Rule, they must be perfectly symmetric (e.g. &s = .&v1).");
+                      DiagnosticEngine::report(getLoc(Pat), DiagID::ERR_SEMA_MISMATCHED_MORPHOLOGY_IN_NAMED_PATTERN_MA, subName, morphToString(subMorph), Pat->SubPatternNames[i], morphToString(fieldMorph));
                       HasError = true;
                     }
                   }
@@ -823,7 +814,7 @@ Sema::checkStructInit(InitStructExpr *Init, ShapeDecl *SD,
   for (size_t i = 0; i < Init->Members.size(); ++i) {
     if (Init->Members[i].first == "*") {
       if (hasSpread) {
-        error(Init, "Multiple spread operators are not allowed");
+        error(Init, DiagID::ERR_SEMA_MULTIPLE_SPREAD_OPERATORS_ARE_NOT_ALLOWED);
       }
       hasSpread = true;
       spreadExprObj = Init->Members[i].second.get();
@@ -841,15 +832,14 @@ Sema::checkStructInit(InitStructExpr *Init, ShapeDecl *SD,
     }
 
     if (!spreadNode) {
-      error(Init, "Invalid spread operator");
+      error(Init, DiagID::ERR_SEMA_INVALID_SPREAD_OPERATOR);
     } else {
       auto baseType = checkExpr(spreadNode->Base.get());
       std::string targetNominalName = resolveType(resolvedName);
       std::string baseNominalName = resolveType(baseType->getSoulName());
 
       if (targetNominalName != baseNominalName) {
-        error(spreadExprObj, "Type mismatch for spread: nominal type of base '" + baseType->getSoulName() + 
-                             "' does not match target shape type '" + resolvedName + "'");
+        error(spreadExprObj, DiagID::ERR_SEMA_TYPE_MISMATCH_FOR_SPREAD_NOMINAL_TYPE_OF, baseType->getSoulName(), resolvedName);
       }
 
       if (isSpreadCede) {
@@ -900,8 +890,7 @@ Sema::checkStructInit(InitStructExpr *Init, ShapeDecl *SD,
                                    dynamic_cast<CallExpr*>(spreadNode->Base.get()) != nullptr;
                                    
             if (!isSpreadCede && !isBaseTemporary) {
-              error(spreadExprObj, "Field '" + defField.Name + "' of type '" + memberTypeObj->toString() + 
-                                   "' is non-Copyable. You must explicitly use 'cede base.*' or 'base.clone().*' to initialize.");
+              error(spreadExprObj, DiagID::ERR_SEMA_FIELD_OF_TYPE_IS_NON_COPYABLE_YOU_MUST_EX, defField.Name, memberTypeObj->toString());
             }
           }
 
@@ -1036,9 +1025,9 @@ Sema::checkStructInit(InitStructExpr *Init, ShapeDecl *SD,
       
       if (!hasElision) {
         if (defField.DefaultValue) {
-           error(Init, "Missing field '" + defField.Name + "' in constructor for '" + Init->ShapeName + "'. Use '..' to explicitly fallback to default values.");
+           error(Init, DiagID::ERR_SEMA_MISSING_FIELD_IN_CONSTRUCTOR_FOR_USE_TO_E, defField.Name, Init->ShapeName);
         } else {
-           error(Init, "Missing field '" + defField.Name + "' in constructor for '" + Init->ShapeName + "' (no default value)");
+           error(Init, DiagID::ERR_SEMA_MISSING_FIELD_IN_CONSTRUCTOR_FOR_NO_DEFAU, defField.Name, Init->ShapeName);
         }
         continue;
       }
@@ -1134,10 +1123,7 @@ Sema::checkUnionInit(InitStructExpr *Init, ShapeDecl *SD,
   }
 
   if (Init->Members.size() > 1) {
-    error(Init, DiagID::ERR_GENERIC_PARSE,
-          "Union '{}' initialization must specify exactly "
-          "one variant, but {} were provided.",
-          Init->ShapeName, Init->Members.size());
+    error(Init, DiagID::ERR_SEMA_UNION_INITIALIZATION_MUST_SPECIFY_EXACTLY, Init->ShapeName, Init->Members.size());
   }
 
   auto &pair = Init->Members[0];

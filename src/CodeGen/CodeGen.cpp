@@ -75,7 +75,7 @@ PhysEntity CodeGen::genExpr(const Expr *expr) {
   if (auto e = dynamic_cast<const SizeOfExpr *>(expr)) {
     llvm::Type *targetTy = getLLVMType(toka::Type::fromString(e->TypeStr));
     if (!targetTy) {
-      error(e, "Cannot determine size of incomplete type: " + e->TypeStr);
+      error(e, DiagID::ERR_CODEGEN_CANNOT_DETERMINE_SIZE_OF_INCOMPLETE_TY, e->TypeStr);
       return PhysEntity(llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Context), 0), "usize", llvm::Type::getInt64Ty(m_Context), false);
     }
     llvm::Value *nullPtr = llvm::ConstantPointerNull::get(llvm::PointerType::getUnqual(m_Context));
@@ -103,7 +103,7 @@ PhysEntity CodeGen::genExpr(const Expr *expr) {
     return genUnwrapPropagationExpr(e);
   if (auto e = dynamic_cast<const AwaitExpr *>(expr)) {
       if (!m_CurrentCoroHandle) {
-          error(e, "await can only be used inside an async function");
+          error(e, DiagID::ERR_CODEGEN_AWAIT_CAN_ONLY_BE_USED_INSIDE_AN_ASYNC);
           return {};
       }
       llvm::Function *suspendFn = llvm::Intrinsic::getOrInsertDeclaration(m_Module.get(), llvm::Intrinsic::coro_suspend);
@@ -160,7 +160,7 @@ PhysEntity CodeGen::genExpr(const Expr *expr) {
   if (auto e = dynamic_cast<const ComptimeReflectExpr *>(expr))
     return genComptimeReflectExpr(e);
   if (auto e = dynamic_cast<const ComptimeFieldExpr *>(expr)) {
-    error(e, "Compile-time field iteration variables cannot be used contextually where runtime values are expected (must be folded statically).");
+    error(e, DiagID::ERR_CODEGEN_COMPILE_TIME_FIELD_ITERATION_VARIABLES);
     return {};
   }
 
@@ -282,21 +282,7 @@ void CodeGen::generate(const Module &ast) {
 
 void CodeGen::print(llvm::raw_ostream &os) { m_Module->print(os, nullptr); }
 
-void CodeGen::error(const ASTNode *node, const std::string &message) {
-  m_ErrorCount++; // Keep local count if needed for logic, but DiagnosticEngine
-                  // has its own.
-  // Actually, let's trust DiagnosticEngine to handle the counting and output.
-  // We still increment m_ErrorCount because generic CodeGen logic might check
-  // it locally (though DiagnosticEngine::hasErrors() is global). Ideally we
-  // should replace usages of m_ErrorCount with DiagnosticEngine::hasErrors(),
-  // but for now let's just delegate reporting.
 
-  if (node) {
-    DiagnosticEngine::report(node->Loc, DiagID::ERR_CODEGEN, message);
-  } else {
-    DiagnosticEngine::report(SourceLocation{}, DiagID::ERR_CODEGEN, message);
-  }
-}
 
 uint64_t CodeGen::estimateTypeSize(std::shared_ptr<Type> type, std::set<std::string> &visited) {
   if (!type) return 0;

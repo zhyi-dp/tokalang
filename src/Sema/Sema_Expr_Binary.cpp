@@ -421,8 +421,7 @@ std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
       isLHSWritable = true;
 
     if (!isLHSWritable) {
-      error(Bin, "Cannot assign to immutable entity. Missing writable token "
-                 "'#' or '!'.");
+      error(Bin, DiagID::ERR_SEMA_CANNOT_ASSIGN_TO_IMMUTABLE_ENTITY_MISSING);
       HasError = true;
     }
 
@@ -442,9 +441,7 @@ std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
           if (dynamic_cast<NewExpr *>(Bin->RHS.get())) {
             // OK: Freshly baked bread is always warm.
           } else {
-            error(Bin, "Covenant Violation: Cannot elevate write "
-                       "permission from "
-                       "ReadOnly soul to Writable container.");
+            error(Bin, DiagID::ERR_SEMA_COVENANT_VIOLATION_CANNOT_ELEVATE_WRITE_P);
             HasError = true;
           }
         }
@@ -870,8 +867,7 @@ std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
     if (!lRes->withAttributes(false, false)
              ->equals(*rRes->withAttributes(false, false))) {
       if (lhsType->isInteger() && rhsType->isInteger()) {
-        error(Bin, "comparison operands must have exact same type ('" + LHS +
-                       "' vs '" + RHS + "')");
+        error(Bin, DiagID::ERR_SEMA_COMPARISON_OPERANDS_MUST_HAVE_EXACT_SAME, LHS, RHS);
       }
     }
     return toka::Type::fromString("bool");
@@ -883,14 +879,13 @@ std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
     auto lRes = resolveType(lhsType, true);
     if (lRes->isInteger() || lRes->isFloatingPoint()) {
       if (Bin->Op == "%" && lRes->isFloatingPoint()) {
-        error(Bin, "operand of '%' must be integer, got float");
+        error(Bin, DiagID::ERR_SEMA_OPERAND_OF_MUST_BE_INTEGER_GOT_FLOAT);
       }
       isValid = true;
     }
 
     if (!isValid) {
-      error(Bin,
-            "operands of '" + Bin->Op + "' must be numeric, got '" + LHS + "'");
+      error(Bin, DiagID::ERR_SEMA_OPERANDS_OF_MUST_BE_NUMERIC_GOT, Bin->Op, LHS);
     }
     return lhsType->withAttributes(false, lhsType->IsNullable);
   }
@@ -901,7 +896,7 @@ std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
       Bin->Op == "<<" || Bin->Op == ">>") {
     if (!resolveType(lhsType, true)->isInteger() ||
         !resolveType(rhsType, true)->isInteger()) {
-      error(Bin, "operands of '" + Bin->Op + "' must be integers");
+      error(Bin, DiagID::ERR_SEMA_OPERANDS_OF_MUST_BE_INTEGERS, Bin->Op);
     }
     return lhsType->withAttributes(false, lhsType->IsNullable);
   }
@@ -920,8 +915,7 @@ std::shared_ptr<toka::Type> Sema::checkBinaryExpr(BinaryExpr *Bin) {
       // If RHS is just a Shape name, it's NOT a valid pattern (should
       // be a variable or variant)
       if (ShapeMap.count(rhsVar->Name)) {
-        error(Bin->RHS.get(), "'" + rhsVar->Name +
-                                  "' is a shape, not a valid pattern for 'is'");
+        error(Bin->RHS.get(), DiagID::ERR_SEMA_IS_A_SHAPE_NOT_A_VALID_PATTERN_FOR_IS, rhsVar->Name);
       }
     }
     return toka::Type::fromString("bool");

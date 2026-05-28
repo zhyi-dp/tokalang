@@ -768,9 +768,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       if (ve->IsRawPointer || ve->IsUnique || ve->IsShared) {
         // [Rule] Allow pointer morphology if it's a member base (deref access)
         if (!m_IsMemberBase) {
-          error(ve, "Morphology symbols (^, *, ~, &) are only allowed at the "
-                    "terminal of an access chain, got '" +
-                        ve->Name + "'");
+          error(ve, DiagID::ERR_SEMA_MORPHOLOGY_SYMBOLS_ARE_ONLY_ALLOWED_AT__2, ve->Name);
         }
       }
       if (ve->IsValueMutable || ve->IsValueNullable || ve->IsValueBlocked) {
@@ -794,10 +792,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
           }
         }
         if (!allowed) {
-          error(ve,
-                "Permission symbols (#, ?, $) are only allowed at the terminal "
-                "of an access chain, got '" +
-                    ve->Name + (ve->IsValueMutable ? "#" : "") + "'");
+          error(ve, DiagID::ERR_SEMA_PERMISSION_SYMBOLS_ARE_ONLY_ALLOWED_AT__2, ve->Name, (ve->IsValueMutable ? "#" : ""));
         }
       }
     }
@@ -1247,10 +1242,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       error(Cast, DiagID::ERR_SMART_PTR_FROM_STACK, Cast->TargetType[0]);
     } else if (!m_InUnsafeContext && targetIsRaw &&
                (srcType->isUniquePtr() || srcType->isSharedPtr())) {
-      error(Cast, DiagID::ERR_GENERIC_PARSE,
-            "Identity Intrusion: Managed memory ('" + srcType->toString() +
-                "') cannot be degraded to raw pointer ('" + Cast->TargetType +
-                "'). Violation of Allocation Sourcing.");
+      error(Cast, DiagID::ERR_SEMA_IDENTITY_INTRUSION_MANAGED_MEMORY_CANNOT, srcType->toString(), Cast->TargetType);
     } else if (targetIsAddr) {
       if (!(srcIsAddr || srcIsRaw || srcIsNumeric || srcType->isUniquePtr() || srcType->isSharedPtr() || srcType->isReference())) {
         error(Cast, DiagID::ERR_CAST_MISMATCH, srcType->toString(),
@@ -1504,7 +1496,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     }
 
     if (!varExpr) {
-      error(guard->Condition.get(), "guard condition must be a variable");
+      error(guard->Condition.get(), DiagID::ERR_SEMA_GUARD_CONDITION_MUST_BE_A_VARIABLE);
       return std::make_shared<VoidType>();
     }
 
@@ -1520,7 +1512,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       }
 
       if (!isPtrNullable && !isSoulNullable && !condType->isVoid()) {
-        error(guard->Condition.get(), "guard condition must be a nullable type");
+        error(guard->Condition.get(), DiagID::ERR_SEMA_GUARD_CONDITION_MUST_BE_A_NULLABLE_TYPE);
       }
 
       enterScope();
@@ -1594,7 +1586,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     }
 
     if (isReceiver && (!m_ControlFlowStack.empty() && m_ControlFlowStack.back().ExpectedType != "void")) {
-      error(le, "Toka 1.0 does not support yielding values from loops. Loops cannot be used as expressions.");
+      error(le, DiagID::ERR_SEMA_TOKA_1_0_DOES_NOT_SUPPORT_YIELDING_VALUES);
     }
 
     bool tookOver = false;
@@ -1653,7 +1645,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
           currentOffset += 8;
         }
       } else {
-        error(fe, "Cannot reflect uninstantiated or primitive shape: " + targetSoul);
+        error(fe, DiagID::ERR_SEMA_CANNOT_REFLECT_UNINSTANTIATED_OR_PRIMITIV, targetSoul);
       }
       return toka::Type::fromString("void");
     }
@@ -1693,7 +1685,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
         // 2. Iterator Protocol Method Lookup
         std::string baseSoulType = toka::Type::stripMorphology(soulType);
         if (!MethodMap.count(baseSoulType) || !MethodMap[baseSoulType].count("iter")) {
-            error(fe->Collection.get(), "Type '" + soulType + "' does not implement iterator protocol (.iter())");
+            error(fe->Collection.get(), DiagID::ERR_SEMA_TYPE_DOES_NOT_IMPLEMENT_ITERATOR_PROTOCOL, soulType);
             fullType = "i32";
         } else {
             std::string iterObjStr = MethodMap[baseSoulType]["iter"];
@@ -1711,7 +1703,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
                 }
             }
             if (E_type.empty()) {
-                error(fe, "Iterator protocol requires next to return Option<T>");
+                error(fe, DiagID::ERR_SEMA_ITERATOR_PROTOCOL_REQUIRES_NEXT_TO_RETURN);
                 fullType = "i32";
             } else {
                 // 2. Compare user's morphology prefix with E's morphology to determine intent
@@ -1733,7 +1725,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
                 std::string nextMethodName = expectsRef ? "next_ref" : "next";
                 
                 if (!MethodMap[iterSoul].count(nextMethodName)) {
-                     error(fe, "Iterator for '" + soulType + "' does not support " + (expectsRef ? "borrow semantics (.next_ref())" : "value semantics (.next())"));
+                     error(fe, DiagID::ERR_SEMA_ITERATOR_FOR_DOES_NOT_SUPPORT, soulType, (expectsRef ? "borrow semantics (.next_ref())" : "value semantics (.next())"));
                      fullType = "i32";
                 } else {
                      std::string nextRetStr = MethodMap[iterSoul][nextMethodName];
@@ -1743,7 +1735,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
                          if (fe->IsMutable) fullType += "#";
                            fe->IterElementType = fullType;
                      } else {
-                         error(fe, "Iterator protocol requires " + nextMethodName + " to return Option<T>");
+                         error(fe, DiagID::ERR_SEMA_ITERATOR_PROTOCOL_REQUIRES_TO_RETURN_OPTI, nextMethodName);
                          fullType = "i32";
                      }
                 }
@@ -1844,7 +1836,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
               curr = curr->Parent;
             }
             if (crossedLoop && Info->IsUnique()) {
-              error(ce, "Cannot cede/move value '" + Var->Name + "' inside a loop because it is defined outside the loop");
+              error(ce, DiagID::ERR_SEMA_CANNOT_CEDE_MOVE_VALUE_INSIDE_A_LOOP_BECA, Var->Name);
             }
             CurrentScope->markMoved(actualName);
         }
@@ -1879,7 +1871,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       m_ControlFlowStack.pop_back();
 
       if (valType == "void") {
-        error(pe, "Prefix 'pass' expects a value-yielding expression");
+        error(pe, DiagID::ERR_SEMA_PREFIX_PASS_EXPECTS_A_VALUE_YIELDING_EXPR);
       }
     } else {
       valTypeObj = checkExpr(pe->Value.get());
@@ -1929,7 +1921,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     std::string valType = "void";
     std::shared_ptr<toka::Type> valTypeObj;
     if (be->Value) {
-      error(be, "Toka 1.0 does not support yielding values from loops via 'break'. 'break' must not carry a return value.");
+      error(be, DiagID::ERR_SEMA_TOKA_1_0_DOES_NOT_SUPPORT_YIELDING_VALU_2);
       valTypeObj = checkExpr(be->Value.get());
       valType = valTypeObj->toString();
 
@@ -1994,7 +1986,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
         awaitEx->ResolvedType = toka::Type::fromString(inner);
         return awaitEx->ResolvedType;
     }
-    error(E, "Cannot await a non-TaskHandle type: " + tName);
+    error(E, DiagID::ERR_SEMA_CANNOT_AWAIT_A_NON_TASKHANDLE_TYPE, tName);
     return toka::Type::fromString("unknown");
   } else if (auto *waitEx = dynamic_cast<WaitExpr *>(E)) {
     bool oldConsuming = m_IsConsumingEffect;
@@ -2009,7 +2001,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
         waitEx->ResolvedType = toka::Type::fromString(inner);
         return waitEx->ResolvedType;
     }
-    error(E, "Cannot wait on a non-TaskHandle type: " + tName);
+    error(E, DiagID::ERR_SEMA_CANNOT_WAIT_ON_A_NON_TASKHANDLE_TYPE, tName);
     return toka::Type::fromString("unknown");
   } else if (auto *AIE = dynamic_cast<ArrayInitExpr *>(E)) {
     auto expectedType = toka::Type::fromString(resolveType(AIE->Type));
@@ -2174,9 +2166,9 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
         
         if (FD->IsDeleted) {
           if (Met->IsCompilerInternal && Met->Method == "clone") {
-            error(Met, "Cannot implicitly copy value of type '" + soulType + "' because its 'clone' method is explicitly deleted (= delete)");
+            error(Met, DiagID::ERR_SEMA_CANNOT_IMPLICITLY_COPY_VALUE_OF_TYPE_BECA, soulType);
           } else {
-            error(Met, "Cannot call explicitly deleted method '" + Met->Method + "' on type '" + soulType + "'");
+            error(Met, DiagID::ERR_SEMA_CANNOT_CALL_EXPLICITLY_DELETED_METHOD_ON, Met->Method, soulType);
           }
           HasError = true;
           return toka::Type::fromString("unknown");
@@ -2292,7 +2284,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
             if (Met->Args.size() != expectedArgs && !FD->IsVariadic) {
                 // If variadic, handle appropriately
                 if (Met->Args.size() < expectedArgs) {
-                    error(Met, "Method '" + Met->Method + "' expects at least " + std::to_string(expectedArgs) + " arguments, got " + std::to_string(Met->Args.size()));
+                    error(Met, DiagID::ERR_SEMA_METHOD_EXPECTS_AT_LEAST_ARGUMENTS_GOT, Met->Method, std::to_string(expectedArgs), std::to_string(Met->Args.size()));
                 }
             }
             
@@ -2309,12 +2301,12 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
                     if (FD->Args[i + 1].IsCeded) {
                         bool isCallerCeded = dynamic_cast<CedeExpr*>(Met->Args[i].get()) != nullptr;
                         if (!isCallerCeded) {
-                            error(Met->Args[i].get(), "Argument must be explicitly passed with 'cede' because the method consumes it");
+                            error(Met->Args[i].get(), DiagID::ERR_SEMA_ARGUMENT_MUST_BE_EXPLICITLY_PASSED_WITH_C);
                         }
                     }
 
                     if (!isTypeCompatible(expectedParamTy, argTy)) {
-                        error(Met->Args[i].get(), "Type mismatch in method argument " + std::to_string(i + 1) + ": expected " + expectedParamTy->toString() + ", got " + argTy->toString());
+                        error(Met->Args[i].get(), DiagID::ERR_SEMA_TYPE_MISMATCH_IN_METHOD_ARGUMENT_EXPECTED, std::to_string(i + 1), expectedParamTy->toString(), argTy->toString());
                     } else if (expectedParamTy->isShape() && argTy->isRawPointer()) {
                         auto shp = std::static_pointer_cast<toka::ShapeType>(expectedParamTy);
                         if (shp->Name == "str") {
@@ -2497,7 +2489,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     baseObj = resolveType(baseObj, false);
     
     if (!baseObj->isShape()) {
-      error(Unwrap, "Unwrap operator '!' requires a Result or Option shape");
+      error(Unwrap, DiagID::ERR_SEMA_UNWRAP_OPERATOR_REQUIRES_A_RESULT_OR_OPTI);
       return toka::Type::fromString("unknown");
     }
     
@@ -2508,7 +2500,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     bool isOption = soul == "Option" || soul.find("Option_") == 0;
 
     if (!isResult && !isOption) {
-      error(Unwrap, "Unwrap operator '!' requires Result<T, E> or Option<T> but got: " + soul);
+      error(Unwrap, DiagID::ERR_SEMA_UNWRAP_OPERATOR_REQUIRES_RESULT_T_E_OR_OP, soul);
       return toka::Type::fromString("unknown");
     }
     
@@ -2539,32 +2531,32 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
     }
 
     if (!payloadT) {
-      error(Unwrap, "Unwrap operator '!' requires a payload type in " + soul);
+      error(Unwrap, DiagID::ERR_SEMA_UNWRAP_OPERATOR_REQUIRES_A_PAYLOAD_TYPE_I, soul);
       return toka::Type::fromString("unknown");
     }
     
     if (!CurrentFunction) {
-      error(Unwrap, "Unwrap operator '!' must be used inside a function");
+      error(Unwrap, DiagID::ERR_SEMA_UNWRAP_OPERATOR_MUST_BE_USED_INSIDE_A_FUN);
       return toka::Type::fromString("unknown");
     }
     
     auto fnRetT = CurrentFunction->ResolvedReturnType;
     if (!fnRetT) {
-      error(Unwrap, "Cannot determine function return type for unwrap operator");
+      error(Unwrap, DiagID::ERR_SEMA_CANNOT_DETERMINE_FUNCTION_RETURN_TYPE_FOR);
       return toka::Type::fromString("unknown");
     }
     fnRetT = resolveType(fnRetT, false);
     
     if (isResult) {
       if (!fnRetT->isShape()) {
-        error(Unwrap, "Function must return Result when unwrapping a Result with '!'");
+        error(Unwrap, DiagID::ERR_SEMA_FUNCTION_MUST_RETURN_RESULT_WHEN_UNWRAPPI);
         return payloadT;
       }
       auto retShape = std::static_pointer_cast<toka::ShapeType>(fnRetT);
       std::string fnRetSoul = retShape->Decl ? retShape->Decl->Name : retShape->getSoulName();
       bool fnIsResult = fnRetSoul == "Result" || fnRetSoul.find("Result_") == 0;
       if (!fnIsResult) {
-        error(Unwrap, "Function must return Result when unwrapping a Result with '!'");
+        error(Unwrap, DiagID::ERR_SEMA_FUNCTION_MUST_RETURN_RESULT_WHEN_UNWRAPPI);
         return payloadT;
       }
       
@@ -2581,21 +2573,21 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
         }
       }
       if (!errT || !retErrT) {
-        error(Unwrap, "Result types must have Err variant");
+        error(Unwrap, DiagID::ERR_SEMA_RESULT_TYPES_MUST_HAVE_ERR_VARIANT);
       } else {
         if (!isTypeCompatible(retErrT, errT)) {
-           error(Unwrap, "Function error return type '" + retErrT->toString() + "' is incompatible with unwrapped error type '" + errT->toString() + "'");
+           error(Unwrap, DiagID::ERR_SEMA_FUNCTION_ERROR_RETURN_TYPE_IS_INCOMPATIBL, retErrT->toString(), errT->toString());
         }
       }
     } else if (isOption) {
       if (!fnRetT->isShape()) {
-        error(Unwrap, "Function must return Option when unwrapping an Option with '!'");
+        error(Unwrap, DiagID::ERR_SEMA_FUNCTION_MUST_RETURN_OPTION_WHEN_UNWRAPPI);
       } else {
         auto retShape = std::static_pointer_cast<toka::ShapeType>(fnRetT);
         std::string fnRetSoul = retShape->Decl ? retShape->Decl->Name : retShape->getSoulName();
         bool fnIsOption = fnRetSoul == "Option" || fnRetSoul.find("Option_") == 0;
         if (!fnIsOption) {
-          error(Unwrap, "Function must return Option when unwrapping an Option with '!'");
+          error(Unwrap, DiagID::ERR_SEMA_FUNCTION_MUST_RETURN_OPTION_WHEN_UNWRAPPI);
         }
       }
     }
@@ -2616,9 +2608,7 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
       if (Post->Op == TokenType::TokenWrite ||
           Post->Op == TokenType::TokenNull) {
         if (!m_IsMemberBase) {
-          error(Post, "Permission symbols (#, ?) are only allowed at "
-                      "the terminal "
-                      "of an access chain");
+          error(Post, DiagID::ERR_SEMA_PERMISSION_SYMBOLS_ARE_ONLY_ALLOWED_AT_TH);
         }
       }
     }
@@ -2665,12 +2655,10 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
         Var->HasConstantValue = true;
         Var->ConstantValue = size;
       } else {
-        error(Repeat, "Array repeat count must be a numeric literal or const "
-                      "generic parameter");
+        error(Repeat, DiagID::ERR_SEMA_ARRAY_REPEAT_COUNT_MUST_BE_A_NUMERIC_LITE);
       }
     } else {
-      error(Repeat, "Array repeat count must be a numeric literal or const "
-                    "generic parameter");
+      error(Repeat, DiagID::ERR_SEMA_ARRAY_REPEAT_COUNT_MUST_BE_A_NUMERIC_LITE);
     }
     return std::make_shared<toka::ArrayType>(elemType, size);
   } else if (auto *ArrLit = dynamic_cast<ArrayExpr *>(E)) {
