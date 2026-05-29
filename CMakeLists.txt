@@ -50,11 +50,30 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Output executables to build/bin instead of build/src/
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
+# Setup Homebrew path detection for macOS (Apple Silicon & Intel Mac)
+if(APPLE)
+    # Dynamically query system Homebrew prefix
+    execute_process(
+        COMMAND brew --prefix
+        OUTPUT_VARIABLE HOMEBREW_PREFIX
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+    # Inject dynamically if found
+    if(HOMEBREW_PREFIX)
+        list(APPEND CMAKE_PREFIX_PATH "${HOMEBREW_PREFIX}")
+    endif()
+    # Statically append standard fallback locations for safety
+    list(APPEND CMAKE_PREFIX_PATH "/opt/homebrew" "/usr/local")
+endif()
+
 # Find LLVM 20 intelligently
 if(NOT LLVM_DIR)
     if(APPLE)
-        # Check standard Homebrew locations for LLVM 20
-        if(EXISTS "/opt/homebrew/opt/llvm@20/lib/cmake/llvm")
+        # Check dynamic or standard Homebrew locations for LLVM 20
+        if(HOMEBREW_PREFIX AND EXISTS "${HOMEBREW_PREFIX}/opt/llvm@20/lib/cmake/llvm")
+            set(LLVM_DIR "${HOMEBREW_PREFIX}/opt/llvm@20/lib/cmake/llvm")
+        elseif(EXISTS "/opt/homebrew/opt/llvm@20/lib/cmake/llvm")
             set(LLVM_DIR "/opt/homebrew/opt/llvm@20/lib/cmake/llvm")
         elseif(EXISTS "/usr/local/opt/llvm@20/lib/cmake/llvm")
             set(LLVM_DIR "/usr/local/opt/llvm@20/lib/cmake/llvm")
@@ -78,10 +97,12 @@ message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 # Find LLD 20 intelligently
 if(NOT LLD_DIR)
     if(APPLE)
-        if(EXISTS "/usr/local/opt/lld@20/lib/cmake/lld")
-            set(LLD_DIR "/usr/local/opt/lld@20/lib/cmake/lld")
+        if(HOMEBREW_PREFIX AND EXISTS "${HOMEBREW_PREFIX}/opt/lld@20/lib/cmake/lld")
+            set(LLD_DIR "${HOMEBREW_PREFIX}/opt/lld@20/lib/cmake/lld")
         elseif(EXISTS "/opt/homebrew/opt/lld@20/lib/cmake/lld")
             set(LLD_DIR "/opt/homebrew/opt/lld@20/lib/cmake/lld")
+        elseif(EXISTS "/usr/local/opt/lld@20/lib/cmake/lld")
+            set(LLD_DIR "/usr/local/opt/lld@20/lib/cmake/lld")
         endif()
     elseif(WIN32)
         if(EXISTS "C:/msys64/mingw64/lib/cmake/lld")
