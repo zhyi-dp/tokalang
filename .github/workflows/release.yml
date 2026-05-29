@@ -210,7 +210,11 @@ jobs:
           DIR_NAME=$(ls verify_dir | head -n 1)
           VERIFY_PATH=$(cygpath -u "$GITHUB_WORKSPACE/verify_dir/$DIR_NAME")
           echo "Verifying package contents in $VERIFY_PATH"
-          export PATH="$VERIFY_PATH/bin:$PATH"
+          
+          # 物理降维打击：将二进制临时拷贝至全局 /mingw64/bin/ 目录，模拟全局一键安装
+          cp "$VERIFY_PATH/bin/toka.exe" /mingw64/bin/
+          cp "$VERIFY_PATH/bin/tokac.exe" /mingw64/bin/
+          
           export TOKA_LIB="$VERIFY_PATH/lib"
           toka.exe --version
           cd verify_dir
