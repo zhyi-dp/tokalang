@@ -42,8 +42,8 @@ pub fn opendir_impl(path: Addr) -> Addr {
         auto *wd# = libc_malloc(sizeof(WinDir)) as *WinDir
         auto h = FindFirstFileW(*wsearch, *(wd.find_data) as Addr)
         
-        libc_free(wpath as *void)
-        libc_free(wsearch as *void)
+        libc_free(*wpath as *void)
+        libc_free(*wsearch as *void)
         
         if h as Addr == 0xFFFFFFFFFFFFFFFF:Addr {
             libc_free(*wd as *void)
@@ -84,7 +84,7 @@ pub fn mkdir_impl(path: Addr) -> bool {
     unsafe {
         auto *wpath = to_utf16(path as *char)
         auto res = CreateDirectoryW(*wpath, ADDR0)
-        libc_free(wpath as *void)
+        libc_free(*wpath as *void)
         return res != 0
     }
 }
@@ -93,7 +93,7 @@ pub fn rmdir_impl(path: Addr) -> bool {
     unsafe {
         auto *wpath = to_utf16(path as *char)
         auto res = RemoveDirectoryW(*wpath)
-        libc_free(wpath as *void)
+        libc_free(*wpath as *void)
         return res != 0
     }
 }
@@ -102,7 +102,7 @@ pub fn path_exists(path: Addr) -> bool {
     unsafe {
         auto *wpath = to_utf16(path as *char)
         auto res = GetFileAttributesW(*wpath)
-        libc_free(wpath as *void)
+        libc_free(*wpath as *void)
         return res != 0xFFFFFFFF:u32
     }
 }
@@ -118,7 +118,7 @@ pub fn stat_impl(path: Addr) -> Addr {
         auto *wpath = to_utf16(path as *char)
         auto attr = GetFileAttributesW(*wpath)
         if attr == 0xFFFFFFFF:u32 {
-            libc_free(wpath as *void)
+            libc_free(*wpath as *void)
             return ADDR0
         }
         
@@ -131,7 +131,7 @@ pub fn stat_impl(path: Addr) -> Addr {
         }
         ws.mtime = 0
         
-        libc_free(wpath as *void)
+        libc_free(*wpath as *void)
         return *ws as Addr
     }
 }
