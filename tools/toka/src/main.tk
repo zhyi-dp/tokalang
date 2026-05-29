@@ -1,8 +1,8 @@
 
 import std/env
 import std/io::{println, File}
-import std/fs::{read_to_string, exists, create_dir, write_string}
-import sys/libc::{libc_system, libc_printf}
+import std/fs::{read_to_string, exists, create_dir, write_string, read_dir, metadata}
+import sys/libc::{libc_system, libc_printf, libc_getenv}
 import src/pkg_manager::{cmd_fetch, build_pkg_args, cmd_publish, cmd_search, resolve_package}
 
 
@@ -305,8 +305,8 @@ fn cmd_build(use_forge: bool) -> i32 {
         }
         
         auto build_file# = string::from("build.tk")
-        if libc_system(c"test -f build.tk") != 0 {
-            if libc_system(c"test -f Project.tk") == 0 {
+        if !exists(string::from("build.tk")) {
+            if exists(string::from("Project.tk")) {
                 println("\n\x1b[33mWarning: Project.tk is deprecated. Please rename it to build.tk\x1b[0m\n")
                 build_file = string::from("Project.tk")
             } else {
@@ -315,14 +315,31 @@ fn cmd_build(use_forge: bool) -> i32 {
             }
         }
         
+        auto is_windows# = false
+        auto os_env = libc_getenv(c"OS") as Addr
+        if os_env != 0:Addr {
+            auto os_str = string::from_cstr(os_env as *char)
+            if os_str == string::from("Windows_NT") {
+                is_windows = true
+            }
+        }
+        
         cmd#.push_str(build_file.as_str())
-        cmd#.push_str(" -o .toka_build_exe -O3 && ./.toka_build_exe")
+        if is_windows {
+            cmd#.push_str(" -o .toka_build_exe.exe -O3 && .toka_build_exe.exe")
+        } else {
+            cmd#.push_str(" -o .toka_build_exe -O3 && ./.toka_build_exe")
+        }
 
         auto res = libc_system(cmd.c_str())
         if res != 0 {
             println("\x1b[1;31m       Error\x1b[0m executing {} -> compile failed", build_file)
         }
-        libc_system(c"rm -f .toka_build_exe")
+        if is_windows {
+            libc_system(c"del /f /q .toka_build_exe.exe")
+        } else {
+            libc_system(c"rm -f .toka_build_exe")
+        }
         if res != 0 { return 1 }
         return 0
     }
@@ -340,26 +357,101 @@ fn cmd_run_single(file: string) -> i32 {
             cmd#.push_str("-I /usr/local/lib/toka ")
         }
         
+        auto is_windows# = false
+        auto os_env = libc_getenv(c"OS") as Addr
+        if os_env != 0:Addr {
+            auto os_str = string::from_cstr(os_env as *char)
+            if os_str == string::from("Windows_NT") {
+                is_windows = true
+            }
+        }
+        
         cmd#.push_str(file.as_str())
-        cmd#.push_str(" -o .toka_single_exe -O3 && ./.toka_single_exe")
+        if is_windows {
+            cmd#.push_str(" -o .toka_single_exe.exe -O3 && .toka_single_exe.exe")
+        } else {
+            cmd#.push_str(" -o .toka_single_exe -O3 && ./.toka_single_exe")
+        }
 
         auto res = libc_system(cmd.c_str())
         if res != 0 {
             println("\x1b[1;31m       Error\x1b[0m executing {}", file)
         }
-        libc_system(c"rm -f .toka_single_exe")
+        if is_windows {
+            libc_system(c"del /f /q .toka_single_exe.exe")
+        } else {
+            libc_system(c"rm -f .toka_single_exe")
+        }
         if res != 0 { return 1 }
         return 0
     }
+}
+
+fn find_newest_executable(dir_path: string) -> string {
+    auto newest_file# = string::from("")
+    auto newest_mtime#: i64 = -2
+    
+    auto dir# = read_dir(dir_path.clone())
+    loop {
+        auto entry_opt = dir#.next()
+        if entry_opt.is_none() { break }
+        auto entry = entry_opt.unwrap()
+        
+        if entry.as_str() == "." || entry.as_str() == ".." || entry.ends_with(".ll") {
+            continue
+        }
+        
+        auto full_path# = dir_path.clone()
+        full_path#.push_str("/")
+        full_path#.push_str(entry.as_str())
+        
+        auto meta_res = metadata(full_path.clone())
+        if meta_res.is_ok() {
+            auto meta = meta_res.unwrap()
+            if meta.is_file() {
+                auto mtime = meta.modified()
+                if mtime > newest_mtime {
+                    newest_mtime = mtime
+                    newest_file = entry.clone()
+                }
+            }
+        }
+    }
+    dir#.close()
+    return newest_file
 }
 
 fn cmd_run(use_forge: bool) -> i32 {
     auto res = cmd_build(use_forge)
     if res != 0 { return res }
     
+    auto target_dir = string::from("target/debug")
+    auto newest_exe = find_newest_executable(target_dir)
+    if newest_exe.is_empty() {
+        println("\x1b[1;31m       Error\x1b[0m no executable found in target/debug")
+        return 1
+    }
+    
     unsafe {
-        // Find the newest executable in target/debug (excluding .ll files) and run it
-        auto run_res = libc_system(c"exe=$(ls -t ./target/debug | grep -v '\\.ll$' | head -n1) && ./target/debug/\"$exe\"")
+        auto is_windows# = false
+        auto os_env = libc_getenv(c"OS") as Addr
+        if os_env != 0:Addr {
+            auto os_str = string::from_cstr(os_env as *char)
+            if os_str == string::from("Windows_NT") {
+                is_windows = true
+            }
+        }
+        
+        auto run_cmd# = string::from("")
+        if is_windows {
+            run_cmd = string::from("target\\debug\\")
+            run_cmd#.push_str(newest_exe.as_str())
+        } else {
+            run_cmd = string::from("./target/debug/")
+            run_cmd#.push_str(newest_exe.as_str())
+        }
+        
+        auto run_res = libc_system(run_cmd.c_str())
         if run_res != 0 { return 1 }
         return 0
     }

@@ -236,6 +236,23 @@ fi
 # Orchestrator
 cmake --build build --parallel $CORES > /dev/null || { echo "Compiler Build Failed"; exit 1; }
 
+# Compile runtime objects dynamically for the local architecture
+SYSROOT_FLAGS=""
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    SYSROOT_FLAGS="-isysroot $(xcrun --show-sdk-path)"
+fi
+
+if command -v clang-20 &> /dev/null; then
+    CLANG="clang-20"
+elif command -v clang &> /dev/null; then
+    CLANG="clang"
+else
+    CLANG="clang"
+fi
+
+"$CLANG" $SYSROOT_FLAGS -c lib/sys/toka_rt.c -o lib/sys/toka_rt.o || { echo "Failed to compile toka_rt.c"; exit 1; }
+"$CLANGXX" $SYSROOT_FLAGS -O3 -c lib/sys/llvm_shim.cpp -o lib/sys/llvm_shim.o $($LLVM_CONFIG --cppflags) || { echo "Failed to compile llvm_shim.cpp"; exit 1; }
+
 echo "Starting Toka 'PASS' Test Suite (Parallel: $CORES)..."
 echo "---------------------------------"
 
