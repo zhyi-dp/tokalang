@@ -177,11 +177,46 @@ jobs:
           ./bin/tokac.exe -I ../lib -I ../tools/tokalsp ../tools/tokalsp/main.tk -o ./bin/tokalsp.exe -O3
 
       - name: Run Package Script
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         shell: bash
         run: |
           ${{ matrix.pkg_cmd }}
           
+      - name: Verify Package Delivery (E2E macOS/Linux)
+        if: (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') && runner.os != 'Windows'
+        run: |
+          mkdir -p verify_dir
+          tar -xzvf build/toka-*.tar.gz -C verify_dir/
+          DIR_NAME=$(ls verify_dir | head -n 1)
+          VERIFY_PATH="$GITHUB_WORKSPACE/verify_dir/$DIR_NAME"
+          echo "Verifying package contents in $VERIFY_PATH"
+          PATH="$VERIFY_PATH/bin:$PATH" TOKA_LIB="$VERIFY_PATH/lib" toka --version
+          cd verify_dir
+          PATH="$VERIFY_PATH/bin:$PATH" TOKA_LIB="$VERIFY_PATH/lib" toka new e2e_test_app
+          cd e2e_test_app
+          PATH="$VERIFY_PATH/bin:$PATH" TOKA_LIB="$VERIFY_PATH/lib" toka run > run.log 2>&1 || { cat run.log; exit 1; }
+          cat run.log
+          grep -q "Hello, Toka!" run.log || { echo "❌ Error: Output verification failed!"; exit 1; }
+          echo "✅ macOS/Linux package E2E verification success!"
+
+      - name: Verify Package Delivery (E2E Windows MSYS2)
+        if: (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') && runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          mkdir -p verify_dir
+          tar -xzvf build/toka-*.tar.gz -C verify_dir/
+          DIR_NAME=$(ls verify_dir | head -n 1)
+          VERIFY_PATH="$GITHUB_WORKSPACE/verify_dir/$DIR_NAME"
+          echo "Verifying package contents in $VERIFY_PATH"
+          PATH="$VERIFY_PATH/bin:$PATH" TOKA_LIB="$VERIFY_PATH/lib" toka.exe --version
+          cd verify_dir
+          PATH="$VERIFY_PATH/bin:$PATH" TOKA_LIB="$VERIFY_PATH/lib" toka.exe new e2e_test_app
+          cd e2e_test_app
+          PATH="$VERIFY_PATH/bin:$PATH" TOKA_LIB="$VERIFY_PATH/lib" toka.exe run > run.log 2>&1 || { cat run.log; exit 1; }
+          cat run.log
+          grep -q "Hello, Toka!" run.log || { echo "❌ Error: Output verification failed!"; exit 1; }
+          echo "✅ Windows package E2E verification success!"
+
       - name: Upload Release Asset
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
