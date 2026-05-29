@@ -2,14 +2,14 @@
 
 # Toka Programming Language
 
-**Toka is a modern systems programming language without GC. It delivers the absolute performance and low-level control of C, the memory safety of Rust, yet provides a clean and highly productive developer experience reminiscent of scripting languages.**
+**Toka is a modern systems programming language without GC. It combines C-style performance and low-level control with Rust-inspired memory-safety discipline, while aiming for a clean and productive developer experience reminiscent of scripting languages.**
 
 ## 🚀 "Show, Don't Tell"
 
-Say goodbye to the cognitive load of explicit `<'a>` lifetime annotations and complex CMake setups. In Toka, writing high-performance, strictly safe code feels as natural as writing Python:
+Say goodbye to the cognitive load of explicit `<'a>` lifetime annotations and complex CMake setups. In Toka, high-performance systems code is designed to stay explicit, readable, and disciplined:
 
-```rust
-// 🚀 Everyday Toka: Physical-level concurrency, minimalist RAII, and native error propagation
+```toka
+// Everyday Toka: physical-level concurrency, minimalist RAII, and native error propagation
 import std/io::println
 import std/net::TcpStream
 import stdx/net/websocket
@@ -42,7 +42,7 @@ To respect your time, please verify if Toka fits your needs before diving in:
 **✅ It is an excellent choice if:**
 *   You need extreme runtime performance and minimal memory footprint (e.g., high-concurrency gateways, game backends, system-level tools).
 *   You are tired of Go/Java's GC pauses (STW), but also exhausted by **endlessly fighting the compiler** in Rust, or being forced to take detours just to implement what should be a completely natural logic flow.
-*   You want the rapid development speed of Python or TypeScript, while maintaining the low-level safety and control of C.
+*   You want a productive development experience while keeping low-level safety and control close to the machine.
 
 **❌ It might NOT be for you yet if:**
 *   Your production environment mandates pure Windows Server deployment (Native Windows support is under active development; WSL2/macOS/Linux are currently recommended).
@@ -50,19 +50,19 @@ To respect your time, please verify if Toka fits your needs before diving in:
 
 ---
 
-## 💎 The 3 Pillars
+## 💎 Core Pillars
 
-### 🛡️ Absolute Safety Without Lifetime Annotations
-Pioneering the **Single-Hat Principle** and the **PAL (Pointer Aliasing & Lifecycle) Checker**, Toka eliminates dangling pointers and data races at compile time with zero runtime overhead. Enjoy 100% memory safety without fighting the compiler.
+### 🛡️ Explicit Resource Safety Without Lifetime Annotations
+Pioneering the **Single-Hat Principle** and the **PAL (Pointer Aliasing & Lifecycle) Checker**, Toka makes ownership, borrowing, pointer identity, and mutation intent visible in the source language. The goal is strong compile-time resource safety without explicit lifetime parameters.
 
 ### ⚡ Zero-Cost Abstraction & Native C Interop
-Built on **LLVM 20**, Toka has **No Garbage Collection (No GC)**. Its memory layout closely mirrors C/C++, allowing you to inline and call the vast existing C ecosystem (like SQLite, OpenGL) seamlessly and without overhead.
+Built on **LLVM 20**, Toka has **No Garbage Collection (No GC)**. Its native layout and FFI-oriented design are intended to make interop with the existing C ecosystem (like SQLite or OpenGL) direct and predictable.
 
 ### 🚦 Transparent Concurrency & Error Flow
-No implicit "black magic schedulers." Toka makes function costs physically explicit: standard functions and `async` (yielding) functions have clear color boundaries. Paired with the native `!` error propagation operator, error handling and async scheduling interweave flawlessly, banishing callback hell and `if err != nil` waterfalls.
+No implicit "black magic schedulers." Toka makes function costs physically explicit: standard functions and `async` (yielding) functions have clear color boundaries. Paired with the native `!` error propagation operator, error handling and async scheduling stay visible in the function signature and call site.
 
-### 📦 Blazing Fast Modern Toolchain
-Forget messy build scripts. Toka features the built-in `toka run` and an **AI-Native Package Manager**. A simple `toka.json` is all it takes to fetch and build dependencies globally from the edge network.
+### 📦 Integrated Modern Tooling
+Toka includes the `toka` CLI for project workflows such as `toka run`, `toka build`, and package resolution based on `package.tk` / `build.tk`, keeping everyday build steps close to the language.
 
 ---
 
@@ -84,15 +84,14 @@ Toka philosophically separates an object into its **Soul (Content/Value)** and *
 Say goodbye to the keyword soup of `const volatile unsigned`. Toka strictly defines attribute ownership:
 *   **Mutability is a property of the variable (`#`)**: Represents identity transfer or content modification.
 *   **Nullability is a property of the type (`?`)**: Represents the potential non-existence of the entity in memory.
-*   **Visual Formula**: `T^#?` is instantly recognizable as a "mutable, nullable, unique pointer to T."
+*   **Visual Formula**: declarations such as `auto ^p = new Node(...)`, `auto x# = 1`, or the rare full form `auto nul ^#node#: Node? = null` expose ownership, mutability, and nullability at the syntax level.
 
 **4. @encap Explicit Encapsulation & Resource Safety**
 Toka makes normal `shape` members transparent by default, but heavily restricts resource-holding structs (like Files or Sockets) using `@encap`.
 *   **Permission & Lifecycle Binding**: Inside an `impl Type@encap` block, you must explicitly expose interfaces (`pub`). More importantly, this is the *only* legal place to define lifecycle methods like `drop`, fundamentally preventing resource tampering and memory leaks at the contract level.
 
-**5. Contract-Based Control Flow**
-**"Everything produces a value; everything is a guarantee."**
-*   Toka enforces that control flow expressions (like `match`, `for`) must fulfill their value delivery contract on all paths. The unique `for-or` syntax guarantees that even if a loop doesn't execute, the receiver still gets a promised value.
+**5. Explicit Control Flow & Error Propagation**
+Toka favors explicit control-flow contracts: `match` is checked for exhaustive handling, `guard` makes null and none checks visible, and the postfix `!` operator propagates `Result` / `Option` failures without hiding the early-return path.
 
 ### Token System Table
 
@@ -170,7 +169,7 @@ Toka's memory management mechanism is a direct descendant of Modern C++ (C++11/1
 
 ### 2. Rust
 **Core Inspiration: The Borrowing Discipline & Memory Safety**
-Rust proved that memory safety without garbage collection is achievable. Toka faithfully adopts the strict **"Read-Write Mutex" borrowing rules** to permanently eradicate data races at compile time. However, unlike Rust, Toka **deliberately discards explicit lifetime annotations (e.g., `<'a>`)**, shifting the heavy lifting to the background PAL Checker and lexical scope resolution.
+Rust proved that memory safety without garbage collection is achievable. Toka is inspired by Rust's strict borrowing discipline, but it explores a different surface syntax: explicit resource morphology, PAL checks, and dependency routing instead of user-written lifetime parameters such as `<'a>`.
 
 ### 3. Haskell / ML Family
 **Core Inspiration: Typeclasses & Orthogonality**
