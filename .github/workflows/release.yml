@@ -190,11 +190,13 @@ jobs:
           DIR_NAME=$(ls verify_dir | head -n 1)
           VERIFY_PATH="$GITHUB_WORKSPACE/verify_dir/$DIR_NAME"
           echo "Verifying package contents in $VERIFY_PATH"
-          PATH="$VERIFY_PATH/bin:$PATH" TOKA_LIB="$VERIFY_PATH/lib" toka --version
+          export PATH="$VERIFY_PATH/bin:$PATH"
+          export TOKA_LIB="$VERIFY_PATH/lib"
+          toka --version
           cd verify_dir
-          PATH="$VERIFY_PATH/bin:$PATH" TOKA_LIB="$VERIFY_PATH/lib" toka new e2e_test_app
+          toka new e2e_test_app
           cd e2e_test_app
-          PATH="$VERIFY_PATH/bin:$PATH" TOKA_LIB="$VERIFY_PATH/lib" toka run > run.log 2>&1 || { cat run.log; exit 1; }
+          toka run > run.log 2>&1 || { cat run.log; exit 1; }
           cat run.log
           grep -q "Hello, Toka!" run.log || { echo "❌ Error: Output verification failed!"; exit 1; }
           echo "✅ macOS/Linux package E2E verification success!"
@@ -208,11 +210,13 @@ jobs:
           DIR_NAME=$(ls verify_dir | head -n 1)
           VERIFY_PATH="$GITHUB_WORKSPACE/verify_dir/$DIR_NAME"
           echo "Verifying package contents in $VERIFY_PATH"
-          PATH="$VERIFY_PATH/bin:$PATH" TOKA_LIB="$VERIFY_PATH/lib" toka.exe --version
+          export PATH="$VERIFY_PATH/bin:$PATH"
+          export TOKA_LIB="$VERIFY_PATH/lib"
+          toka.exe --version
           cd verify_dir
-          PATH="$VERIFY_PATH/bin:$PATH" TOKA_LIB="$VERIFY_PATH/lib" toka.exe new e2e_test_app
+          toka.exe new e2e_test_app
           cd e2e_test_app
-          PATH="$VERIFY_PATH/bin:$PATH" TOKA_LIB="$VERIFY_PATH/lib" toka.exe run > run.log 2>&1 || { cat run.log; exit 1; }
+          toka.exe run > run.log 2>&1 || { cat run.log; exit 1; }
           cat run.log
           grep -q "Hello, Toka!" run.log || { echo "❌ Error: Output verification failed!"; exit 1; }
           echo "✅ Windows package E2E verification success!"

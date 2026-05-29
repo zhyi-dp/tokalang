@@ -70,9 +70,9 @@ fn generate_project_files(name: string, dest_dir: string, is_lib: bool) {
     write_string(pkg_path, pkg_content.as_str())
 
     if is_lib {
-        auto build_content# = string::from("import build::{Library, run_build}\n\nfn main() -> i32 {\n    auto lib# = Library::make(\"")
+        auto build_content# = string::from("import build::{Library, run_build}\n\nfn main() -> i32 {\n    auto lib# = Library::make(c\"")
         build_content#.push_str(name.as_str())
-        build_content#.push_str("\" as *char, \"lib/")
+        build_content#.push_str("\", c\"lib/")
         build_content#.push_str(name.as_str())
         build_content#.push_str("/mod.tk\")\n    return run_build(lib)\n}\n")
 
@@ -84,9 +84,9 @@ fn generate_project_files(name: string, dest_dir: string, is_lib: bool) {
         build_path#.push_str("build.tk")
         write_string(build_path, build_content.as_str())
     } else {
-        auto build_content# = string::from("import build::{Executable, run_build}\n\nfn main() -> i32 {\n    auto app# = Executable::make(\"")
+        auto build_content# = string::from("import build::{Executable, run_build}\n\nfn main() -> i32 {\n    auto app# = Executable::make(c\"")
         build_content#.push_str(name.as_str())
-        build_content#.push_str("\" as *char, \"src/main.tk\" as *char)\n    return run_build(app)\n}\n")
+        build_content#.push_str("\", c\"src/main.tk\")\n    return run_build(app)\n}\n")
 
         auto build_path# = string::from("")
         if !dest_dir.is_empty() {
