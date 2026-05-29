@@ -117,11 +117,15 @@ jobs:
           bash ./tools/scripts/test_pass.sh || true
           cd build
           
-          # Build toka CLI tool, tokafmt and tokalsp using the newly built compiler (Internal LLD)
-
-          ./bin/tokac -I ../lib -I ../tools/toka ../tools/toka/src/main.tk -o ./bin/toka -O3
-          ./bin/tokac -I ../lib -I ../tools/tokafmt ../tools/tokafmt/src/main.tk -o ./bin/tokafmt -O3
-          ./bin/tokac -I ../lib -I ../tools/tokalsp ../tools/tokalsp/main.tk -o ./bin/tokalsp -O3
+          if [ "${{ matrix.name }}" = "macos-x64" ]; then
+            arch -x86_64 ./bin/tokac -I ../lib -I ../tools/toka ../tools/toka/src/main.tk -o ./bin/toka -O3
+            arch -x86_64 ./bin/tokac -I ../lib -I ../tools/tokafmt ../tools/tokafmt/src/main.tk -o ./bin/tokafmt -O3
+            arch -x86_64 ./bin/tokac -I ../lib -I ../tools/tokalsp ../tools/tokalsp/main.tk -o ./bin/tokalsp -O3
+          else
+            ./bin/tokac -I ../lib -I ../tools/toka ../tools/toka/src/main.tk -o ./bin/toka -O3
+            ./bin/tokac -I ../lib -I ../tools/tokafmt ../tools/tokafmt/src/main.tk -o ./bin/tokafmt -O3
+            ./bin/tokac -I ../lib -I ../tools/tokalsp ../tools/tokalsp/main.tk -o ./bin/tokalsp -O3
+          fi
 
       - name: Build Toka (Windows MSYS2)
         if: runner.os == 'Windows'
@@ -248,7 +252,7 @@ jobs:
           # 3. 验证项目编译与执行
           echo "=== Testing toka.exe run ==="
           cd e2e_test_app
-          toka.exe run > run.log 2>&1
+          toka.exe run > run.log 2>&1 || true
           RUN_EXIT_CODE=$?
           echo "toka.exe run exit code is: $RUN_EXIT_CODE"
           

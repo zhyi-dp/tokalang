@@ -212,6 +212,9 @@ pub fn run_build(proj: Executable) -> i32 {
         } else {
             cmd1#.push_str(" -o target/debug/")
             cmd1#.push_cstr(&n)
+            if is_windows {
+                cmd1#.push_str(".exe")
+            }
             cmd1#.push_str(" -O3")
         }
 
