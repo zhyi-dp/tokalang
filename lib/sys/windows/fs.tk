@@ -29,11 +29,13 @@ pub shape WinDir (
 
 pub fn opendir_impl(path: Addr) -> Addr {
     unsafe {
-        auto *wpath = to_utf16(path as *char)
+        auto path_str = string::from_cstr(path as *char)
+        auto path_normalized = path_str.replace('/' as char, '\\' as char)
+        
         // FindFirstFile needs a wildcard like \*
-        auto search_path# = string::from_cstr(path as *char)
-        if !search_path.ends_with("/") && !search_path.ends_with("\\") {
-            search_path#.push_str("/")
+        auto search_path# = path_normalized.clone()
+        if !search_path.ends_with("\\") {
+            search_path#.push_str("\\")
         }
         auto star = string::from("*")
         search_path#.push_str(star.as_str())
@@ -42,7 +44,6 @@ pub fn opendir_impl(path: Addr) -> Addr {
         auto *wd# = libc_malloc(sizeof(WinDir)) as *WinDir
         auto h = FindFirstFileW(*wsearch, *(wd.find_data) as Addr)
         
-        libc_free(*wpath as *void)
         libc_free(*wsearch as *void)
         
         if h as Addr == 0xFFFFFFFFFFFFFFFF:Addr {
@@ -82,7 +83,9 @@ pub fn closedir_impl(dir_handle: Addr) {
 
 pub fn mkdir_impl(path: Addr) -> bool {
     unsafe {
-        auto *wpath = to_utf16(path as *char)
+        auto path_str = string::from_cstr(path as *char)
+        auto path_normalized = path_str.replace('/' as char, '\\' as char)
+        auto *wpath = to_utf16(path_normalized.c_str())
         auto res = CreateDirectoryW(*wpath, ADDR0)
         libc_free(*wpath as *void)
         return res != 0
@@ -91,7 +94,9 @@ pub fn mkdir_impl(path: Addr) -> bool {
 
 pub fn rmdir_impl(path: Addr) -> bool {
     unsafe {
-        auto *wpath = to_utf16(path as *char)
+        auto path_str = string::from_cstr(path as *char)
+        auto path_normalized = path_str.replace('/' as char, '\\' as char)
+        auto *wpath = to_utf16(path_normalized.c_str())
         auto res = RemoveDirectoryW(*wpath)
         libc_free(*wpath as *void)
         return res != 0
@@ -100,7 +105,9 @@ pub fn rmdir_impl(path: Addr) -> bool {
 
 pub fn path_exists(path: Addr) -> bool {
     unsafe {
-        auto *wpath = to_utf16(path as *char)
+        auto path_str = string::from_cstr(path as *char)
+        auto path_normalized = path_str.replace('/' as char, '\\' as char)
+        auto *wpath = to_utf16(path_normalized.c_str())
         auto res = GetFileAttributesW(*wpath)
         libc_free(*wpath as *void)
         return res != 0xFFFFFFFF:u32
@@ -115,7 +122,9 @@ pub shape WinStat (
 
 pub fn stat_impl(path: Addr) -> Addr {
     unsafe {
-        auto *wpath = to_utf16(path as *char)
+        auto path_str = string::from_cstr(path as *char)
+        auto path_normalized = path_str.replace('/' as char, '\\' as char)
+        auto *wpath = to_utf16(path_normalized.c_str())
         auto attr = GetFileAttributesW(*wpath)
         if attr == 0xFFFFFFFF:u32 {
             libc_free(*wpath as *void)

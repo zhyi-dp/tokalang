@@ -13,7 +13,7 @@
 - 执行.ll 文件：lli x.ll
 - 每次完成阶段性的工作并且 pass 测试全部通过之前，请提交一次 commit，然后给出中文总结，并等待新的指示
 - git commit -m 信息不能包含可能被 bash/zsh 等截断内容的符号
-- 每次commit前运行 tools/scripts/test_pass.sh。如果是 C++ 编译器修改，将测试结果以 [pass 71/79] 或 [pass] 的格式放在 commit 信息的最开始；如果是新 tokac 相关的自研编译器修改，请以 [new-tokac pass] 格式放在 commit 信息的最开始。
+- tokalang/toka主仓库涉及到C++版编译器的修改或者.tk代码修改，每次commit前运行 tools/scripts/test_pass.sh，将测试结果以 [pass 71/79] 或 [pass] 的格式放在 commit 信息的最开始；如果是新 tokac(子目录tokac，这是一个单独的仓库用于自举toka编译器，也在主仓库的目录下只是为了方便开发) 相关的自研编译器修改，暂无特殊commit头格式要求。
 - git commit信息以重点信息表达完备为前提，不要太啰嗦，也不要太简略
 - git add 之前先删除不需要的临时文件
 - git 命令不要跟任何其他命令一起&&执行

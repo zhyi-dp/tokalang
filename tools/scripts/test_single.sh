@@ -68,8 +68,12 @@ else
     CLANG="clang"
 fi
 
-"$CLANG" $SYSROOT_FLAGS -c lib/sys/toka_rt.c -o lib/sys/toka_rt.o || { echo "Failed to compile toka_rt.c"; exit 1; }
-"$CLANGXX" $SYSROOT_FLAGS -O3 -c lib/sys/llvm_shim.cpp -o lib/sys/llvm_shim.o $($LLVM_CONFIG --cppflags) || { echo "Failed to compile llvm_shim.cpp"; exit 1; }
+if [ ! -f lib/sys/toka_rt.o ]; then
+    "$CLANG" $SYSROOT_FLAGS -c lib/sys/toka_rt.c -o lib/sys/toka_rt.o || { echo "Failed to compile toka_rt.c"; exit 1; }
+fi
+if [ ! -f lib/sys/llvm_shim.o ]; then
+    "$CLANGXX" $SYSROOT_FLAGS -O3 -c lib/sys/llvm_shim.cpp -o lib/sys/llvm_shim.o $($LLVM_CONFIG --cppflags) || { echo "Failed to compile llvm_shim.cpp"; exit 1; }
+fi
 
 GREEN='\033[0;32m'
 RED='\033[0;31m'
