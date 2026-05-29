@@ -134,7 +134,7 @@ jobs:
           set -e
           mkdir build && cd build
           # Use Ninja for better stability on Windows CI
-          cmake .. -G "Ninja" -DCMAKE_BUILD_TYPE=Release
+          cmake .. -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS="-static"
           ninja
           
           cd ..

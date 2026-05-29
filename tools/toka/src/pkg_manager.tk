@@ -71,7 +71,6 @@ pub fn parse_package_tk() -> Vec<DepEntry> {
 pub fn cmd_fetch() -> i32 {
     auto deps = parse_package_tk()
     if deps.is_empty() {
-        println("No dependencies found in package.tk.")
         return 0
     }
     
