@@ -211,18 +211,37 @@ jobs:
           VERIFY_PATH=$(cygpath -u "$GITHUB_WORKSPACE/verify_dir/$DIR_NAME")
           echo "Verifying package contents in $VERIFY_PATH"
           
+          # =================================================================
+          # 🩺 终极体检：使用 ldd 打印 DLL 依赖链，彻底揪出 127 幕后内鬼！
+          # =================================================================
+          echo "=== 🩺 LDD Dependency Scan for toka.exe ==="
+          ldd "$VERIFY_PATH/bin/toka.exe" || echo "ldd toka failed"
+          echo "=== 🩺 LDD Dependency Scan for tokac.exe ==="
+          ldd "$VERIFY_PATH/bin/tokac.exe" || echo "ldd tokac failed"
+          echo "================================================================="
+          
           # 物理降维打击：将二进制临时拷贝至全局 /mingw64/bin/ 目录，模拟全局一键安装
           cp "$VERIFY_PATH/bin/toka.exe" /mingw64/bin/
           cp "$VERIFY_PATH/bin/tokac.exe" /mingw64/bin/
           
           export TOKA_LIB="$VERIFY_PATH/lib"
-          toka.exe --version
+          
+          # 验证版本
+          echo "=== Testing toka.exe --version ==="
+          toka.exe --version || { echo "❌ Error: toka.exe --version failed!"; exit 127; }
+          
+          # 验证项目创建
+          echo "=== Testing toka.exe new ==="
           cd verify_dir
-          toka.exe new e2e_test_app
+          toka.exe new e2e_test_app || { echo "❌ Error: toka.exe new failed!"; exit 127; }
+          
+          # 验证项目编译与执行
+          echo "=== Testing toka.exe run ==="
           cd e2e_test_app
-          toka.exe run > run.log 2>&1 || { cat run.log; exit 1; }
+          toka.exe run > run.log 2>&1 || { echo "❌ Error: toka.exe run failed!"; cat run.log; exit 127; }
           cat run.log
-          grep -q "Hello, Toka!" run.log || { echo "❌ Error: Output verification failed!"; exit 1; }
+          grep -q "Hello, Toka!" run.log || { echo "❌ Error: Output verification failed!"; exit 127; }
+          
           echo "✅ Windows package E2E verification success!"
 
       - name: Upload Release Asset
