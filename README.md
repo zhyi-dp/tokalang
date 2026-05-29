@@ -186,3 +186,23 @@ Toka strives to bring the developer experience of scripting languages to systems
 
 ### 6. Extended Gratitude
 Programming language design is an endless exploration across a vast universe of ideas. Toka embraces the collective wisdom of the entire open-source community and maintains the utmost reverence for all pioneers who have pushed the boundaries of computer science forward.
+
+---
+
+## Citation
+
+If you reference the design of the Toka language, including its explicit Hat-Soul resource model, PAL borrowing discipline, compile-time reflection facilities, Shape-based data model, or native build tooling, please cite the repository as follows:
+
+### BibTeX
+
+```bibtex
+@software{toka_language,
+  author       = {Yi, Zhonghua and {Toka Language Contributors}},
+  title        = {Toka: A Native Systems Programming Language with Explicit Resource Semantics, Compile-time Metaprogramming, and Parallel Build Tooling},
+  month        = may,
+  year         = {2026},
+  publisher    = {GitHub},
+  howpublished = {\url{https://github.com/tokalang/toka}},
+  version      = {0.9.8}
+}
+```

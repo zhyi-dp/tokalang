@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you reference the design of the Toka language in your academic work, please cite it as below."
+authors:
+  - given-names: "Zhonghua"
+    family-names: "Yi"
+  - name: "The Toka Language Contributors"
+title: "Toka: A Native Systems Programming Language with Explicit Resource Semantics, Compile-time Metaprogramming, and Parallel Build Tooling"
+version: "0.9.8"
+date-released: 2026-05-29
+url: "https://github.com/tokalang/toka"
