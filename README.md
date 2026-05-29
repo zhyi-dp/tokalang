@@ -198,7 +198,7 @@ If you reference the design of the Toka language, including its explicit Hat-Sou
 ```bibtex
 @software{toka_language,
   author       = {Yi, Zhonghua and {Toka Language Contributors}},
-  title        = {Toka: A Native Systems Programming Language with Explicit Resource Semantics, Compile-time Metaprogramming, and Parallel Build Tooling},
+  title        = {Toka: A Native Systems Programming Language with Explicit Resource Semantics, Compile-time Reflection, and Shape-based Data Modeling},
   month        = may,
   year         = {2026},
   publisher    = {GitHub},

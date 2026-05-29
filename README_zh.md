@@ -198,7 +198,7 @@ Toka 致力于将脚本语言的开发体验带入系统编程，力求让系统
 ```bibtex
 @software{toka_language,
   author       = {Yi, Zhonghua and {Toka Language Contributors}},
-  title        = {Toka: A Native Systems Programming Language with Explicit Resource Semantics, Compile-time Metaprogramming, and Parallel Build Tooling},
+  title        = {Toka: A Native Systems Programming Language with Explicit Resource Semantics, Compile-time Reflection, and Shape-based Data Modeling},
   month        = may,
   year         = {2026},
   publisher    = {GitHub},

@@ -4,7 +4,7 @@ authors:
   - given-names: "Zhonghua"
     family-names: "Yi"
   - name: "The Toka Language Contributors"
-title: "Toka: A Native Systems Programming Language with Explicit Resource Semantics, Compile-time Metaprogramming, and Parallel Build Tooling"
+title: "Toka: A Native Systems Programming Language with Explicit Resource Semantics, Compile-time Reflection, and Shape-based Data Modeling"
 version: "0.9.8"
 date-released: 2026-05-29
 url: "https://github.com/tokalang/toka"
