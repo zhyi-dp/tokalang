@@ -1,0 +1,12 @@
+fn main() -> i32 {
+    unsafe {
+        // 测试普通字符串 (ViewString) 的 \r 转义支持
+        auto s1 = "Hello\rWorld"
+        auto *bytes1 = s1.buf() as *[u8]
+        if bytes1[5] != 13:u8 {
+            return 1
+        }
+    }
+    
+    return 0
+}

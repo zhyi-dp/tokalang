@@ -604,6 +604,9 @@ Token Lexer::string() {
       case 't':
         text += '\t';
         break;
+      case 'r':
+        text += '\r';
+        break;
       case '\\':
         text += '\\';
         break;
@@ -666,6 +669,7 @@ Token Lexer::viewString() {
       switch (next) {
       case 'n': text += '\n'; break;
       case 't': text += '\t'; break;
+      case 'r': text += '\r'; break;
       case '\\': text += '\\'; break;
       case '"': text += '"'; break;
       case 'x': {
