@@ -150,15 +150,24 @@ pub fn stat_free_impl(handle: Addr) {
 }
 
 pub fn stat_get_mode_impl(handle: Addr) -> u32 {
-    unsafe { return (handle as *WinStat).mode }
+    unsafe {
+        auto *ws = handle as *WinStat
+        return ws.mode
+    }
 }
 
 pub fn stat_get_size_impl(handle: Addr) -> u64 {
-    unsafe { return (handle as *WinStat).size }
+    unsafe {
+        auto *ws = handle as *WinStat
+        return ws.size
+    }
 }
 
 pub fn stat_get_mtime_impl(handle: Addr) -> i64 {
-    unsafe { return (handle as *WinStat).mtime }
+    unsafe {
+        auto *ws = handle as *WinStat
+        return ws.mtime
+    }
 }
 
 pub fn stat_is_dir_impl(mode: u32) -> bool {
