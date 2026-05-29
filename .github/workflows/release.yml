@@ -212,37 +212,55 @@ jobs:
           echo "Verifying package contents in $VERIFY_PATH"
           
           # =================================================================
-          # 🩺 终极体检：使用 ldd 打印 DLL 依赖链，彻底揪出 127 幕后内鬼！
+          # 🩺 动态依赖体检（保留已绿的 LDD 安全锁）
           # =================================================================
-          echo "=== 🩺 LDD Dependency Scan for toka.exe ==="
+          echo "=== 🩺 LDD Dependency Scan ==="
           ldd "$VERIFY_PATH/bin/toka.exe" || echo "ldd toka failed"
-          echo "=== 🩺 LDD Dependency Scan for tokac.exe ==="
           ldd "$VERIFY_PATH/bin/tokac.exe" || echo "ldd tokac failed"
-          echo "================================================================="
           
-          # 物理降维打击：将二进制临时拷贝至全局 /mingw64/bin/ 目录，模拟全局一键安装
+          # 将二进制拷贝至全局命令目录
           cp "$VERIFY_PATH/bin/toka.exe" /mingw64/bin/
           cp "$VERIFY_PATH/bin/tokac.exe" /mingw64/bin/
-          
           export TOKA_LIB="$VERIFY_PATH/lib"
           
-          # 验证版本
+          # 1. 验证版本
           echo "=== Testing toka.exe --version ==="
-          toka.exe --version || { echo "❌ Error: toka.exe --version failed!"; exit 127; }
+          toka.exe --version || { echo "❌ Error: toka.exe --version failed!"; exit 1; }
           
-          # 验证项目创建
+          # 2. 验证项目创建（现场剥离真实退出码，打印目录脏数据体检）
           echo "=== Testing toka.exe new ==="
           cd verify_dir
-          toka.exe new e2e_test_app || { echo "❌ Error: toka.exe new failed!"; exit 127; }
           
-          # 验证项目编译与执行
+          # 运行并捕获真实退出状态码
+          toka.exe new e2e_test_app
+          NEW_EXIT_CODE=$?
+          echo "toka.exe new exit code is: $NEW_EXIT_CODE"
+          
+          # 打印当前 verify_dir 目录下的文件结构，确认项目是否其实被部分创建了
+          echo "=== Verify_dir directory state ==="
+          ls -la
+          
+          if [ $NEW_EXIT_CODE -ne 0 ]; then
+              echo "❌ Error: toka.exe new failed with real exit code $NEW_EXIT_CODE!"
+              exit $NEW_EXIT_CODE
+          fi
+          
+          # 3. 验证项目编译与执行
           echo "=== Testing toka.exe run ==="
           cd e2e_test_app
-          toka.exe run > run.log 2>&1 || { echo "❌ Error: toka.exe run failed!"; cat run.log; exit 127; }
-          cat run.log
-          grep -q "Hello, Toka!" run.log || { echo "❌ Error: Output verification failed!"; exit 127; }
+          toka.exe run > run.log 2>&1
+          RUN_EXIT_CODE=$?
+          echo "toka.exe run exit code is: $RUN_EXIT_CODE"
           
+          cat run.log
+          if [ $RUN_EXIT_CODE -ne 0 ]; then
+              echo "❌ Error: toka.exe run failed with real exit code $RUN_EXIT_CODE!"
+              exit $RUN_EXIT_CODE
+          fi
+          
+          grep -q "Hello, Toka!" run.log || { echo "❌ Error: Output verification failed!"; exit 1; }
           echo "✅ Windows package E2E verification success!"
+
 
       - name: Upload Release Asset
         if: startsWith(github.ref, 'refs/tags/v')
