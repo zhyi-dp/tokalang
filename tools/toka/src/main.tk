@@ -391,11 +391,18 @@ fn find_newest_executable(dir_path: string) -> string {
     auto newest_file# = string::from("")
     auto newest_mtime#: i64 = -2
     
+    println("DEBUG: find_newest_executable scanning dir: {}", dir_path)
     auto dir# = read_dir(dir_path.clone())
+    println("DEBUG: dir handle = {}, finished = {}", dir.handle as usize, dir.finished)
+    
     loop {
         auto entry_opt = dir#.next()
-        if entry_opt.is_none() { break }
+        if entry_opt.is_none() { 
+            println("DEBUG: dir.next() returned None")
+            break 
+        }
         auto entry = entry_opt.unwrap()
+        println("DEBUG: entry found = {}", entry)
         
         if entry.as_str() == "." || entry.as_str() == ".." || entry.ends_with(".ll") {
             continue
@@ -408,6 +415,7 @@ fn find_newest_executable(dir_path: string) -> string {
         auto meta_res = metadata(full_path.clone())
         if meta_res.is_ok() {
             auto meta = meta_res.unwrap()
+            println("DEBUG: metadata for {} is_file = {}, mtime = {}", full_path, meta.is_file(), meta.modified())
             if meta.is_file() {
                 auto mtime = meta.modified()
                 if mtime > newest_mtime {
@@ -415,9 +423,12 @@ fn find_newest_executable(dir_path: string) -> string {
                     newest_file = entry.clone()
                 }
             }
+        } else {
+            println("DEBUG: metadata failed for {}", full_path)
         }
     }
     dir#.close()
+    println("DEBUG: return newest_file = {}", newest_file)
     return newest_file
 }
 
