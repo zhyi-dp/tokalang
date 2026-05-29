@@ -90,3 +90,6 @@ scratch/
 toka-registry/
 promo/
 
+# Self-hosted compiler repository
+/tokac/
+

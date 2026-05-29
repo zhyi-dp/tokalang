@@ -1,9 +1,10 @@
 
 import std/env
 import std/io::{println, File}
-import std/fs::{read_to_string}
+import std/fs::{read_to_string, exists, create_dir, write_string}
 import sys/libc::{libc_system, libc_printf}
 import src/pkg_manager::{cmd_fetch, build_pkg_args, cmd_publish, cmd_search, resolve_package}
+
 
 fn print_help() {
     println("Toka {}", "0.9.8")
@@ -27,115 +28,152 @@ fn print_help() {
     println("  -f, --forge    🚀 Enable forge multi-threaded parallel incremental build engine")
 }
 
-fn generate_project_files(name: string, dest_dir: string, is_lib: bool) {
-    unsafe {
-        auto pkg_file# = string::from("echo 'pub const PACKAGE = (\n    name = \"")
-        pkg_file#.push_str(name.as_str())
-        pkg_file#.push_str("\",\n    version = \"0.1.0\",\n    dependencies = (\n    )\n)' > ")
-        if !dest_dir.is_empty() {
-            pkg_file#.push_str(dest_dir.as_str())
-            pkg_file#.push_str("/")
+fn get_basename(path: string) -> string {
+    auto idx_opt = path.as_str().last_index_of('/' as char)
+    auto idx_opt2 = path.as_str().last_index_of('\\' as char)
+    
+    auto last_slash_pos#: i32 = -1
+    if idx_opt.is_some() {
+        last_slash_pos = idx_opt.unwrap() as i32
+    }
+    if idx_opt2.is_some() {
+        auto pos2 = idx_opt2.unwrap() as i32
+        if pos2 > last_slash_pos {
+            last_slash_pos = pos2
         }
-        pkg_file#.push_str("package.tk")
-        libc_system(pkg_file.c_str())
+    }
+    
+    if last_slash_pos != -1 {
+        auto result = path.substring(last_slash_pos + 1, path.len() as i32)
+        if result.is_empty() || result.as_str().contains_char(':' as char) {
+            return string::from("toka_project")
+        }
+        return result
+    }
+    if path.is_empty() || path.as_str().contains_char(':' as char) {
+        return string::from("toka_project")
+    }
+    return path.clone()
+}
 
-        if is_lib {
-            auto build_file# = string::from("echo 'import build::{Library, run_build}\n\nfn main() -> i32 {\n    auto lib# = Library::make(\"")
-            build_file#.push_str(name.as_str())
-            build_file#.push_str("\" as *char, \"lib/")
-            build_file#.push_str(name.as_str())
-            build_file#.push_str("/mod.tk\")\n    return run_build(lib)\n}' > ")
-            if !dest_dir.is_empty() {
-                build_file#.push_str(dest_dir.as_str())
-                build_file#.push_str("/")
-            }
-            build_file#.push_str("build.tk")
-            libc_system(build_file.c_str())
-        } else {
-            auto build_file# = string::from("echo 'import build::{Executable, run_build}\n\nfn main() -> i32 {\n    auto app# = Executable::make(\"")
-            build_file#.push_str(name.as_str())
-            build_file#.push_str("\" as *char, \"src/main.tk\" as *char)\n    return run_build(app)\n}' > ")
-            if !dest_dir.is_empty() {
-                build_file#.push_str(dest_dir.as_str())
-                build_file#.push_str("/")
-            }
-            build_file#.push_str("build.tk")
-            libc_system(build_file.c_str())
+fn generate_project_files(name: string, dest_dir: string, is_lib: bool) {
+    auto pkg_content# = string::from("pub const PACKAGE = (\n    name = \"")
+    pkg_content#.push_str(name.as_str())
+    pkg_content#.push_str("\",\n    version = \"0.1.0\",\n    dependencies = (\n    )\n)\n")
+
+    auto pkg_path# = string::from("")
+    if !dest_dir.is_empty() {
+        pkg_path#.push_str(dest_dir.as_str())
+        pkg_path#.push_str("/")
+    }
+    pkg_path#.push_str("package.tk")
+    write_string(pkg_path, pkg_content.as_str())
+
+    if is_lib {
+        auto build_content# = string::from("import build::{Library, run_build}\n\nfn main() -> i32 {\n    auto lib# = Library::make(\"")
+        build_content#.push_str(name.as_str())
+        build_content#.push_str("\" as *char, \"lib/")
+        build_content#.push_str(name.as_str())
+        build_content#.push_str("/mod.tk\")\n    return run_build(lib)\n}\n")
+
+        auto build_path# = string::from("")
+        if !dest_dir.is_empty() {
+            build_path#.push_str(dest_dir.as_str())
+            build_path#.push_str("/")
         }
+        build_path#.push_str("build.tk")
+        write_string(build_path, build_content.as_str())
+    } else {
+        auto build_content# = string::from("import build::{Executable, run_build}\n\nfn main() -> i32 {\n    auto app# = Executable::make(\"")
+        build_content#.push_str(name.as_str())
+        build_content#.push_str("\" as *char, \"src/main.tk\" as *char)\n    return run_build(app)\n}\n")
+
+        auto build_path# = string::from("")
+        if !dest_dir.is_empty() {
+            build_path#.push_str(dest_dir.as_str())
+            build_path#.push_str("/")
+        }
+        build_path#.push_str("build.tk")
+        write_string(build_path, build_content.as_str())
     }
 }
 
+
 fn cmd_new(name: string, is_lib: bool) -> i32 {
-    unsafe {
-        auto check_cmd# = string::from("test -d ")
-        check_cmd#.push_str(name.as_str())
-        if libc_system(check_cmd.c_str()) == 0 {
-            println("Error: Directory '{}' already exists! Aborting.", name)
-            return 1
-        }
-        
-        if is_lib {
-            auto cmd# = string::from("mkdir -p ")
-            cmd#.push_str(name.as_str())
-            cmd#.push_str("/lib/")
-            cmd#.push_str(name.as_str())
-            libc_system(cmd.c_str())
-            
-            auto tk_file# = string::from("echo '// Library module\n\npub fn hello() {\n    // TODO: implement\n}' > ")
-            tk_file#.push_str(name.as_str())
-            tk_file#.push_str("/lib/")
-            tk_file#.push_str(name.as_str())
-            tk_file#.push_str("/mod.tk")
-            libc_system(tk_file.c_str())
-            
-            generate_project_files(name.clone(), name.clone(), is_lib)
-            println("Created new Toka library: {}", name)
-        } else {
-            auto cmd# = string::from("mkdir -p ")
-            cmd#.push_str(name.as_str())
-            cmd#.push_str("/src")
-            libc_system(cmd.c_str())
-            
-            auto tk_file# = string::from("echo 'import std/io::{println, File}
-import std/fs::{read_to_string}\n\nfn main() -> i32 {\n    println(\"Hello, Toka!\")\n    return 0\n}' > ")
-            tk_file#.push_str(name.as_str())
-            tk_file#.push_str("/src/main.tk")
-            libc_system(tk_file.c_str())
-            
-            generate_project_files(name.clone(), name.clone(), is_lib)
-            println("Created new Toka project: {}", name)
-        }
-        return 0
+    if exists(name.clone()) {
+        println("Error: Directory '{}' already exists! Aborting.", name)
+        return 1
     }
+    
+    if is_lib {
+        // 先建母体目录，再建子目录
+        create_dir(name.clone())
+        
+        auto lib_dir# = name.clone()
+        lib_dir#.push_str("/lib")
+        create_dir(lib_dir.clone())
+        
+        lib_dir#.push_str("/")
+        lib_dir#.push_str(name.as_str())
+        create_dir(lib_dir.clone())
+        
+        lib_dir#.push_str("/mod.tk")
+        write_string(lib_dir, "// Library module\n\npub fn hello() {\n    // TODO: implement\n}\n")
+        
+        generate_project_files(name.clone(), name.clone(), is_lib)
+        println("Created new Toka library: {}", name)
+    } else {
+        // 先建母体目录，再建子目录
+        create_dir(name.clone())
+        
+        auto src_dir# = name.clone()
+        src_dir#.push_str("/src")
+        create_dir(src_dir.clone())
+        
+        src_dir#.push_str("/main.tk")
+        write_string(src_dir, "import std/io::{println, File}\nimport std/fs::{read_to_string}\n\nfn main() -> i32 {\n    println(\"Hello, Toka!\")\n    return 0\n}\n")
+        
+        generate_project_files(name.clone(), name.clone(), is_lib)
+        println("Created new Toka project: {}", name)
+    }
+    return 0
 }
 
 fn cmd_init(is_lib: bool) -> i32 {
-    unsafe {
-        if libc_system(c"test -f package.tk") == 0 {
-            println("Error: package.tk already exists in this directory.")
-            return 1
-        }
-        
-        // Extract current directory name
-        libc_system(c"basename \"$PWD\" > .toka_tmp_basename")
-        // For simplicity, we just use 'app' or 'lib' if we can't easily read it, 
-        // but ideally we read the name. Let's use 'my_project' as a safe default for init
-        auto name = string::from("my_project") 
-        // Note: A real implementation would read from .toka_tmp_basename
-        libc_system(c"rm -f .toka_tmp_basename")
-        
-        if is_lib {
-            libc_system(c"mkdir -p lib/my_project")
-            libc_system(c"echo '// Library module\n\npub fn hello() {\n}' > lib/my_project/mod.tk")
-        } else {
-            libc_system(c"mkdir -p src")
-            libc_system(c"echo 'import std/io::{println, File}\nimport std/fs::{read_to_string}\n\nfn main() -> i32 {\n    println(\"Hello, Toka!\")\n    return 0\n}' > src/main.tk")
-        }
-        
-        generate_project_files(name, string::from(""), is_lib)
-        println("Initialized Toka project in current directory.")
-        return 0
+    if exists(string::from("package.tk")) {
+        println("Error: package.tk already exists in this directory.")
+        return 1
     }
+    
+    auto cwd = env::current_dir()
+    auto name# = get_basename(cwd)
+    if name.is_empty() {
+        name = string::from("my_project")
+    }
+    
+    if is_lib {
+        if !exists(string::from("lib")) {
+            create_dir(string::from("lib"))
+        }
+        
+        auto lib_dir# = string::from("lib/")
+        lib_dir#.push_str(name.as_str())
+        if !exists(lib_dir.clone()) {
+            create_dir(lib_dir.clone())
+        }
+        
+        lib_dir#.push_str("/mod.tk")
+        write_string(lib_dir, "// Library module\n\npub fn hello() {\n}\n")
+    } else {
+        if !exists(string::from("src")) {
+            create_dir(string::from("src"))
+        }
+        write_string(string::from("src/main.tk"), "import std/io::{println, File}\nimport std/fs::{read_to_string}\n\nfn main() -> i32 {\n    println(\"Hello, Toka!\")\n    return 0\n}\n")
+    }
+    
+    generate_project_files(name, string::from(""), is_lib)
+    println("Initialized Toka project in current directory.")
+    return 0
 }
 
 fn cmd_add(pkg_url_or_name: string) -> i32 {
