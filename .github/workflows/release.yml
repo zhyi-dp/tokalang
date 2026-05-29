@@ -208,7 +208,7 @@ jobs:
           mkdir -p verify_dir
           tar -xzvf build/toka-*.tar.gz -C verify_dir/
           DIR_NAME=$(ls verify_dir | head -n 1)
-          VERIFY_PATH="$GITHUB_WORKSPACE/verify_dir/$DIR_NAME"
+          VERIFY_PATH=$(cygpath -u "$GITHUB_WORKSPACE/verify_dir/$DIR_NAME")
           echo "Verifying package contents in $VERIFY_PATH"
           export PATH="$VERIFY_PATH/bin:$PATH"
           export TOKA_LIB="$VERIFY_PATH/lib"
