@@ -1130,8 +1130,8 @@ std::shared_ptr<toka::Type> Sema::checkExprImpl(Expr *E) {
 
     return current;
   } else if (auto *Cast = dynamic_cast<CastExpr *>(E)) {
-    auto srcType = checkExpr(Cast->Expression.get());
     auto targetType = resolveType(toka::Type::fromString(Cast->TargetType));
+    auto srcType = checkExpr(Cast->Expression.get(), targetType);
 
     // Rule: Numeric Casts (Always allowed for standard numeric types)
     auto srcTypeResolved = resolveType(srcType, true);

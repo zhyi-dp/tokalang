@@ -11,7 +11,6 @@
 - 反向测试 tk 都放在 tests/fail/下
 - 生成 IR 到.ll 文件：build/bin/tokac tests/pass/xxx.tk > x.ll
 - 执行.ll 文件：lli x.ll
-- 每次完成阶段性的工作并且 pass 测试全部通过之前，请提交一次 commit，然后给出中文总结，并等待新的指示
 - git commit -m 信息不能包含可能被 bash/zsh 等截断内容的符号
 - 关于 Commit 信息格式的重要区分规则：
   1. 【主仓库 tokalang/toka】涉及到 C++ 编译器修改或标准库 `.tk` 代码修改，每次 commit 前必须运行 `tools/scripts/test_pass.sh`，并将测试结果以 `[pass 71/79]` 或 `[pass]` 的格式放在 commit 信息的最开始。
