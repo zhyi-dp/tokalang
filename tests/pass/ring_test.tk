@@ -1,0 +1,22 @@
+import std/ring::{RingCore}
+import core/option::{Option}
+
+fn main() -> i32 {
+    auto q# = RingCore<i32>::new()
+    q#.push_back(10)
+    q#.push_front(5)
+    q#.push_back(20)
+    
+    if q.len() != 3:usize { return 1 }
+    
+    match q#.pop_front() {
+        auto Option<i32>::Some(val) => { if val != 5 { return 2 } }
+        _ => return 3
+    }
+    match q#.pop_back() {
+        auto Option<i32>::Some(val) => { if val != 20 { return 4 } }
+        _ => return 5
+    }
+    
+    return 0
+}

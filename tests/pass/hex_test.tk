@@ -1,0 +1,10 @@
+import stdx/encoding/hex::{encode_hex_view}
+
+fn main() -> i32 {
+    auto text = "Hello Toka"
+    auto hex = encode_hex_view(text)
+    if hex.as_str() != "48656c6c6f20546f6b61" {
+        return 1
+    }
+    return 0
+}
