@@ -191,7 +191,7 @@ Programming language design is an endless exploration across a vast universe of 
 
 ## Citation
 
-If you reference the design of the Toka language, including its explicit Hat-Soul resource model, PAL borrowing discipline, compile-time reflection facilities, Shape-based data model, or native build tooling, please cite the repository as follows:
+If you reference the design of the Toka language, including its explicit Hat-Soul resource model, PAL borrowing discipline, compile-time reflection facilities, and Shape-based data model, please cite the repository as follows:
 
 ### BibTeX
 
