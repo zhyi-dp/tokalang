@@ -36,13 +36,13 @@ pub fn main() -> i32 {
     auto p = Path::new(string::from("/usr/bin"))
     auto p2 = p.join(string::from("toka"))
     println("Joined path: {}", p2.to_string())
-    assert(p2.to_string() == string::from("/usr/bin/toka"), "Path join failed")
+    assert(p2.to_string().replace(92:char, 47:char) == string::from("/usr/bin/toka"), "Path join failed")
     assert(p2.basename() == string::from("toka"), "Path basename failed")
-    assert(p2.dirname() == string::from("/usr/bin"), "Path dirname failed")
+    assert(p2.dirname().replace(92:char, 47:char) == string::from("/usr/bin"), "Path dirname failed")
     
     auto p3 = p2.with_extension(string::from("exe"))
     println("With extension: {}", p3.to_string())
-    assert(p3.to_string() == string::from("/usr/bin/toka.exe"), "Path with_extension failed")
+    assert(p3.to_string().replace(92:char, 47:char) == string::from("/usr/bin/toka.exe"), "Path with_extension failed")
     
     println("FS and Path modern tests passed!")
     return 0

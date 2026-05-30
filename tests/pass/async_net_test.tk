@@ -71,15 +71,6 @@ pub fn async_client() -> async i32 {
 }
 
 pub fn main() -> i32 {
-    auto test_addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 48899)
-    {
-        auto dummy_listener = TcpListener::bind(test_addr)
-        if !dummy_listener.is_valid() {
-            println("Networking unsupported or port in use, skipping.")
-            return 0
-        }
-    }
-
     println("[Main] Spawning client and server...")
     async_client().start
     auto server = async_server().start

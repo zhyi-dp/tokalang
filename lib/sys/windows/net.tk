@@ -1,7 +1,7 @@
 // Copyright (c) 2025 YiZhonghua<zhyi@dpai.com>. All rights reserved.
 import core/types::{char, usize, Addr, ADDR0}
 import sys/libc::{libc_malloc, libc_free}
-import sys/libc::{libc_htons, toka_ensure_wsa_initialized, libc_usleep}
+import sys/libc::{libc_htons, toka_ensure_wsa_initialized, libc_usleep, libc_printf}
 import sys/os/abi::*
 
 pub fn get_last_error() -> i32 {
@@ -349,21 +349,23 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
         loop idx < r.count {
             auto *p_fd = (r.fds as usize + (idx as usize) * 4:usize) as *i32
             auto *p_is_write = (r.is_write as usize + (idx as usize) * 4:usize) as *i32
+            auto fd_val = p_fd
             
-            if p_is_write == 0 {
+            auto is_w = p_is_write
+            if is_w == 0 {
                 auto rc = read_count
                 auto *p_sock# = (*readfds as usize + 8:usize + (rc as usize) * 8:usize) as *Addr
-                p_sock = p_fd as Addr
+                p_sock = fd_val as Addr
                 read_count = rc + 1:u32
             } else {
                 auto wc = write_count
                 auto *p_sock# = (*writefds as usize + 8:usize + (wc as usize) * 8:usize) as *Addr
-                p_sock = p_fd as Addr
+                p_sock = fd_val as Addr
                 write_count = wc + 1:u32
                 
                 auto ec = except_count
                 auto *p_sock_ex# = (*exceptfds as usize + 8:usize + (ec as usize) * 8:usize) as *Addr
-                p_sock_ex = p_fd as Addr
+                p_sock_ex = fd_val as Addr
                 except_count = ec + 1:u32
             }
             idx += 1
@@ -375,7 +377,15 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
         auto *tv_usec# = (*tv as usize + 4:usize) as *i32
         tv_usec = (timeout_ms % 1000) * 1000
         
+        auto *readfds_u32 = *readfds as *u32
+        auto rf_count = readfds_u32
+        auto *socket_u64 = (*readfds as usize + 8:usize) as *u64
+        auto sock_val = socket_u64
+        libc_printf(c"reactor_wait_impl: count=%d, readfds_count=%u, socket0=%llu\n", r.count, rf_count, sock_val)
         auto res = select(0, *readfds as *void, *writefds as *void, *exceptfds as *void, *tv as *void)
+        if res < 0 {
+            libc_printf(c"select failed, error: %d\n", WSAGetLastError())
+        }
         
         auto n_out# = 0
         if res > 0 {
@@ -390,11 +400,13 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
                 loop k < r.count {
                     auto *p_fd = (r.fds as usize + (k as usize) * 4:usize) as *i32
                     auto *p_is_write = (r.is_write as usize + (k as usize) * 4:usize) as *i32
-                    if p_fd == sock_fd && p_is_write == 0 {
+                    auto fd_val = p_fd
+                    auto is_w = p_is_write
+                    if fd_val == sock_fd && is_w == 0 {
                         auto *p_coro = (r.coros as usize + (k as usize) * 8:usize) as *Addr
                         
                         if n_out < max {
-                            auto *out_ev# = (out_events as usize + (n_out as usize) * 8:usize) as *Addr
+                            auto *out_ev# = (*out_events as usize + (n_out as usize) * 8:usize) as *Addr
                             out_ev = p_coro
                             n_out = n_out + 1
                         }
@@ -431,11 +443,13 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
                 loop k < r.count {
                     auto *p_fd = (r.fds as usize + (k as usize) * 4:usize) as *i32
                     auto *p_is_write = (r.is_write as usize + (k as usize) * 4:usize) as *i32
-                    if p_fd == sock_fd && p_is_write == 1 {
+                    auto fd_val = p_fd
+                    auto is_w = p_is_write
+                    if fd_val == sock_fd && is_w == 1 {
                         auto *p_coro = (r.coros as usize + (k as usize) * 8:usize) as *Addr
                         
                         if n_out < max {
-                            auto *out_ev# = (out_events as usize + (n_out as usize) * 8:usize) as *Addr
+                            auto *out_ev# = (*out_events as usize + (n_out as usize) * 8:usize) as *Addr
                             out_ev = p_coro
                             n_out = n_out + 1
                         }
@@ -472,11 +486,13 @@ pub fn reactor_wait_impl(reactor_fd: i32, timeout_ms: i32, *out_events: Addr, ma
                 loop k < r.count {
                     auto *p_fd = (r.fds as usize + (k as usize) * 4:usize) as *i32
                     auto *p_is_write = (r.is_write as usize + (k as usize) * 4:usize) as *i32
-                    if p_fd == sock_fd && p_is_write == 1 {
+                    auto fd_val = p_fd
+                    auto is_w = p_is_write
+                    if fd_val == sock_fd && is_w == 1 {
                         auto *p_coro = (r.coros as usize + (k as usize) * 8:usize) as *Addr
                         
                         if n_out < max {
-                            auto *out_ev# = (out_events as usize + (n_out as usize) * 8:usize) as *Addr
+                            auto *out_ev# = (*out_events as usize + (n_out as usize) * 8:usize) as *Addr
                             out_ev = p_coro
                             n_out = n_out + 1
                         }

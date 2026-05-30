@@ -1,6 +1,6 @@
 
 import std/env
-import std/io::{println, File}
+import std/io::{println, File, remove_file}
 import std/fs::{read_to_string, exists, create_dir, write_string, read_dir, metadata}
 import sys/libc::{libc_system, libc_printf, libc_getenv}
 import src/pkg_manager::{cmd_fetch, build_pkg_args, cmd_publish, cmd_search, resolve_package}
@@ -26,6 +26,111 @@ fn print_help() {
     println("\nOptions:")
     println("  -v, --verbose  Enable verbose compiler output")
     println("  -f, --forge    🚀 Enable forge multi-threaded parallel incremental build engine")
+}
+
+fn check_is_windows() -> bool {
+    unsafe {
+        auto os_env = libc_getenv(c"OS") as Addr
+        if os_env != 0:Addr {
+            auto os_str = string::from_cstr(os_env as *char)
+            if os_str == string::from("Windows_NT") {
+                return true
+            }
+        }
+        return false
+    }
+}
+
+fn get_dirname(path: string) -> string {
+    auto idx_opt = path.as_str().last_index_of('/' as char)
+    auto idx_opt2 = path.as_str().last_index_of('\\' as char)
+    
+    auto last_slash_pos#: i32 = -1
+    if idx_opt.is_some() {
+        last_slash_pos = idx_opt.unwrap() as i32
+    }
+    if idx_opt2.is_some() {
+        auto pos2 = idx_opt2.unwrap() as i32
+        if pos2 > last_slash_pos {
+            last_slash_pos = pos2
+        }
+    }
+    
+    if last_slash_pos > 0 {
+        return path.substring(0, last_slash_pos)
+    }
+    return string::from(".")
+}
+
+fn detect_default_lib_path() -> string {
+    unsafe {
+        auto toka_lib = libc_getenv(c"TOKA_LIB") as Addr
+        if toka_lib != 0:Addr {
+            return string::from_cstr(toka_lib as *char)
+        }
+    }
+    
+    auto exe_path = env::get_arg(0)
+    if !exe_path.is_empty() {
+        auto exe_dir = get_dirname(exe_path)
+        
+        auto parent_dir = get_dirname(exe_dir.clone())
+        auto candidate1# = parent_dir.clone()
+        candidate1#.push_str("/lib")
+        if exists(candidate1.clone()) {
+            return candidate1
+        }
+        
+        auto candidate2# = exe_dir.clone()
+        candidate2#.push_str("/lib")
+        if exists(candidate2.clone()) {
+            return candidate2
+        }
+    }
+    
+    if check_is_windows() {
+        auto win_fallback = string::from("C:\\ProgramData\\toka\\lib")
+        if exists(win_fallback.clone()) {
+            return win_fallback
+        }
+        return string::from("lib")
+    }
+    
+    return string::from("/usr/local/lib/toka")
+}
+
+fn detect_tokafmt_path() -> string {
+    auto exe_path = env::get_arg(0)
+    if !exe_path.is_empty() {
+        auto exe_dir = get_dirname(exe_path)
+        auto candidate# = exe_dir.clone()
+        if check_is_windows() {
+            candidate#.push_str("\\tokafmt.exe")
+        } else {
+            candidate#.push_str("/tokafmt")
+        }
+        if exists(candidate.clone()) {
+            return candidate
+        }
+    }
+    return string::from("tokafmt")
+}
+
+fn detect_tokac_path() -> string {
+    auto exe_path = env::get_arg(0)
+    if !exe_path.is_empty() {
+        auto exe_dir = get_dirname(exe_path)
+        auto candidate# = exe_dir.clone()
+        if check_is_windows() {
+            candidate#.push_str("\\tokac.exe")
+        } else {
+            candidate#.push_str("/tokac")
+        }
+        if exists(candidate.clone()) {
+            return candidate
+        }
+    }
+    return string::from("tokac")
 }
 
 fn get_basename(path: string) -> string {
@@ -215,7 +320,7 @@ fn cmd_add(pkg_url_or_name: string) -> i32 {
         
         println("\x1b[1;32m      Adding\x1b[0m package {} -> {}", pkg_alias, pkg_url)
         
-        if libc_system(c"test -f package.tk") != 0 {
+        if !exists(string::from("package.tk")) {
             println("\x1b[1;31m       Error\x1b[0m package.tk not found. Are you in a Toka project?")
             return 1
         }
@@ -285,15 +390,14 @@ fn cmd_build(use_forge: bool) -> i32 {
     }
 
     unsafe {
-        auto cmd# = string::from("tokac ")
-        auto toka_lib = libc_getenv(c"TOKA_LIB") as Addr
-        if toka_lib != 0:Addr {
-            cmd#.push_str("-I ")
-            cmd#.push_cstr(toka_lib as *char)
-            cmd#.push_str(" ")
-        } else {
-            cmd#.push_str("-I /usr/local/lib/toka ")
-        }
+        auto cmd# = string::from("")
+        auto tokac_path = detect_tokac_path()
+        cmd#.push_str(tokac_path.as_str())
+        cmd#.push_str(" ")
+        auto default_lib = detect_default_lib_path()
+        cmd#.push_str("-I ")
+        cmd#.push_str(default_lib.as_str())
+        cmd#.push_str(" ")
         
         auto pkg_args = build_pkg_args()
         if !pkg_args.is_empty() {
@@ -315,14 +419,7 @@ fn cmd_build(use_forge: bool) -> i32 {
             }
         }
         
-        auto is_windows# = false
-        auto os_env = libc_getenv(c"OS") as Addr
-        if os_env != 0:Addr {
-            auto os_str = string::from_cstr(os_env as *char)
-            if os_str == string::from("Windows_NT") {
-                is_windows = true
-            }
-        }
+        auto is_windows = check_is_windows()
         
         cmd#.push_str(build_file.as_str())
         if is_windows {
@@ -336,9 +433,9 @@ fn cmd_build(use_forge: bool) -> i32 {
             println("\x1b[1;31m       Error\x1b[0m executing {} -> compile failed", build_file)
         }
         if is_windows {
-            libc_system(c"del /f /q .toka_build_exe.exe")
+            remove_file(string::from(".toka_build_exe.exe"))
         } else {
-            libc_system(c"rm -f .toka_build_exe")
+            remove_file(string::from(".toka_build_exe"))
         }
         if res != 0 { return 1 }
         return 0
@@ -347,24 +444,16 @@ fn cmd_build(use_forge: bool) -> i32 {
 
 fn cmd_run_single(file: string) -> i32 {
     unsafe {
-        auto cmd# = string::from("tokac ")
-        auto toka_lib = libc_getenv(c"TOKA_LIB") as Addr
-        if toka_lib != 0:Addr {
-            cmd#.push_str("-I ")
-            cmd#.push_cstr(toka_lib as *char)
-            cmd#.push_str(" ")
-        } else {
-            cmd#.push_str("-I /usr/local/lib/toka ")
-        }
+        auto cmd# = string::from("")
+        auto tokac_path = detect_tokac_path()
+        cmd#.push_str(tokac_path.as_str())
+        cmd#.push_str(" ")
+        auto default_lib = detect_default_lib_path()
+        cmd#.push_str("-I ")
+        cmd#.push_str(default_lib.as_str())
+        cmd#.push_str(" ")
         
-        auto is_windows# = false
-        auto os_env = libc_getenv(c"OS") as Addr
-        if os_env != 0:Addr {
-            auto os_str = string::from_cstr(os_env as *char)
-            if os_str == string::from("Windows_NT") {
-                is_windows = true
-            }
-        }
+        auto is_windows = check_is_windows()
         
         cmd#.push_str(file.as_str())
         if is_windows {
@@ -378,9 +467,9 @@ fn cmd_run_single(file: string) -> i32 {
             println("\x1b[1;31m       Error\x1b[0m executing {}", file)
         }
         if is_windows {
-            libc_system(c"del /f /q .toka_single_exe.exe")
+            remove_file(string::from(".toka_single_exe.exe"))
         } else {
-            libc_system(c"rm -f .toka_single_exe")
+            remove_file(string::from(".toka_single_exe"))
         }
         if res != 0 { return 1 }
         return 0
@@ -458,86 +547,107 @@ fn cmd_run(use_forge: bool) -> i32 {
 }
 
 fn cmd_test() -> i32 {
+    println("Running Toka tests...")
+    
+    auto default_lib = detect_default_lib_path()
+    auto script# = string::from("set -e\npassed=0\nfailed=0\n")
+    script#.push_str("if [ ! -d \"tests\" ]; then echo \"No tests directory found.\"; exit 0; fi\n")
+    script#.push_str("for test_file in $(find tests -name '*.tk'); do\n")
+    script#.push_str("  printf \"  \\x1b[1;36mTesting\\x1b[0m %s ... \" \"$test_file\"\n")
+    script#.push_str("  toka_lib_path=\"")
+    script#.push_str(default_lib.as_str())
+    script#.push_str("\"\n")
+    script#.push_str("  if tokac -I . -I \"$toka_lib_path\" \"$test_file\" -o .toka_test_exe > .toka_test_out 2>&1; then\n")
+    script#.push_str("      if ./.toka_test_exe >> .toka_test_out 2>&1; then\n")
+    script#.push_str("          printf \"\\x1b[1;32m[OK]\\x1b[0m\\n\"\n")
+    script#.push_str("          passed=$((passed+1))\n")
+    script#.push_str("      else\n")
+    script#.push_str("          printf \"\\x1b[1;31m[FAILED (Runtime)]\\x1b[0m\\n\"\n")
+    script#.push_str("          cat .toka_test_out\n")
+    script#.push_str("          failed=$((failed+1))\n")
+    script#.push_str("      fi\n")
+    script#.push_str("  else\n")
+    script#.push_str("      printf \"\\x1b[1;31m[FAILED (Compile)]\\x1b[0m\\n\"\n")
+    script#.push_str("      cat .toka_test_out\n")
+    script#.push_str("      failed=$((failed+1))\n")
+    script#.push_str("  fi\n")
+    script#.push_str("  rm -f .toka_test_exe .toka_test_out\n")
+    script#.push_str("done\n")
+    script#.push_str("printf \"\\n\\x1b[1mTest Results:\\x1b[0m \\x1b[1;32m%d passed\\x1b[0m, \\x1b[1;31m%d failed\\x1b[0m\\n\" \"$passed\" \"$failed\"\n")
+    script#.push_str("if [ \"$failed\" -gt 0 ]; then exit 1; fi\nexit 0\n")
+    
+    write_string(string::from(".toka_test_runner.sh"), script.as_str())
+    
     unsafe {
-        println("Running Toka tests...")
-        auto cmd# = string::from("cat << 'EOF' > .toka_test_runner.sh\nset -e\npassed=0\nfailed=0\n")
-        cmd#.push_str("if [ ! -d \"tests\" ]; then echo \"No tests directory found.\"; exit 0; fi\n")
-        cmd#.push_str("for test_file in $(find tests -name '*.tk'); do\n")
-        cmd#.push_str("  printf \"  \\x1b[1;36mTesting\\x1b[0m %s ... \" \"$test_file\"\n")
-        cmd#.push_str("  toka_lib_path=${TOKA_LIB:-/usr/local/lib/toka}\n")
-        cmd#.push_str("  if tokac -I . -I \"$toka_lib_path\" \"$test_file\" -o .toka_test_exe > .toka_test_out 2>&1; then\n")
-        cmd#.push_str("      if ./.toka_test_exe >> .toka_test_out 2>&1; then\n")
-        cmd#.push_str("          printf \"\\x1b[1;32m[OK]\\x1b[0m\\n\"\n")
-        cmd#.push_str("          passed=$((passed+1))\n")
-        cmd#.push_str("      else\n")
-        cmd#.push_str("          printf \"\\x1b[1;31m[FAILED (Runtime)]\\x1b[0m\\n\"\n")
-        cmd#.push_str("          cat .toka_test_out\n")
-        cmd#.push_str("          failed=$((failed+1))\n")
-        cmd#.push_str("      fi\n")
-        cmd#.push_str("  else\n")
-        cmd#.push_str("      printf \"\\x1b[1;31m[FAILED (Compile)]\\x1b[0m\\n\"\n")
-        cmd#.push_str("      cat .toka_test_out\n")
-        cmd#.push_str("      failed=$((failed+1))\n")
-        cmd#.push_str("  fi\n")
-        cmd#.push_str("  rm -f .toka_test_exe .toka_test_out\n")
-        cmd#.push_str("done\n")
-        cmd#.push_str("printf \"\\n\\x1b[1mTest Results:\\x1b[0m \\x1b[1;32m%d passed\\x1b[0m, \\x1b[1;31m%d failed\\x1b[0m\\n\" \"$passed\" \"$failed\"\n")
-        cmd#.push_str("if [ \"$failed\" -gt 0 ]; then exit 1; fi\nexit 0\n")
-        cmd#.push_str("EOF\n")
-        cmd#.push_str("bash .toka_test_runner.sh\nres=$?\nrm -f .toka_test_runner.sh\nexit $res")
+        auto res = libc_system(c"bash .toka_test_runner.sh")
+        if res != 0 && check_is_windows() {
+            println("\n\x1b[33m提示：在 Windows 原生命令行下，'toka test' 需要 Bash 环境（如 Git Bash 或 MSYS2）来调度测试执行。\x1b[0m")
+        }
         
-        auto res = libc_system(cmd.c_str())
-        if res != 0 { return 1 }
-        return 0
+        remove_file(string::from(".toka_test_runner.sh"))
+        return res
     }
 }
 
 fn cmd_doc() -> i32 {
+    println("Generating documentation...")
+    
+    auto script# = string::from("set -e\nmkdir -p docs\n")
+    script#.push_str("doc_file=\"docs/API.md\"\necho \"# API Documentation\" > \"$doc_file\"\necho \"Generated by \\`toka doc\\`\" >> \"$doc_file\"\necho \"\" >> \"$doc_file\"\n")
+    script#.push_str("find src lib -name '*.tk' 2>/dev/null | while read file; do\n")
+    script#.push_str("  awk '\n")
+    script#.push_str("    /^[[:space:]]*\\/\\/\\// {\n")
+    script#.push_str("      sub(/^[[:space:]]*\\/\\/\\/[[:space:]]?/, \"\");\n")
+    script#.push_str("      doc = doc $0 \"\\n\"\n")
+    script#.push_str("      next\n")
+    script#.push_str("    }\n")
+    script#.push_str("    /^[[:space:]]*pub fn/ || /^[[:space:]]*pub shape/ || /^[[:space:]]*pub const/ {\n")
+    script#.push_str("      if (doc != \"\") {\n")
+    script#.push_str("        sig = $0\n")
+    script#.push_str("        sub(/^[[:space:]]*/, \"\", sig)\n")
+    script#.push_str("        sub(/ \\{[[:space:]]*$/, \"\", sig)\n")
+    script#.push_str("        print \"### `\" sig \"`\\n\"\n")
+    script#.push_str("        print doc\n")
+    script#.push_str("        doc = \"\"\n")
+    script#.push_str("      }\n")
+    script#.push_str("      next\n")
+    script#.push_str("    }\n")
+    script#.push_str("    { doc = \"\" }\n")
+    script#.push_str("  ' \"$file\" > .tmp_doc\n")
+    script#.push_str("  if [ -s .tmp_doc ]; then\n")
+    script#.push_str("    echo \"## \\`$file\\`\" >> \"$doc_file\"\n")
+    script#.push_str("    echo \"\" >> \"$doc_file\"\n")
+    script#.push_str("    cat .tmp_doc >> \"$doc_file\"\n")
+    script#.push_str("    echo \"\" >> \"$doc_file\"\n")
+    script#.push_str("  fi\n")
+    script#.push_str("  rm -f .tmp_doc\n")
+    script#.push_str("done\n")
+    script#.push_str("echo \"Documentation generated at $doc_file\"\n")
+    
+    write_string(string::from(".toka_doc_generator.sh"), script.as_str())
+    
     unsafe {
-        println("Generating documentation...")
-        auto cmd# = string::from("cat << 'EOF' > .toka_doc_generator.sh\nset -e\nmkdir -p docs\n")
-        cmd#.push_str("doc_file=\"docs/API.md\"\necho \"# API Documentation\" > \"$doc_file\"\necho \"Generated by \\`toka doc\\`\" >> \"$doc_file\"\necho \"\" >> \"$doc_file\"\n")
-        cmd#.push_str("find src lib -name '*.tk' 2>/dev/null | while read file; do\n")
-        cmd#.push_str("  awk '\n")
-        cmd#.push_str("    /^[[:space:]]*\\/\\/\\// {\n")
-        cmd#.push_str("      sub(/^[[:space:]]*\\/\\/\\/[[:space:]]?/, \"\");\n")
-        cmd#.push_str("      doc = doc $0 \"\\n\"\n")
-        cmd#.push_str("      next\n")
-        cmd#.push_str("    }\n")
-        cmd#.push_str("    /^[[:space:]]*pub fn/ || /^[[:space:]]*pub shape/ || /^[[:space:]]*pub const/ {\n")
-        cmd#.push_str("      if (doc != \"\") {\n")
-        cmd#.push_str("        sig = $0\n")
-        cmd#.push_str("        sub(/^[[:space:]]*/, \"\", sig)\n")
-        cmd#.push_str("        sub(/ \\{[[:space:]]*$/, \"\", sig)\n")
-        cmd#.push_str("        print \"### `\" sig \"`\\n\"\n")
-        cmd#.push_str("        print doc\n")
-        cmd#.push_str("        doc = \"\"\n")
-        cmd#.push_str("      }\n")
-        cmd#.push_str("      next\n")
-        cmd#.push_str("    }\n")
-        cmd#.push_str("    { doc = \"\" }\n")
-        cmd#.push_str("  ' \"$file\" > .tmp_doc\n")
-        cmd#.push_str("  if [ -s .tmp_doc ]; then\n")
-        cmd#.push_str("    echo \"## \\`$file\\`\" >> \"$doc_file\"\n")
-        cmd#.push_str("    echo \"\" >> \"$doc_file\"\n")
-        cmd#.push_str("    cat .tmp_doc >> \"$doc_file\"\n")
-        cmd#.push_str("    echo \"\" >> \"$doc_file\"\n")
-        cmd#.push_str("  fi\n")
-        cmd#.push_str("  rm -f .tmp_doc\n")
-        cmd#.push_str("done\n")
-        cmd#.push_str("echo \"Documentation generated at $doc_file\"\n")
-        cmd#.push_str("EOF\n")
-        cmd#.push_str("bash .toka_doc_generator.sh\nres=$?\nrm -f .toka_doc_generator.sh\nexit $res")
+        auto res = libc_system(c"bash .toka_doc_generator.sh")
+        if res != 0 && check_is_windows() {
+            println("\n\x1b[33m提示：在 Windows 原生命令行下，'toka doc' 需要 Bash 环境（如 Git Bash 或 MSYS2）来调度文档生成。\x1b[0m")
+        }
         
-        auto res = libc_system(cmd.c_str())
-        if res != 0 { return 1 }
-        return 0
+        remove_file(string::from(".toka_doc_generator.sh"))
+        return res
     }
 }
 
 fn cmd_clean() -> i32 {
     unsafe {
-        libc_system(c"rm -rf target build .toka_build_exe .toka_single_exe .tokapkg")
+        if check_is_windows() {
+            libc_system(c"rmdir /s /q target build .tokapkg .toka 2>nul")
+            remove_file(string::from(".toka_build_exe.exe"))
+            remove_file(string::from(".toka_single_exe.exe"))
+            remove_file(string::from(".toka_test_exe.exe"))
+            remove_file(string::from(".toka_test_out"))
+        } else {
+            libc_system(c"rm -rf target build .toka_build_exe .toka_single_exe .tokapkg .toka")
+        }
         println("Cleaned build artifacts.")
         return 0
     }
@@ -546,10 +656,25 @@ fn cmd_clean() -> i32 {
 fn cmd_fmt() -> i32 {
     unsafe {
         println("Formatting project...")
-        auto res# = libc_system(c"tokafmt src/ lib/ tests/ Project.tk 2>/dev/null")
-        // Fallback to current directory if specific dirs fail or don't exist
+        auto tokafmt = detect_tokafmt_path()
+        auto is_windows = check_is_windows()
+        
+        auto cmd1# = tokafmt.clone()
+        if is_windows {
+            cmd1#.push_str(" src/ lib/ tests/ Project.tk 2>nul")
+        } else {
+            cmd1#.push_str(" src/ lib/ tests/ Project.tk 2>/dev/null")
+        }
+        
+        auto res# = libc_system(cmd1.c_str())
         if res != 0 {
-            res = libc_system(c"tokafmt . 2>/dev/null")
+            auto cmd2# = tokafmt.clone()
+            if is_windows {
+                cmd2#.push_str(" . 2>nul")
+            } else {
+                cmd2#.push_str(" . 2>/dev/null")
+            }
+            res = libc_system(cmd2.c_str())
         }
         if res == 0 {
             println("Format complete.")

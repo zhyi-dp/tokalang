@@ -38,8 +38,8 @@ run_worker() {
     test_path="$1"
     [ -e "$test_path" ] || exit 0
     
-    file_name=$(basename "$test_path")
-    safe_target=$(echo "$test_path" | tr '/' '_')
+    file_name="${test_path##*/}"
+    safe_target="${test_path//\//_}"
     out_dir="/tmp/tokac_tests"
     mkdir -p "$out_dir"
     exe_file="${out_dir}/${safe_target}.exe"
@@ -136,16 +136,26 @@ run_worker() {
     errors=()
     
     # Extract panic info
-    panic_log_line=$(grep "runtime error: Panic with" "$log_file" | head -n 1)
+    grep "runtime error: Panic with" "$log_file" | head -n 1 > "${log_file}.panic"
+    read -r panic_log_line < "${log_file}.panic"
+    rm -f "${log_file}.panic"
+
     if [ -n "$panic_log_line" ]; then
-        actual_line=$(echo "$panic_log_line" | grep -oE ":[0-9]+ runtime" | grep -oE "[0-9]+")
-        actual_msg=$(echo "$panic_log_line" | sed -n 's/.*Panic with "\(.*\)" \*\*\*/\1/p')
+        echo "$panic_log_line" | grep -oE ":[0-9]+ runtime" | grep -oE "[0-9]+" > "${log_file}.line"
+        read -r actual_line < "${log_file}.line"
+        rm -f "${log_file}.line"
+
+        echo "$panic_log_line" | sed -n 's/.*Panic with "\(.*\)" \*\*\*/\1/p' > "${log_file}.msg"
+        read -r actual_msg < "${log_file}.msg"
+        rm -f "${log_file}.msg"
     else
         actual_line=""
         actual_msg=""
     fi
     
-    all_expected_lines=$(grep -n "// EXPECT_PANIC" "$test_path" | cut -d: -f1 | tr '\n' ' ')
+    grep -n "// EXPECT_PANIC" "$test_path" | cut -d: -f1 | tr '\n' ' ' > "${log_file}.explines"
+    read -r all_expected_lines < "${log_file}.explines"
+    rm -f "${log_file}.explines"
 
     if [ $exit_code -eq 0 ]; then
         for exp_line in $all_expected_lines; do
@@ -161,11 +171,17 @@ run_worker() {
              done
              
              # Check crash location
-             crashed_source=$(sed "${actual_line}q;d" "$test_path")
+             sed "${actual_line}q;d" "$test_path" > "${log_file}.source"
+             read -r crashed_source < "${log_file}.source"
+             rm -f "${log_file}.source"
+
              if [[ "$crashed_source" == *"assert"* ]]; then
                  errors+=("${RED}$test_path:$actual_line: error: Assertion failed: \"$actual_msg\"${NC}")
              else
-                 is_exp=$(echo "$crashed_source" | grep "// EXPECT_PANIC")
+                 echo "$crashed_source" | grep "// EXPECT_PANIC" > "${log_file}.isexp"
+                 read -r is_exp < "${log_file}.isexp"
+                 rm -f "${log_file}.isexp"
+
                  if [ -z "$is_exp" ]; then
                      errors+=("${RED}$test_path:$actual_line: error: Unexpected panic: \"$actual_msg\"${NC}")
                  fi
@@ -227,14 +243,18 @@ if [ "$1" == "--worker" ]; then
 fi
 
 # Determine core count dynamically for CI and local optimizations
-if command -v nproc &> /dev/null; then
+if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" || "$OSTYPE" == "win32" ]]; then
+    CORES=4
+elif command -v nproc &> /dev/null; then
     CORES=$(nproc)
 else
     CORES=$(sysctl -n hw.ncpu)
 fi
 
 # Orchestrator
-cmake --build build --parallel $CORES > /dev/null || { echo "Compiler Build Failed"; exit 1; }
+if [ -d build ] && [ -f build/CMakeCache.txt ] && command -v cmake &> /dev/null; then
+    cmake --build build --parallel $CORES > /dev/null || { echo "Compiler Build Failed"; exit 1; }
+fi
 
 # Compile runtime objects dynamically for the local architecture
 SYSROOT_FLAGS=""
@@ -260,16 +280,27 @@ fi
 echo "Starting Toka 'PASS' Test Suite (Parallel: $CORES)..."
 echo "---------------------------------"
 
-RESULTS_FILE=$(mktemp)
+RESULTS_FILE="/tmp/tokac_res_${RANDOM}_$$.txt"
+
+if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" || "$OSTYPE" == "win32" ]]; then
+    SCRIPT_PATH="tools/scripts/test_pass.sh"
+else
+    SCRIPT_PATH=$(realpath "$0" 2>/dev/null || readlink -f "$0" 2>/dev/null || echo "./$0")
+fi
 
 # Run parallel tests based on available cores
-find tests/pass -name "*.tk" -print0 | xargs -0 -P $CORES -n 1 "$0" --worker | tee "$RESULTS_FILE"
+find tests/pass -name "*.tk" -print0 | xargs -0 -P $CORES -n 1 "$SCRIPT_PATH" --worker | tee "$RESULTS_FILE"
 
 # Stats
 # Strip ANSI codes for accurate counting
 # sed -r is GNU, sed -E is BSD/Mac. Use perl or simplified grep.
-pass_count=$(sed 's/\x1b\[[0-9;]*m//g' "$RESULTS_FILE" | grep -c "\[PASS")
-fail_count=$(sed 's/\x1b\[[0-9;]*m//g' "$RESULTS_FILE" | grep -c "\[FAIL")
+sed 's/\x1b\[[0-9;]*m//g' "$RESULTS_FILE" | grep -c "\[PASS" > "/tmp/tokac_pass_$$.txt"
+read pass_count < "/tmp/tokac_pass_$$.txt"
+rm -f "/tmp/tokac_pass_$$.txt"
+
+sed 's/\x1b\[[0-9;]*m//g' "$RESULTS_FILE" | grep -c "\[FAIL" > "/tmp/tokac_fail_$$.txt"
+read fail_count < "/tmp/tokac_fail_$$.txt"
+rm -f "/tmp/tokac_fail_$$.txt"
 
 echo "---------------------------------"
 

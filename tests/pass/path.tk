@@ -6,11 +6,11 @@ fn main() -> i32 {
     // 1. Test join
     auto joined = path::join(string::from("/usr/local"), string::from("bin/toka"))
     println("Joined: {}", joined)
-    if !joined.eq(string::from("/usr/local/bin/toka")) { return 1 }
+    if !joined.replace(92:char, 47:char).eq(string::from("/usr/local/bin/toka")) { return 1 }
     
     auto joined2 = path::join(string::from("/usr/"), string::from("bin/toka"))
     println("Joined2: {}", joined2)
-    if !joined2.eq(string::from("/usr/bin/toka")) { return 2 }
+    if !joined2.replace(92:char, 47:char).eq(string::from("/usr/bin/toka")) { return 2 }
     
     // 2. Test extension
     auto ext = path::extension(string::from("/usr/local/bin/toka"))

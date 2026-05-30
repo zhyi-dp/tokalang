@@ -3,10 +3,12 @@
 # tool/test_single.sh - Run a single Toka test case
 
 # Auto-Compile Compiler if needed
-make -C build -j8
-if [ $? -ne 0 ]; then
-    echo "Compiler Build Failed"
-    exit 1
+if [ -d build ] && [ -f build/Makefile ] && command -v make &> /dev/null; then
+    make -C build -j8
+    if [ $? -ne 0 ]; then
+        echo "Compiler Build Failed"
+        exit 1
+    fi
 fi
 
 if [ -z "$1" ]; then
@@ -22,8 +24,8 @@ if [ ! -f "$TK_FILE" ]; then
     exit 1
 fi
 
-BASE_NAME=$(basename "$TK_FILE")
-SAFE_TARGET=$(echo "$TK_FILE" | tr '/' '_')
+BASE_NAME="${TK_FILE##*/}"
+SAFE_TARGET="${TK_FILE//\//_}"
 OUT_DIR="/tmp/tokac_tests"
 mkdir -p "$OUT_DIR"
 EXE_FILE="${OUT_DIR}/${SAFE_TARGET}.exe"

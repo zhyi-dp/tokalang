@@ -171,7 +171,7 @@ pub fn run_build(proj: Executable) -> i32 {
         auto cmd1# = string::from("")
         if is_windows {
             if libc_access(c"build/bin/tokac.exe", 0) == 0 {
-                cmd1 = string::from("./build/bin/tokac.exe ")
+                cmd1 = string::from("build\\bin\\tokac.exe ")
             } else {
                 cmd1 = string::from("tokac ")
             }

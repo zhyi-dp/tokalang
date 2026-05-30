@@ -1,5 +1,6 @@
 import std/env
 import std/io::{File, print, println}
+import std/fs
 
 import src/lexer::{Lexer}
 import src/printer::{Printer}
@@ -527,10 +528,21 @@ fn main() -> i32 {
 
     auto target_file = env::get_arg(1)
     
+    // Gracefully ignore directory paths
+    if fs::exists(target_file.clone()) {
+        auto meta_res = fs::metadata(target_file.clone())
+        if meta_res.is_ok() {
+            auto meta = meta_res.unwrap()
+            if meta.is_dir() {
+                return 0
+            }
+        }
+    }
+    
     // Open file to read formatting
     auto file# = File::open(target_file.clone(), "r")
     if !file.is_valid() {
-        print("Error: Could not read file {}\n", target_file.c_str())
+        println("Error: Could not read file {}", target_file.as_str())
         return 1
     }
     auto content_res = file.read_to_string()

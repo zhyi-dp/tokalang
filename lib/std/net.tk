@@ -441,7 +441,7 @@ pub fn net_async_read(stream: TcpStream, *buf: u8, len: usize) -> async Result<u
                     ret = Result<usize, string>::Ok(n as usize)
                     done = true
                 } else {
-                    auto err = sys::get_last_error()
+                    auto err = sysnet::get_errno_impl()
                     auto eagain = sysnet::get_eagain_impl()
                     
                     if err == eagain {
@@ -477,7 +477,7 @@ pub fn net_async_accept(listener: TcpListener) -> async TcpStream {
                     ret = TcpStream(fd=client_fd, closed=false)
                     done = true
                 } else {
-                    auto err = sys::get_last_error()
+                    auto err = sysnet::get_errno_impl()
                     auto eagain = sysnet::get_eagain_impl()
                     
                     if err == eagain {
@@ -512,7 +512,7 @@ pub fn net_async_write(stream: TcpStream, *buf: u8, len: usize) -> async Result<
                     ret = Result<usize, string>::Ok(n as usize)
                     done = true
                 } else {
-                    auto err = sys::get_last_error()
+                    auto err = sysnet::get_errno_impl()
                     auto eagain = sysnet::get_eagain_impl()
                     
                     if err == eagain {

@@ -4,7 +4,7 @@
 
 import std/io::{File, println, remove_file}
 
-import sys/libc::{libc_system, libc_getenv}
+import sys/libc::{libc_system, libc_getenv, libc_access}
 import lib/build::{Executable, run_build}
 
 fn main() -> i32 {
@@ -51,19 +51,20 @@ fn main() -> i32 {
             is_windows = true
         }
     }
-
-    auto run_cmd# = string::from("")
-    if is_windows {
-        run_cmd = string::from("target\\debug\\temp_main ")
-        run_cmd#.push_char(62:char)
-        run_cmd#.push_str(" nul")
-    } else {
-        run_cmd = string::from("target/debug/temp_main ")
-        run_cmd#.push_char(62:char)
-        run_cmd#.push_str(" /dev/null")
+    if libc_access(c"build/bin/tokac.exe", 0) == 0 {
+        is_windows = true
     }
 
-    auto run_res = libc_system(run_cmd.c_str())
+    auto run_res# = 0
+    if is_windows {
+        run_res = libc_system(c"target\\debug\\temp_main > nul")
+        if run_res != 0 {
+            run_res = libc_system(c"target/debug/temp_main.exe > nul")
+        }
+    } else {
+        run_res = libc_system(c"target/debug/temp_main > /dev/null")
+    }
+
     if run_res != 0 {
         println("Hybrid executable execution failed with code: {}", run_res)
         remove_file(string::from("tests/pass/temp_shim.c"))

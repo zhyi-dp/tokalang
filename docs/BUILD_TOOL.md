@@ -14,6 +14,21 @@ Currently, the `toka` tool is built from source.
    ```
 3. (Optional) Add `build/toka` to your `PATH`.
 
+### Windows Prerequisites
+
+On Windows, the core compiler `tokac.exe` relies on the **LLVM/Clang backend infrastructure** to generate machine code. Therefore, before running `toka build` or `toka run` on a native Windows machine, you must set up the MSYS2 compiler environment:
+
+1. **Install MSYS2**:
+   - Download the installer from the [official MSYS2 website](https://www.msys2.org) and install it (typically to `C:\msys64`).
+2. **Install compiler toolchain**:
+   - Open the MSYS2 MinGW64 terminal and run the following command to install the required compiler tools:
+     ```bash
+     pacman -S --noconfirm mingw-w64-x86_64-clang mingw-w64-x86_64-llvm mingw-w64-x86_64-lld mingw-w64-x86_64-polly make
+     ```
+3. **Configure Environment Variables**:
+   - Add `C:\msys64\mingw64\bin` to your system `PATH` so `tokac.exe` can access the necessary LLVM DLLs (e.g. `libwinpthread-1.dll`, `libclang.dll`, etc.) and tools (`clang`, `lld`, `make`).
+   - If this environment variable is missing, running `tokac.exe` will fail with system error code `0xC0000135` (STATUS_DLL_NOT_FOUND).
+
 ## Commands
 
 ### `toka new <project_name>`
