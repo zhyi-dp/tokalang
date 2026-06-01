@@ -4,6 +4,15 @@
 # --- Configuration ---
 TOKAC="./build/bin/tokac"
 
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    # Add common Homebrew LLVM paths to PATH to support macOS Intel / Apple Silicon custom builds
+    for prefix in "$HOME/intel-brew/opt/llvm@20/bin" "$HOME/intel-brew/opt/llvm/bin" "/opt/homebrew/opt/llvm@20/bin" "/opt/homebrew/opt/llvm/bin" "/usr/local/opt/llvm@20/bin" "/usr/local/opt/llvm/bin"; do
+        if [ -d "$prefix" ]; then
+            export PATH="$prefix:$PATH"
+        fi
+    done
+fi
+
 # Autodetect compiler and tools
 if command -v clang++-20 &> /dev/null; then
     CLANGXX="clang++-20"
@@ -52,6 +61,14 @@ fi
 SYSROOT_FLAGS=""
 if [[ "$OSTYPE" == "darwin"* ]]; then
     SYSROOT_FLAGS="-isysroot $(xcrun --show-sdk-path)"
+    if [ -f "$TOKAC" ]; then
+        FILE_INFO=$(file "$TOKAC" 2>/dev/null)
+        if [[ "$FILE_INFO" == *"x86_64"* ]]; then
+            SYSROOT_FLAGS="$SYSROOT_FLAGS -arch x86_64"
+        elif [[ "$FILE_INFO" == *"arm64"* ]]; then
+            SYSROOT_FLAGS="$SYSROOT_FLAGS -arch arm64"
+        fi
+    fi
 fi
 
 if command -v clang-20 &> /dev/null; then

@@ -71,6 +71,7 @@ jobs:
             mingw-w64-x86_64-llvm
             mingw-w64-x86_64-lld
             mingw-w64-x86_64-polly
+            mingw-w64-x86_64-python
             make
 
       - name: Build Toka (macOS/Linux)
@@ -114,7 +115,7 @@ jobs:
           fi
           
           # Run full testing suite to verify compiler integrity (Native execution)
-          bash ./tools/scripts/test_pass.sh || true
+          python3 tools/scripts/test_pass.py || true
           cd build
           
           if [ "${{ matrix.name }}" = "macos-x64" ]; then
@@ -156,7 +157,7 @@ jobs:
           set +x
           
           # Run full testing suite to verify compiler integrity (Native execution)
-          bash ./tools/scripts/test_pass.sh || true
+          python3 tools/scripts/test_pass.py || true
           cd build
 
           cat << 'C_EOF' > test_abort.c

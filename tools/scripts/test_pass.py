@@ -50,14 +50,32 @@ def get_cores():
     return 4
 
 def find_compiler_tool(name, default):
+    candidates = [name + "-20", name]
+    if sys.platform == "darwin":
+        home = os.environ.get("HOME", "")
+        prefixes = [
+            os.path.join(home, "intel-brew/opt/llvm@20/bin"),
+            os.path.join(home, "intel-brew/opt/llvm/bin"),
+            "/opt/homebrew/opt/llvm@20/bin",
+            "/opt/homebrew/opt/llvm/bin",
+            "/usr/local/opt/llvm@20/bin",
+            "/usr/local/opt/llvm/bin",
+        ]
+        for prefix in prefixes:
+            for cand in candidates:
+                full_path = os.path.join(prefix, cand)
+                if os.path.exists(full_path) and os.access(full_path, os.X_OK):
+                    return full_path
+
     # Try finding version 20 first, then standard, then default
-    for candidate in [name + "-20", name]:
+    for candidate in candidates:
         if shutil.which(candidate):
             return candidate
     return default
 
 def get_llvm_flags(llvm_config):
-    if not shutil.which(llvm_config):
+    # shutil.which might fail on absolute paths, so we use os.path.exists for absolute path llvm-config
+    if not (os.path.isabs(llvm_config) and os.path.exists(llvm_config)) and not shutil.which(llvm_config):
         return "", ""
     try:
         # Get cxxflags
@@ -73,11 +91,21 @@ def get_llvm_flags(llvm_config):
 
 def get_sysroot_flags():
     if sys.platform == "darwin":
+        flags = []
         try:
             sdk_path = subprocess.check_output(["xcrun", "--show-sdk-path"], universal_newlines=True).strip()
-            return "-isysroot " + sdk_path
+            flags.append("-isysroot " + sdk_path)
         except Exception:
             pass
+        try:
+            out = subprocess.check_output(["file", TOKAC], universal_newlines=True)
+            if "x86_64" in out:
+                flags.append("-arch x86_64")
+            elif "arm64" in out:
+                flags.append("-arch arm64")
+        except Exception:
+            pass
+        return " ".join(flags)
     return ""
 
 def rebuild_runtime(clang, clangxx, sysroot, cxxflags):
