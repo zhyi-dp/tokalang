@@ -51,6 +51,27 @@ else
     LLVM_CONFIG="llvm-config"
 fi
 
+# Pre-read LLVM flags to avoid subshell forks in workers (critical for Windows MSYS2 stability under SSH)
+LLVM_CPPFLAGS=""
+LLVM_LDFLAGS_LIBS=""
+if command -v "$LLVM_CONFIG" &> /dev/null; then
+    "$LLVM_CONFIG" --cxxflags > .tokac_cppflags_$$.txt 2>/dev/null
+    if [[ "$OSTYPE" == "msys"* || "$OSTYPE" == "cygwin"* || "$OSTYPE" == "win32"* ]]; then
+        read -r LLVM_CPPFLAGS < .tokac_cppflags_$$.txt
+    else
+        LLVM_CPPFLAGS=$(cat .tokac_cppflags_$$.txt | tr '\n' ' ')
+    fi
+    rm -f .tokac_cppflags_$$.txt
+
+    "$LLVM_CONFIG" --ldflags --libs > .tokac_ldflags_$$.txt 2>/dev/null
+    if [[ "$OSTYPE" == "msys"* || "$OSTYPE" == "cygwin"* || "$OSTYPE" == "win32"* ]]; then
+        read -r LLVM_LDFLAGS_LIBS < .tokac_ldflags_$$.txt
+    else
+        LLVM_LDFLAGS_LIBS=$(cat .tokac_ldflags_$$.txt | tr '\n' ' ')
+    fi
+    rm -f .tokac_ldflags_$$.txt
+fi
+
 EXTRA_LIBS=""
 if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" || "$OSTYPE" == "win32" ]]; then
     EXTRA_LIBS="-lws2_32"
@@ -70,12 +91,15 @@ else
     CLANG="clang"
 fi
 
-if [ ! -f lib/sys/toka_rt.o ]; then
-    "$CLANG" $SYSROOT_FLAGS -c lib/sys/toka_rt.c -o lib/sys/toka_rt.o || { echo "Failed to compile toka_rt.c"; exit 1; }
+rm -f lib/sys/toka_rt.o
+"$CLANG" $SYSROOT_FLAGS -c lib/sys/toka_rt.c -o lib/sys/toka_rt.o || { echo "Failed to compile toka_rt.c"; exit 1; }
+
+rm -f lib/sys/llvm_shim.o
+SHIM_CXXFLAGS="$LLVM_CPPFLAGS"
+if [[ "$OSTYPE" == "msys"* || "$OSTYPE" == "cygwin"* || "$OSTYPE" == "win32"* ]]; then
+    SHIM_CXXFLAGS="$SHIM_CXXFLAGS -DLLVM_SHARED_LIBS"
 fi
-if [ ! -f lib/sys/llvm_shim.o ]; then
-    "$CLANGXX" $SYSROOT_FLAGS -O3 -c lib/sys/llvm_shim.cpp -o lib/sys/llvm_shim.o $($LLVM_CONFIG --cppflags) || { echo "Failed to compile llvm_shim.cpp"; exit 1; }
-fi
+"$CLANGXX" $SYSROOT_FLAGS -O3 -c lib/sys/llvm_shim.cpp -o lib/sys/llvm_shim.o $SHIM_CXXFLAGS || { echo "Failed to compile llvm_shim.cpp"; exit 1; }
 
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -95,7 +119,7 @@ if [ "$BASE_NAME" = "llvm_shim_test.tk" ] || [ "$BASE_NAME" = "llvm_backend_inst
         rm -f "$LOG_FILE" "$EXE_FILE" "$tmp_obj"
         exit 1
     fi
-    if ! "$CLANGXX" "$tmp_obj" lib/sys/llvm_shim.o lib/sys/toka_rt.o $($LLVM_CONFIG --ldflags --libs) $EXTRA_LIBS -o "$EXE_FILE" >> "$LOG_FILE" 2>&1; then
+    if ! "$CLANGXX" $SYSROOT_FLAGS "$tmp_obj" lib/sys/llvm_shim.o lib/sys/toka_rt.o $LLVM_LDFLAGS_LIBS $EXTRA_LIBS -o "$EXE_FILE" >> "$LOG_FILE" 2>&1; then
         echo -e "  - ${RED}Linking FAILED${NC}"
         echo "  - Error Log:"
         cat "$LOG_FILE"
